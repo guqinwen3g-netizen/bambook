@@ -38,6 +38,7 @@ import {
   Download,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { checkFabricExclusivity, type FabricExclusivityViolation } from '../services/fabricExclusivityClient';
 import BottomSheet from './ui/BottomSheet';
 import { bdsConfirm } from './ui/BdsDialog';
 import { bdsToast } from './ui/bdsToast';
@@ -254,6 +255,20 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [fabricSearching, setFabricSearching] = useState<Record<string, boolean>>({});
   const [selectedFabrics, setSelectedFabrics] = useState<Record<string, ProductAsset>>({});
   const fabricSearchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // ── P1-3 客户专属面料行级即时警示（宽语义预检；仅提示不放行，提交由后端 fail-closed 兜底；
+  //    API 不通时静默降级，不阻塞录入、不打扰用户）──
+  const [fabricViolations, setFabricViolations] = useState<Record<string, FabricExclusivityViolation[]>>({});
+  const fabricExclTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const fabricExclSeqRef = useRef<Record<string, number>>({});
+  const formCustomerRef = useRef({ relationId: '', name: '' });
+  useEffect(() => {
+    formCustomerRef.current = { relationId: form.customerRelationId, name: form.customerName };
+  }, [form.customerRelationId, form.customerName]);
+  useEffect(() => {
+    const timers = fabricExclTimersRef.current;
+    return () => { Object.values(timers).forEach((t) => clearTimeout(t)); };
+  }, []);
 
   // ── 拉取数据 ──
   const fetchQuotations = useCallback(async () => {
@@ -524,6 +539,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         salesperson: '', inquiryRef: '', notes: '',
       });
       setFormLines([createEmptyLine()]);
+      setFabricViolations({});
       setTrackAMedian(null);
       setTrackBResult(null);
       await fetchQuotations();
@@ -534,12 +550,63 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     }
   }, [form, formLines, trackAMedian, trackBResult, fetchQuotations]);
 
+  // ── P1-3 行面料即时预检：fabricCode 宽键（sku/厂号/品色号/客供品号并集解析，端点固定
+  // clientCodeGlobalFallback=false），与后端 quotation create/rebuild 触发面一致；
+  // productAssetId 直锚优先（选中档案面料时传入）。客户信息经 ref 读取，避免闭包陈旧 ──
+  const clearFabricViolation = useCallback((lineKey: string) => {
+    fabricExclSeqRef.current[lineKey] = (fabricExclSeqRef.current[lineKey] ?? 0) + 1;
+    if (fabricExclTimersRef.current[lineKey]) {
+      clearTimeout(fabricExclTimersRef.current[lineKey]);
+      delete fabricExclTimersRef.current[lineKey];
+    }
+    setFabricViolations((prev) => {
+      if (!prev[lineKey]) return prev;
+      const next = { ...prev };
+      delete next[lineKey];
+      return next;
+    });
+  }, []);
+
+  const scheduleFabricExclusivityCheck = useCallback((lineKey: string, fabricCode: string, productAssetId?: string | null) => {
+    if (fabricExclTimersRef.current[lineKey]) clearTimeout(fabricExclTimersRef.current[lineKey]);
+    const code = (fabricCode || '').trim();
+    // 无产品锚不警示（字段空不能卡业务，与后端「无产品锚不阻断」语义一致）
+    if (!code && !productAssetId) {
+      clearFabricViolation(lineKey);
+      return;
+    }
+    fabricExclSeqRef.current[lineKey] = (fabricExclSeqRef.current[lineKey] ?? 0) + 1;
+    const seq = fabricExclSeqRef.current[lineKey];
+    fabricExclTimersRef.current[lineKey] = setTimeout(() => {
+      checkFabricExclusivity({
+        productAssetId: productAssetId ?? null,
+        fabricCode: code || null,
+        customerRelationId: formCustomerRef.current.relationId || null,
+        customerName: formCustomerRef.current.name || null,
+      })
+        .then((result) => {
+          if (seq !== fabricExclSeqRef.current[lineKey]) return; // 竞态守卫：删行/新一轮输入已作废旧回包
+          setFabricViolations((prev) => ({ ...prev, [lineKey]: result.allowed ? [] : result.violations }));
+        })
+        .catch(() => {
+          if (seq !== fabricExclSeqRef.current[lineKey]) return;
+          setFabricViolations((prev) => ({ ...prev, [lineKey]: [] })); // 预检失败静默降级
+        });
+    }, 450);
+  }, [clearFabricViolation]);
+
   const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
     setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
-    if (field === 'fabricCode') searchFabricsForLine(key, value);
+    if (field === 'fabricCode') {
+      searchFabricsForLine(key, value);
+      scheduleFabricExclusivityCheck(key, value);
+    }
   };
   const addFormLine = () => setFormLines(prev => [...prev, createEmptyLine()]);
-  const removeFormLine = (key: string) => setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
+  const removeFormLine = (key: string) => {
+    clearFabricViolation(key);
+    setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
+  };
 
   // ── REQ2-12 行图片上传（DR-053-① 手动通道：色卡图/实拍 → uploads/quotations/） ──
   const [lineImageUploading, setLineImageUploading] = useState<string | null>(null);
@@ -606,7 +673,9 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         imageUrl: l.imageUrl || product.imageUrl || '',
       };
     }));
-  }, []);
+    // P1-3：选中档案面料 → 带产品直锚预检（比宽键更准）
+    scheduleFabricExclusivityCheck(lineKey, product.sku || '', product.id);
+  }, [scheduleFabricExclusivityCheck]);
 
   // ── F4：历史价参考与偏差计算（PRD 19.5：偏离 >15% 黄标提示触发审批）──
   const latestPriceOf = useCallback((product: ProductAsset | undefined, type: string): FabricPriceHistory | undefined => {
@@ -857,6 +926,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                           <div className="mt-1 text-right text-xs" style={{ color: 'var(--text-tertiary)' }}>
                             金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
                           </div>
+                          {/* P1-3 客户专属面料行级警示：提前提示，不拦截输入；提交仍由后端 fail-closed 兜底 */}
+                          {(fabricViolations[line.key]?.length ?? 0) > 0 && (
+                            <div role="alert" className="mt-2 flex items-start gap-2 rounded-inset px-2.5 py-1.5 text-xs leading-relaxed" style={{ background: 'var(--danger-tint)', color: 'var(--danger-text)' }}>
+                              <AlertTriangle size={14} strokeWidth={1.75} className="mt-0.5 shrink-0" />
+                              <span>
+                                {(fabricViolations[line.key] ?? []).map((v, i) => (
+                                  <span key={`${v.productAssetId}-${i}`}>
+                                    {i > 0 && '；'}
+                                    {`面料「${v.productName || v.sku || v.clientCode || v.productAssetId}」为客户「${v.ownerCustomerName || '未知属主'}」出资开发的专属面料`}
+                                  </span>
+                                ))}
+                                ；当前报价客户「{form.customerName || '—'}」无权使用，提交报价单时将被系统拦截。如确需使用请走属主客户授权变更。
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

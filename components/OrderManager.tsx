@@ -25,6 +25,7 @@ import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
 import { saveParsedOrders, updateOrderFields } from '../services/importService';
 import { createOrderLine, updateOrderLineFields } from '../services/orderLineService';
+import { checkFabricExclusivity, type FabricExclusivityViolation } from '../services/fabricExclusivityClient';
 import { consumeCrossModuleNav, matchesProductAnchor } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import OrderClusterBlock from './order/OrderClusterBlock';
@@ -299,6 +300,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [selectedLineItem, setSelectedLineItem] = useState<OrderLineItem | null>(null);
   const [editLineForm, setEditLineForm] = useState<Partial<OrderLineItem> | null>(null);
+  // ── P1-3 客户专属面料行级即时警示（仅提示不放行；提交仍由后端 fail-closed 兜底；API 失败静默降级）──
+  const [editLineFabricViolations, setEditLineFabricViolations] = useState<FabricExclusivityViolation[] | null>(null);
+  const editLineFabricTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editLineFabricSeqRef = useRef(0);
+  useEffect(() => () => {
+    if (editLineFabricTimerRef.current) clearTimeout(editLineFabricTimerRef.current);
+  }, []);
   // REQ2-03：行保存（shipmentQuantity/tolerancePercent 变更）后自增，驱动溢短装视图重取
   const [toleranceRefreshKey, setToleranceRefreshKey] = useState(0);
   const [statusTimeline, setStatusTimeline] = useState<OrderStatusTransition[]>([]);
@@ -636,6 +644,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const handleOrderClick = async (order: Order) => {
     setSelectedLineItem(null);
     setEditLineForm(null);
+    clearEditLineFabricWarning();
     onSelectOrder(order);
     setIsEditing(false);
     setEditForm({ ...order });
@@ -698,9 +707,52 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     return next;
   };
 
+  // ── P1-3 行面料即时预检：产品锚 = 客供品号(materialCode)/工厂品色号(millQuality)，触发面与
+  // 后端 order-line:create/update 一致；宽语义（clientCodeGlobalFallback=false，预检端点固定），
+  // 差异漏报场景由提交时后端 assertFabricAllowed fail-closed 兜底 ──
+  const clearEditLineFabricWarning = () => {
+    editLineFabricSeqRef.current += 1;
+    if (editLineFabricTimerRef.current) {
+      clearTimeout(editLineFabricTimerRef.current);
+      editLineFabricTimerRef.current = null;
+    }
+    setEditLineFabricViolations(null);
+  };
+
+  const scheduleEditLineFabricCheck = (nextLine: { materialCode?: unknown; millQuality?: unknown }) => {
+    if (editLineFabricTimerRef.current) clearTimeout(editLineFabricTimerRef.current);
+    const materialCode = typeof nextLine.materialCode === 'string' ? nextLine.materialCode.trim() : '';
+    const millQuality = typeof nextLine.millQuality === 'string' ? nextLine.millQuality.trim() : '';
+    // 无产品锚不警示（字段空不能卡业务，与后端「无产品锚不阻断」语义一致）
+    if (!materialCode && !millQuality) {
+      setEditLineFabricViolations(null);
+      return;
+    }
+    editLineFabricSeqRef.current += 1;
+    const seq = editLineFabricSeqRef.current;
+    const docCustomer = ((isEditing && editForm) || selectedOrder) as Partial<Order> | null;
+    editLineFabricTimerRef.current = setTimeout(() => {
+      checkFabricExclusivity({
+        clientCode: materialCode || null,
+        millQuality: millQuality || null,
+        customerRelationId: docCustomer?.customerRelationId ?? null,
+        customerName: docCustomer?.customer ?? null,
+      })
+        .then((result) => {
+          if (seq !== editLineFabricSeqRef.current) return; // 竞态守卫：切行/新一轮输入已作废旧回包
+          setEditLineFabricViolations(result.allowed ? null : result.violations);
+        })
+        .catch(() => {
+          if (seq !== editLineFabricSeqRef.current) return;
+          setEditLineFabricViolations(null); // 预检失败静默降级：API 不通时不阻塞录入、不打扰用户
+        });
+    }, 500);
+  };
+
   const handleLineClick = (item: OrderLineItem) => {
     setSelectedLineItem(item);
     setEditLineForm({ ...item });
+    clearEditLineFabricWarning();
     onSelectOrder(item.order);
     setIsEditing(false);
     setEditForm({ ...item.order });
@@ -1497,7 +1549,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <div className="pointer-events-auto relative flex items-center gap-2">
                 {/* P2-004：显式「返回列表」入口（原裸 X 图标按钮可发现性差，验收判为无返回入口） */}
                 <button
-                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
+                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); clearEditLineFabricWarning(); setIsEditing(false); setEditForm(null); }}
                   className="bds-btn bds-btn-ghost"
                 >
                   <ArrowLeft size={14} strokeWidth={1.5} />返回列表
@@ -1513,7 +1565,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   </button>
                 )}
                 <button
-                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
+                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); clearEditLineFabricWarning(); setIsEditing(false); setEditForm(null); }}
                   className="bds-btn bds-btn-ghost bds-btn-icon"
                   title="关闭详情"
                 >
@@ -1957,7 +2009,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     inputMode={isTolerance ? 'decimal' : undefined}
                     placeholder={isTolerance ? '如 5' : undefined}
                     value={String(value)}
-                    onChange={(event) => setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: ['quantity', 'unitPrice', 'netValue', 'tolerancePercent'].includes(key) ? Number(event.target.value) : event.target.value }))}
+                    onChange={(event) => {
+                      const numericKey = ['quantity', 'unitPrice', 'netValue', 'tolerancePercent'].includes(key);
+                      const nextValue = numericKey ? Number(event.target.value) : event.target.value;
+                      setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: nextValue }));
+                      // P1-3：客供品号/工厂品色号即产品锚，变更即 debounce 预检（合成另一锚当前值一起校验）
+                      if (key === 'materialCode' || key === 'millQuality') {
+                        scheduleEditLineFabricCheck({
+                          materialCode: key === 'materialCode' ? nextValue : (editLineForm as any)?.materialCode,
+                          millQuality: key === 'millQuality' ? nextValue : (editLineForm as any)?.millQuality,
+                        });
+                      }
+                    }}
                   />
                 ) : (
                   <div className={`min-h-6 truncate rounded-inset px-2.5 py-1 ${isEmpty ? FIELD_SLOT_EMPTY_CLASS : FIELD_SLOT_FILLED_CLASS}`}>
@@ -1968,6 +2031,21 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             );
           })}
                         </div>
+                        {/* P1-3 客户专属面料行级警示：提前提示，不拦截输入；提交仍由后端 fail-closed 兜底 */}
+                        {isEditing && editLineFabricViolations && editLineFabricViolations.length > 0 && (
+                          <div role="alert" className="mt-3 flex items-start gap-2 rounded-inset px-3 py-2 text-xs leading-relaxed" style={{ background: 'var(--danger-tint)', color: 'var(--danger-text)' }}>
+                            <AlertTriangle size={14} strokeWidth={1.75} className="mt-0.5 shrink-0" />
+                            <span>
+                              {editLineFabricViolations.map((v, i) => (
+                                <span key={`${v.productAssetId}-${i}`}>
+                                  {i > 0 && '；'}
+                                  {`面料「${v.productName || v.sku || v.clientCode || v.productAssetId}」为客户「${v.ownerCustomerName || '未知属主'}」出资开发的专属面料`}
+                                </span>
+                              ))}
+                              ；当前订单客户「{String(((isEditing && editForm ? editForm : selectedOrder))?.customer ?? '—')}」无权使用，保存提交时将被系统拦截。如确需使用请走属主客户授权变更。
+                            </span>
+                          </div>
+                        )}
                       </CompiledSurfacePanel>
                     )}
 
@@ -2016,6 +2094,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           orderLine={isEditing && editLineForm ? editLineForm : selectedOrder?.lines?.[0]}
                           onLineChange={isEditing ? (patch) => {
                             setEditLineForm((prev) => ({ ...(prev ?? selectedOrder?.lines?.[0] ?? {}), ...patch } as Partial<OrderLineItem>));
+                            // P1-3：line 字段簇若触碰产品锚同样触发即时预检
+                            if ('materialCode' in patch || 'millQuality' in patch) {
+                              const prevLine = ((isEditing && editLineForm) || selectedOrder?.lines?.[0]) as Partial<OrderLineLite> | undefined;
+                              scheduleEditLineFabricCheck({
+                                materialCode: 'materialCode' in patch ? patch.materialCode : prevLine?.materialCode,
+                                millQuality: 'millQuality' in patch ? patch.millQuality : prevLine?.millQuality,
+                              });
+                            }
                           } : undefined}
                         />
                       ))}
