@@ -198,7 +198,7 @@ export function registerL8AutoStockIn(): void {
             referenceId: receiptId,
             movementDate,
             notes: `L8 联动自动入库，采购行：${description}`,
-          }, event.actorId || 'agent:auto');
+          }, event.actorId || 'system');
 
           createdMovements.push(movement.id);
         }

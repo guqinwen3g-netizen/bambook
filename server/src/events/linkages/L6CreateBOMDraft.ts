@@ -138,7 +138,7 @@ export function registerL6CreateBOMDraft(): void {
             : `L6 联动自动生成（无匹配模板），订单产品：${productName}`,
           lines,
           costEstimates,
-        }, event.actorId || 'agent:auto');
+        }, event.actorId || 'system');
 
         logger.info('[L6] BOM draft created', {
           orderId,

@@ -81,7 +81,7 @@ export function registerL2CreateShipment(): void {
             customerName: order.customer,
             customerRelationId: order.customerRelationId,
           },
-          actorId: 'agent:auto',
+          actorId: 'system',
           auditSource: 'agent:linkage:L2',
           auditOperation: 'auto_create_shipment_draft',
           syncSource: 'agent:linkage:L2',

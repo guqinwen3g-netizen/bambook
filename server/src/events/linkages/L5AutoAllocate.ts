@@ -153,7 +153,7 @@ export function registerL5AutoAllocate(): void {
             appliedAmount: allocateAmount.toString(),
             appliedDate: today,
           },
-          actorId: 'agent:auto',
+          actorId: 'system',
         });
 
         if (!result.ok) {

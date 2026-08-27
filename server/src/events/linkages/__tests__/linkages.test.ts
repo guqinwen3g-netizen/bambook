@@ -162,7 +162,7 @@ describe('Linkage Handlers', () => {
       expect(callArg.input.orderId).toBe('ord_1');
       expect(callArg.input.status).toBe('Draft');
       expect(callArg.input.type).toBe('Export');
-      expect(callArg.actorId).toBe('agent:auto');
+      expect(callArg.actorId).toBe('system');
     });
 
     it('skips when shipment already exists for order', async () => {
@@ -319,7 +319,7 @@ describe('Linkage Handlers', () => {
       expect(callArg.input.invoiceId).toBe('inv_1');
       expect(callArg.input.voucherId).toBe('voc_1');
       expect(callArg.input.appliedAmount).toBe('3000'); // Prisma.Decimal 规范化去尾零
-      expect(callArg.actorId).toBe('agent:auto');
+      expect(callArg.actorId).toBe('system');
     });
 
     it('skips non-Receipt type vouchers', async () => {

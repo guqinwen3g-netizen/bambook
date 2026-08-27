@@ -102,7 +102,7 @@ export function registerL7CreateProcurement(): void {
           orderId: bom.orderId ?? undefined,
           notes: `由 BOM ${bom.bomNumber} 确认后自动生成（L7 联动）`,
           lines: purchaseLines,
-        }, event.actorId || 'agent:auto');
+        }, event.actorId || 'system');
 
         logger.info('[L7] purchase order draft created from BOM', {
           bomId, bomNumber: bom.bomNumber,

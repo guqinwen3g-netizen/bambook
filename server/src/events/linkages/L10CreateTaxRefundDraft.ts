@@ -41,7 +41,7 @@ export function registerL10CreateTaxRefundDraft(): void {
 
       try {
         const customsService = createCustomsService(prisma);
-        const refund = await customsService.createTaxRefundFromDeclaration(declarationId, event.actorId || 'agent:auto');
+        const refund = await customsService.createTaxRefundFromDeclaration(declarationId, event.actorId || 'system');
 
         logger.info('[L10] tax refund draft auto-created from customs clearance', {
           declarationId,

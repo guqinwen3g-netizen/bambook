@@ -43,7 +43,7 @@ export function registerL9ConvertQuotationToOrder(): void {
       try {
         // 复用统一建单服务（内部已做幂等 + 状态校验 + 审计）
         const quotationService = createQuotationService(prisma);
-        const result = await quotationService.convertToOrder(quotationId, event.actorId || 'agent:auto');
+        const result = await quotationService.convertToOrder(quotationId, event.actorId || 'system');
 
         logger.info('[L9] order draft auto-created from quotation', {
           quotationId,

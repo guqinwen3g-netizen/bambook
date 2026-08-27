@@ -167,6 +167,11 @@ class BusinessEventBus {
    * 必须在业务事务提交后调用，避免发布未提交的脏事件。
    */
   async publish<T extends Record<string, unknown>>(event: BusinessEvent<T>): Promise<void> {
+    // 落地前兜底：部分域服务以 `as any` 构造事件直传 bus（缺 id/occurredAt），
+    // 裸传会撞 AgentJob.id 非空约束 → 事件静默丢失（崩溃恢复链断裂）。
+    // 总线作为唯一入口补齐缺省字段，保证「publish 永不抛错 + 必持久化」不变量。
+    if (!event.id) event.id = generateEventId(event.type);
+    if (!event.occurredAt) event.occurredAt = Date.now();
     // 1. 持久化（best-effort，永不抛错）
     if (this.prisma) {
       try {

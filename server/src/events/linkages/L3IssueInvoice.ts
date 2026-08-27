@@ -103,7 +103,7 @@ export function registerL3IssueInvoice(): void {
             customerRelationId: order.customerRelationId,
             notes: `由发货单 ${event.payload?.shipmentNumber ?? shipmentId} 交付自动生成`,
           },
-          actorId: 'agent:auto',
+          actorId: 'system',
         });
 
         if (!result.ok) {
