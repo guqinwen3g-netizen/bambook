@@ -39,7 +39,11 @@ export const voucherCategoryLabel = (category?: string | null): string =>
 export type PaymentVoucherWithCategory = PaymentVoucher & { voucherCategory?: VoucherCategory };
 
 /** 创建/编辑输入允许携带 voucherCategory（后端 schema default('normal') 兜底） */
-export type PaymentVoucherMutationInput = Partial<PaymentVoucher> & { voucherCategory?: VoucherCategory };
+export type PaymentVoucherMutationInput = Partial<PaymentVoucher> & {
+  voucherCategory?: VoucherCategory;
+  /** DR-017 先申请后付款：Disbursement 必须关联审批通过的 PaymentRequest（后端门禁 PAYMENT_REQUEST_REQUIRED fail-closed） */
+  paymentRequestId?: string;
+};
 
 type PaymentVoucherListParams = {
   type?: VoucherType;

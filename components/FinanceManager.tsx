@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { paymentVoucherService, VOUCHER_CATEGORIES, VOUCHER_CATEGORY_LABELS, voucherCategoryLabel, type PaymentVoucherWithCategory, type VoucherCategory } from '../services/paymentVoucherService';
+import { paymentRequestService, type PaymentRequest } from '../services/paymentRequestService';
 import { invoiceService } from '../services/invoiceService';
 import { allocationService } from '../services/allocationService';
 import { fxSettlementService } from '../services/fxSettlementService';
@@ -13,6 +14,9 @@ import { CashCalendarPanel } from './finance/CashCalendarPanel';
 import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
 import { FinanceCreditPanel } from './finance/FinanceCreditPanel';
 import { ReconciliationPanel } from './finance/ReconciliationPanel';
+import DunningStageBoardPanel from './finance/DunningStageBoardPanel';
+import DunningSheet from './finance/DunningSheet';
+import MonthlyCloseSection from './finance/MonthlyCloseSection';
 import { View } from '../types';
 import type {
   Invoice as InvoiceEntity,
@@ -35,6 +39,7 @@ import type {
   Order as OrderEntity,
   TradeDocument,
   TradeDocumentStatus,
+  DunningStage,
 } from '../types';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { PageHeader } from './ui/PageHeader';
@@ -95,7 +100,7 @@ const clearFinanceInvoicePrime = () => {
   }
 };
 
-type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'cashCalendar' | 'reports' | 'reconciliation';
+type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'cashCalendar' | 'reports' | 'reconciliation' | 'collections';
 
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
 export type { FinanceTabId };
@@ -211,6 +216,7 @@ const FINANCE_TABS: Array<{ id: FinanceTabId; label: string; icon: typeof FileTe
   { id: 'cashCalendar', label: '资金日历', icon: CalendarClock },
   { id: 'reports', label: '报表', icon: BarChart3 },
   { id: 'reconciliation', label: '对账', icon: GitCompareArrows },
+  { id: 'collections', label: '催款月结', icon: Send },
 ];
 
 const TABLE_GRID_CLASS =
@@ -306,6 +312,8 @@ type KpiCard = {
   label: string;
   primary: string;
   secondary: string;
+  /** I2 折人民币合计行（多币种/外币时显示；纯人民币或空聚合不显示） */
+  tertiary?: string;
 };
 
 const KpiCard: React.FC<{ card: KpiCard }> = ({ card }) => (
@@ -313,11 +321,14 @@ const KpiCard: React.FC<{ card: KpiCard }> = ({ card }) => (
     <div className="text-[10px] font-light tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>{card.label}</div>
     <div className="bds-tnum mt-2 text-lg font-light" style={{ color: 'var(--text-primary)' }}>{card.primary}</div>
     <div className="mt-1 text-[11px] font-light" style={{ color: 'var(--text-tertiary)' }}>{card.secondary}</div>
+    {card.tertiary && (
+      <div className="bds-tnum mt-1 text-[11px] font-light" style={{ color: 'var(--text-tertiary)' }}>{card.tertiary}</div>
+    )}
   </div>
 );
 
 // ── Aggregation helpers ───────────────────────────────────────────────────
-type CurrencyAggItem = { currency: string; total: number; count: number };
+export type CurrencyAggItem = { currency: string; total: number; count: number };
 
 const aggregateByCurrency = <T extends { currency?: string; amount: number }>(
   items: T[],
@@ -348,6 +359,34 @@ const netOpenAmount = (item: { amount: number; openAmount?: number; appliedAmoun
   return item.amount;
 };
 
+/**
+ * I2 折人民币合计（首屏 KPI 卡多币种合并折算）。
+ * 汇率真源：风控域最新汇率档案 GET /v1/risk/fx-rates-latest（apiService.getLatestFxRates），
+ * rate 语义 = 1 单位外币兑 CNY；CNY 恒按 1 计。缺汇率的币种不强行折算，列入 missing 透明披露。
+ */
+export type CnyAggregateResult = { total: number; missing: string[]; hasForeign: boolean };
+
+export const aggregateToCny = (agg: CurrencyAggItem[], rates: Record<string, number>): CnyAggregateResult => {
+  let total = 0;
+  let hasForeign = false;
+  const missing: string[] = [];
+  for (const item of agg) {
+    const currency = item.currency || '—';
+    if (currency === 'CNY') {
+      total += item.total;
+      continue;
+    }
+    hasForeign = true;
+    const rate = rates[currency];
+    if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
+      total += item.total * rate;
+    } else if (!missing.includes(currency)) {
+      missing.push(currency);
+    }
+  }
+  return { total, missing, hasForeign };
+};
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 const FinanceManager: React.FC<FinanceManagerProps> = ({
@@ -367,12 +406,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  // ── I3 催款月结一级入口：催款函/月末结转自报表子视图前置 ───
+  const [collectionsView, setCollectionsView] = useState<'dunning' | 'monthlyClose'>('dunning');
+  const [dunningRow, setDunningRow] = useState<{ customerRelationId: string | null; customerName: string; currency: string; stage?: DunningStage } | null>(null);
+  const [dunningRefreshKey, setDunningRefreshKey] = useState(0);
+
   // 跨模块导航筛选（关系智库档案「关联业务 → 发票/收付款/增值税发票」入口）：
   // 挂载时消费一次——tab 预填（如 vatInvoices）+ relation 筛选；✕ 清除回全量
   const navContext = useState(() => consumeCrossModuleNav())[0];
   const [navRelationFilter, setNavRelationFilter] = useState(() => navContext?.filter ?? null);
   useEffect(() => {
-    if (navContext?.tab && ['invoices', 'vouchers', 'paymentRequests', 'credit', 'vatInvoices', 'cashCalendar', 'reports', 'reconciliation'].includes(navContext.tab)) {
+    if (navContext?.tab && ['invoices', 'vouchers', 'paymentRequests', 'credit', 'vatInvoices', 'cashCalendar', 'reports', 'reconciliation', 'collections'].includes(navContext.tab)) {
       setActiveTab(navContext.tab as FinanceTabId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,10 +440,42 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   // ── P0 payment manual path: 创建凭证 modal state ───
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [voucherForm, setVoucherForm] = useState({ voucherNumber: '', type: 'Receipt' as 'Receipt' | 'Disbursement', voucherCategory: 'normal' as VoucherCategory, amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
+  const [voucherForm, setVoucherForm] = useState({ voucherNumber: '', type: 'Receipt' as 'Receipt' | 'Disbursement', voucherCategory: 'normal' as VoucherCategory, amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '', paymentRequestId: '' });
   const [voucherCreating, setVoucherCreating] = useState(false);
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<VoucherEntity | null>(null);
+
+  // ── I1 付款凭证入口引导：已批准未付款的付款申请（DR-017 先申请后付款唯一数据源）───
+  // 仅新建付款（Disbursement）凭证时加载；下拉选中即带出金额/币种/供应商/付款性质，
+  // 用户不再填完一屏才撞 PAYMENT_REQUEST_REQUIRED 门禁。
+  const [payableRequests, setPayableRequests] = useState<PaymentRequest[]>([]);
+  const [payableRequestsLoading, setPayableRequestsLoading] = useState(false);
+  useEffect(() => {
+    if (!showCreateVoucher || editingVoucher || voucherForm.type !== 'Disbursement') return;
+    let alive = true;
+    setPayableRequestsLoading(true);
+    paymentRequestService.listPaymentRequests({ status: 'Approved' })
+      .then(list => { if (alive) setPayableRequests(list.filter(r => !r.paymentVoucherId)); })
+      .catch(() => { if (alive) setPayableRequests([]); })
+      .finally(() => { if (alive) setPayableRequestsLoading(false); });
+    return () => { alive = false; };
+  }, [showCreateVoucher, editingVoucher, voucherForm.type]);
+
+  // I1：选中付款申请即带出金额/币种/供应商/付款性质（申请单为唯一事实源，避免手输漂移）
+  const handleSelectPaymentRequest = (requestId: string) => {
+    const pr = payableRequests.find(r => r.id === requestId);
+    setVoucherForm(f => ({
+      ...f,
+      paymentRequestId: requestId,
+      ...(pr ? {
+        amount: String(pr.totalAmount ?? ''),
+        currency: pr.currency || f.currency,
+        voucherCategory: (pr.paymentCategory as VoucherCategory) || f.voucherCategory,
+        customerRelationId: pr.supplierId || '',
+        customerName: pr.supplierName || '',
+      } : {}),
+    }));
+  };
 
   const openEditVoucher = (voucher: VoucherEntity) => {
     setEditingVoucher(voucher);
@@ -413,6 +489,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       paymentMethod: voucher.paymentMethod || 'TT',
       customerName: voucher.customerName || '',
       customerRelationId: voucher.customerRelationId || '',
+      paymentRequestId: '',
     });
     setVoucherError(null);
     setShowCreateVoucher(true);
@@ -446,7 +523,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setVouchers(prev => prev.map(v => v.id === editingVoucher.id ? { ...v, ...updated } : v));
       setShowCreateVoucher(false);
       setEditingVoucher(null);
-      setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
+      setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '', paymentRequestId: '' });
     } catch (e: any) {
       setVoucherError(e?.message || '凭证保存失败');
     } finally {
@@ -464,6 +541,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setVoucherError('金额必须是大于 0 的有效数字');
       return;
     }
+    // I1 入口引导：付款凭证无关联申请时在提交前明确拦截，不再等后端 PAYMENT_REQUEST_REQUIRED 撞墙
+    if (voucherForm.type === 'Disbursement' && !voucherForm.paymentRequestId) {
+      setVoucherError('付款凭证必须关联审批通过的付款申请（先申请后付款）。请从上方「关联付款申请」下拉选择已批准的申请；如无申请，请先在「付款申请」页签提交并获批后再来开凭证。');
+      return;
+    }
     setVoucherCreating(true);
     setVoucherError(null);
     try {
@@ -477,12 +559,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         paymentMethod: voucherForm.paymentMethod,
         customerName: voucherForm.customerName || undefined,
         customerRelationId: voucherForm.customerRelationId || undefined,
+        paymentRequestId: voucherForm.type === 'Disbursement' ? voucherForm.paymentRequestId || undefined : undefined,
       });
       // 成功：刷新服务端事实源（追加到本地列表，保持一致）
       setVouchers(prev => [created, ...prev]);
       setShowCreateVoucher(false);
       setEditingVoucher(null);
-      setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
+      setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '', paymentRequestId: '' });
     } catch (e: any) {
       // 失败：保留原数据，显示可执行反馈
       setVoucherError(`创建失败：${e?.message ?? e}`);
@@ -1224,24 +1307,54 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // ── KPI row (always derived from ALL invoices + ALL vouchers) ───
   // DR-044 净额口径：四张卡均按"单据金额 − 已核销"聚合（openAmount 派生字段），
   // 与账龄分析/对账单/报表同一公式，消除"账龄 $84,000 vs 对账单 $34,000"分裂（P1-005）。
+  // I2 折人民币合计：汇率真源 = 风控域最新汇率档案（GET /v1/risk/fx-rates-latest，rate = 1 外币 → CNY），
+  // 与汇率损益/外汇台账同一档案，不自造汇率口径。
+  const [latestFxRates, setLatestFxRates] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let alive = true;
+    apiService.getLatestFxRates()
+      .then(list => {
+        if (!alive) return;
+        const map: Record<string, number> = {};
+        for (const r of list) map[r.currency] = Number(r.rate);
+        setLatestFxRates(map);
+      })
+      .catch(() => { /* 汇率档案不可达时回落原有多币种展示（不折算、不阻塞） */ });
+    return () => { alive = false; };
+  }, []);
+
   const kpiCards: KpiCard[] = useMemo(() => {
     const openReceivable = invoices.filter(i => i.type === 'Receivable' && i.status !== 'Paid' && i.status !== 'Cancelled');
     const openPayable = invoices.filter(i => i.type === 'Payable' && i.status !== 'Paid' && i.status !== 'Cancelled');
     const openReceiptVouchers = vouchers.filter(v => v.type === 'Receipt' && v.status !== 'reconciled' && v.status !== 'cancelled');
     const openDisbursementVouchers = vouchers.filter(v => v.type === 'Disbursement' && v.status !== 'reconciled' && v.status !== 'cancelled');
 
-    const recv = formatCurrencyAggregate(aggregateByCurrency(openReceivable.map(i => ({ currency: i.currency, amount: netOpenAmount(i) }))));
-    const pay = formatCurrencyAggregate(aggregateByCurrency(openPayable.map(i => ({ currency: i.currency, amount: netOpenAmount(i) }))));
-    const recvV = formatCurrencyAggregate(aggregateByCurrency(openReceiptVouchers.map(v => ({ currency: v.currency, amount: netOpenAmount(v) }))));
-    const payV = formatCurrencyAggregate(aggregateByCurrency(openDisbursementVouchers.map(v => ({ currency: v.currency, amount: netOpenAmount(v) }))));
+    const recvAgg = aggregateByCurrency(openReceivable.map(i => ({ currency: i.currency, amount: netOpenAmount(i) })));
+    const payAgg = aggregateByCurrency(openPayable.map(i => ({ currency: i.currency, amount: netOpenAmount(i) })));
+    const recvVAgg = aggregateByCurrency(openReceiptVouchers.map(v => ({ currency: v.currency, amount: netOpenAmount(v) })));
+    const payVAgg = aggregateByCurrency(openDisbursementVouchers.map(v => ({ currency: v.currency, amount: netOpenAmount(v) })));
+
+    const recv = formatCurrencyAggregate(recvAgg);
+    const pay = formatCurrencyAggregate(payAgg);
+    const recvV = formatCurrencyAggregate(recvVAgg);
+    const payV = formatCurrencyAggregate(payVAgg);
+
+    // 折人民币合计行：含外币才显示；缺汇率币种透明披露，不强行估算
+    const cnyLine = (agg: CurrencyAggItem[]): string | undefined => {
+      if (agg.length === 0) return undefined;
+      const result = aggregateToCny(agg, latestFxRates);
+      if (!result.hasForeign) return undefined;
+      const base = `折人民币 ≈ ${formatAmount(result.total, 'CNY')}`;
+      return result.missing.length > 0 ? `${base}（缺 ${result.missing.join('/')} 汇率）` : base;
+    };
 
     return [
-      { label: '应收发票', primary: recv.primary, secondary: recv.secondary },
-      { label: '应付发票', primary: pay.primary, secondary: pay.secondary },
-      { label: '待收凭证', primary: recvV.primary, secondary: recvV.secondary },
-      { label: '待付凭证', primary: payV.primary, secondary: payV.secondary },
+      { label: '应收发票', primary: recv.primary, secondary: recv.secondary, tertiary: cnyLine(recvAgg) },
+      { label: '应付发票', primary: pay.primary, secondary: pay.secondary, tertiary: cnyLine(payAgg) },
+      { label: '待收凭证', primary: recvV.primary, secondary: recvV.secondary, tertiary: cnyLine(recvVAgg) },
+      { label: '待付凭证', primary: payV.primary, secondary: payV.secondary, tertiary: cnyLine(payVAgg) },
     ];
-  }, [invoices, vouchers]);
+  }, [invoices, vouchers, latestFxRates]);
 
   // ── Per-tab lists & current row selection ───
   const filteredInvoices = useMemo(() => {
@@ -1291,8 +1404,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return result;
   }, [vatInvoices, selectedType, selectedStatus, searchTerm, navRelationFilter]);
 
-  // 自包含 tab（报表 / 资金日历 / 付款申请 / 客户信用）由专属面板全权渲染，不消费共享列表与核销副作用
-  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'paymentRequests' || activeTab === 'credit' || activeTab === 'reconciliation';
+  // 自包含 tab（报表 / 资金日历 / 付款申请 / 客户信用 / 催款月结）由专属面板全权渲染，不消费共享列表与核销副作用
+  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'paymentRequests' || activeTab === 'credit' || activeTab === 'reconciliation' || activeTab === 'collections';
   const activeList: Array<InvoiceEntity | VoucherEntity | VatInvoiceEntity> =
     isSelfContainedTab ? [] : activeTab === 'invoices' ? filteredInvoices : activeTab === 'vatInvoices' ? filteredVatInvoices : filteredVouchers;
   const selectedItem = activeList.find(item => item.id === selectedId) || activeList[0];
@@ -1420,7 +1533,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   // ── Status quick-stats (shown at right of toolbar for the active tab) ───
   const statusStats = useMemo(() => {
-    if (activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'reconciliation') return [];
+    if (activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'reconciliation' || activeTab === 'collections') return [];
     if (activeTab === 'invoices') {
       const paid = invoices.filter(i => i.status === 'Paid').length;
       const partiallyPaid = invoices.filter(i => i.status === 'PartiallyPaid').length;
@@ -2268,7 +2381,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       <PageHeader
         title="财务管理"
         subtitle="Invoices / Vouchers / Reconciliation"
-        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'cashCalendar' ? 'Cash Calendar' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : activeTab === 'reconciliation' ? 'Reconciliation' : 'Voucher Desk'}
+        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'cashCalendar' ? 'Cash Calendar' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : activeTab === 'reconciliation' ? 'Reconciliation' : activeTab === 'collections' ? 'Collections' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
         actions={(
           <>
@@ -2277,7 +2390,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <button
                 type="button"
                 className="bds-btn bds-btn-primary"
-                onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
+                onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '', paymentRequestId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
               >
                 <Plus size={16} strokeWidth={1.75} />
                 新建凭证
@@ -2343,7 +2456,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     ? '先申请后付款 · 审批链闭环'
                     : activeTab === 'credit'
                       ? '额度 / 冻结门禁 / 历史时间线'
-                      : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
+                      : activeTab === 'collections'
+                        ? '催款分级看板 · 催款函 · 月末结转'
+                        : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
             </div>
           </div>
 
@@ -2370,6 +2485,36 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           {/* 对账 tab（W-B P2-6）：自包含面板（客户汇总卡 / 差异清单 / 单订单四单对照抽屉） */}
           {activeTab === 'reconciliation' && (
             <ReconciliationPanel isDarkMode={isDarkMode} relations={relationOptions} />
+          )}
+
+          {/* 催款月结 tab（I3 一级入口）：催款分级看板 / 催款函 + 月末结转，自报表子视图前置 */}
+          {activeTab === 'collections' && (
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain">
+              <div className="bds-segment shrink-0 self-start">
+                <button
+                  type="button"
+                  onClick={() => setCollectionsView('dunning')}
+                  className={cx('seg', collectionsView === 'dunning' && 'active')}
+                >
+                  催款
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectionsView('monthlyClose')}
+                  className={cx('seg', collectionsView === 'monthlyClose' && 'active')}
+                >
+                  月末结转
+                </button>
+              </div>
+              {collectionsView === 'dunning' ? (
+                <DunningStageBoardPanel
+                  refreshKey={dunningRefreshKey}
+                  onDun={(row) => setDunningRow(row)}
+                />
+              ) : (
+                <MonthlyCloseSection isDarkMode={isDarkMode} />
+              )}
+            </div>
           )}
 
           {!isSelfContainedTab && (
@@ -2461,7 +2606,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select className="bds-select sm" value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '' }))}>
+                  <select className="bds-select sm" value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '', paymentRequestId: '' }))}>
                     <option value="Receipt">收款</option>
                     <option value="Disbursement">付款</option>
                   </select>
@@ -2472,6 +2617,41 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     className={formInputClass} />
                 </div>
               </div>
+              {/* I1 付款入口引导（DR-017 先申请后付款）：新建付款凭证必须先选已批准的付款申请，
+                  下拉即唯一合法数据源；无申请时明确指引去「付款申请」页签，不再填完一屏才撞门禁 */}
+              {voucherForm.type === 'Disbursement' && !editingVoucher && (
+                <div className="rounded-field bg-[var(--recessed-bg)] px-4 py-3">
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>关联付款申请 *（先申请后付款）</label>
+                  {payableRequests.length > 0 ? (
+                    <select
+                      className="bds-select sm"
+                      value={voucherForm.paymentRequestId}
+                      onChange={e => handleSelectPaymentRequest(e.target.value)}
+                    >
+                      <option value="">请选择已批准的付款申请</option>
+                      {payableRequests.map(pr => (
+                        <option key={pr.id} value={pr.id}>
+                          {pr.requestNumber} · {pr.supplierName || '未填供应商'} · {formatAmount(Number(pr.totalAmount), pr.currency)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className={cx('text-[11px] font-light', textSecondaryClass)}>
+                      {payableRequestsLoading ? '正在加载已批准的付款申请…' : '暂无已批准未付款的付款申请。'}
+                    </div>
+                  )}
+                  <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>
+                    付款凭证必须关联审批通过的付款申请，未关联将无法创建。尚无申请？请先到「付款申请」页签提交并获批。
+                    <button
+                      type="button"
+                      onClick={() => { setShowCreateVoucher(false); setActiveTab('paymentRequests'); }}
+                      className="ml-1 text-link"
+                    >
+                      前往付款申请
+                    </button>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
                 <select className="bds-select sm" value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}>
@@ -2525,6 +2705,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* I3 催款函 BottomSheet（催款月结 tab 分级看板行「催款」一键发起；关闭后刷新看板行） */}
+      {dunningRow && (
+        <DunningSheet
+          key={`${dunningRow.customerName}-${dunningRow.currency}-${dunningRow.stage ?? 'auto'}`}
+          open={!!dunningRow}
+          onClose={() => { setDunningRow(null); setDunningRefreshKey(k => k + 1); }}
+          customerRelationId={dunningRow.customerRelationId}
+          customerName={dunningRow.customerName}
+          currency={dunningRow.currency}
+          stage={dunningRow.stage}
+        />
       )}
 
       {/* 发票预览弹窗——全站共享 A4 纸张查看器（B1 架构底座）：
