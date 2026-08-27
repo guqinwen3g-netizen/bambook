@@ -15,6 +15,39 @@ function ownerToken() {
   });
 }
 
+// K1 测试身份：财务（legacy finance → FINANCE，持 hr:read 但无 sensitive:salary）
+function financeToken() {
+  return createAuthService().signToken({
+    userId: 'fin-1',
+    displayName: 'Finance',
+    roles: ['finance'],
+    permissions: [],
+    departmentIds: [],
+  });
+}
+
+// K1 测试身份：系统管理员（legacy admin → ADMIN，持 hr:read|hr:write 但无 sensitive:salary）
+function adminToken() {
+  return createAuthService().signToken({
+    userId: 'admin-1',
+    displayName: 'Admin',
+    roles: ['admin'],
+    permissions: [],
+    departmentIds: [],
+  });
+}
+
+// K1 测试身份：被显式授权薪酬明细的指定 HR（JWT permissions 携带 sensitive:salary）
+function hrSalaryToken() {
+  return createAuthService().signToken({
+    userId: 'hr-1',
+    displayName: 'HR Salary',
+    roles: [],
+    permissions: ['hr:read', 'hr:write', 'sensitive:salary'],
+    departmentIds: [],
+  });
+}
+
 function makeApp(prisma: any) {
   const app = express();
   app.use(express.json());
@@ -137,5 +170,97 @@ describe('HR personnel route filters erased users', () => {
     expect(res.status).toBe(200);
     expect(res.body.personnel).toHaveLength(1);
     expect(res.body.personnel[0].id).toBe('user-normal');
+  });
+});
+
+/**
+ * K1 工资保密门禁（批次二）：薪酬明细接口（/salary-structures、/payroll-runs、/payroll-items）
+ * 在 hr:read|write 全局门之上叠加 sensitive:salary 敏感 scope。
+ * 矩阵真源：仅 SuperAdmin + 被显式授权的指定 HR 持有；FINANCE（hr:read）与
+ * ADMIN（hr:read|hr:write）均未授予 → 越权访问必须 403。
+ */
+describe('K1 · 工资保密门禁（sensitive:salary）', () => {
+  function makeSalaryPrisma() {
+    return {
+      salaryStructure: { findMany: vi.fn().mockResolvedValue([]) },
+      payrollRun: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+  }
+
+  it('财务（hr:read 但无 sensitive:salary）读薪资结构 → 403', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .get('/hr/salary-structures/user-1')
+      .set('Authorization', `Bearer ${financeToken()}`);
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('sensitive:salary');
+    expect(prisma.salaryStructure.findMany).not.toHaveBeenCalled();
+  });
+
+  it('财务（hr:read 但无 sensitive:salary）读工资单列表 → 403', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .get('/hr/payroll-runs')
+      .set('Authorization', `Bearer ${financeToken()}`);
+    expect(res.status).toBe(403);
+    expect(prisma.payrollRun.findMany).not.toHaveBeenCalled();
+  });
+
+  it('总领导（hr:read|hr:write 但无 sensitive:salary）读工资单 → 403', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .get('/hr/payroll-runs')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(res.status).toBe(403);
+    expect(prisma.payrollRun.findMany).not.toHaveBeenCalled();
+  });
+
+  it('总领导（hr:write 但无 sensitive:salary）写薪资结构 → 403', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .post('/hr/salary-structures')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ userId: 'user-1', baseSalary: 10000, effectiveFrom: '2026-09-01' });
+    expect(res.status).toBe(403);
+  });
+
+  it('指定 HR（sensitive:salary 已授权）读薪资结构 → 200', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .get('/hr/salary-structures/user-1')
+      .set('Authorization', `Bearer ${hrSalaryToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(prisma.salaryStructure.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'user-1' } }),
+    );
+  });
+
+  it('指定 HR（sensitive:salary 已授权）读工资单列表 → 200', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .get('/hr/payroll-runs')
+      .set('Authorization', `Bearer ${hrSalaryToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('SuperAdmin（owner 特判全通）读工资单列表 → 200', async () => {
+    const prisma = makeSalaryPrisma();
+    const res = await request(makeApp(prisma))
+      .get('/hr/payroll-runs')
+      .set('Authorization', `Bearer ${ownerToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('非薪酬接口不受敏感门影响：财务读员工列表（hr:read）→ 200', async () => {
+    const prisma = {
+      employeeProfile: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    const res = await request(makeApp(prisma))
+      .get('/hr/employees')
+      .set('Authorization', `Bearer ${financeToken()}`);
+    expect(res.status).toBe(200);
   });
 });

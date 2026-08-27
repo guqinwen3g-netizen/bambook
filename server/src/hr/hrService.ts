@@ -16,6 +16,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { invalidateAccountStatusCache } from '../auth/accountStatusGuard';
 import { logger } from '../lib/logger';
 
 // ────────────────────────────────────────────────────────────────
@@ -399,6 +400,28 @@ export function createHrService(prisma: PrismaClient) {
       await db.userAccount.update({ where: { id: input.userId }, data: { primaryDeptId: input.toDeptId } });
     }
 
+    // K2 离职自动停账号（批次二）：进入终态（Resigned/Terminated）即停用系统账号。
+    // 复用 handover 既有停用语义（DR-056-③）：status='disabled' + metadata 留痕联链事件，
+    // 停用后 invalidateAccountStatusCache 使未过期 JWT 经 accountStatusGuard 立即 401。
+    // 幂等：已停用账号不重复写（如先走交接停用再补登记离职）。
+    let accountDisabled = false;
+    if ((targetStatus === 'Resigned' || targetStatus === 'Terminated') && user.status !== 'disabled') {
+      await db.userAccount.update({
+        where: { id: input.userId },
+        data: {
+          status: 'disabled',
+          metadata: {
+            ...((user.metadata as any) || {}),
+            disabledAt: new Date().toISOString(),
+            disabledBy: actorId || 'system',
+            disabledReason: input.type === 'Resign' ? 'resignation' : 'termination',
+            employmentEventId: event.id,
+          },
+        },
+      });
+      accountDisabled = true;
+    }
+
     // 事件发布（事务外，fire-and-forget）
     publishBusinessEvent({
       type: 'EmployeeStatusChanged',
@@ -416,7 +439,10 @@ export function createHrService(prisma: PrismaClient) {
       actorId,
     }).catch(e => logger.warn('[HrService] publish EmployeeStatusChanged failed', { error: e?.message }));
 
-    return { event };
+    // 停用落库后即时失效账号状态缓存（同进程；跨进程由守卫 30s TTL 兜底）
+    if (accountDisabled) invalidateAccountStatusCache(input.userId);
+
+    return { event, accountDisabled };
   }
 
   async function listEmploymentEvents(query: { userId?: string; type?: string; limit?: number } = {}) {

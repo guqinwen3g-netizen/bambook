@@ -229,6 +229,73 @@ describe('C3a · 员工档案 + 生命周期事件', () => {
   });
 });
 
+describe('K2 · 离职自动停账号（批次二）', () => {
+  let prisma: any;
+  let hr: ReturnType<typeof createHrService>;
+  beforeEach(() => {
+    prisma = makeMockPrisma();
+    hr = createHrService(prisma);
+  });
+
+  const userRow = (id: string) => prisma._tables.userAccount._rows.find((u: any) => u.id === id);
+
+  it('Resign 登记离职 → 系统账号自动停用 + metadata 留痕联链事件', async () => {
+    seedUser(prisma, 'U1');
+    await hr.recordEmploymentEvent('admin', { userId: 'U1', type: 'Onboard', effectiveDate: '2026-01-15' });
+    const { event, accountDisabled } = await hr.recordEmploymentEvent(
+      'hr-admin', { userId: 'U1', type: 'Resign', effectiveDate: '2026-06-01', reason: '个人原因' },
+    );
+
+    expect(accountDisabled).toBe(true);
+    const user = userRow('U1');
+    expect(user.status).toBe('disabled');
+    expect(user.metadata.disabledBy).toBe('hr-admin');
+    expect(user.metadata.disabledReason).toBe('resignation');
+    expect(user.metadata.employmentEventId).toBe(event.id);
+    expect(user.metadata.disabledAt).toBeTruthy();
+  });
+
+  it('Terminate 终止雇佣 → 系统账号同样自动停用', async () => {
+    seedUser(prisma, 'U2');
+    await hr.recordEmploymentEvent('admin', { userId: 'U2', type: 'Onboard', effectiveDate: '2026-01-15' });
+    const { accountDisabled } = await hr.recordEmploymentEvent(
+      'hr-admin', { userId: 'U2', type: 'Terminate', effectiveDate: '2026-06-01', reason: '违纪' },
+    );
+
+    expect(accountDisabled).toBe(true);
+    const user = userRow('U2');
+    expect(user.status).toBe('disabled');
+    expect(user.metadata.disabledReason).toBe('termination');
+  });
+
+  it('非终态事件（Regularize/Transfer）不停用账号', async () => {
+    seedUser(prisma, 'U3');
+    await hr.recordEmploymentEvent('admin', { userId: 'U3', type: 'Onboard', effectiveDate: '2026-01-15' });
+    const { accountDisabled } = await hr.recordEmploymentEvent(
+      'admin', { userId: 'U3', type: 'Regularize', effectiveDate: '2026-04-15' },
+    );
+
+    expect(accountDisabled).toBe(false);
+    expect(userRow('U3').status).toBe('active');
+  });
+
+  it('幂等：账号已停用（如先走交接停用）再补登记离职 → 不重复改写 metadata', async () => {
+    seedUser(prisma, 'U4');
+    await hr.recordEmploymentEvent('admin', { userId: 'U4', type: 'Onboard', effectiveDate: '2026-01-15' });
+    // 模拟 handover 已先行停用（带交接留痕）
+    const prior = { disabledAt: '2026-05-20T00:00:00.000Z', disabledBy: 'owner-1', handoverId: 'ho_1' };
+    Object.assign(userRow('U4'), { status: 'disabled', metadata: prior });
+
+    const { accountDisabled } = await hr.recordEmploymentEvent(
+      'hr-admin', { userId: 'U4', type: 'Resign', effectiveDate: '2026-06-01' },
+    );
+
+    expect(accountDisabled).toBe(false);
+    expect(userRow('U4').status).toBe('disabled');
+    expect(userRow('U4').metadata).toEqual(prior);
+  });
+});
+
 describe('C3b · 考勤 + 请假', () => {
   let prisma: any;
   let hr: ReturnType<typeof createHrService>;

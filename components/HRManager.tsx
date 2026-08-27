@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RdlToolbar, RdlPill, RdlSurface } from './ui/RDLPrimitives';
 import {
@@ -189,6 +190,11 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const [actionBusy, setActionBusy] = useState(false);
   const [activeView, setActiveView] = useState<HRView>('org');
 
+  // K1 工资保密门禁：薪资工资 tab 仅 sensitive:salary 持有者可见（矩阵真源：老板+指定 HR）
+  const canViewSalary = hasPermission('sensitive:salary');
+  // K3 岗位管理：新建/改/删为 hr:write 写操作（后端门禁同口径），无权限时只读
+  const canManagePositions = hasPermission('hr:write');
+
   // Personnel
   const [personnel, setPersonnel] = useState<PersonnelMember[]>([]);
   const [departments, setDepartments] = useState<DeptInfo[]>([]);
@@ -216,6 +222,11 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState({ title: '', description: '', projectId: '', userId: '', priority: 'normal', dueDate: '' });
   const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+
+  // K3 岗位管理表单（组织架构 tab · 岗位设置区）
+  const [showPositionForm, setShowPositionForm] = useState(false);
+  const [positionForm, setPositionForm] = useState({ title: '', departmentId: '', headcount: 1, description: '' });
+  const [editingPositionId, setEditingPositionId] = useState<string | null>(null);
 
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
@@ -301,6 +312,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   // 组织架构视图只读目录化——此处仅保留项目/任务表单。
   const openProjectForm = useCallback((project?: ProjectInfo) => {
     setShowAssignmentForm(false);
+    setShowPositionForm(false);
     if (project) {
       setProjectForm({
         name: project.name, code: project.code || '', description: project.description || '',
@@ -413,7 +425,72 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     }
   };
 
+  // ── Position handlers（K3 岗位管理：后端 positions CRUD 直通）──
+  const openPositionForm = useCallback((position?: PositionInfo) => {
+    setShowProjectForm(false);
+    setShowAssignmentForm(false);
+    if (position) {
+      setPositionForm({
+        title: position.title,
+        departmentId: position.departmentId || '',
+        headcount: position.headcount,
+        description: position.description || '',
+      });
+      setEditingPositionId(position.id);
+    } else {
+      setPositionForm({ title: '', departmentId: '', headcount: 1, description: '' });
+      setEditingPositionId(null);
+    }
+    setShowPositionForm(true);
+  }, []);
+
+  const closePositionForm = () => {
+    setPositionForm({ title: '', departmentId: '', headcount: 1, description: '' });
+    setEditingPositionId(null);
+    setShowPositionForm(false);
+  };
+
+  const submitPosition = async () => {
+    if (!positionForm.title.trim() || actionBusy) return;
+    setActionBusy(true);
+    try {
+      const body = {
+        title: positionForm.title.trim(),
+        departmentId: positionForm.departmentId || null,
+        headcount: Math.max(1, Number(positionForm.headcount) || 1),
+        description: positionForm.description.trim() || null,
+      };
+      if (editingPositionId) {
+        await apiService.hrSend(`positions/${editingPositionId}`, body, 'PATCH');
+      } else {
+        await apiService.hrSend('positions', body);
+      }
+      closePositionForm();
+      await loadAll();
+    } catch (e: any) {
+      setLoadError(e?.message || '保存岗位失败');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const deletePosition = async (id: string) => {
+    if (actionBusy) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该岗位？此操作不可撤销。', danger: true }))) return;
+    setActionBusy(true);
+    try {
+      await apiService.hrSend(`positions/${id}`, {}, 'DELETE');
+      await loadAll();
+    } catch (e: any) {
+      setLoadError(e?.message || '删除岗位失败');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   // ── Org tree construction ──
+  const departmentOptions = useMemo(() => buildDepartmentOptions(departments), [departments]);
+
   const forest = useMemo<OrgForest>(() => {
     const deptById = new Map(departments.map(d => [d.id, d]));
     const childDeptsMap = new Map<string, DeptInfo[]>();
@@ -851,13 +928,32 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           </div>
 
           <div>
-            <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>岗位设置</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>岗位设置</h3>
+              {canManagePositions && (
+                <button onClick={() => openPositionForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新建岗位</button>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-3">
               {positions.map(pos => (
                 <div key={pos.id} className="bds-card">
-                  <div className={`text-sm font-light text-[var(--text-primary)]`}>{pos.title}</div>
-                  <div className={`text-[10px] font-light mt-1 text-[var(--text-tertiary)]`}>
-                    {pos.department || '未分配部门'} · 编制 {pos.headcount}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-light truncate text-[var(--text-primary)]`}>{pos.title}</div>
+                      <div className={`text-[10px] font-light mt-1 text-[var(--text-tertiary)]`}>
+                        {pos.department || '未分配部门'} · 编制 {pos.headcount}
+                      </div>
+                    </div>
+                    {canManagePositions && (
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => openPositionForm(pos)} className={subtleButtonCls}>
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => deletePosition(pos.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {pos.description && (
                     <div className={`text-[10px] font-light mt-2 text-[var(--text-quaternary)]`}>
@@ -1009,10 +1105,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         ) : undefined}
       />
 
-      {/* C3 视图切换 tab 栏 */}
+      {/* C3 视图切换 tab 栏（K1：薪资工资仅 sensitive:salary 持有者可见） */}
       <div className="flex-shrink-0 px-7 pb-1">
         <RdlToolbar density="compact">
-          {HR_VIEWS.map(v => (
+          {HR_VIEWS.filter(v => v.id !== 'payroll' || canViewSalary).map(v => (
             <RdlPill
               key={v.id}
               type="button"
@@ -1228,6 +1324,56 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                   </div>
                 </motion.div>
               )}
+
+              {showPositionForm && (
+                <motion.div
+                  key="position-form"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden shrink-0"
+                >
+                  <div className="px-5 py-3">
+                    <div className="bds-card space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className={labelCls}>岗位名称</div>
+                          <input className={inputCls} value={positionForm.title}
+                            onChange={e => setPositionForm(f => ({ ...f, title: e.target.value }))}
+                            placeholder="如：资深跟单员" />
+                        </div>
+                        <div>
+                          <div className={labelCls}>所属部门</div>
+                          <select className={selectCls} value={positionForm.departmentId}
+                            onChange={e => setPositionForm(f => ({ ...f, departmentId: e.target.value }))}>
+                            <option value="">未分配</option>
+                            {departmentOptions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className={labelCls}>编制人数</div>
+                          <input type="number" min={1} className={inputCls} value={positionForm.headcount}
+                            onChange={e => setPositionForm(f => ({ ...f, headcount: Number(e.target.value) || 1 }))} />
+                        </div>
+                        <div>
+                          <div className={labelCls}>岗位描述</div>
+                          <input className={inputCls} value={positionForm.description}
+                            onChange={e => setPositionForm(f => ({ ...f, description: e.target.value }))}
+                            placeholder="可选" />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button onClick={closePositionForm} className={actionButtonCls}>取消</button>
+                        <button onClick={submitPosition} disabled={!positionForm.title.trim() || actionBusy} className={`${primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+                          <Check className="w-3.5 h-3.5" /> {actionBusy ? '提交中…' : editingPositionId ? '保存' : '创建'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
 
             {/* Content scroll area */}
@@ -1256,7 +1402,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             />
           )}
           {activeView === 'attendance' && <AttendanceLeaveTab isDarkMode={isDarkMode} personnel={personnel} />}
-          {activeView === 'payroll' && <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />}
+          {activeView === 'payroll' && canViewSalary && <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />}
           {activeView === 'performance' && <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} projects={projects.map(p => ({ id: p.id, name: p.name, code: p.code }))} />}
           {activeView === 'training' && <TrainingTab isDarkMode={isDarkMode} personnel={personnel} />}
           {activeView === 'teams' && <TeamManagementTab isDarkMode={isDarkMode} personnel={personnel} departments={departments} />}

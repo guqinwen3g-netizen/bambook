@@ -46,6 +46,14 @@ export function createHRRouter(options: HRRouterOptions) {
       if (req.method === 'GET' && req.path === '/teams/mine') return next();
       return (req.method === 'GET' ? requireHrRead : requireHrWrite)(req, res, next);
     });
+    // K1 工资保密门禁（批次二）：薪酬明细接口（薪资结构/工资单/工资明细）在
+    // hr:read|write 之上叠加 sensitive:salary 敏感 scope——矩阵真源仅 SuperAdmin +
+    // 被显式授权的指定 HR 持有；FINANCE（hr:read）与 ADMIN（hr:read|write）均未授予，
+    // 越权访问一律 403 INSUFFICIENT_SCOPE。
+    router.use(
+      ['/salary-structures', '/payroll-runs', '/payroll-items'],
+      requirePermission('sensitive:salary'),
+    );
   }
 
   // ════════════════════════════════════════════
@@ -909,8 +917,8 @@ export function createHRRouter(options: HRRouterOptions) {
       source: 'route:hr:record_employment_event', operation: 'record_employment_event',
       targetType: 'EmploymentEvent', targetId: () => req.body?.userId || 'unknown',
     }, async () => {
-      const { event } = await hr.recordEmploymentEvent(actorIdFromRequest(req) ?? 'unknown', req.body || {});
-      return { payload: { event } };
+      const { event, accountDisabled } = await hr.recordEmploymentEvent(actorIdFromRequest(req) ?? 'unknown', req.body || {});
+      return { payload: { event, accountDisabled } };
     });
   });
 
