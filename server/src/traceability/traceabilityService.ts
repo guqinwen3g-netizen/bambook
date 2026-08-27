@@ -1,18 +1,20 @@
 /**
- * traceabilityService.ts — 14 实体关联 + 6 一键溯源场景
+ * traceabilityService.ts — 14 实体关联 + 7 一键溯源场景
  *
  * 14 实体：
  *   Relation, Order, OrderLine, Quotation, Invoice, PaymentVoucher,
  *   Shipment, CustomsDeclaration, ProductionStage, SampleNode,
  *   InspectionReport, TradeDocument, TaxRefund, Product
  *
- * 6 一键溯源场景：
+ * 7 一键溯源场景：
  *   1. customerPanorama    — 客户全景：Relation → Orders → Invoices → Payments → AR
  *   2. orderFulfillment    — 订单履约链：Order → Production → Inspection → Shipment → Customs
  *   3. quoteToShip         — 报价到发货链：Quotation → PI → CommercialInvoice → PackingList → B/L
  *   4. supplierPanorama    — 供应商全景：Relation(Supplier) → PurchaseOrders → Invoices → Payments → AP
  *   5. productCostChain    — 产品成本链：Product → BOM → Cost → Quotation → Order
  *   6. taxRefundChain      — 退税链：TaxRefund → CustomsDeclaration → ExportInvoice → PaymentReceipt
+ *   7. purchaseToStock     — 采购库存链（W-C A1）：PurchaseOrder → MaterialReceipt → StockMovement → InventoryItem
+ *                            （root 兼容采购单 ID 与库存物料 ID 两种入口，双向三击）
  */
 import type { PrismaClient } from '@prisma/client';
 import type { TokenPayload } from '../auth/service';
@@ -26,7 +28,8 @@ export type TraceScenario =
   | 'quoteToShip'
   | 'supplierPanorama'
   | 'productCostChain'
-  | 'taxRefundChain';
+  | 'taxRefundChain'
+  | 'purchaseToStock';
 
 export interface TraceResult {
   scenario: TraceScenario;
@@ -380,6 +383,103 @@ export function createTraceabilityService(prisma: PrismaClient) {
     };
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // 7. 采购库存链（W-C A1 · S2 三击追溯铁律）
+  //    PurchaseOrder → MaterialReceipt → StockMovement → InventoryItem
+  //    root 兼容两种入口：采购单 ID（正向）/ 库存物料 ID（反向）
+  //    链路口径：StockMovement.referenceType='PurchaseOrder' + referenceId=MaterialReceipt.id
+  //    （L8 自动入库契约，见 events/linkages/L8AutoStockIn.ts）
+  //    权限：PurchaseOrder/InventoryItem 无 ownerId/departmentId 列（同 productCostChain），
+  //    由 route 层 procurement:read 门禁拦截。
+  // ══════════════════════════════════════════════════════════════════
+  async function purchaseToStock(actor: TokenPayload | null | undefined, rootId: string): Promise<TraceResult> {
+    const po = await (prisma as any).purchaseOrder.findFirst({ where: { id: rootId, deletedAt: null } });
+    if (po) return purchaseOrderRoot(po);
+    const item = await (prisma as any).inventoryItem.findFirst({ where: { id: rootId, deletedAt: null } });
+    if (item) return inventoryItemRoot(item);
+    throw new Error('NOT_FOUND');
+  }
+
+  async function purchaseOrderRoot(po: any): Promise<TraceResult> {
+    const receipts = await (prisma as any).materialReceipt.findMany({
+      where: { purchaseOrderId: po.id }, take: 50, orderBy: { createdAt: 'desc' },
+    });
+    const receiptIds = receipts.map((r: any) => r.id);
+    const movements = receiptIds.length > 0
+      ? await (prisma as any).stockMovement.findMany({
+          where: { referenceType: 'PurchaseOrder', referenceId: { in: receiptIds } },
+          take: 100, orderBy: { createdAt: 'desc' },
+        })
+      : [];
+    const itemIds = [...new Set(movements.map((m: any) => m.itemId as string))];
+    const items = itemIds.length > 0
+      ? await (prisma as any).inventoryItem.findMany({ where: { id: { in: itemIds }, deletedAt: null }, take: 100 })
+      : [];
+
+    const nodes: TraceNode[] = [
+      { id: po.id, type: 'PurchaseOrder', label: po.poNumber || po.id, data: ser(po) },
+      ...receipts.map((r: any) => ({ id: r.id, type: 'MaterialReceipt', label: r.receiptNumber || r.id, data: ser(r) })),
+      ...movements.map((m: any) => ({ id: m.id, type: 'StockMovement', label: m.movementNumber || m.id, data: ser(m) })),
+      ...items.map((i: any) => ({ id: i.id, type: 'InventoryItem', label: i.description || i.materialCode || i.id, data: ser(i) })),
+    ];
+    const edges: TraceEdge[] = [
+      ...receipts.map((r: any) => ({ from: po.id, to: r.id, relation: 'has_receipt' })),
+      ...movements.map((m: any) => ({ from: m.referenceId, to: m.id, relation: 'has_stock_movement' })),
+      ...movements.map((m: any) => ({ from: m.id, to: m.itemId, relation: 'moves_item' })),
+    ].filter((e) => e.from && e.to);
+
+    return {
+      scenario: 'purchaseToStock', rootId: po.id, rootType: 'PurchaseOrder', nodes, edges,
+      summary: {
+        poNumber: po.poNumber, poStatus: po.status,
+        receiptCount: receipts.length,
+        totalAccepted: receipts.reduce((s: number, r: any) => s + Number(r.totalAccepted?.toString?.() || r.totalAccepted || 0), 0),
+        movementCount: movements.length, itemCount: items.length,
+      },
+    };
+  }
+
+  async function inventoryItemRoot(item: any): Promise<TraceResult> {
+    const movements = await (prisma as any).stockMovement.findMany({
+      where: { itemId: item.id }, take: 100, orderBy: { createdAt: 'desc' },
+    });
+    const receiptIds = [...new Set(
+      movements
+        .filter((m: any) => m.referenceType === 'PurchaseOrder' && typeof m.referenceId === 'string' && m.referenceId)
+        .map((m: any) => m.referenceId as string),
+    )];
+    const receipts = receiptIds.length > 0
+      ? await (prisma as any).materialReceipt.findMany({ where: { id: { in: receiptIds } }, take: 50 })
+      : [];
+    const poIds = [...new Set(receipts.map((r: any) => r.purchaseOrderId as string))];
+    const pos = poIds.length > 0
+      ? await (prisma as any).purchaseOrder.findMany({ where: { id: { in: poIds }, deletedAt: null }, take: 20 })
+      : [];
+
+    const nodes: TraceNode[] = [
+      { id: item.id, type: 'InventoryItem', label: item.description || item.materialCode || item.id, data: ser(item) },
+      ...movements.map((m: any) => ({ id: m.id, type: 'StockMovement', label: m.movementNumber || m.id, data: ser(m) })),
+      ...receipts.map((r: any) => ({ id: r.id, type: 'MaterialReceipt', label: r.receiptNumber || r.id, data: ser(r) })),
+      ...pos.map((p: any) => ({ id: p.id, type: 'PurchaseOrder', label: p.poNumber || p.id, data: ser(p) })),
+    ];
+    const edges: TraceEdge[] = [
+      ...movements.map((m: any) => ({ from: m.id, to: item.id, relation: 'moves_item' })),
+      ...movements
+        .filter((m: any) => m.referenceType === 'PurchaseOrder' && m.referenceId)
+        .map((m: any) => ({ from: m.referenceId as string, to: m.id, relation: 'has_stock_movement' })),
+      ...receipts.map((r: any) => ({ from: r.purchaseOrderId, to: r.id, relation: 'has_receipt' })),
+    ].filter((e) => e.from && e.to);
+
+    return {
+      scenario: 'purchaseToStock', rootId: item.id, rootType: 'InventoryItem', nodes, edges,
+      summary: {
+        itemDescription: item.description, materialCode: item.materialCode,
+        currentQty: Number(item.quantity?.toString?.() || item.quantity || 0),
+        movementCount: movements.length, receiptCount: receipts.length, poCount: pos.length,
+      },
+    };
+  }
+
   // ── 统一分派入口 ──
   async function trace(
     actor: TokenPayload | null | undefined,
@@ -394,6 +494,7 @@ export function createTraceabilityService(prisma: PrismaClient) {
       case 'supplierPanorama': return supplierPanorama(actor, rootId);
       case 'productCostChain': return productCostChain(actor, rootId);
       case 'taxRefundChain':   return taxRefundChain(actor, rootId);
+      case 'purchaseToStock':  return purchaseToStock(actor, rootId);
       default: throw new Error(`UNKNOWN_SCENARIO: ${scenario}`);
     }
   }

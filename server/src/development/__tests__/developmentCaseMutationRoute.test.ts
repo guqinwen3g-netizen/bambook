@@ -286,6 +286,52 @@ describe('task ERP-P1-development-mutation-route-foundation: DELETE /:id', () =>
     expect(onDataChange).not.toHaveBeenCalled();
   });
 
+  // A4: 已转订单删除拦截
+  it('已转订单（linkedOrderId 非空，convert 流程形态）→ 409 拒绝删除', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp({
+      existingCase: {
+        id: 'DEV-CASE-1', code: 'DEV-1', name: 'Converted case', type: 'fabric',
+        stage: 'approved', linkedOrderId: 'ORD-1', linkedOrderPo: 'PO-1',
+        deletedAt: null, tags: [], createdAt: BigInt(1000), updatedAt: BigInt(1000),
+      },
+    });
+    const res = await request(app).delete('/api/v1/development/DEV-CASE-1').set(authHeader());
+    expect(res.status).toBe(409);
+    expect(res.body.error.message).toBe('已转订单的开发单不可删除');
+    expect(devCaseUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  it('已转订单（stage=已确认 && linkedOrderId 存量形态）→ 409 拒绝删除', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp({
+      existingCase: {
+        id: 'DEV-CASE-1', code: 'DEV-1', name: 'Legacy converted case', type: 'garment',
+        stage: '已确认', linkedOrderId: 'ORD-2', linkedOrderPo: 'PO-2',
+        deletedAt: null, tags: [], createdAt: BigInt(1000), updatedAt: BigInt(1000),
+      },
+    });
+    const res = await request(app).delete('/api/v1/development/DEV-CASE-1').set(authHeader());
+    expect(res.status).toBe(409);
+    expect(res.body.error.message).toBe('已转订单的开发单不可删除');
+    expect(devCaseUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  it('未转订单（linkedOrderId 为空）→ 正常删除 200', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).delete('/api/v1/development/DEV-CASE-1').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(devCaseUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'DEV-CASE-1' },
+      data: expect.objectContaining({ deletedAt: expect.any(BigInt) }),
+    }));
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(onDataChange).toHaveBeenCalledTimes(1);
+  });
+
   it('audit 失败 → 500 DELETE_FAILED', async () => {
     const { app, onDataChange } = makeApp({ auditFail: true });
     const res = await request(app).delete('/api/v1/development/DEV-CASE-1').set(authHeader());

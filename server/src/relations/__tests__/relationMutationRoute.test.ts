@@ -113,6 +113,22 @@ describe('relationMutationService route POST/PUT/DELETE', () => {
     expect(onDataChange).not.toHaveBeenCalled();
   });
 
+  it('update reportsToId → 组织架构拖拽汇报线持久化契约（值更新 / null 清空 / 未传不动）', async () => {
+    const { app, relationUpdate } = makeApp({ existing: { id: 'REL-1', name: 'John', category: 'Customer', type: 'Contact', isOrganization: false, reportsToId: 'REL-OLD-BOSS', deletedAt: null } });
+    // 拖到新汇报对象：白名单含 reportsToId，值透传落库
+    const res = await request(app).put('/api/v1/relations/REL-1').set(auth()).send({ reportsToId: 'REL-BOSS-1' });
+    expect(res.status).toBe(200);
+    expect(relationUpdate.mock.calls[0][0].data.reportsToId).toBe('REL-BOSS-1');
+    // 拖到组织根：显式 null 清空汇报线（前端以 null 表达"挂根"——JSON 序列化丢弃 undefined 键）
+    const res2 = await request(app).put('/api/v1/relations/REL-1').set(auth()).send({ reportsToId: null });
+    expect(res2.status).toBe(200);
+    expect(relationUpdate.mock.calls[1][0].data.reportsToId).toBeNull();
+    // 未传 reportsToId：hasOwn 语义不动该列（普通表单保存不会误清汇报线）
+    const res3 = await request(app).put('/api/v1/relations/REL-1').set(auth()).send({ name: 'Jane' });
+    expect(res3.status).toBe(200);
+    expect(relationUpdate.mock.calls[2][0].data).not.toHaveProperty('reportsToId');
+  });
+
   it('update audit reject → 500 UPDATE_FAILED，onDataChange 不触发', async () => {
     const { app, onDataChange } = makeApp({ auditFail: true });
     const res = await request(app).put('/api/v1/relations/REL-1').set(auth()).send({ name: 'New', category: 'Customer' });

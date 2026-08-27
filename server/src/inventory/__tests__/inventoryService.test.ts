@@ -93,6 +93,9 @@ function makePrisma(opts: {
     },
     stockMovement: { create: stockMovementCreate },
     auditLog: { create: auditCreate },
+    // EntityLink 图谱（W-C A1）：syncStockMovementReferences 走 tx 内 upsert
+    entityReference: { upsert: vi.fn().mockResolvedValue({}) },
+    entityLink: { upsert: vi.fn().mockResolvedValue({}) },
   };
 
   const prisma: any = {

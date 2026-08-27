@@ -53,6 +53,7 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 
@@ -76,6 +77,24 @@ const MOVEMENT_TYPES: Array<{ id: StockMovementType; label: string; icon: React.
   { id: 'Lock', label: '锁定', icon: <Lock size={14} />, semantic: 'warning' },
   { id: 'Unlock', label: '解锁', icon: <Unlock size={14} />, semantic: 'success' },
 ];
+
+// ── A3 盘点高危操作防护（纯函数，测试可直引）──
+/** 数量格式化：en-US 千分位、最多 2 位小数 */
+const formatQty = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+/** 盘点差异 = 盘点后实际数量 − 账面数量 */
+export function computeStocktakingDiff(bookQty: number, countedQty: number): number {
+  return Number(countedQty) - Number(bookQty);
+}
+
+/** 带符号数量格式化（口径同 formatQty）：+50 / -50 / 0 */
+export function formatSignedQty(n: number): string {
+  const v = Number(n);
+  const abs = Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  if (v > 0) return `+${abs}`;
+  if (v < 0) return `-${abs}`;
+  return '0';
+}
 
 interface InventoryManagerProps {
   isDarkMode: boolean;
@@ -268,6 +287,20 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     if (movementForm.type === 'Transfer' && !movementForm.targetWarehouseId) {
       setMovementError('调拨必须指定目标仓库'); return;
     }
+    // A3 盘点高危操作防护：盘点数量语义为「盘点后实际总数」而非差值，
+    // 提交前显式确认 账面 → 盘点 → 差异，防仓管误填差值导致库存被覆盖
+    if (movementForm.type === 'Adjustment') {
+      const target = items.find(it => it.id === movementTargetId);
+      const bookQty = Number(target?.quantity ?? 0);
+      const countedQty = Number(movementForm.quantity);
+      const unit = target?.unit || '';
+      const confirmed = await bdsConfirm({
+        title: '确认盘点',
+        body: `账面 ${formatQty(bookQty)} ${unit} → 盘点 ${formatQty(countedQty)} ${unit}，差异 ${formatSignedQty(computeStocktakingDiff(bookQty, countedQty))} ${unit}。\n确认提交？`,
+        confirmText: '确认提交',
+      });
+      if (!confirmed) return;
+    }
     setActionLoading(`movement_${movementTargetId}`);
     try {
       await apiService.createStockMovement({ ...movementForm, itemId: movementTargetId });
@@ -283,10 +316,9 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     } finally {
       setActionLoading(null);
     }
-  }, [movementTargetId, movementForm, fetchItems, fetchLowStock]);
+  }, [movementTargetId, movementForm, items, fetchItems, fetchLowStock]);
 
   // ── 辅助 ──
-  const formatQty = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
   const formatDate = (s?: string) => s || '—';
   const warehouseName = (id: string) => warehouses.find(w => w.id === id)?.name || id;
 
@@ -481,11 +513,30 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                                       <div className="p-3 rounded-inset bds-inset">
                                         <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>库存变动</h4>
+                                        {/* A3 盘点防护：账面数对比 + 实时差异（盘点数量语义 = 盘点后实际总数） */}
+                                        {movementForm.type === 'Adjustment' && (() => {
+                                          const bookQty = Number(item.quantity);
+                                          const diff = computeStocktakingDiff(bookQty, Number(movementForm.quantity));
+                                          const diffColor = diff > 0 ? 'var(--success-text)' : diff < 0 ? 'var(--danger-text)' : 'var(--text-secondary)';
+                                          return (
+                                            <div className="flex items-center gap-4 text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                                              <span>当前账面：<span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatQty(bookQty)}</span> {item.unit}</span>
+                                              <span>
+                                                差异：
+                                                {movementForm.quantity ? (
+                                                  <span className="bds-tnum" style={{ color: diffColor }}>{formatSignedQty(diff)} {item.unit}</span>
+                                                ) : (
+                                                  <span style={{ color: 'var(--text-quaternary)' }}>输入盘点后实际数量实时显示</span>
+                                                )}
+                                              </span>
+                                            </div>
+                                          );
+                                        })()}
                                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
                                           <select value={movementForm.type} onChange={(e) => setMovementForm({ ...movementForm, type: e.target.value as StockMovementType })} className="bds-select sm">
                                             {MOVEMENT_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                                           </select>
-                                          <input type="number" value={movementForm.quantity || ''} onChange={(e) => setMovementForm({ ...movementForm, quantity: parseFloat(e.target.value) || 0 })} placeholder="数量 *" className="bds-input sm" />
+                                          <input type="number" value={movementForm.quantity || ''} onChange={(e) => setMovementForm({ ...movementForm, quantity: parseFloat(e.target.value) || 0 })} placeholder={movementForm.type === 'Adjustment' ? '盘点后实际数量 *' : '数量 *'} className="bds-input sm" />
                                           <CapsuleDateInput value={movementForm.movementDate || ''} onChange={(v) => setMovementForm({ ...movementForm, movementDate: v })} className="bds-input sm" />
                                           <input type="text" value={movementForm.reason || ''} onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })} placeholder="原因" className="bds-input sm" />
                                           {movementForm.type === 'Transfer' && (

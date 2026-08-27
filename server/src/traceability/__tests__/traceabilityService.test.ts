@@ -1,6 +1,6 @@
 /**
  * traceabilityService 单测
- * 覆盖：6 大溯源场景（customerPanorama/orderFulfillment/quoteToShip/supplierPanorama/productCostChain/taxRefundChain）
+ * 覆盖：7 大溯源场景（customerPanorama/orderFulfillment/quoteToShip/supplierPanorama/productCostChain/taxRefundChain/purchaseToStock）
  *      + trace 统一分派入口 + scope 行级权限 + NOT_FOUND 处理 + bigint 序列化
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -92,6 +92,17 @@ function makePrisma(overrides: any = {}) {
     factoryProfile: {},
     factoryEvaluation: { findMany: vi.fn().mockResolvedValue([]) },
     taxRefund: { findFirst: overrides.taxRefundFindFirst ?? vi.fn().mockResolvedValue(null) },
+    // W-C A1 采购库存链
+    purchaseOrder: {
+      findFirst: overrides.poFindFirst ?? vi.fn().mockResolvedValue(null),
+      findMany: overrides.poFindMany ?? vi.fn().mockResolvedValue([]),
+    },
+    materialReceipt: { findMany: overrides.receiptFindMany ?? vi.fn().mockResolvedValue([]) },
+    stockMovement: { findMany: overrides.movementFindMany ?? vi.fn().mockResolvedValue([]) },
+    inventoryItem: {
+      findFirst: overrides.itemFindFirst ?? vi.fn().mockResolvedValue(null),
+      findMany: overrides.itemFindMany ?? vi.fn().mockResolvedValue([]),
+    },
   } as any;
 }
 
@@ -441,6 +452,150 @@ describe('taxRefundChain 退税链', () => {
     expect(r.summary.invoiceCount).toBe(0);
     expect(r.summary.receiptCount).toBe(0);
     expect(r.summary.receiptTotal).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// purchaseToStock 采购库存链（W-C A1 · S2 三击追溯铁律）
+// 链路口径：PO → MaterialReceipt(purchaseOrderId)
+//          → StockMovement(referenceType='PurchaseOrder', referenceId=receipt.id)
+//          → InventoryItem(itemId)；root 兼容采购单/库存物料双入口
+// ═══════════════════════════════════════════════════════════════
+function makePurchaseOrder(overrides: any = {}) {
+  return {
+    id: 'PO__1', poNumber: 'PO-20260806-001', status: 'PartiallyReceived',
+    supplierName: 'Panda Mill', deletedAt: null,
+    ...overrides,
+  };
+}
+
+function makeReceipt(overrides: any = {}) {
+  return {
+    id: 'MR__1', receiptNumber: 'RPT-001', purchaseOrderId: 'PO__1',
+    status: 'Accepted', totalAccepted: dec(100), createdAt: 1724000000000,
+    ...overrides,
+  };
+}
+
+function makeMovement(overrides: any = {}) {
+  return {
+    id: 'SM__1', movementNumber: 'SM-20260810-AB12', type: 'Inbound',
+    itemId: 'INV__1', warehouseId: 'WH__1',
+    referenceType: 'PurchaseOrder', referenceId: 'MR__1',
+    quantity: dec(100), createdAt: 1724000000000,
+    ...overrides,
+  };
+}
+
+function makeItem(overrides: any = {}) {
+  return {
+    id: 'INV__1', description: '主面料', materialCode: 'FAB-001',
+    quantity: dec(100), deletedAt: null,
+    ...overrides,
+  };
+}
+
+describe('purchaseToStock 采购库存链', () => {
+  it('采购单入口：PO → 收货 → 库存变动 → 库存物料 全链聚合', async () => {
+    const prisma = makePrisma({
+      poFindFirst: vi.fn().mockResolvedValue(makePurchaseOrder()),
+      receiptFindMany: vi.fn().mockResolvedValue([makeReceipt()]),
+      movementFindMany: vi.fn().mockResolvedValue([makeMovement()]),
+      itemFindMany: vi.fn().mockResolvedValue([makeItem()]),
+    });
+    const svc = createTraceabilityService(prisma);
+    const r = await svc.trace(ACTOR, 'purchaseToStock', 'PO__1');
+
+    expect(r.scenario).toBe('purchaseToStock');
+    expect(r.rootId).toBe('PO__1');
+    expect(r.rootType).toBe('PurchaseOrder');
+    const types = r.nodes.map((n) => n.type);
+    expect(types).toContain('PurchaseOrder');
+    expect(types).toContain('MaterialReceipt');
+    expect(types).toContain('StockMovement');
+    expect(types).toContain('InventoryItem');
+    // 边：PO→收货、收货→变动、变动→物料
+    expect(r.edges).toEqual(expect.arrayContaining([
+      { from: 'PO__1', to: 'MR__1', relation: 'has_receipt' },
+      { from: 'MR__1', to: 'SM__1', relation: 'has_stock_movement' },
+      { from: 'SM__1', to: 'INV__1', relation: 'moves_item' },
+    ]));
+    // 库存变动按 L8 契约查询（referenceType='PurchaseOrder' + referenceId=receiptId）
+    expect(prisma.stockMovement.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { referenceType: 'PurchaseOrder', referenceId: { in: ['MR__1'] } },
+    }));
+    expect(r.summary.poNumber).toBe('PO-20260806-001');
+    expect(r.summary.receiptCount).toBe(1);
+    expect(r.summary.totalAccepted).toBe(100);
+    expect(r.summary.movementCount).toBe(1);
+    expect(r.summary.itemCount).toBe(1);
+  });
+
+  it('库存物料入口：物料 → 库存变动 → 收货 → 采购单 反向三击', async () => {
+    const prisma = makePrisma({
+      poFindFirst: vi.fn().mockResolvedValue(null), // rootId 不是 PO
+      itemFindFirst: vi.fn().mockResolvedValue(makeItem()),
+      movementFindMany: vi.fn().mockResolvedValue([makeMovement()]),
+      receiptFindMany: vi.fn().mockResolvedValue([makeReceipt()]),
+      poFindMany: vi.fn().mockResolvedValue([makePurchaseOrder()]),
+    });
+    const svc = createTraceabilityService(prisma);
+    const r = await svc.trace(ACTOR, 'purchaseToStock', 'INV__1');
+
+    expect(r.rootType).toBe('InventoryItem');
+    const types = r.nodes.map((n) => n.type);
+    expect(types).toContain('InventoryItem');
+    expect(types).toContain('StockMovement');
+    expect(types).toContain('MaterialReceipt');
+    expect(types).toContain('PurchaseOrder');
+    expect(r.edges).toEqual(expect.arrayContaining([
+      { from: 'SM__1', to: 'INV__1', relation: 'moves_item' },
+      { from: 'MR__1', to: 'SM__1', relation: 'has_stock_movement' },
+      { from: 'PO__1', to: 'MR__1', relation: 'has_receipt' },
+    ]));
+    expect(r.summary.movementCount).toBe(1);
+    expect(r.summary.receiptCount).toBe(1);
+    expect(r.summary.poCount).toBe(1);
+    expect(r.summary.currentQty).toBe(100);
+  });
+
+  it('rootId 既非采购单也非库存物料 → 抛 NOT_FOUND', async () => {
+    const prisma = makePrisma({
+      poFindFirst: vi.fn().mockResolvedValue(null),
+      itemFindFirst: vi.fn().mockResolvedValue(null),
+    });
+    const svc = createTraceabilityService(prisma);
+    await expect(svc.trace(ACTOR, 'purchaseToStock', 'NOPE')).rejects.toThrow('NOT_FOUND');
+  });
+
+  it('采购单无收货记录 → 仅 PO 节点，不查库存变动', async () => {
+    const prisma = makePrisma({
+      poFindFirst: vi.fn().mockResolvedValue(makePurchaseOrder()),
+      receiptFindMany: vi.fn().mockResolvedValue([]),
+    });
+    const svc = createTraceabilityService(prisma);
+    const r = await svc.trace(ACTOR, 'purchaseToStock', 'PO__1');
+    expect(r.nodes).toHaveLength(1);
+    expect(r.summary.receiptCount).toBe(0);
+    expect(r.summary.movementCount).toBe(0);
+    expect(prisma.stockMovement.findMany).not.toHaveBeenCalled();
+    expect(prisma.inventoryItem.findMany).not.toHaveBeenCalled();
+  });
+
+  it('库存物料的手工变动（referenceType=Manual）不回溯收货链', async () => {
+    const prisma = makePrisma({
+      poFindFirst: vi.fn().mockResolvedValue(null),
+      itemFindFirst: vi.fn().mockResolvedValue(makeItem()),
+      movementFindMany: vi.fn().mockResolvedValue([
+        makeMovement({ id: 'SM__M1', referenceType: 'Manual', referenceId: null }),
+      ]),
+    });
+    const svc = createTraceabilityService(prisma);
+    const r = await svc.trace(ACTOR, 'purchaseToStock', 'INV__1');
+    expect(r.summary.receiptCount).toBe(0);
+    expect(r.summary.poCount).toBe(0);
+    expect(prisma.materialReceipt.findMany).not.toHaveBeenCalled();
+    expect(prisma.purchaseOrder.findMany).not.toHaveBeenCalled();
   });
 });
 

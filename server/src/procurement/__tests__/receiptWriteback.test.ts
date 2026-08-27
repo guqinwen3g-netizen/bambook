@@ -77,6 +77,9 @@ function makeDb(opts: {
     purchaseLine: { update: purchaseLineUpdate },
     materialReceipt: { create: materialReceiptCreate, findFirst: materialReceiptFindFirst },
     auditLog: { create: auditCreate },
+    // EntityLink 图谱（W-C A1）：syncMaterialReceiptReferences 走 tx 内 upsert
+    entityReference: { upsert: vi.fn().mockResolvedValue({}) },
+    entityLink: { upsert: vi.fn().mockResolvedValue({}) },
   };
   const prisma: any = {
     purchaseOrder: { findUnique: purchaseOrderFindUnique },

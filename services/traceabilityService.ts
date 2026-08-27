@@ -46,7 +46,8 @@ export type TraceScenario =
   | 'quoteToShip'
   | 'supplierPanorama'
   | 'productCostChain'
-  | 'taxRefundChain';
+  | 'taxRefundChain'
+  | 'purchaseToStock';
 
 export interface TraceNode {
   id: string;
@@ -131,6 +132,14 @@ export const TRACE_SCENARIOS: ScenarioMeta[] = [
     rootType: 'TaxRefund',
     rootLabel: '退税 ID',
     description: '退税 → 报关单 → 出口发票 → 收汇凭证',
+  },
+  {
+    id: 'purchaseToStock',
+    label: '采购库存链',
+    labelEn: 'Purchase to Stock',
+    rootType: 'PurchaseOrder',
+    rootLabel: '采购单 / 库存物料 ID',
+    description: '采购单 → 收货 → 库存变动 → 库存物料（双入口正反向）',
   },
 ];
 

@@ -80,6 +80,9 @@ function makeMockPrisma(seed: {
       create: async ({ data }: any) => { const row = { id: `SM_${stockMovements.length + 1}`, ...data }; stockMovements.push(row); return row; },
     },
     auditLog: { create: async ({ data }: any) => { auditLogs.push(data); return data; } },
+    // EntityLink 图谱（W-C A1）：inventoryService.createStockMovement 内 syncStockMovementReferences 走 tx 内 upsert
+    entityReference: { upsert: async () => ({}) },
+    entityLink: { upsert: async () => ({}) },
     businessSequence: {
       upsert: async ({ where }: any) => ({ id: where.id, seq: sequences[where.id] ?? 0 }),
       update: async ({ where }: any) => {

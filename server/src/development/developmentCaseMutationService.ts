@@ -334,6 +334,14 @@ export async function deleteDevelopmentCase(params: {
       if (existing.deletedAt) {
         throwCoded('ALREADY_DELETED', `Development case ${caseId} is already deleted`, 409);
       }
+      // A4: 已转订单的开发单不可删除。linkedOrderId 非空即已转订单锚点，
+      // 覆盖两种形态：convert 流程转单（stage=approved + linkedOrderId）与
+      // 存量 stage='已确认' && linkedOrderId 数据（二者均以 linkedOrderId 为锚）。
+      // 注：409 语义码复用 ALREADY_DELETED —— DELETE 路由 statusCodeMap 仅将该码映射为 409，
+      // 新增专用码需连带 route.ts 映射与 agent/developmentCreateFlow.ts 穷举 Record（超出本修复租约）。
+      if (existing.linkedOrderId) {
+        throwCoded('ALREADY_DELETED', '已转订单的开发单不可删除', 409);
+      }
       await tx.developmentCase.update({
         where: { id: caseId },
         data: { deletedAt: now, updatedAt: now },

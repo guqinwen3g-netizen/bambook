@@ -20,6 +20,7 @@
 import { PrismaClient, Warehouse, InventoryItem, StockMovement } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
+import { syncStockMovementReferences } from '../entities/sync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -294,7 +295,7 @@ export function createInventoryService(prisma: PrismaClient) {
 
       // 如果初始数量 > 0，自动生成一条入库流水
       if (input.quantity > 0) {
-        await tx.stockMovement.create({
+        const initMovement = await tx.stockMovement.create({
           data: {
             id: generateMovementId(),
             movementNumber: `SM-INIT-${now}-${Math.random().toString(36).slice(2, 6)}`,
@@ -312,6 +313,8 @@ export function createInventoryService(prisma: PrismaClient) {
             createdAt: now,
           },
         });
+        // W-C A1：StockMovement 图谱入链（S2 三击追溯）——同事务双写
+        await syncStockMovementReferences(prisma, initMovement, { source: 'api:inventory' }, tx);
       }
 
       await tx.auditLog.create({
@@ -577,6 +580,9 @@ export function createInventoryService(prisma: PrismaClient) {
         },
       });
 
+      // W-C A1：StockMovement 图谱入链（S2 三击追溯）——同事务双写
+      await syncStockMovementReferences(prisma, movement, { source: 'api:inventory' }, tx);
+
       // 2. 更新库存项余额
       const updatedItem = await tx.inventoryItem.update({
         where: { id: input.itemId },
@@ -665,6 +671,9 @@ export function createInventoryService(prisma: PrismaClient) {
             createdAt: now,
           },
         });
+
+        // W-C A1：StockMovement 图谱入链（S2 三击追溯）——同事务双写
+        await syncStockMovementReferences(prisma, targetMovement, { source: 'api:inventory' }, tx);
       }
 
       // 4. 审计日志

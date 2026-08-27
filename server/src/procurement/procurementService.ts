@@ -18,7 +18,7 @@
 import { PrismaClient, PurchaseOrder, PurchaseLine, MaterialReceipt, SupplierInquiry } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
-import { deactivateEntityLinks, syncPurchaseOrderReferences } from '../entities/sync';
+import { deactivateEntityLinks, syncMaterialReceiptReferences, syncPurchaseOrderReferences } from '../entities/sync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -873,6 +873,10 @@ export function createProcurementService(prisma: PrismaClient) {
           createdAt: now,
         },
       });
+
+      // W-C A1：MaterialReceipt 图谱入链（S2 三击追溯）——同事务双写 entityReference/entityLink，
+      // 幂等重放路径已在上方提前返回，不会重复挂载。
+      await syncMaterialReceiptReferences(prisma, receipt, { source: 'api:procurement' }, tx);
 
       // 行级回写（L8 断层修复）：PurchaseLine.receivedQuantity += 本次合格数量的行级分配
       // 口径 = 合格数（totalAccepted），与 PO 状态流转及「仅合格数量入库」一致（见 allocateAcceptedQuantity 注释）；

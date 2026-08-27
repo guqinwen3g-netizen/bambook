@@ -6,7 +6,8 @@
  * 路由：
  *   GET /:scenario/:rootId — 执行溯源查询
  *     scenario: customerPanorama | orderFulfillment | quoteToShip |
- *               supplierPanorama | productCostChain | taxRefundChain
+ *               supplierPanorama | productCostChain | taxRefundChain |
+ *               purchaseToStock（W-C A1 采购库存链）
  */
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
@@ -24,6 +25,7 @@ export interface TraceabilityRouterOptions {
 const SCENARIOS: TraceScenario[] = [
   'customerPanorama', 'orderFulfillment', 'quoteToShip',
   'supplierPanorama', 'productCostChain', 'taxRefundChain',
+  'purchaseToStock',
 ];
 
 const SCENARIO_PERMISSION_MAP: Record<TraceScenario, string> = {
@@ -33,6 +35,7 @@ const SCENARIO_PERMISSION_MAP: Record<TraceScenario, string> = {
   supplierPanorama: 'relations:read',
   productCostChain: 'finance:read',
   taxRefundChain:   'finance:read',
+  purchaseToStock:  'procurement:read',
 };
 
 export function createTraceabilityRouter(opts: TraceabilityRouterOptions): Router {

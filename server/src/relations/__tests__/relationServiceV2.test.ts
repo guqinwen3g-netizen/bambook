@@ -256,6 +256,24 @@ describe('updateRelation 更新客户', () => {
     expect(updateCall.data.stage).toBe('Key');
     expect(updateCall.data.tier).toBe('S');
   });
+
+  it('成功更新 reportsToId（组织架构拖拽汇报线持久化 A2）', async () => {
+    const prisma = makePrisma();
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.updateRelation(ACTOR, 'REL__1', { reportsToId: 'REL__BOSS' });
+    expect(r.ok).toBe(true);
+    const updateCall = prisma.relation.update.mock.calls[0][0];
+    expect(updateCall.data.reportsToId).toBe('REL__BOSS');
+  });
+
+  it('reportsToId 置 null（拖到组织根清空汇报线）', async () => {
+    const prisma = makePrisma();
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.updateRelation(ACTOR, 'REL__1', { reportsToId: null });
+    expect(r.ok).toBe(true);
+    const updateCall = prisma.relation.update.mock.calls[0][0];
+    expect(updateCall.data.reportsToId).toBeNull();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

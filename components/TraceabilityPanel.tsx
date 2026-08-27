@@ -25,7 +25,7 @@ import {
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-// ── 节点类型 → 显示标签 + 色调（BDS §4.5 雾化分类色板 mask-* 文字元，14 类同源 30% 饱和）──
+// ── 节点类型 → 显示标签 + 色调（BDS §4.5 雾化分类色板 mask-* 文字元，同源 30% 饱和；色板共 15 色，同族语义复用）──
 const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
   Relation:            { label: '业务伙伴', tone: 'text-[var(--mask-sky-text)]' },
   Order:               { label: '订单',     tone: 'text-[var(--mask-violet-text)]' },
@@ -41,6 +41,12 @@ const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
   TradeDocument:       { label: '贸易单据', tone: 'text-[var(--mask-indigo-text)]' },
   TaxRefund:           { label: '退税',     tone: 'text-[var(--mask-green-text)]' },
   Product:             { label: '产品',     tone: 'text-[var(--mask-blue-text)]' },
+  // W-C A1 采购库存链（采购族=浅紫 / 收货=物流青 / 库存=流水琥珀·物料蓝）
+  PurchaseOrder:       { label: '采购单',   tone: 'text-[var(--mask-violet-soft-text)]' },
+  MaterialReceipt:     { label: '收货单',   tone: 'text-[var(--mask-cyan-text)]' },
+  StockMovement:       { label: '库存变动', tone: 'text-[var(--mask-amber-text)]' },
+  InventoryItem:       { label: '库存物料', tone: 'text-[var(--mask-blue-text)]' },
+  Warehouse:           { label: '仓库',     tone: 'text-[var(--mask-olive-text)]' },
 };
 
 function nodeTypeLabel(type: string): string {
@@ -69,6 +75,10 @@ const EDGE_LABELS: Record<string, string> = {
   has_bom: 'BOM',
   has_cost: '成本',
   has_relation: '关联',
+  // W-C A1 采购库存链
+  has_receipt: '收货',
+  has_stock_movement: '库存变动',
+  moves_item: '出入库',
 };
 
 function edgeLabel(relation: string): string {

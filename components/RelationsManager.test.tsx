@@ -1720,6 +1720,27 @@ describe('关系智库验收补充：组织架构树与汇报环检测', () => {
     expect(moveSource).toContain("if (reportsToId && !orgContacts.some(contact => contact.id === reportsToId)) return");
   });
 
+  it('handleMoveContact 拖拽持久化：乐观更新 + 后端 PUT reportsToId + 失败回滚提示（A2 修复）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const moveStart = source.indexOf('const handleMoveContact = (contactId: string, reportsToId?: string) => {');
+    const moveSource = source.slice(moveStart, source.indexOf('const selectedContact =', moveStart));
+
+    // 持久化通道：复用既有 V2 端点（apiService.updateRelation → PUT /v2/relations/:id，
+    // 后端 toRelationUpdatePayload 白名单含 reportsToId）——此前仅 onUpdate 改内存，刷新回弹
+    expect(moveSource).toContain('apiService.updateRelation(contactId');
+    // 拖到组织根须显式置 null：JSON 序列化丢弃 undefined 键，缺键=后端保留原值（挂根静默失败）
+    expect(moveSource).toContain('reportsToId: reportsToId ?? null');
+    // 乐观更新先于网络请求（拖拽立即上屏，不等往返）
+    expect(moveSource.indexOf('onUpdate(relations.map(relation => relation.id === contactId ? updated : relation), updated)'))
+      .toBeLessThan(moveSource.indexOf('apiService.updateRelation'));
+    // 失败回滚 UI 到拖拽前状态 + 错误提示（独立 orgMoveError 通道，不污染表单/删除弹窗的 relationSaveError）
+    expect(moveSource).toContain('.catch(');
+    expect(moveSource).toContain('relation.id === contactId ? source : relation');
+    expect(moveSource).toContain('setOrgMoveError(');
+    // 组织架构图视图内联错误横幅（拖拽失败在发生地可见）
+    expect(source).toContain('{orgMoveError && (');
+  });
+
   it('OrgChart canDrop 预判与提交层共用同一规则（UI 与提交层一致性）', () => {
     const orgChartSource = readFileSync(new URL('./ui/OrgChart.tsx', import.meta.url), 'utf8');
     const canDropSource = orgChartSource.slice(

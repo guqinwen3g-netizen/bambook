@@ -1389,3 +1389,90 @@ export async function syncOutsourcingOrderReferences(
   ], options);
   await runEntitySyncOps(prisma, ops, tx);
 }
+
+// ---------------------------------------------------------------------------
+// W-C 功能修复任务包 A1：采购→收货→库存追溯链断链修复（S2 三击追溯铁律）
+//
+// MaterialReceipt / StockMovement 此前零图谱覆盖，三击追溯在
+// 「采购→收货→库存」链查不到。以下 sync 函数与既有 spec 驱动模式语义一致
+// （entityReference + entityLink 双写、确定性 ID、tx 感知）。
+//
+// linkKinds:
+//   MaterialReceipt: forPurchaseOrder（purchaseOrderId→purchaseOrder）
+//                    stockedAs（stockItemId→inventoryItem，如有则入图）
+//   StockMovement:   movesItem（itemId→inventoryItem）
+//                    inWarehouse（warehouseId→warehouse）
+//                    referencesDocument（referenceType+referenceId→关联单据，如有）
+// 挂载点：procurementService.createMaterialReceipt 事务内；
+//         inventoryService 三处 stockMovement.create 之后（同事务）。
+// ---------------------------------------------------------------------------
+
+type MaterialReceiptLike = Record<string, any> & { id: string };
+
+/** MaterialReceipt → PurchaseOrder(forPurchaseOrder) / InventoryItem(stockedAs，如有) */
+export async function syncMaterialReceiptReferences(
+  prisma: PrismaClient,
+  receipt: MaterialReceiptLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!receipt?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'materialReceipt', receipt.id, [
+    {
+      fieldKey: 'purchaseOrderId', label: receipt.receiptNumber,
+      targetType: 'purchaseOrder', targetId: receipt.purchaseOrderId, linkKind: 'forPurchaseOrder',
+      snapshotExtra: { receiptNumber: receipt.receiptNumber, status: receipt.status },
+    },
+    {
+      // schema 无此列（MaterialReceipt 为 PO 级汇总口径）；调用方携带时入图，缺省跳过
+      fieldKey: 'stockItemId', label: receipt.receiptNumber,
+      targetType: 'inventoryItem', targetId: receipt.stockItemId, linkKind: 'stockedAs',
+      snapshotExtra: { receiptNumber: receipt.receiptNumber },
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+type StockMovementLike = Record<string, any> & { id: string };
+
+/** referenceType（schema 注释口径）→ 图谱目标实体类型；Manual/Adjustment 等非单据来源不入图 */
+const STOCK_MOVEMENT_REFERENCE_TARGET_TYPES: Record<string, string> = {
+  PurchaseOrder: 'purchaseOrder',
+  MaterialReceipt: 'materialReceipt',
+  Order: 'order',
+  Shipment: 'shipment',
+  ProductionStage: 'productionStage',
+  Transfer: 'stockMovement',
+};
+
+/** StockMovement → InventoryItem(movesItem) / Warehouse(inWarehouse) / 关联单据(referencesDocument，如有) */
+export async function syncStockMovementReferences(
+  prisma: PrismaClient,
+  movement: StockMovementLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!movement?.id) return;
+  const ctx = tx || prisma;
+  const referenceTargetType = STOCK_MOVEMENT_REFERENCE_TARGET_TYPES[String(movement.referenceType ?? '')];
+  const ops = buildEntitySyncOps(ctx, 'stockMovement', movement.id, [
+    {
+      fieldKey: 'itemId', label: movement.movementNumber,
+      targetType: 'inventoryItem', targetId: movement.itemId, linkKind: 'movesItem',
+      snapshotExtra: { movementNumber: movement.movementNumber, type: movement.type },
+    },
+    {
+      fieldKey: 'warehouseId', label: movement.movementNumber,
+      targetType: 'warehouse', targetId: movement.warehouseId, linkKind: 'inWarehouse',
+    },
+    {
+      fieldKey: 'referenceId', label: movement.movementNumber,
+      targetType: referenceTargetType ?? 'document',
+      targetId: referenceTargetType ? movement.referenceId : null,
+      linkKind: 'referencesDocument',
+      snapshotExtra: { referenceType: movement.referenceType },
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}

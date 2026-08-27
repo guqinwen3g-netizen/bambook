@@ -384,6 +384,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const [editingItem, setEditingItem] = useState<Relation | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [relationSaveError, setRelationSaveError] = useState<string | null>(null);
+  // 组织架构拖拽持久化失败提示（独立通道：不污染表单/删除弹窗的 relationSaveError）
+  const [orgMoveError, setOrgMoveError] = useState<string | null>(null);
   const [relationBusy, setRelationBusy] = useState(false);
   const [tagRows, setTagRows] = useState<RelationTagRow[]>([{ id: 'tag-0', value: '' }]);
   const [backupContactRows, setBackupContactRows] = useState<BackupContactRow[]>([{ id: 'backup-0', name: '', email: '', phone: '', note: '' }]);
@@ -938,7 +940,19 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     if (isDescendantContact(orgContacts, contactId, reportsToId || undefined)) return;
 
     const updated: Relation = { ...source, reportsToId };
+    // 乐观更新：拖拽结果立即上屏，不等后端往返
     onUpdate(relations.map(relation => relation.id === contactId ? updated : relation), updated);
+    // 后端持久化（A2 修复：此前仅 onUpdate 改前端内存，刷新后汇报线回弹）。
+    // reportsToId ?? null：拖到组织根须显式置 null——JSON 序列化丢弃 undefined 键，
+    // 后端 toRelationUpdatePayload 以 hasOwn 判定字段是否参与更新，缺键=保留原值（挂根会静默失败）。
+    // Relation.reportsToId 类型不含 null（服务端合约允许），故收窄断言。
+    setOrgMoveError(null);
+    apiService.updateRelation(contactId, { reportsToId: reportsToId ?? null } as unknown as Partial<Relation>, cloudEndpoint)
+      .catch((e: any) => {
+        // 失败回滚 UI 到拖拽前状态并提示（组织架构图内联横幅）
+        onUpdate(relations.map(relation => relation.id === contactId ? source : relation), source);
+        setOrgMoveError(e?.message || '汇报线保存失败，已恢复原状');
+      });
   };
 
   const selectedContact = relations.find(r => r.id === selectedContactId);
@@ -1475,6 +1489,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                   className="h-full flex flex-col overflow-hidden"
                   contentClassName="relative z-10 flex min-h-0 flex-1 flex-col"
                 >
+                  {orgMoveError && (
+                    <div className="shrink-0 mx-4 mt-3 text-xs text-[var(--text-tertiary)] bg-[var(--recessed-bg)] rounded-control px-3 py-2">{orgMoveError}</div>
+                  )}
                   <OrgChart
                     organization={selectedOrganization}
                     contacts={orgContacts}
