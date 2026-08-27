@@ -42,6 +42,61 @@ export const CONTRACT_TYPES = ['FixedTerm', 'OpenEnded', 'PartTime', 'Intern'] a
 
 export const REVIEW_GRADES = ['A', 'B', 'C', 'D'] as const;
 
+/// C3d KPI 指标项 — 存入 PerformanceReview.kpi Json 字段
+/// 设计真源：schema.prisma L1507「kpi Json 保持指标弹性」
+/// 每项可关联 HR 项目（projectId 可选），实现剧本要求「KPI 表单 + 项目关联」
+export interface KpiItem {
+  id: string;
+  name: string;
+  target: string;
+  weight: number;
+  unit?: string;
+  projectId?: string;
+}
+
+/**
+ * 校验 KPI 指标列表 — 系统性根因校验（非特例补丁）：
+ *  - 必须是数组（null/undefined 视为未设置，允许通过）
+ *  - 每项 name 非空、weight 数值 0-100
+ *  - sum(weight) <= 100（权重总和不超过满分）
+ *  - projectId 可选，非空字符串才视为有效关联
+ * 校验失败抛 HrError('VALIDATION_FAILED')
+ */
+function validateKpiItems(kpi: unknown): KpiItem[] | null {
+  if (kpi === null || kpi === undefined) return null;
+  if (!Array.isArray(kpi)) {
+    throw new HrError('VALIDATION_FAILED', 'kpi 必须是数组');
+  }
+  let totalWeight = 0;
+  const items: KpiItem[] = [];
+  for (let i = 0; i < kpi.length; i++) {
+    const item = kpi[i] as any;
+    if (!item || typeof item !== 'object') {
+      throw new HrError('VALIDATION_FAILED', `kpi[${i}] 必须是对象`);
+    }
+    const name = (item.name ?? '').toString().trim();
+    if (!name) {
+      throw new HrError('VALIDATION_FAILED', `kpi[${i}].name 必填`);
+    }
+    const weight = Number(item.weight);
+    if (!Number.isFinite(weight) || weight < 0 || weight > 100) {
+      throw new HrError('VALIDATION_FAILED', `kpi[${i}].weight 须在 0-100`);
+    }
+    totalWeight += weight;
+    const target = (item.target ?? '').toString();
+    const id = (item.id ?? '').toString() || `kpi_${i}_${Date.now().toString(36)}`;
+    const unit = item.unit != null ? (item.unit as string).toString() : undefined;
+    const projectId = item.projectId != null && (item.projectId as string).toString().trim()
+      ? (item.projectId as string).toString().trim()
+      : undefined;
+    items.push({ id, name, target, weight, unit, projectId });
+  }
+  if (totalWeight > 100) {
+    throw new HrError('VALIDATION_FAILED', `KPI 权重总和 ${totalWeight} 超过 100`);
+  }
+  return items;
+}
+
 /** 标准工作时间（考勤自动推导口径） */
 export const WORK_START = '09:30';
 export const WORK_END = '17:30';
@@ -790,12 +845,12 @@ export function createHrService(prisma: PrismaClient) {
     }));
   }
 
-  /** 录入/更新评定（自评阶段）：upsert by (cycleId,userId)，仅 Draft 可改 */
+  /** 录入/更新评定（自评阶段）：upsert by (cycleId,userId)，仅 Draft 可改；kpi 数组结构化校验 */
   async function upsertPerformanceReview(input: {
     cycleId: string;
     userId: string;
     selfScore?: number | null;
-    kpi?: unknown;
+    kpi?: KpiItem[] | null;
     comment?: string | null;
     reviewerId?: string | null;
   }) {
@@ -805,6 +860,8 @@ export function createHrService(prisma: PrismaClient) {
     if (input.selfScore !== undefined && input.selfScore !== null && (input.selfScore < 0 || input.selfScore > 100)) {
       throw new HrError('VALIDATION_FAILED', '评分须在 0-100');
     }
+    // KPI 列表结构化校验：name 非空、weight 0-100、sum(weight)<=100、projectId 可选
+    const validatedKpi = input.kpi !== undefined ? validateKpiItems(input.kpi) : undefined;
 
     const existing = await db.performanceReview.findUnique({
       where: { cycleId_userId: { cycleId: input.cycleId, userId: input.userId } },
@@ -814,7 +871,7 @@ export function createHrService(prisma: PrismaClient) {
     }
     const data: any = {
       ...(input.selfScore !== undefined && { selfScore: input.selfScore }),
-      ...(input.kpi !== undefined && { kpi: input.kpi }),
+      ...(validatedKpi !== undefined && { kpi: validatedKpi }),
       ...(input.comment !== undefined && { comment: input.comment }),
       ...(input.reviewerId !== undefined && { reviewerId: input.reviewerId }),
     };

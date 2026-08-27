@@ -1257,7 +1257,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           )}
           {activeView === 'attendance' && <AttendanceLeaveTab isDarkMode={isDarkMode} personnel={personnel} />}
           {activeView === 'payroll' && <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />}
-          {activeView === 'performance' && <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} />}
+          {activeView === 'performance' && <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} projects={projects.map(p => ({ id: p.id, name: p.name, code: p.code }))} />}
           {activeView === 'training' && <TrainingTab isDarkMode={isDarkMode} personnel={personnel} />}
           {activeView === 'teams' && <TeamManagementTab isDarkMode={isDarkMode} personnel={personnel} departments={departments} />}
         </RdlSurface>

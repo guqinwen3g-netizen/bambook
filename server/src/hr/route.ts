@@ -44,7 +44,13 @@ export function createHRRouter(options: HRRouterOptions) {
   // ════════════════════════════════════════════
   router.get('/personnel', async (_req: Request, res: Response) => {
     try {
-      const users = await prisma.userAccount.findMany({
+      // 查询条件：未软删 或 停用（status='disabled'）。
+      // 已抹除个人数据(metadata.erased/deletionMode='erase-personal-data')的用户
+      // 仍会命中 status='disabled' 分支，因此查询后需再次过滤 metadata,
+      // 与 admin/route.ts L91-L94 保持一致 — 设计真源:
+      // docs/design/04-模块设计/08-设置与后台/Settings-设置/管理后台AdminPanel.md L264-275
+      // 「抹除个人数据(deletionMode='erase-personal-data')：从列表过滤，数据保留但不可见」
+      const usersRaw = await prisma.userAccount.findMany({
         where: {
           OR: [{ deletedAt: null }, { status: 'disabled' }],
         },
@@ -53,6 +59,10 @@ export function createHRRouter(options: HRRouterOptions) {
           primaryDepartment: true,
         },
         orderBy: { createdAt: 'desc' },
+      });
+      const users = usersRaw.filter(u => {
+        const metadata = (u.metadata || {}) as any;
+        return !metadata.erased && metadata.deletionMode !== 'erase-personal-data';
       });
 
       const departments = await prisma.department.findMany({

@@ -1,19 +1,33 @@
 /**
- * C3d 绩效管理 tab — 考核周期 + 评定（自评→提交→终评确认）
+ * C3d 绩效管理 tab — 考核周期 + 评定（自评→提交→终评确认）+ KPI 指标 + 项目关联
+ *
+ * 卡点2 修复（2026-08-24）：
+ *   原仅周期+评定录入，缺 KPI 指标表单 + 项目关联（剧本 1.10 要求）。
+ *   现利用 schema「kpi Json 弹性字段」结构化存储 KpiItem[]，每项可关联 HR 项目。
+ *   设计真源：server/prisma/schema.prisma L1507「kpi Json 保持指标弹性」
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, Plus, X } from 'lucide-react';
+import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
 import { hrTokens, hrOptionLabel, type HrPersonnelOption } from './hrTokens';
 import {
   hrService, REVIEW_STATUS_OPTIONS, REVIEW_GRADE_OPTIONS,
-  type PerformanceCycle, type PerformanceReview, type ReviewGrade,
+  type PerformanceCycle, type PerformanceReview, type ReviewGrade, type KpiItem,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
+/// HR 项目简化选项（HRManager 加载的 ProjectInfo 投影，仅传 id/name/code 用于 KPI 关联下拉）
+export interface ProjectOption {
+  id: string;
+  name: string;
+  code: string | null;
+}
+
 interface PerformanceTabProps {
   isDarkMode: boolean;
   personnel: HrPersonnelOption[];
+  /// 可选项目列表，用于 KPI 关联下拉（剧本要求「KPI 关联 projects View」）
+  projects?: ProjectOption[];
 }
 
 const cycleSemantic = (status: string): StatusSemantic => (status === 'Open' ? 'active' : 'neutral');
@@ -37,10 +51,13 @@ const gradeSemantic = (grade: string | null): StatusSemantic => {
 };
 
 const emptyCycleForm = { name: '', period: '', startDate: '', endDate: '' };
-const emptyReviewForm = { userId: '', selfScore: '', comment: '' };
+const emptyReviewForm = { userId: '', selfScore: '', comment: '', kpis: [] as KpiItem[] };
 const emptyConfirmForm = { managerScore: '', finalScore: '', grade: 'B' as ReviewGrade, comment: '' };
 
-const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }) => {
+/// 生成新 KPI 行的客户端 id（稳定 key 用）
+const genKpiId = () => `kpi_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+
+const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, projects = [] }) => {
   const t = hrTokens(isDarkMode);
 
   const [error, setError] = useState('');
@@ -126,6 +143,17 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
       setError('自评分须在 0-100');
       return;
     }
+    // 客户端预校验 KPI（与后端 validateKpiItems 同口径，提前拦截明显错误）
+    const kpis = reviewForm.kpis;
+    if (kpis.length > 0) {
+      for (let i = 0; i < kpis.length; i++) {
+        if (!kpis[i].name.trim()) { setError(`KPI 第 ${i + 1} 项名称必填`); return; }
+        const w = Number(kpis[i].weight);
+        if (!Number.isFinite(w) || w < 0 || w > 100) { setError(`KPI 第 ${i + 1} 项权重须在 0-100`); return; }
+      }
+      const totalWeight = kpis.reduce((s, k) => s + Number(k.weight), 0);
+      if (totalWeight > 100) { setError(`KPI 权重总和 ${totalWeight} 超过 100`); return; }
+    }
     setBusy(true);
     setError('');
     try {
@@ -133,6 +161,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
         cycleId: selectedCycleId,
         userId: reviewForm.userId,
         selfScore,
+        kpi: kpis.length > 0 ? kpis : null,
         comment: reviewForm.comment || null,
       });
       setReviewForm(emptyReviewForm);
@@ -333,6 +362,77 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
                         onChange={e => setReviewForm(f => ({ ...f, comment: e.target.value }))} />
                     </div>
                   </div>
+
+                  {/* KPI 指标表单（卡点2 修复）— 动态行 + 项目关联下拉 */}
+                  <div className="space-y-2 rounded-compact border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={t.sectionMutedClass}>KPI 指标（可选，权重总和 ≤ 100）</span>
+                      <span className={`text-[10px] font-light ${t.textSecondaryClass}`}>
+                        总权重 {reviewForm.kpis.reduce((s, k) => s + (Number(k.weight) || 0), 0)}/100
+                        {reviewForm.kpis.length > 0 && ` · ${reviewForm.kpis.length} 项`}
+                      </span>
+                      <div className="ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => setReviewForm(f => ({
+                            ...f,
+                            kpis: [...f.kpis, { id: genKpiId(), name: '', target: '', weight: 0, unit: '', projectId: '' }],
+                          }))}
+                          className={t.subtleButtonCls}
+                        >
+                          <Plus className="w-3 h-3" /> 添加 KPI
+                        </button>
+                      </div>
+                    </div>
+                    {reviewForm.kpis.length === 0 && (
+                      <div className={`py-2 text-center text-[11px] ${t.sectionMutedClass}`}>
+                        暂无 KPI 指标 — 可添加「订单转化率」「样品准交率」等指标，并关联 HR 项目
+                      </div>
+                    )}
+                    {reviewForm.kpis.map((kpi, idx) => (
+                      <div key={kpi.id} className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_72px_64px_minmax(0,1.5fr)_40px] items-end gap-2">
+                        <div>
+                          {idx === 0 && <div className={t.labelCls + ' mb-1'}>指标名称 *</div>}
+                          <input className={t.inputCls} placeholder="如：订单转化率" value={kpi.name}
+                            onChange={e => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, name: e.target.value } : k) }))} />
+                        </div>
+                        <div>
+                          {idx === 0 && <div className={t.labelCls + ' mb-1'}>目标值</div>}
+                          <input className={t.inputCls} placeholder="如：≥85%" value={kpi.target}
+                            onChange={e => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, target: e.target.value } : k) }))} />
+                        </div>
+                        <div>
+                          {idx === 0 && <div className={t.labelCls + ' mb-1'}>权重</div>}
+                          <input type="number" min="0" max="100" step="1" className={t.inputCls} placeholder="0-100" value={kpi.weight}
+                            onChange={e => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, weight: Number(e.target.value) || 0 } : k) }))} />
+                        </div>
+                        <div>
+                          {idx === 0 && <div className={t.labelCls + ' mb-1'}>单位</div>}
+                          <input className={t.inputCls} placeholder="如：%" value={kpi.unit || ''}
+                            onChange={e => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, unit: e.target.value } : k) }))} />
+                        </div>
+                        <div>
+                          {idx === 0 && <div className={t.labelCls + ' mb-1'}>关联项目</div>}
+                          <select className={t.selectCls} value={kpi.projectId || ''}
+                            onChange={e => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, projectId: e.target.value || undefined } : k) }))}>
+                            <option value="">无关联</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} · ${p.name}` : p.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setReviewForm(f => ({ ...f, kpis: f.kpis.filter((_, i) => i !== idx) }))}
+                            className={`${t.actionButtonCls} !px-2`}
+                            title="删除该 KPI"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setShowReviewForm(false)} className={t.actionButtonCls}>取消</button>
                     <button onClick={submitReview} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
@@ -375,6 +475,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
                         )}
                         {r.status === 'Submitted' && (
                           <button disabled={busy} onClick={() => openConfirm(r)} className={t.subtleButtonCls}>终评确认</button>
+                        )}
+                        {Array.isArray(r.kpi) && r.kpi.length > 0 && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-light ${statusSemanticClass('info', isDarkMode)}`} title={`KPI ${r.kpi.length} 项，总权重 ${r.kpi.reduce((s, k) => s + (Number((k as any).weight) || 0), 0)}/100`}>
+                            KPI {r.kpi.length}
+                          </span>
                         )}
                         {r.comment && <span className={`truncate text-[10px] ${t.textSecondaryClass}`} title={r.comment}>{r.comment}</span>}
                       </div>

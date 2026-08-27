@@ -183,6 +183,23 @@ export interface PerformanceCycle {
 export type ReviewStatus = 'Draft' | 'Submitted' | 'Confirmed';
 export type ReviewGrade = 'A' | 'B' | 'C' | 'D';
 
+/// C3d KPI 指标项 — 存入 PerformanceReview.kpi Json 字段（schema 注释「kpi Json 保持指标弹性」）
+/// 设计意图：KPI 是周期相关的弹性数据，每项可关联 HR 项目（projectId 可选）
+export interface KpiItem {
+  /** 客户端生成的稳定 id（React key 用） */
+  id: string;
+  /** KPI 名称（必填，如「订单转化率」「样品准交率」） */
+  name: string;
+  /** 目标值描述（如「≥85%」「≤3 单/月」） */
+  target: string;
+  /** 权重 0-100，所有 KPI 项 sum(weight) <= 100 */
+  weight: number;
+  /** 单位（如「%」「单」「天」），可选 */
+  unit?: string;
+  /** 关联 HR 项目 id（可选，绩效绑定项目交付） */
+  projectId?: string;
+}
+
 export interface PerformanceReview {
   id: string;
   cycleId: string;
@@ -191,7 +208,8 @@ export interface PerformanceReview {
   managerScore: number | null;
   finalScore: number | null;
   grade: ReviewGrade | null;
-  kpi: unknown;
+  /** KPI 指标列表（结构化 Json，null/[] 表示未设置） */
+  kpi: KpiItem[] | null;
   comment: string | null;
   status: ReviewStatus;
   reviewerId: string | null;
@@ -556,7 +574,7 @@ export const hrService = {
     cycleId: string;
     userId: string;
     selfScore?: number | null;
-    kpi?: unknown;
+    kpi?: KpiItem[] | null;
     comment?: string | null;
     reviewerId?: string | null;
   }): Promise<PerformanceReview> {
