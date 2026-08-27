@@ -215,7 +215,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
       ip: req.ip || null,
     });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { INVALID_INPUT: 400, INVALID_STAGE: 400, INVALID_TYPE: 400, NOT_FOUND: 404, UPDATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { INVALID_INPUT: 400, INVALID_STAGE: 400, INVALID_TYPE: 400, INVALID_TRANSITION: 409, NOT_FOUND: 404, UPDATE_FAILED: 500 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
       return;
     }
@@ -427,7 +427,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
       ip: req.ip || null,
     });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, ALREADY_DELETED: 409, DELETE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, ALREADY_DELETED: 409, CONVERTED_TO_ORDER: 409, DELETE_FAILED: 500 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
       return;
     }

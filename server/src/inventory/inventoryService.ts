@@ -512,14 +512,17 @@ export function createInventoryService(prisma: PrismaClient) {
         balanceAfter = newQty;
         lastInDate = movementDate;
         break;
-      case 'Outbound':
-        if (moveQty > currentQty) {
-          throw new Error(`库存不足：当前 ${currentQty} ${unit}，尝试出库 ${moveQty} ${unit}`);
+      case 'Outbound': {
+        // B3：出库校验可用量（总量 - 锁定量），锁定为订单预留的货不可被其他出库单发掉
+        const availableQty = toDecimal(currentQty - currentLocked);
+        if (moveQty > availableQty) {
+          throw new Error(`库存不足（含锁定量 ${currentLocked} ${unit}）：当前可用 ${availableQty} ${unit}，尝试出库 ${moveQty} ${unit}`);
         }
         newQty = toDecimal(currentQty - moveQty);
         balanceAfter = newQty;
         lastOutDate = movementDate;
         break;
+      }
       case 'Adjustment':
         // Adjustment: quantity 为目标绝对值（盘点后实际数量）
         newQty = toDecimal(moveQty);
@@ -541,16 +544,19 @@ export function createInventoryService(prisma: PrismaClient) {
         newLockedQty = toDecimal(currentLocked - moveQty);
         balanceAfter = newQty;
         break;
-      case 'Transfer':
+      case 'Transfer': {
         // 调拨：从源仓库出库，在目标仓库入库（分两步，但同一事务）
         if (!input.targetWarehouseId) throw new Error('调拨必须指定目标仓库');
-        if (moveQty > currentQty) {
-          throw new Error(`库存不足：当前 ${currentQty} ${unit}，尝试调拨 ${moveQty} ${unit}`);
+        // B3：调拨出库同样校验可用量（总量 - 锁定量）
+        const availableQty = toDecimal(currentQty - currentLocked);
+        if (moveQty > availableQty) {
+          throw new Error(`库存不足（含锁定量 ${currentLocked} ${unit}）：当前可用 ${availableQty} ${unit}，尝试调拨 ${moveQty} ${unit}`);
         }
         newQty = toDecimal(currentQty - moveQty);
         balanceAfter = newQty;
         lastOutDate = movementDate;
         break;
+      }
       default:
         throw new Error(`未实现的变动类型：${input.type}`);
     }

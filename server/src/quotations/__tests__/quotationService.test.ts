@@ -269,6 +269,76 @@ describe('quotationService: updateQuotation', () => {
   });
 });
 
+// B4：建单/改单返回值附带 moqCheck 行级校验结果（前端表单行级提醒契约；
+// mock 环境无 MoqThresholdConfig → buildSnapshot 走兜底常量 800/200/20）
+describe('quotationService: MOQ 校验结果随建单/改单返回（B4 表单提醒契约）', () => {
+  it('createQuotation：含低于 MOQ 的行 → moqCheck.ok=false + 行级 quantity/effectiveMoq/compliant', async () => {
+    const { prisma } = makePrisma();
+    const service = createQuotationService(prisma);
+
+    const result = await service.createQuotation(baseInput, 'u_test');
+
+    const moqCheck = (result as any).moqCheck;
+    expect(moqCheck).toBeTruthy();
+    expect(moqCheck.ok).toBe(false); // 100/50 < 兜底 800（YD/M 归 fabric 族）
+    expect(moqCheck.blockedLineIndexes).toEqual([0, 1]);
+    expect(moqCheck.lines).toHaveLength(2);
+    expect(moqCheck.lines[0]).toEqual(expect.objectContaining({
+      lineIndex: 0,
+      quantity: 100,
+      unit: 'YD',
+      effectiveMoq: 800,
+      compliant: false,
+    }));
+    expect(moqCheck.lines[1]).toEqual(expect.objectContaining({
+      lineIndex: 1,
+      quantity: 50,
+      unit: 'M',
+      effectiveMoq: 800,
+      compliant: false,
+    }));
+    // advisory：不阻断创建，报价单仍落库为 Draft
+    expect(result.status).toBe('Draft');
+  });
+
+  it('createQuotation：全部行达标 → moqCheck.ok=true、无阻断行', async () => {
+    const { prisma } = makePrisma();
+    const service = createQuotationService(prisma);
+
+    const result = await service.createQuotation({
+      ...baseInput,
+      lines: [{ description: 'Fabric A', quantity: 1000, unit: 'YD', unitPrice: 5.5 }],
+    }, 'u_test');
+
+    const moqCheck = (result as any).moqCheck;
+    expect(moqCheck).toBeTruthy();
+    expect(moqCheck.ok).toBe(true);
+    expect(moqCheck.blockedLineIndexes).toEqual([]);
+    expect(moqCheck.lines[0]).toEqual(expect.objectContaining({ compliant: true, effectiveMoq: 800 }));
+  });
+
+  it('updateQuotation：行变更后低于 MOQ → moqCheck.ok=false + 行级结果随返回值带出', async () => {
+    const existing = { id: 'QT_1', quotationNumber: 'QT-001', status: 'Draft', deletedAt: null, totalAmount: 100, lines: [] };
+    const { prisma } = makePrisma({ existing });
+    const service = createQuotationService(prisma);
+
+    const result = await service.updateQuotation('QT_1', {
+      lines: [{ description: 'New Fabric', quantity: 10, unit: 'YD', unitPrice: 20 }],
+    }, 'u_test');
+
+    const moqCheck = (result as any).moqCheck;
+    expect(moqCheck).toBeTruthy();
+    expect(moqCheck.ok).toBe(false);
+    expect(moqCheck.blockedLineIndexes).toEqual([0]);
+    expect(moqCheck.lines[0]).toEqual(expect.objectContaining({
+      lineIndex: 0,
+      quantity: 10,
+      effectiveMoq: 800,
+      compliant: false,
+    }));
+  });
+});
+
 describe('quotationService: deleteQuotation (soft delete)', () => {
   it('Draft 状态 → 软删除（设置 deletedAt）', async () => {
     const existing = { id: 'QT_1', status: 'Draft', deletedAt: null, quotationNumber: 'QT-001' };

@@ -720,6 +720,46 @@ describe('inventoryService: createStockMovement Outbound', () => {
     expect(tx.inventoryItem.update).not.toHaveBeenCalled();
   });
 
+  // B3：锁定量拦截 —— 总量够但锁定后可用量不足 → 拒绝出库（409 文案含锁定量数值）
+  it('总量足够但含锁定量后可用量不足 → 抛错（文案含锁定量数值）', async () => {
+    const warehouse = { id: 'WH_1', code: 'WH-001', name: '主仓', deletedAt: null };
+    const item = {
+      id: 'INV_1', warehouseId: 'WH_1', quantity: 100, lockedQuantity: 80, unit: 'YD',
+      minStock: null, maxStock: null, lastInDate: null, lastOutDate: null, deletedAt: null,
+    };
+    const { prisma, tx } = makePrisma({ existingWarehouse: warehouse, existingItem: item });
+
+    const service = createInventoryService(prisma);
+    // 总量 100 >= 50，但可用量 = 100 - 80 = 20 < 50
+    await expect(service.createStockMovement({
+      itemId: 'INV_1', type: 'Outbound', quantity: 50,
+    }, 'u_test')).rejects.toThrow('库存不足（含锁定量 80 YD）');
+
+    expect(tx.stockMovement.create).not.toHaveBeenCalled();
+    expect(tx.inventoryItem.update).not.toHaveBeenCalled();
+  });
+
+  it('可用量充足（总量 - 锁定量 >= 出库量）→ 正常出库', async () => {
+    const warehouse = { id: 'WH_1', code: 'WH-001', name: '主仓', deletedAt: null };
+    const item = {
+      id: 'INV_1', warehouseId: 'WH_1', description: '面料', materialCode: 'FAB-001',
+      quantity: 100, lockedQuantity: 80, unit: 'YD', minStock: null, maxStock: null,
+      lastInDate: null, lastOutDate: null, deletedAt: null,
+    };
+    const { prisma, tx } = makePrisma({ existingWarehouse: warehouse, existingItem: item });
+
+    const service = createInventoryService(prisma);
+    // 可用量 = 100 - 80 = 20，出库 20 恰好放行
+    const movement = await service.createStockMovement({
+      itemId: 'INV_1', type: 'Outbound', quantity: 20, reason: '生产领料',
+    }, 'u_test');
+
+    expect(movement.type).toBe('Outbound');
+    expect(tx.inventoryItem.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ quantity: 80, lockedQuantity: 80 }),
+    }));
+  });
+
   it('出库后低于 minStock → 发布 StockLowAlarm 事件', async () => {
     const warehouse = { id: 'WH_1', code: 'WH-001', name: '主仓', deletedAt: null };
     const item = {
@@ -979,6 +1019,25 @@ describe('inventoryService: createStockMovement Transfer', () => {
     }, 'u_test')).rejects.toThrow('库存不足');
 
     expect(tx.stockMovement.create).not.toHaveBeenCalled();
+  });
+
+  // B3：锁定量拦截 —— 调拨出库同样按可用量校验（文案含锁定量数值）
+  it('调拨：总量足够但含锁定量后可用量不足 → 抛错（文案含锁定量数值）', async () => {
+    const warehouse = { id: 'WH_1', code: 'WH-001', name: '主仓', deletedAt: null };
+    const item = {
+      id: 'INV_1', warehouseId: 'WH_1', quantity: 100, lockedQuantity: 80, unit: 'YD',
+      minStock: null, maxStock: null, lastInDate: null, lastOutDate: null, deletedAt: null,
+    };
+    const { prisma, tx } = makePrisma({ existingWarehouse: warehouse, existingItem: item });
+
+    const service = createInventoryService(prisma);
+    // 可用量 = 100 - 80 = 20 < 50
+    await expect(service.createStockMovement({
+      itemId: 'INV_1', type: 'Transfer', quantity: 50, targetWarehouseId: 'WH_2',
+    }, 'u_test')).rejects.toThrow('库存不足（含锁定量 80 YD）');
+
+    expect(tx.stockMovement.create).not.toHaveBeenCalled();
+    expect(tx.inventoryItem.update).not.toHaveBeenCalled();
   });
 });
 

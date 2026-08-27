@@ -18,6 +18,7 @@ export type DevelopmentCaseMutationErrorCode =
   | 'DUPLICATE_CODE'
   | 'NOT_FOUND'
   | 'ALREADY_DELETED'
+  | 'CONVERTED_TO_ORDER'
   | 'CREATE_FAILED'
   | 'UPDATE_FAILED'
   | 'STAGE_UPDATE_FAILED'
@@ -217,6 +218,12 @@ export async function updateDevelopmentCase(params: {
       if (!existing) {
         throwCoded('NOT_FOUND', `Development case ${caseId} not found`, 404);
       }
+      // B1: 编辑接口不允许直接改 stage —— 阶段流转必须走 PATCH /:id/stage
+      // （updateDevelopmentStage：转换矩阵 + 5A 评审门禁 + revision 轮次自动 +1），
+      // 防止编辑表单下拉从「开发中」直改「已确认」绕过全部校验。
+      if (input.stage !== undefined && input.stage !== existing.stage) {
+        throwCoded('INVALID_TRANSITION', `编辑接口不可直接修改阶段（${existing.stage} -> ${input.stage}），请使用阶段推进接口`, 409);
+      }
       const updateData: Prisma.DevelopmentCaseUncheckedUpdateInput = {
         ...input,
         updatedAt: now,
@@ -337,10 +344,9 @@ export async function deleteDevelopmentCase(params: {
       // A4: 已转订单的开发单不可删除。linkedOrderId 非空即已转订单锚点，
       // 覆盖两种形态：convert 流程转单（stage=approved + linkedOrderId）与
       // 存量 stage='已确认' && linkedOrderId 数据（二者均以 linkedOrderId 为锚）。
-      // 注：409 语义码复用 ALREADY_DELETED —— DELETE 路由 statusCodeMap 仅将该码映射为 409，
-      // 新增专用码需连带 route.ts 映射与 agent/developmentCreateFlow.ts 穷举 Record（超出本修复租约）。
+      // B1: 专用错误码 CONVERTED_TO_ORDER（不再复用 ALREADY_DELETED 表达 409 语义）。
       if (existing.linkedOrderId) {
-        throwCoded('ALREADY_DELETED', '已转订单的开发单不可删除', 409);
+        throwCoded('CONVERTED_TO_ORDER', '已转订单的开发单不可删除', 409);
       }
       await tx.developmentCase.update({
         where: { id: caseId },

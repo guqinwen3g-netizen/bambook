@@ -299,6 +299,24 @@ function calcBaseAmount(quoteAmount: number, exchangeRate?: number): number {
   return Math.round(quoteAmount * rate * 10000) / 10000;
 }
 
+/**
+ * B2：询价比价报价门禁 — 报价供应商必须来自供应商档案且未被拉黑
+ * （与 createPurchaseOrder 的 PRD 13.1 黑名单门禁同源：身份真源 Relation → FactoryProfile 1:1。
+ *   此前报价环节 supplierName 手打，黑名单供应商可绕过门禁报价甚至中选，本校验收口该旁路。）
+ */
+async function assertQuotableSupplier(prisma: PrismaClient, supplierId: string | undefined, supplierName?: string): Promise<void> {
+  if (!supplierId) {
+    throw new Error('报价供应商必须从供应商档案中选择（supplierId 必填，禁止手打供应商名称）');
+  }
+  const factory = await (prisma as any).factoryProfile?.findUnique?.({ where: { relationId: supplierId } });
+  if (!factory || factory.deletedAt !== null) {
+    throw new Error(`供应商 ${supplierName || supplierId} 不存在于供应商档案，禁止报价`);
+  }
+  if (factory.blacklistedAt !== null) {
+    throw new Error('该供应商已被拉黑，禁止报价');
+  }
+}
+
 // ────────────────────────────────────────────────────────────────
 // 服务工厂
 // ────────────────────────────────────────────────────────────────
@@ -1183,6 +1201,9 @@ export function createProcurementService(prisma: PrismaClient) {
       throw new Error(`询价单 ${inquiryId} 状态为 ${existing.status}，仅 Open 状态可添加报价`);
     }
 
+    // B2：报价供应商档案校验（存在且未拉黑；黑名单供应商 403 由路由层映射）
+    await assertQuotableSupplier(prisma, input.supplierId, input.supplierName);
+
     const quotes: SupplierQuoteRecord[] = Array.isArray(existing.supplierQuotes) ? (existing.supplierQuotes as unknown as SupplierQuoteRecord[]) : [];
     const newQuote: SupplierQuoteRecord = {
       id: generateQuoteId(),
@@ -1242,6 +1263,11 @@ export function createProcurementService(prisma: PrismaClient) {
     const idx = quotes.findIndex(q => q.id === quoteId);
     if (idx < 0) throw new Error(`报价 ${quoteId} 不存在于询价单 ${inquiryId}`);
     const prev = quotes[idx];
+    // B2：编辑报价若改动供应商身份（supplierId/supplierName），同样过档案校验，
+    // 防止"先加正常供应商报价、再改成黑名单供应商"的旁路；仅改金额等非身份字段不拦截（兼容存量手打报价）
+    if (input.supplierId !== undefined || input.supplierName !== undefined) {
+      await assertQuotableSupplier(prisma, input.supplierId ?? prev.supplierId, input.supplierName ?? prev.supplierName);
+    }
     const next: SupplierQuoteRecord = {
       ...prev,
       supplierId: input.supplierId ?? prev.supplierId,

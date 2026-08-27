@@ -67,6 +67,7 @@ export function buildDevCreateError(code: DevCreateFlowErrorCode, message: strin
     DUPLICATE_CODE: '开发单编号已存在，请更换 code',
     NOT_FOUND: '开发单不存在',
     ALREADY_DELETED: '开发单已删除',
+    CONVERTED_TO_ORDER: '开发单已转订单，不可删除',
     CREATE_FAILED: '创建事务失败已回滚，请重试',
     UPDATE_FAILED: '更新失败',
     STAGE_UPDATE_FAILED: '阶段更新失败',

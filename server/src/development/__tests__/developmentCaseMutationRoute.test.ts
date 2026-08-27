@@ -195,6 +195,39 @@ describe('task ERP-P1-development-mutation-route-foundation: PUT /:id', () => {
     expect(onDataChange).not.toHaveBeenCalled();
   });
 
+  // B1: 编辑接口改 stage → 409 拒绝（绕过 updateDevelopmentStage 校验的旁路封死）
+  it('编辑改 stage（developing → approved）→ 409 INVALID_TRANSITION 提示请使用阶段推进接口，未写库未审计', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).put('/api/v1/development/DEV-CASE-1').set(authHeader()).send({ stage: 'approved' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('INVALID_TRANSITION');
+    expect(res.body.error.message).toContain('请使用阶段推进接口');
+    expect(devCaseUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  it('编辑改 stage（连同其他字段一起提交）→ 409 拒绝，其他字段也不落库', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).put('/api/v1/development/DEV-CASE-1').set(authHeader()).send({ name: 'Renamed', stage: 'shipping' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('INVALID_TRANSITION');
+    expect(res.body.error.message).toContain('请使用阶段推进接口');
+    expect(devCaseUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  it('编辑提交与现状相同的 stage → 不视为变更，正常编辑成功 200', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).put('/api/v1/development/DEV-CASE-1').set(authHeader()).send({ name: 'Renamed', stage: 'developing' });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(devCaseUpdate).toHaveBeenCalled();
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(onDataChange).toHaveBeenCalledTimes(1);
+  });
+
   it('audit 失败 → 500 UPDATE_FAILED，onDataChange 未触发', async () => {
     const { app, onDataChange } = makeApp({ auditFail: true });
     const res = await request(app).put('/api/v1/development/DEV-CASE-1').set(authHeader()).send({ name: 'X' });
@@ -238,6 +271,17 @@ describe('task ERP-P1-development-mutation-route-foundation: PATCH /:id/stage', 
     const res = await request(app).patch('/api/v1/development/MISSING/stage').set(authHeader()).send({ stage: 'shipping' });
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  // B1 正规路径回归：转换矩阵校验仍在 stage 接口生效（developing 不可直跳 approved）
+  it('非法流转（developing → approved）→ 400 INVALID_TRANSITION，未写库未审计', async () => {
+    const { app, devCaseUpdate, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).patch('/api/v1/development/DEV-CASE-1/stage').set(authHeader()).send({ stage: 'approved' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_TRANSITION');
+    expect(devCaseUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
     expect(onDataChange).not.toHaveBeenCalled();
   });
 
@@ -297,6 +341,7 @@ describe('task ERP-P1-development-mutation-route-foundation: DELETE /:id', () =>
     });
     const res = await request(app).delete('/api/v1/development/DEV-CASE-1').set(authHeader());
     expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONVERTED_TO_ORDER');
     expect(res.body.error.message).toBe('已转订单的开发单不可删除');
     expect(devCaseUpdate).not.toHaveBeenCalled();
     expect(auditCreate).not.toHaveBeenCalled();
@@ -313,6 +358,7 @@ describe('task ERP-P1-development-mutation-route-foundation: DELETE /:id', () =>
     });
     const res = await request(app).delete('/api/v1/development/DEV-CASE-1').set(authHeader());
     expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONVERTED_TO_ORDER');
     expect(res.body.error.message).toBe('已转订单的开发单不可删除');
     expect(devCaseUpdate).not.toHaveBeenCalled();
     expect(auditCreate).not.toHaveBeenCalled();

@@ -219,7 +219,8 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
       res.status(201).json({ inquiry });
     } catch (e: any) {
       logger.error('[ProcurementRoute] POST quote add failed', { error: e?.message });
-      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      // B2：黑名单供应商报价 → 403（文案「该供应商已被拉黑，禁止报价」）；档案外供应商 → 404；缺 supplierId → 400
+      const status = e?.message?.includes('已被拉黑') ? 403 : e?.message?.includes('不存在') ? 404 : e?.message?.includes('必填') ? 400 : e?.message?.includes('状态') ? 409 : 500;
       res.status(status).json({ error: e?.message || 'failed to add supplier quote' });
     }
   });
@@ -234,7 +235,8 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
       res.json({ inquiry });
     } catch (e: any) {
       logger.error('[ProcurementRoute] PUT quote update failed', { error: e?.message });
-      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      // B2：编辑报价改动供应商身份为黑名单供应商 → 403（与 POST 同一门禁口径）
+      const status = e?.message?.includes('已被拉黑') ? 403 : e?.message?.includes('不存在') ? 404 : e?.message?.includes('必填') ? 400 : e?.message?.includes('状态') ? 409 : 500;
       res.status(status).json({ error: e?.message || 'failed to update supplier quote' });
     }
   });

@@ -37,9 +37,10 @@ import { createProcurementService } from '../procurementService';
 import { createProcurementRouter } from '../procurementRoute';
 
 /** 构造内存版 prisma mock（$transaction 内联执行；supplierInquiry 表按 state 读写） */
-function makePrisma(seed: { inquiries?: any[] } = {}) {
+function makePrisma(seed: { inquiries?: any[]; factories?: any[] } = {}) {
   const state = {
     inquiries: [...(seed.inquiries ?? [])],
+    factories: [...(seed.factories ?? [])],
     audits: [] as any[],
   };
 
@@ -70,6 +71,11 @@ function makePrisma(seed: { inquiries?: any[] } = {}) {
 
   const prisma: any = {
     supplierInquiry: inquiryTable,
+    // B2：报价门禁按 relationId 反查 FactoryProfile（身份真源 Relation → FactoryProfile 1:1）
+    factoryProfile: {
+      findUnique: async ({ where }: any) =>
+        state.factories.find(r => r.relationId === where.relationId) ?? null,
+    },
     auditLog: {
       create: async ({ data }: any) => {
         state.audits.push(data);
@@ -80,6 +86,11 @@ function makePrisma(seed: { inquiries?: any[] } = {}) {
   };
   return { prisma, state };
 }
+
+/** B2：正常供应商档案行（未拉黑/未删除） */
+const makeFactory = (relationId: string, over: Record<string, any> = {}) => ({
+  id: `FP_${relationId}`, relationId, blacklistedAt: null, blacklistReason: null, deletedAt: null, ...over,
+});
 
 const CREATE_INPUT = {
   description: '全棉汗布 GJ-2103 询价',
@@ -143,11 +154,14 @@ describe('供应商询价比价 service', () => {
       description: '比价单', currency: 'USD',
       supplierQuotes: [], deletedAt: null, createdAt: 1, updatedAt: 1,
     };
-    const { prisma, state } = makePrisma({ inquiries: [seed] });
+    const { prisma, state } = makePrisma({
+      inquiries: [seed],
+      factories: [makeFactory('REL-NT3'), makeFactory('REL-WX5')],
+    });
     const svc = createProcurementService(prisma);
 
     const r1 = await svc.addSupplierQuote('SI_Q1', {
-      supplierName: '南通三厂', quoteAmount: 5000, currency: 'CNY',
+      supplierId: 'REL-NT3', supplierName: '南通三厂', quoteAmount: 5000, currency: 'CNY',
       exchangeRate: 7.25, quoteDate: '2026-08-25',
     }, 'u9');
     const q1 = (r1.supplierQuotes as any[])[0];
@@ -155,7 +169,7 @@ describe('供应商询价比价 service', () => {
     expect(q1.isSelected).toBe(false);
 
     const r2 = await svc.addSupplierQuote('SI_Q1', {
-      supplierName: '无锡五厂', quoteAmount: 800, currency: 'USD',
+      supplierId: 'REL-WX5', supplierName: '无锡五厂', quoteAmount: 800, currency: 'USD',
       quoteDate: '2026-08-26', exchangeRate: -1,
     }, 'u9');
     const q2 = (r2.supplierQuotes as any[])[1];
@@ -247,6 +261,90 @@ describe('供应商询价比价 service', () => {
   });
 });
 
+// ═══ B2：报价供应商档案门禁（黑名单/档案外/手打名称 一律拒绝） ═══
+describe('供应商报价黑名单门禁（B2）', () => {
+  const openInquiry = (id: string) => ({
+    id, inquiryNumber: `SI-2608-${id.slice(-4)}`, status: 'Open',
+    description: 'B2 门禁单', currency: 'USD',
+    supplierQuotes: [], deletedAt: null, createdAt: 1, updatedAt: 1,
+  });
+  const QUOTE = { quoteAmount: 1000, currency: 'CNY', quoteDate: '2026-08-28' } as const;
+
+  it('黑名单供应商报价 → 拒绝，文案「该供应商已被拉黑，禁止报价」，且不落数据/不写审计', async () => {
+    const { prisma, state } = makePrisma({
+      inquiries: [openInquiry('SI_BL1')],
+      factories: [makeFactory('REL-BLACK', { blacklistedAt: 1750000000000, blacklistReason: '质量事故' })],
+    });
+    const svc = createProcurementService(prisma);
+
+    await expect(
+      svc.addSupplierQuote('SI_BL1', { supplierId: 'REL-BLACK', supplierName: '黑心厂', ...QUOTE }, 'u9'),
+    ).rejects.toThrow('该供应商已被拉黑，禁止报价');
+    expect(state.inquiries[0].supplierQuotes).toHaveLength(0);
+    expect(state.audits.find(x => x.action === 'add_supplier_quote')).toBeUndefined();
+  });
+
+  it('档案外供应商（supplierId 查无档案）→ 拒绝并提示不存在于供应商档案', async () => {
+    const { prisma, state } = makePrisma({ inquiries: [openInquiry('SI_BL2')] });
+    const svc = createProcurementService(prisma);
+
+    await expect(
+      svc.addSupplierQuote('SI_BL2', { supplierId: 'REL-GHOST', supplierName: '影子厂', ...QUOTE }, 'u9'),
+    ).rejects.toThrow(/不存在于供应商档案，禁止报价/);
+    expect(state.inquiries[0].supplierQuotes).toHaveLength(0);
+  });
+
+  it('缺 supplierId（手打供应商名称旁路）→ 拒绝', async () => {
+    const { prisma, state } = makePrisma({ inquiries: [openInquiry('SI_BL3')] });
+    const svc = createProcurementService(prisma);
+
+    await expect(
+      svc.addSupplierQuote('SI_BL3', { supplierName: '手打厂', ...QUOTE }, 'u9'),
+    ).rejects.toThrow(/supplierId 必填/);
+    expect(state.inquiries[0].supplierQuotes).toHaveLength(0);
+  });
+
+  it('正常供应商报价 → 成功落库', async () => {
+    const { prisma, state } = makePrisma({
+      inquiries: [openInquiry('SI_BL4')],
+      factories: [makeFactory('REL-GOOD')],
+    });
+    const svc = createProcurementService(prisma);
+
+    const updated = await svc.addSupplierQuote('SI_BL4', { supplierId: 'REL-GOOD', supplierName: '正规厂', ...QUOTE }, 'u9');
+    const quotes = updated.supplierQuotes as any[];
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0].supplierId).toBe('REL-GOOD');
+    expect(quotes[0].supplierName).toBe('正规厂');
+    expect(state.audits.find(x => x.action === 'add_supplier_quote')).toBeTruthy();
+  });
+
+  it('编辑报价改动供应商身份为黑名单供应商 → 拒绝；仅改金额不拦（兼容存量手打报价）', async () => {
+    const seed = {
+      ...openInquiry('SI_BL5'),
+      supplierQuotes: [{
+        id: 'SQ_L1', supplierId: 'REL-GOOD', supplierName: '正规厂', quoteAmount: 100, currency: 'USD',
+        baseAmount: 100, quoteDate: '2026-08-01', isSelected: false,
+      }],
+    };
+    const { prisma, state } = makePrisma({
+      inquiries: [seed],
+      factories: [makeFactory('REL-GOOD'), makeFactory('REL-BLACK', { blacklistedAt: 1750000000000 })],
+    });
+    const svc = createProcurementService(prisma);
+
+    // 改动供应商身份 → 黑名单：拒绝
+    await expect(
+      svc.updateSupplierQuote('SI_BL5', 'SQ_L1', { supplierId: 'REL-BLACK', supplierName: '黑心厂' }, 'u9'),
+    ).rejects.toThrow('该供应商已被拉黑，禁止报价');
+    expect((state.inquiries[0].supplierQuotes as any[])[0].supplierId).toBe('REL-GOOD'); // 未被污染
+
+    // 仅改金额（不动供应商身份）：放行
+    const ok = await svc.updateSupplierQuote('SI_BL5', 'SQ_L1', { quoteAmount: 200 }, 'u9');
+    expect((ok.supplierQuotes as any[])[0].quoteAmount).toBe(200);
+  });
+});
+
 // ═══ 路由层：入参白名单过滤 ═══
 describe('供应商询价比价 route — 入参过滤', () => {
   function makeApp(prisma: any) {
@@ -287,5 +385,42 @@ describe('供应商询价比价 route — 入参过滤', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('缺少必填字段');
     expect(state.inquiries[0].supplierQuotes).toHaveLength(0); // 未写入
+  });
+
+  it('POST /inquiries/:id/quotes 黑名单供应商 → 403 + 文案「该供应商已被拉黑，禁止报价」；正常供应商 → 201', async () => {
+    const seed = {
+      id: 'SI_R2', inquiryNumber: 'SI-2608-0013', status: 'Open',
+      description: 'B2 路由门禁', currency: 'USD',
+      supplierQuotes: [], deletedAt: null, createdAt: 1, updatedAt: 1,
+    };
+    const { prisma, state } = makePrisma({
+      inquiries: [seed],
+      factories: [makeFactory('REL-BLACK', { blacklistedAt: 1750000000000 }), makeFactory('REL-GOOD')],
+    });
+    const app = makeApp(prisma);
+
+    // 黑名单供应商报价 → 403 + 指定文案
+    const denied = await request(app)
+      .post('/api/v1/procurement/inquiries/SI_R2/quotes')
+      .send({ supplierId: 'REL-BLACK', supplierName: '黑心厂', quoteAmount: 99, currency: 'CNY', quoteDate: '2026-08-28' });
+    expect(denied.status).toBe(403);
+    expect(denied.body.error).toBe('该供应商已被拉黑，禁止报价');
+    expect(state.inquiries[0].supplierQuotes).toHaveLength(0); // 未落数据
+
+    // 档案外供应商 → 404
+    const ghost = await request(app)
+      .post('/api/v1/procurement/inquiries/SI_R2/quotes')
+      .send({ supplierId: 'REL-GHOST', supplierName: '影子厂', quoteAmount: 99, currency: 'CNY', quoteDate: '2026-08-28' });
+    expect(ghost.status).toBe(404);
+    expect(ghost.body.error).toContain('不存在于供应商档案');
+
+    // 正常供应商报价 → 201 成功
+    const ok = await request(app)
+      .post('/api/v1/procurement/inquiries/SI_R2/quotes')
+      .send({ supplierId: 'REL-GOOD', supplierName: '正规厂', quoteAmount: 99, currency: 'CNY', quoteDate: '2026-08-28' });
+    expect(ok.status).toBe(201);
+    const quotes = ok.body.inquiry.supplierQuotes as any[];
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0].supplierId).toBe('REL-GOOD');
   });
 });

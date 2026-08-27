@@ -160,6 +160,21 @@ const createEmptyLine = (): DraftLine => ({
   imageUrl: '',
 });
 
+// ── B4：建单/改单响应附带的服务端 MOQ 校验结果（quotationService 追加字段 moqCheck；
+//    advisory 不阻断保存，发送报价时由 fail-closed 门禁兜底） ──
+interface QuotationMoqLineVerdict {
+  lineIndex: number;
+  quantity: number;
+  unit: string;
+  effectiveMoq: number;
+  compliant: boolean;
+}
+
+interface QuotationMoqCheck {
+  ok: boolean;
+  lines?: QuotationMoqLineVerdict[];
+}
+
 // 报价有效期默认报价日 +30 天（外贸报价惯例；用户可改）
 const defaultValidUntil = (issueDate: string): string => {
   const d = new Date(issueDate);
@@ -221,6 +236,10 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   });
   const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+  // ── B4 MOQ 行级提醒：建单后服务端返回低于起订量的行 → 表单保持打开展示提醒；
+  //    moqDraftId 记录已存草稿 id，再次提交走 update（改量复判），避免重复建单 ──
+  const [moqWarnings, setMoqWarnings] = useState<QuotationMoqLineVerdict[] | null>(null);
+  const [moqDraftId, setMoqDraftId] = useState<string | null>(null);
 
   // ── 双轨成本面板（PRD 8.6）：轨道 A 中位估算 + 轨道 B 终价 → 偏差黄/红标（仅内部参考）──
   const [showDualTrack, setShowDualTrack] = useState(true);
@@ -528,7 +547,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           imageUrl: l.imageUrl || undefined,
         })),
       };
-      await apiService.createQuotation(input);
+      // B4：已因 MOQ 提醒留存草稿 → 再次提交走 update 复判（不重复建单）
+      const saved = (moqDraftId
+        ? await apiService.updateQuotation(moqDraftId, input)
+        : await apiService.createQuotation(input)) as Quotation & { moqCheck?: QuotationMoqCheck | null };
+      // B4：服务端建单/改单已做 MOQ 校验（advisory），低于起订量的行在表单上即时行级提醒，
+      // 不再等到点「发送」才被门禁拦下；表单保持打开供改量后再次提交复判
+      const belowMoqLines = saved.moqCheck && saved.moqCheck.ok === false
+        ? (saved.moqCheck.lines ?? []).filter(l => !l.compliant)
+        : [];
+      if (belowMoqLines.length > 0) {
+        setMoqDraftId(saved.id);
+        setMoqWarnings(belowMoqLines);
+        await fetchQuotations(); // 草稿已落库，后台刷新列表
+        return;
+      }
       setShowCreateForm(false);
       // 重置表单（validUntil 重新取报价日 +30 天默认值）
       const today = new Date().toISOString().split('T')[0];
@@ -542,13 +575,15 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setFabricViolations({});
       setTrackAMedian(null);
       setTrackBResult(null);
+      setMoqWarnings(null);
+      setMoqDraftId(null);
       await fetchQuotations();
     } catch (e: any) {
-      setFormError(`创建失败：${e?.message || e}`);
+      setFormError(`保存失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
-  }, [form, formLines, trackAMedian, trackBResult, fetchQuotations]);
+  }, [form, formLines, trackAMedian, trackBResult, moqDraftId, fetchQuotations]);
 
   // ── P1-3 行面料即时预检：fabricCode 宽键（sku/厂号/品色号/客供品号并集解析，端点固定
   // clientCodeGlobalFallback=false），与后端 quotation create/rebuild 触发面一致；
@@ -595,15 +630,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     }, 450);
   }, [clearFabricViolation]);
 
+  // B4：行内容一经编辑，上次保存口径的 MOQ 提醒即过时 → 清除，待下次提交复判刷新
+  const clearMoqWarnings = () => setMoqWarnings(prev => (prev ? null : prev));
+
   const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
+    clearMoqWarnings();
     setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
     if (field === 'fabricCode') {
       searchFabricsForLine(key, value);
       scheduleFabricExclusivityCheck(key, value);
     }
   };
-  const addFormLine = () => setFormLines(prev => [...prev, createEmptyLine()]);
+  const addFormLine = () => {
+    clearMoqWarnings();
+    setFormLines(prev => [...prev, createEmptyLine()]);
+  };
   const removeFormLine = (key: string) => {
+    clearMoqWarnings();
     clearFabricViolation(key);
     setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
   };
@@ -732,7 +775,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>新建报价单</h2>
-                  <button onClick={() => setShowCreateForm(false)} className="bds-btn bds-btn-secondary">
+                  <button onClick={() => { setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null); }} className="bds-btn bds-btn-secondary">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
@@ -950,6 +993,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     </div>
                   </div>
 
+                  {/* B4 MOQ 行级提醒：建单/改单响应的 moqCheck 低于起订量行即时展示（advisory），发送时需审批豁免 */}
+                  {moqWarnings && moqWarnings.length > 0 && (
+                    <div role="alert" className="bds-alert warning items-start">
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                      <span>
+                        报价单已保存为草稿。以下行低于起订量，发送时需审批豁免：
+                        {moqWarnings.map((w) => (
+                          <span key={w.lineIndex} className="block">
+                            第 {w.lineIndex + 1} 行低于起订量（当前 {w.quantity} {w.unit}，要求 {w.effectiveMoq} {w.unit}）
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+
                   {formError && (
                     <div className="bds-alert danger">
                       <AlertCircle size={16} />
@@ -959,7 +1017,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                   <button onClick={handleCreate} disabled={actionLoading === 'create'} className="bds-btn bds-btn-primary lg w-full">
                     {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                    <span>创建报价单</span>
+                    <span>{moqDraftId ? '保存修改' : '创建报价单'}</span>
                   </button>
                 </div>
               </motion.div>

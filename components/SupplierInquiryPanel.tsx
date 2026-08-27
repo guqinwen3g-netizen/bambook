@@ -34,6 +34,7 @@ import {
   SupplierInquiryInput,
   SupplierQuoteInput,
   SupplierQuoteItem,
+  FactoryProfile,
 } from '../types';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 
@@ -71,7 +72,8 @@ interface SupplierInquiryPanelProps {
 }
 
 interface QuoteFormState {
-  supplierName: string;
+  /** 供应商档案 relationId（B2：报价供应商必须从档案选择，禁止手打名称绕过黑名单） */
+  supplierId: string;
   quoteAmount: string;
   currency: string;
   exchangeRate: string;
@@ -96,7 +98,7 @@ interface CreateFormState {
 // ==================== 工厂函数 ====================
 
 const createEmptyQuoteForm = (): QuoteFormState => ({
-  supplierName: '',
+  supplierId: '',
   quoteAmount: '',
   currency: 'USD',
   exchangeRate: '',
@@ -183,6 +185,9 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
+  // B2：报价供应商下拉数据源 — 供应商档案（仅未拉黑；名称真源在 Relation）
+  const [supplierOptions, setSupplierOptions] = useState<FactoryProfile[]>([]);
+
   // 比价决策
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [decisionNote, setDecisionNote] = useState('');
@@ -211,6 +216,15 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   useEffect(() => {
     fetchInquiries();
   }, [fetchInquiries]);
+
+  // ── 拉取供应商档案（报价下拉框数据源，blacklisted=false 过滤黑名单） ──
+  useEffect(() => {
+    let cancelled = false;
+    apiService.listFactoryProfiles({ blacklisted: false, limit: 200 })
+      .then((result) => { if (!cancelled) setSupplierOptions(result.items); })
+      .catch(() => { if (!cancelled) setSupplierOptions([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   // ── 展开/折叠 ──
   const handleExpand = useCallback((inquiryId: string) => {
@@ -264,10 +278,13 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   // ── 添加/更新报价 ──
   const handleSaveQuote = useCallback(async (inquiryId: string) => {
     setQuoteError(null);
-    if (!quoteForm.supplierName.trim()) {
-      setQuoteError('请填写供应商名称');
+    // B2：供应商必须从档案下拉框选择（relationId），supplierName 由档案派生
+    const selectedSupplier = supplierOptions.find(s => s.relationId === quoteForm.supplierId);
+    if (!selectedSupplier) {
+      setQuoteError('请从供应商档案中选择供应商');
       return;
     }
+    const supplierName = selectedSupplier.relation?.name?.trim() || selectedSupplier.relationId;
     const amount = parseFloat(quoteForm.quoteAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setQuoteError('请填写有效的报价金额');
@@ -280,7 +297,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
     setActionLoading(`quote_${inquiryId}`);
     try {
       const input: SupplierQuoteInput = {
-        supplierName: quoteForm.supplierName.trim(),
+        supplierId: selectedSupplier.relationId,
+        supplierName,
         quoteAmount: amount,
         currency: quoteForm.currency,
         exchangeRate: quoteForm.exchangeRate ? parseFloat(quoteForm.exchangeRate) : undefined,
@@ -304,12 +322,12 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
     } finally {
       setActionLoading(null);
     }
-  }, [quoteForm, editingQuoteId, updateInquiryInList]);
+  }, [quoteForm, supplierOptions, editingQuoteId, updateInquiryInList]);
 
-  // ── 编辑报价（填充表单进入编辑态） ──
+  // ── 编辑报价（填充表单进入编辑态；存量手打报价无 supplierId 时需重选档案供应商） ──
   const handleEditQuote = useCallback((quote: SupplierQuoteItem) => {
     setQuoteForm({
-      supplierName: quote.supplierName,
+      supplierId: quote.supplierId || '',
       quoteAmount: String(quote.quoteAmount),
       currency: quote.currency,
       exchangeRate: quote.exchangeRate != null ? String(quote.exchangeRate) : '',
@@ -816,14 +834,19 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                   </div>
                                   <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
                                     <div>
-                                      <label className={labelCls}>供应商名称 *</label>
-                                      <input
-                                        type="text"
-                                        value={quoteForm.supplierName}
-                                        onChange={(e) => setQuoteForm({ ...quoteForm, supplierName: e.target.value })}
-                                        placeholder="供应商"
-                                        className="bds-input sm"
-                                      />
+                                      <label className={labelCls}>供应商 *</label>
+                                      <select
+                                        value={quoteForm.supplierId}
+                                        onChange={(e) => setQuoteForm({ ...quoteForm, supplierId: e.target.value })}
+                                        className="bds-select sm"
+                                      >
+                                        <option value="">请选择供应商档案</option>
+                                        {supplierOptions.map(s => (
+                                          <option key={s.relationId} value={s.relationId}>
+                                            {s.relation?.name || s.relationId}
+                                          </option>
+                                        ))}
+                                      </select>
                                     </div>
                                     <div>
                                       <label className={labelCls}>报价金额 *</label>
