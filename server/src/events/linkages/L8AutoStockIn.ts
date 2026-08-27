@@ -4,11 +4,15 @@
  * 业务规则：采购来料接收（MaterialReceived）→ 自动入库
  *
  * 设计决策：
- *   - 查询采购单行明细，为每个有 materialCode 的行创建/更新库存项 + 入库流水
+ *   - 行级入库数量来源（2026-08-27 L8 断层修复后的 payload 契约）：
+ *     ① 新事件：payload.stockInLines = 本次收料的行级增量（合格数口径，
+ *        见 procurementService.MaterialReceivedStockInLine）。多张部分收料时只入库
+ *        "本次"数量，不会把历史累计值重复入库；
+ *     ② 旧事件兼容回退：payload 无 stockInLines 时按行 receivedQuantity 累计值入库
+ *        （语义仅在一次性整单收料场景正确，保留以兼容在途/历史事件）。
  *   - 默认入库到主仓（type=Main, isActive=true 的第一个仓库）
  *   - 若无主仓，尝试任意 active 仓库；若无仓库则跳过并告警
- *   - 入库数量 = PurchaseLine.receivedQty（来料接收数量）
- *   - 入库流水 referenceType=PurchaseOrder，referenceId=purchaseOrderId
+ *   - 入库流水 referenceType=PurchaseOrder，referenceId=receiptId
  *
  * 幂等性：
  *   - in-process: `auto:L8:${receiptId}` 去重
@@ -19,6 +23,7 @@ import { businessEventBus } from '../businessEventBus';
 import { createInventoryService } from '../../inventory/inventoryService';
 import { isLinkageEnabled } from '../../config/automationConfig';
 import { logger } from '../../lib/logger';
+import type { MaterialReceivedStockInLine } from '../../procurement/procurementService';
 
 export function registerL8AutoStockIn(): void {
   businessEventBus.registerLinkage({
@@ -40,6 +45,7 @@ export function registerL8AutoStockIn(): void {
         receiptId?: string;
         receiptNumber?: string;
         warehouseName?: string;
+        stockInLines?: MaterialReceivedStockInLine[];
       };
 
       const purchaseOrderId = payload.purchaseOrderId ?? event.sourceEntityId;
@@ -77,12 +83,49 @@ export function registerL8AutoStockIn(): void {
           return { ok: false, error: `PO ${purchaseOrderId} not found` };
         }
 
-        // 筛选有接收数量的行
-        const receivedLines = po.lines.filter(
-          (line: any) => line.receivedQuantity && Number(line.receivedQuantity) > 0,
-        );
+        // 行级入库明细：优先使用收料事务内计算好的行级增量（stockInLines 契约），
+        // 否则回退旧路径（按全量累计 receivedQuantity，仅兼容历史事件格式）
+        const hasStockInLines = Array.isArray(payload.stockInLines);
+        let targetLines: Array<{
+          lineId: string | undefined;
+          materialCode: string | undefined;
+          description: string;
+          category: string | undefined;
+          specification: string | undefined;
+          unit: string;
+          unitPrice: number | undefined;
+          quantity: number;
+        }>;
 
-        if (receivedLines.length === 0) {
+        if (hasStockInLines) {
+          targetLines = (payload.stockInLines ?? [])
+            .map((l) => ({
+              lineId: l.lineId,
+              materialCode: l.materialCode ?? undefined,
+              description: l.description || l.materialCode || '未知物料',
+              category: l.category ?? undefined,
+              specification: l.specification ?? undefined,
+              unit: l.unit || 'PC',
+              unitPrice: l.unitPrice != null ? Number(l.unitPrice) : undefined,
+              quantity: Number(l.quantity),
+            }))
+            .filter((l) => l.quantity > 0);
+        } else {
+          targetLines = (po.lines as any[])
+            .filter((line: any) => line.receivedQuantity && Number(line.receivedQuantity) > 0)
+            .map((line: any) => ({
+              lineId: line.id as string,
+              materialCode: line.materialCode,
+              description: line.description || line.materialCode || '未知物料',
+              category: line.category,
+              specification: line.specification,
+              unit: line.unit || 'PC',
+              unitPrice: line.unitPrice ? Number(line.unitPrice) : undefined,
+              quantity: Number(line.receivedQuantity),
+            }));
+        }
+
+        if (targetLines.length === 0) {
           logger.info('[L8] no lines with received quantity, skipping', { purchaseOrderId });
           return { ok: true, created: null, error: 'no received lines' };
         }
@@ -107,10 +150,10 @@ export function registerL8AutoStockIn(): void {
         const movementDate = new Date().toISOString().slice(0, 10);
         const createdMovements: string[] = [];
 
-        for (const line of receivedLines) {
-          const receivedQty = Number(line.receivedQuantity);
+        for (const line of targetLines) {
+          const receivedQty = line.quantity;
           const materialCode = line.materialCode;
-          const description = line.description || materialCode || '未知物料';
+          const description = line.description;
 
           // 查找或创建库存项
           let inventoryItem = null;

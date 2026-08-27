@@ -70,15 +70,19 @@ function makePrisma(opts: {
 
   const purchaseLineDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
   const purchaseLineCreateMany = vi.fn().mockResolvedValue({ count: 0 });
+  // 行级回写（L8 断层修复）：receivedQuantity 增量 update
+  const purchaseLineUpdate = vi.fn().mockResolvedValue({});
   const materialReceiptCreate = vi.fn().mockImplementation(async ({ data }: any) => ({ ...data }));
+  // 幂等防重：默认无历史收料单
+  const materialReceiptFindFirst = vi.fn().mockResolvedValue(null);
   const auditCreate = opts.auditFail
     ? vi.fn().mockRejectedValue(new Error('AUDIT_REJECT'))
     : vi.fn().mockResolvedValue({ id: 'AL-1' });
 
   const tx: any = {
     purchaseOrder: { create: purchaseOrderCreate, update: purchaseOrderUpdate },
-    purchaseLine: { deleteMany: purchaseLineDeleteMany, createMany: purchaseLineCreateMany },
-    materialReceipt: { create: materialReceiptCreate },
+    purchaseLine: { deleteMany: purchaseLineDeleteMany, createMany: purchaseLineCreateMany, update: purchaseLineUpdate },
+    materialReceipt: { create: materialReceiptCreate, findFirst: materialReceiptFindFirst },
     auditLog: { create: auditCreate },
     // EntityLink 图谱（D1.1a）：sync/deactivate 走 tx 内 upsert/findMany/update
     entityReference: {
@@ -106,7 +110,8 @@ function makePrisma(opts: {
   return {
     prisma, tx,
     purchaseOrderCreate, purchaseOrderUpdate, purchaseOrderFindUnique,
-    purchaseLineDeleteMany, purchaseLineCreateMany, materialReceiptCreate, auditCreate,
+    purchaseLineDeleteMany, purchaseLineCreateMany, purchaseLineUpdate,
+    materialReceiptCreate, materialReceiptFindFirst, auditCreate,
   };
 }
 

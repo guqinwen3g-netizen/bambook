@@ -97,6 +97,30 @@ export interface MaterialReceiptInput {
   notes?: string;
 }
 
+/**
+ * MaterialReceived 事件 payload.stockInLines 行级入库增量（L8 消费契约）。
+ *
+ * 口径裁决（真源 docs/design/04-模块设计/03-订单与生产/Procurement-采购管理/采购到货与质检.md）：
+ *   - §五「PO 状态自动流转」：totalNowReceived = 累计已收 + input.totalAccepted
+ *     → PO 流转以「合格数 totalAccepted」为唯一累计口径，receivedQuantity 与其保持一致；
+ *   - §七 7.2「自动入库联动设计」：quantity: totalAccepted, // 仅合格数量入库
+ *     → L8 入库数量即本字段的行级分配值。
+ *
+ * L8 断层修复说明：payload 携带行级增量后，多张部分收料时 L8 只入库"本次"数量，
+ * 不会把历史累计值重复入一遍库。
+ */
+export interface MaterialReceivedStockInLine {
+  lineId: string;
+  materialCode: string | null;
+  description: string;
+  category: string | null;
+  specification: string | null;
+  unit: string | null;
+  unitPrice: number | null;
+  /** 本次该行入库增量（合格数口径），非累计值 */
+  quantity: number;
+}
+
 // ─── 卡点 3：供应商询价比价（剧本 2.10） ───
 
 export interface SupplierQuoteRecord {
@@ -175,6 +199,57 @@ function generatePurchaseOrderId(): string {
 
 function generateLineId(): string {
   return `PL_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * L8 断层修复：将本次收料的合格数量按行分配到 PurchaseLine。
+ *
+ * 背景：MaterialReceipt 为 PO 级汇总模型（无行级子表，见 schema.prisma P1-4 设计决策①——
+ * 行级收货明细为独立债务，不在本模型强行补建），回写需确定性分配规则。
+ *
+ * 分配规则：按 lineNumber 升序贪心填充各行剩余需求（quantity − receivedQuantity）；
+ * 超采余额挂最后一行。
+ *
+ * 超采裁决（允许 receivedQuantity 超过 orderedQuantity）：
+ *   文档 §二 2.2 收料前置校验表「Received | ✅ | 超收（已全部到货后补收）」，
+ *   且 §五状态流转表「超收 | 累计 > 订单数 | Received」→ 超收为受支持场景，不做封顶。
+ *
+ * 口径裁决：receivedQuantity 仅累计合格数（totalAccepted），与 PO 状态流转
+ * （totalPreviouslyReceived + input.totalAccepted）及文档 §七 7.2「仅合格数量入库」一致；
+ * rejectedQuantity 不在此回写（无行级子表无法定位拒收归属行，且当前无消费方，
+ * 待 MaterialReceiptLine 子表落地后按文档 §7.3 补齐）。
+ */
+function allocateAcceptedQuantity(
+  lines: Array<Pick<PurchaseLine, 'lineNumber' | 'quantity' | 'receivedQuantity'>>,
+  totalAccepted: number,
+): Array<{ line: PurchaseLine; quantity: number }> {
+  if (totalAccepted <= 0 || lines.length === 0) return [];
+  const ordered = ([...lines] as PurchaseLine[]).sort((a, b) => a.lineNumber - b.lineNumber);
+  let remain = Math.round(totalAccepted * 10000) / 10000;
+  const allocations: Array<{ line: PurchaseLine; quantity: number }> = [];
+
+  // 第一轮：按 lineNumber 升序贪心填充各行剩余需求（quantity − receivedQuantity）
+  for (const line of ordered) {
+    if (remain <= 0) break;
+    const capacity = Math.max(Number(line.quantity) - Number(line.receivedQuantity), 0);
+    if (capacity <= 0) continue;
+    const alloc = Math.round(Math.min(capacity, remain) * 10000) / 10000;
+    if (alloc <= 0) continue;
+    allocations.push({ line, quantity: alloc });
+    remain = Math.round((remain - alloc) * 10000) / 10000;
+  }
+
+  // 第二轮：超采余额挂最后一行——允许超过 orderedQuantity（裁决见函数注释），保证 Σ(回写增量) === totalAccepted
+  if (remain > 0 && ordered.length > 0) {
+    const lastLine = ordered[ordered.length - 1];
+    const existing = allocations.find((a) => a.line === lastLine);
+    if (existing) {
+      existing.quantity = Math.round((existing.quantity + remain) * 10000) / 10000;
+    } else {
+      allocations.push({ line: lastLine, quantity: remain });
+    }
+  }
+  return allocations;
 }
 
 function generateReceiptId(): string {
@@ -755,7 +830,27 @@ export function createProcurementService(prisma: PrismaClient) {
       newStatus = 'PartiallyReceived';
     }
 
+    // 行级回写分配（L8 断层修复）：在事务外按快照确定性计算，事务内执行增量 update
+    const stockInLineAllocations = allocateAcceptedQuantity(existing.lines, input.totalAccepted);
+    let replayedDuplicate = false;
+
     const result = await prisma.$transaction(async (tx) => {
+      // 幂等防重：同一采购单下相同收料单号重复确认 → 返回既有记录，不二次累计回写、不发布事件。
+      // 最小实现：业务级查重（schema 冻结期不加 unique 约束）；
+      // 并发同号双投存在残余竞态窗口，由审计流水 detail.lineWriteback 支持事后追溯。
+      const duplicateReceipt = await tx.materialReceipt.findFirst({
+        where: { purchaseOrderId, receiptNumber: input.receiptNumber },
+      });
+      if (duplicateReceipt) {
+        replayedDuplicate = true;
+        logger.warn('[ProcurementService] duplicate material receipt confirmation ignored', {
+          purchaseOrderId,
+          receiptNumber: input.receiptNumber,
+          existingReceiptId: duplicateReceipt.id,
+        });
+        return { receipt: duplicateReceipt, purchaseOrder: existing };
+      }
+
       // 创建收料记录
       const receipt = await tx.materialReceipt.create({
         data: {
@@ -779,6 +874,19 @@ export function createProcurementService(prisma: PrismaClient) {
         },
       });
 
+      // 行级回写（L8 断层修复）：PurchaseLine.receivedQuantity += 本次合格数量的行级分配
+      // 口径 = 合格数（totalAccepted），与 PO 状态流转及「仅合格数量入库」一致（见 allocateAcceptedQuantity 注释）；
+      // 超采允许累计超过 orderedQuantity。回写必须在事务内、事件发布前完成，
+      // 保证 MaterialReceived 事件触发 L8 时行级数据已就绪。
+      const lineWritebackAudit: Array<{ lineId: string; quantity: number }> = [];
+      for (const { line, quantity } of stockInLineAllocations) {
+        await tx.purchaseLine.update({
+          where: { id: line.id },
+          data: { receivedQuantity: { increment: quantity } },
+        });
+        lineWritebackAudit.push({ lineId: line.id, quantity });
+      }
+
       // 更新采购单状态
       const purchaseOrder = await tx.purchaseOrder.update({
         where: { id: purchaseOrderId },
@@ -793,7 +901,7 @@ export function createProcurementService(prisma: PrismaClient) {
           action: 'create_material_receipt',
           targetType: 'PurchaseOrder',
           targetId: purchaseOrderId,
-          detail: { source: 'api:procurement', after: { receiptId, receiptNumber: input.receiptNumber, totalAccepted: input.totalAccepted, totalRejected: input.totalRejected, newStatus } } as any,
+          detail: { source: 'api:procurement', after: { receiptId, receiptNumber: input.receiptNumber, totalAccepted: input.totalAccepted, totalRejected: input.totalRejected, newStatus, lineWriteback: lineWritebackAudit } } as any,
           ip: null,
           operationType: 'create',
           fieldPath: null,
@@ -805,6 +913,11 @@ export function createProcurementService(prisma: PrismaClient) {
 
       return { receipt, purchaseOrder };
     });
+
+    // 幂等重放：重复确认直接返回原收料单，不发布事件、不触发 L8、不计交期评分
+    if (replayedDuplicate) {
+      return result.receipt;
+    }
 
     // 发布 MaterialReceived 事件
     try {
@@ -825,6 +938,18 @@ export function createProcurementService(prisma: PrismaClient) {
           totalRejected: input.totalRejected,
           warehouseName: input.warehouseName,
           purchaseOrderStatus: newStatus,
+          // L8 行级入库增量契约（MaterialReceivedStockInLine）：仅本次合格数量（合格数口径），
+          // 多张部分收料时 L8 不会把历史累计值重复入库；全拒收（totalAccepted=0）时为空数组 → L8 跳过
+          stockInLines: stockInLineAllocations.map(({ line, quantity }): MaterialReceivedStockInLine => ({
+            lineId: line.id,
+            materialCode: line.materialCode ?? null,
+            description: line.description || line.materialCode || '未知物料',
+            category: line.category ?? null,
+            specification: line.specification ?? null,
+            unit: line.unit ?? null,
+            unitPrice: line.unitPrice != null ? Number(line.unitPrice) : null,
+            quantity,
+          })),
         },
         occurredAt: now,
         actorId: actorId || 'system',
