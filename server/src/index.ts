@@ -32,6 +32,7 @@ import { createBusinessProfilesRouter } from './business-profiles/route';
 import { createDevelopmentRouter } from './development/route';
 import { createFinanceRouter } from './finance/route';
 import { createFinanceV2Router } from './finance/routeV2';
+import { createReconciliationRouter } from './finance/reconciliationRoute';
 import { createReportingRouter } from './reporting/route';
 import { createShippingRouter } from './shipping/route';
 import { createDashboardRouter } from './dashboard/route';
@@ -647,6 +648,16 @@ app.use(
 app.use(
     '/api/v2/finance',
     (req, res, next) => createFinanceV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+// W-B P2-6：客户四单对账工作台（订单↔出运↔开票↔收款，只读引擎）
+app.use(
+    '/api/v1/reconciliation',
+    (req, res, next) => createReconciliationRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

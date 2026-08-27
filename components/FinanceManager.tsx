@@ -7,11 +7,12 @@ import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
 import { financeV2Service } from '../services/financeV2Service';
-import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3, Upload, Download, Paperclip, Eye } from 'lucide-react';
+import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, GitCompareArrows, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3, Upload, Download, Paperclip, Eye } from 'lucide-react';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import { CashCalendarPanel } from './finance/CashCalendarPanel';
 import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
 import { FinanceCreditPanel } from './finance/FinanceCreditPanel';
+import { ReconciliationPanel } from './finance/ReconciliationPanel';
 import { View } from '../types';
 import type {
   Invoice as InvoiceEntity,
@@ -94,7 +95,7 @@ const clearFinanceInvoicePrime = () => {
   }
 };
 
-type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'cashCalendar' | 'reports';
+type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'cashCalendar' | 'reports' | 'reconciliation';
 
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
 export type { FinanceTabId };
@@ -209,6 +210,7 @@ const FINANCE_TABS: Array<{ id: FinanceTabId; label: string; icon: typeof FileTe
   { id: 'vatInvoices', label: '增值税', icon: Receipt },
   { id: 'cashCalendar', label: '资金日历', icon: CalendarClock },
   { id: 'reports', label: '报表', icon: BarChart3 },
+  { id: 'reconciliation', label: '对账', icon: GitCompareArrows },
 ];
 
 const TABLE_GRID_CLASS =
@@ -370,7 +372,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const navContext = useState(() => consumeCrossModuleNav())[0];
   const [navRelationFilter, setNavRelationFilter] = useState(() => navContext?.filter ?? null);
   useEffect(() => {
-    if (navContext?.tab && ['invoices', 'vouchers', 'paymentRequests', 'credit', 'vatInvoices', 'cashCalendar', 'reports'].includes(navContext.tab)) {
+    if (navContext?.tab && ['invoices', 'vouchers', 'paymentRequests', 'credit', 'vatInvoices', 'cashCalendar', 'reports', 'reconciliation'].includes(navContext.tab)) {
       setActiveTab(navContext.tab as FinanceTabId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1290,7 +1292,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   }, [vatInvoices, selectedType, selectedStatus, searchTerm, navRelationFilter]);
 
   // 自包含 tab（报表 / 资金日历 / 付款申请 / 客户信用）由专属面板全权渲染，不消费共享列表与核销副作用
-  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'paymentRequests' || activeTab === 'credit';
+  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'paymentRequests' || activeTab === 'credit' || activeTab === 'reconciliation';
   const activeList: Array<InvoiceEntity | VoucherEntity | VatInvoiceEntity> =
     isSelfContainedTab ? [] : activeTab === 'invoices' ? filteredInvoices : activeTab === 'vatInvoices' ? filteredVatInvoices : filteredVouchers;
   const selectedItem = activeList.find(item => item.id === selectedId) || activeList[0];
@@ -1418,7 +1420,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   // ── Status quick-stats (shown at right of toolbar for the active tab) ───
   const statusStats = useMemo(() => {
-    if (activeTab === 'reports' || activeTab === 'cashCalendar') return [];
+    if (activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'reconciliation') return [];
     if (activeTab === 'invoices') {
       const paid = invoices.filter(i => i.status === 'Paid').length;
       const partiallyPaid = invoices.filter(i => i.status === 'PartiallyPaid').length;
@@ -2266,7 +2268,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       <PageHeader
         title="财务管理"
         subtitle="Invoices / Vouchers / Reconciliation"
-        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'cashCalendar' ? 'Cash Calendar' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : 'Voucher Desk'}
+        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'cashCalendar' ? 'Cash Calendar' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : activeTab === 'reconciliation' ? 'Reconciliation' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
         actions={(
           <>
@@ -2335,7 +2337,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
                 : activeTab === 'cashCalendar'
                   ? '今日动作 · 30 天预测 · 外汇敞口'
-                  : activeTab === 'paymentRequests'
+                  : activeTab === 'reconciliation'
+                    ? '订单 ↔ 出运 ↔ 开票 ↔ 收款 四单勾稽'
+                    : activeTab === 'paymentRequests'
                     ? '先申请后付款 · 审批链闭环'
                     : activeTab === 'credit'
                       ? '额度 / 冻结门禁 / 历史时间线'
@@ -2361,6 +2365,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           {/* 客户信用 tab：自包含面板（额度 / 冻结门禁 / CreditLimitHistory 时间线） */}
           {activeTab === 'credit' && (
             <FinanceCreditPanel isDarkMode={isDarkMode} relations={relationOptions} />
+          )}
+
+          {/* 对账 tab（W-B P2-6）：自包含面板（客户汇总卡 / 差异清单 / 单订单四单对照抽屉） */}
+          {activeTab === 'reconciliation' && (
+            <ReconciliationPanel isDarkMode={isDarkMode} relations={relationOptions} />
           )}
 
           {!isSelfContainedTab && (
