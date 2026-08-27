@@ -2,8 +2,8 @@
 
 ## 北极星与当前波次（2026-08-27 拍板，动态行唯一住址）
 - **v1.0 投产定义**：S1 双主链（面料+成衣各 14 步）实机零死胡同 ＋ S2 任一单据三击可追溯 ＋ S3 七角色权限走查通过 ＋ 追加三否决项（无占位文本/无假数据/不跳系统手工），全绿后真实订单使用 2 周记 production-used
-- **波次顺序**：W-A 主链贯通（四批次冒烟/结算挂接/警示接线/L8回写/在途文件收尾）→ W-B 数字正确（P2-6 四单对账/P2-7 多币种对账）→ W-C 权限收口（七角色走查/30页销号/REQ2-11拍板 D-1~D-5）→ W-D 扩张（P1-5/P2-8/MRP只读/REQ2-20/债务马拉松）
-- 当前波次：**W-A 进行中**
+- **波次顺序**：W-A 主链贯通（~~四批次冒烟~~/~~结算挂接 `87cd361`~~/~~警示接线 `1f6d041`~~/~~L8回写 `0f07b13`~~/~~在途四域收尾+迁移补账 `a433e5b`/`f7cd7cb`/`bcfe1f5`~~）→ W-B 数字正确（P2-6 四单对账/P2-7 多币种对账）→ W-C 权限收口（七角色走查/30页销号/REQ2-11拍板 D-1~D-5）→ W-D 扩张（P1-5/P2-8/MRP只读/REQ2-20/债务马拉松）
+- 当前波次：**W-A 仅剩收官项——S1 双主链实机走查**（真数据过 14 步×2 条链，死胡同当场修；走查记录回填 v0.8 剧本 §7 表格）
 - 条件触发沉底项：P4-12 押汇（L/C 占比>30%）、P4-13 海外代理佣金（出现代理成交结构）、P3-11 现货模式（确认存在后）
 
 ## Dev Server HMR 注意事项
@@ -35,12 +35,13 @@
 - **可豁免**：吉祥物 SVG/Canvas 颜色、3D 地图 WebGL 颜色、邮件/发票模板（CSS 变量在邮件客户端不可靠）
 
 ## Git 工作流
-- main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`98cdf9a`）+ 4 个 docs commit（`f2ef300`/`1d3af4c`/`6c8a15b`/`b6dbd9f`）+ 阶段 0 Track A/B（`2cfff97` fix(security) / `3c4f342` feat(observability)）+ 阶段 0-3 收口（`7b11cb6` chore(repo) / `a5aefdc`+`8f928ac` fix(security) / `e82ae6a` feat(observability) / `306dd7d`+`40a1076` fix(agent,finance) / `1d04647` fix(market) / `000159f` feat(knowledge)）+ 企业上线就绪（`cf002fc` fix(frontend) / `46503b8` feat(ops) / `c6d7cec` chore(repo) / `c0068a8` test(frontend)）+ BDS v2→v2.1→v2.2 设计系统收编（`dfd9e6a`/`2ae7383`/`69d47d3`/`5fddee5`/`be97694`）+ 业务深化批次（C1-C8/D2/F1-F5/H1-H3/P0-P3/a5）+ ERP Phase 0-5 全栈实现（`eb1e9a7` P0+P1 迁移 / `e388cda` Phase 1 共享内核 / `bda41a4`+`4714252` Phase 2 八域后端 / `71cd291`+`9ef80c7` Phase 3 前端 UI / `0b0d292` Phase 4 Agent 工具层 / `f553629` Phase 5 集成 / `0d2775c` 遗留修复）+ 多会话协同波次（`b009b12` W0 断言基线 / `38c622c`+`d3e4ded`+`4f6dab0` W1 三轨 / `15f224a` W2 S-QA / `6478423` W3 S-QA 一阶段 / `ef1fd06` W2-W3 S-FE 批H+批G / `2fa5a4d`+`bcdec57` S-BE QA-SEC 批+仲裁 / `b20c305` W3 S-BE DR-016 合票建模并入）+ 后续增量（ops/documents 修复若干）+ 缺失功能优先级批次（`19d3eec` P0-1 分批出运与尾款结算 / `f23f34c` P0-2 催款分级状态机 / `e243ba2` P1-3 客户专属面料规则 / `165ff39` P1-4 物料退换货），HEAD=`165ff39`
+- main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`98cdf9a`）+ 4 个 docs commit（`f2ef300`/`1d3af4c`/`6c8a15b`/`b6dbd9f`）+ 阶段 0 Track A/B（`2cfff97` fix(security) / `3c4f342` feat(observability)）+ 阶段 0-3 收口（`7b11cb6` chore(repo) / `a5aefdc`+`8f928ac` fix(security) / `e82ae6a` feat(observability) / `306dd7d`+`40a1076` fix(agent,finance) / `1d04647` fix(market) / `000159f` feat(knowledge)）+ 企业上线就绪（`cf002fc` fix(frontend) / `46503b8` feat(ops) / `c6d7cec` chore(repo) / `c0068a8` test(frontend)）+ BDS v2→v2.1→v2.2 设计系统收编（`dfd9e6a`/`2ae7383`/`69d47d3`/`5fddee5`/`be97694`）+ 业务深化批次（C1-C8/D2/F1-F5/H1-H3/P0-P3/a5）+ ERP Phase 0-5 全栈实现（`eb1e9a7` P0+P1 迁移 / `e388cda` Phase 1 共享内核 / `bda41a4`+`4714252` Phase 2 八域后端 / `71cd291`+`9ef80c7` Phase 3 前端 UI / `0b0d292` Phase 4 Agent 工具层 / `f553629` Phase 5 集成 / `0d2775c` 遗留修复）+ 多会话协同波次（`b009b12` W0 断言基线 / `38c622c`+`d3e4ded`+`4f6dab0` W1 三轨 / `15f224a` W2 S-QA / `6478423` W3 S-QA 一阶段 / `ef1fd06` W2-W3 S-FE 批H+批G / `2fa5a4d`+`bcdec57` S-BE QA-SEC 批+仲裁 / `b20c305` W3 S-BE DR-016 合票建模并入）+ 后续增量（ops/documents 修复若干）+ 缺失功能优先级批次（`19d3eec` P0-1 分批出运与尾款结算 / `f23f34c` P0-2 催款分级状态机 / `e243ba2` P1-3 客户专属面料规则 / `165ff39` P1-4 物料退换货）+ v0.8 定稿与单据号原子追平（`7b8495b`~`59b80f3`）+ 文档大扫除与 W-A 首日（`f9ce454` docs 治理 / `87cd361` 结算挂接 / `1f6d041` 警示接线 / `de964d9` 契约退役）+ 在途四域收尾与 L8 修复（`a433e5b` 询价+迁移补账 / `f7cd7cb` 样品间+开发 / `bcfe1f5` HR KPI / `9d3f497` 补登+gitignore / `0f07b13` L8 回写），HEAD=`0f07b13`
 - 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
 - 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
 - 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过 + 前端 `npm test` 全绿
-- 测试套件：后端 `cd server && npx vitest run`（4467/4467 全通过，316 文件，含安全/幂等/并发/KB CRUD/MOQ 双触发/交期锁死/marketing/shared 补底/信用CAS/DR-013 门禁/QA-SEC 权限收口/DR-016 合票分配/出运批次门禁/催款分级穿透/专属面料四入口/退换货状态机回归测试）；前端 `npm test`（2644 通过 + 6 项视觉基线 quarantine 隔离，117 文件）
-- 工作区遗留：供应商询价比价（卡点 3）/样品间/开发/HR 等前次会话未提交改动仍在工作区（勿混入无关提交，采用 hunk 级拆分）
+- 测试套件：后端 `cd server && npx vitest run`（4500/4500 全通过，320 文件，含安全/幂等/并发/KB CRUD/MOQ 双触发/交期锁死/marketing/shared 补底/信用CAS/DR-013 门禁/QA-SEC 权限收口/DR-016 合票分配/出运批次门禁+结算自动触发挂接/催款分级穿透/专属面料四入口+行级预检+询价状态机/L8 回写幂等/退换货状态机/KPI 校验回归测试；注意 riskRoute 存在偶发 flake，复跑即绿）；前端 `npm test`（2643 通过 + 6 项视觉基线 quarantine 隔离，116 文件）
+- 工作区遗留：**已清空**（2026-08-27 在途四域全部合入；仅剩本 rules 动态行随每次收尾更新）
+- **迁移账本断链警示（部署必读）**：迁移历史存在基线断链（FabricProfile/DevelopmentCase/Invoice/PaymentVoucher/Shipment 五表从未被任何迁移 CREATE），本地库曾以 db push 领先账本运行。Mac Mini 部署若 migrate deploy 报 duplicate column/table，先 `npx prisma migrate resolve --applied <目录名>` 记账已有效果，再上新迁移（20260827143911_supplier_inquiry_and_sample_card_stock 已含询价+样品间+开发全部 DDL）
 
 ## Mac Mini 部署
 - **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定
