@@ -34,6 +34,7 @@
 - **缺口优先级与剩余项** → `docs/design/10-评审与决策/2026-08-25-中度与严重缺失功能开发优先级规划.md` 的未消费部分
 - **待拍板决策** → DR 台账追加；REQ2-11 双抬头分账待决点 D-1~D-5
 - **W-0 开工前置包（2026-08-27）** → 三件工件已生成（见下），W-A 收官与 W-B 开工的判定依据
+- **W-C 权限收口（2026-08-27 进行中）** → 两件工件（见下），七角色走查与 30 页权限销号的判定依据
 
 ### W-0 三件工件（机器可判定）
 
@@ -48,6 +49,13 @@
 2. `Order.currency`（L3）vs `salesCurrency ?? purchaseCurrency`（批次服务）两个币种来源可能不一致——P2-7 必须先定唯一真源（#2）
 3. `Order.actualPaymentAmount` 是手工 PATCH 字段，财务核销不回写——与 `InvoiceAllocation` 真源必然漂移，P2-6 应明令废弃其一（补充）
 4. ~~`Shipment↔Batch` 双状态机脱钩~~ → **已拍板 DR-047（`5e46d93`）**：Shipment→Shipped 自动推进显式挂接批次，服务层内联 4 挂接点，物理事实优先+留痕
+
+### W-C 两件工件（权限收口 · 机器可判定）
+
+| 工件 | 存放位置 | 用途 |
+|---|---|---|
+| 七角色×三层权限矩阵 | 真源 `lib/rolePermissionMatrix.ts`（七角色默认矩阵 :666-674 + VIEW_TO_MAIN_SCOPES :248-288；服务端镜像 `server/src/_shared/rolePermissionMatrix.ts:254`）；三测试文件（批三-C 新增）：`components/permissionViewMatrix.test.ts`（视图层 角色×视图门一致性反向断言）、`server/src/__tests__/permissionDenyPath.test.ts`（路由层 低权限角色必须 401/403 反向断言）、`server/src/__tests__/permissionAgentToolMatrix.test.ts`（Agent 工具层 角色×风险档判定矩阵） | S3 七角色权限走查的逐角色判定表（视图门/服务端门/Agent 工具门三层对齐断言） |
+| 30 页权限销号台账 | `docs/design-system/page-consistency-ledger.md` §7「W-C 权限销号」（§7.1 三十行台账 / §7.2 统计与归因 / §7.3 横切发现） | 30 页逐页权限销号判定（视图门/页内逻辑/服务端门三层，行号即证据）：✅16/⬜14，未销号 14 页三族归因（族A 视图门⊋服务端门死胡同×4 / 族B 服务端写面无授权门×8 / 族C 矩阵授权角色被 legacy 写门拒绝×2） |
 
 ## 三、写作纪律（关水龙头）
 

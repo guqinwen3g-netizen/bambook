@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireRole, extractActorFromRequest } from '../auth/middleware';
+import { extractActorFromRequest } from '../auth/middleware';
+import { requirePermission } from '../auth/permissionGuard';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { createHrService, HrError } from './hrService';
@@ -33,10 +34,18 @@ export function createHRRouter(options: HRRouterOptions) {
   // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
 
-  // 所有 HR 路由要求 owner/admin 角色（requireRole 走 jwt.verify 验签，比 requireJwtForWrite 更严格；
-  // API-Key 即使通过 moduleGuard 也会因无 actor 在此处被挡 → 401）
+  // W-C 七角色走查收口（族 C 同型 HR 死胡同修复）：
+  // 原全局 requireRole('owner','admin') 使 FINANCE（legacy finance∉组）持 hr:read 仍全端点 403。
+  // 按矩阵真源改 scope 门：GET → hr:read（FINANCE/ADMIN 持有），写 → hr:write（ADMIN 持有，
+  // §6.6 人事管理归总领导；SuperAdmin 经 hasPermission 特判全通）；
+  // GET /teams/mine 按小组与业务数据共享 §6 文档放开给任何登录用户（团队共享基础）。
   if (requireAuth) {
-    router.use(requireRole('owner', 'admin'));
+    const requireHrRead = requirePermission('hr:read');
+    const requireHrWrite = requirePermission('hr:write');
+    router.use((req, res, next) => {
+      if (req.method === 'GET' && req.path === '/teams/mine') return next();
+      return (req.method === 'GET' ? requireHrRead : requireHrWrite)(req, res, next);
+    });
   }
 
   // ════════════════════════════════════════════
@@ -320,8 +329,8 @@ export function createHRRouter(options: HRRouterOptions) {
 
   // ════════════════════════════════════════════
   // DR-042 小组数据共享（设计真源：docs/design/03-业务规则/小组与业务数据共享.md §7）
-  // 说明：本路由挂 requireRole('owner','admin') 全局守卫，故此处端点为
-  // admin 口径（建组/解散/审计视图）；组长/主管的就地共享走
+  // 说明：本路由 W-C 起挂 scope 门（GET hr:read / 写 hr:write + /teams/mine 全登录放开），
+  // 建组/解散/审计视图为 hr:write（ADMIN 总领导）口径；组长/主管的就地共享走
   // /api/v2/relations/:id/team-shares（双重门禁在 teamShareService）。
   // ════════════════════════════════════════════
 
