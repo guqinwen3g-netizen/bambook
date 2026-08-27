@@ -1,4 +1,5 @@
 import { View } from '../types';
+import { VIEW_TO_MAIN_SCOPES } from './rolePermissionMatrix';
 
 export type ViewPermissionPolicy = 'public-authenticated' | 'permission' | 'dev-only' | 'role';
 
@@ -8,43 +9,37 @@ export type ViewPermissionDefinition = {
   roles?: readonly string[];
 };
 
-export const VIEW_PERMISSION_DEFINITIONS = {
+/**
+ * 视图访问策略覆盖（仅非 permission 类）。
+ * permission 视图的 required scope 一律派生自真源 VIEW_TO_MAIN_SCOPES[view].read
+ * （lib/rolePermissionMatrix.ts）——2026-08-27 W-C 起不再允许本文件手写 scope，
+ * 从机制上根除「视图门族 scope vs 矩阵域 scope」双源漂移（走查曾挖出 19 处）。
+ */
+const VIEW_POLICY_OVERRIDES: Partial<Record<View, ViewPermissionDefinition>> = {
+  // 落地页与账号设置：任何登录用户可达
   [View.Dashboard]: { policy: 'public-authenticated' },
-  [View.Cockpit]: { policy: 'permission', required: 'finance:read' },
-  [View.Assistant]: { policy: 'permission', required: 'ai:chat' },
-  [View.Relations]: { policy: 'permission', required: 'relations:read' },
-  [View.Products]: { policy: 'permission', required: 'products:read' },
-  [View.DataCenter]: { policy: 'permission', required: 'knowledge:read' },
-  [View.Orders]: { policy: 'permission', required: 'orders:read' },
-  [View.ProductionBoard]: { policy: 'permission', required: 'orders:read' },
-  [View.Quotations]: { policy: 'permission', required: 'orders:read' },
-  [View.Procurement]: { policy: 'permission', required: 'orders:read' },
-  [View.Inventory]: { policy: 'permission', required: 'orders:read' },
-  [View.BOM]: { policy: 'permission', required: 'orders:read' },
-  [View.CRM]: { policy: 'permission', required: 'relations:read' },
-  [View.Suppliers]: { policy: 'permission', required: 'relations:read' },
-  [View.Seasons]: { policy: 'permission', required: 'relations:read' },
-  [View.Risks]: { policy: 'permission', required: 'finance:read' },
-  [View.MES]: { policy: 'permission', required: 'orders:read' },
-  [View.Customs]: { policy: 'permission', required: 'orders:read' },
-  [View.DocumentCenter]: { policy: 'permission', required: 'orders:read' },
-  [View.Invoices]: { policy: 'permission', required: 'finance:read' },
-  [View.PaymentVouchers]: { policy: 'permission', required: 'finance:read' },
-  [View.Shipments]: { policy: 'permission', required: 'orders:read' },
-  [View.Development]: { policy: 'permission', required: 'orders:read' },
-  [View.Emails]: { policy: 'permission', required: 'emails:read' },
   [View.Settings]: { policy: 'public-authenticated' },
   [View.AccountSettings]: { policy: 'public-authenticated' },
-  [View.SystemSettings]: { policy: 'public-authenticated' },
-  [View.BusinessTools]: { policy: 'permission', required: 'tools:execute' },
+  // 开发实验视图：仅 dev 环境
   [View.UiLab]: { policy: 'dev-only' },
-  [View.AdminPanel]: { policy: 'permission', required: 'users:read' },
-  [View.HR]: { policy: 'permission', required: 'users:read' },
-  [View.QcWorkbench]: { policy: 'permission', required: 'orders:read' },
-  [View.Pricing]: { policy: 'permission', required: 'finance:read' },
-  [View.Marketing]: { policy: 'permission', required: 'products:read' },
-  [View.Reports]: { policy: 'permission', required: 'finance:read' },
-} satisfies Record<View, ViewPermissionDefinition>;
+};
+
+function buildViewPermissionDefinitions(): Record<View, ViewPermissionDefinition> {
+  const defs = {} as Record<View, ViewPermissionDefinition>;
+  for (const view of Object.values(View)) {
+    const override = VIEW_POLICY_OVERRIDES[view];
+    if (override) {
+      defs[view] = override;
+    } else {
+      const read = VIEW_TO_MAIN_SCOPES[view]?.read;
+      if (!read) throw new Error(`VIEW_TO_MAIN_SCOPES 缺 ${view} 的 read scope（视图门禁无法派生）`);
+      defs[view] = { policy: 'permission', required: read };
+    }
+  }
+  return defs;
+}
+
+export const VIEW_PERMISSION_DEFINITIONS: Record<View, ViewPermissionDefinition> = buildViewPermissionDefinitions();
 
 export function getViewPermissionDefinition(view: View): ViewPermissionDefinition {
   return VIEW_PERMISSION_DEFINITIONS[view];

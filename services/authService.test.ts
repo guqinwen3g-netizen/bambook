@@ -320,7 +320,9 @@ describe('authService checkAuth', () => {
     expect(canAccessView(View.Orders)).toBe(true);
     expect(canAccessView(View.Assistant)).toBe(false);
     expect(canAccessView(View.AccountSettings)).toBe(true);
-    expect(canAccessView(View.SystemSettings)).toBe(true);
+    // W-C 真源对齐：SystemSettings 派生 permission: settings:system:read（仅 ADMIN 持有），
+    // 普通用户（viewer + orders/products）不再隐式放开
+    expect(canAccessView(View.SystemSettings)).toBe(false);
   });
 
   it('does not grant AI access from legacy role fallback when auth responses omit permissions', async () => {

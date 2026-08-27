@@ -154,6 +154,8 @@ export const PERMISSION_SCOPES = {
   'aftersales:approve': '客诉扣赔/折让审批（影响应收金额）',
   'procurement:read': '采购订单PO查看',
   'procurement:write': '采购订单PO创建/编辑',
+  'inventory:read': '库存查看（W-C 补登：GAP-R5 仓储归后勤）',
+  'inventory:write': '库存入库/出库/调整（W-C 补登：执行面归后勤）',
   'procurement:approve': '采购订单PO审批+首单供应商+1级审批',
 
   // --- 财务与成本域 ---
@@ -393,6 +395,7 @@ const SALES_BASE: RolePermissionMatrix = {
   'products:read': true,
   'products:write': true,
   'bom:read': true,
+  'bom:write': true, // Draft 态编辑（文档 §6.1；W-C 批三-E 走查发现矩阵漏授）
   'production:read': true,
   'production:write': true, // QC/疵点业务员自己登
   'shipments:read': true,
@@ -557,6 +560,32 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'risk:admin': true,
   'pricing:admin': true,
   'audit:export': true,
+  // 文档 §6.6 总领导对齐：敏感字段四项（salary 仍不给，仅老板+指定 HR）
+  'sensitive:cost': true,
+  'sensitive:profit': true,
+  'sensitive:commission': true,
+  'sensitive:tax_base': true,
+  // 文档 §6.6 总领导对齐：业务兜底审批全档（跨团队/大单/高风险）
+  'orders:approve:change_delivery': true,
+  'orders:approve:change_qty': true,
+  'orders:approve:change_price': true,
+  'quotations:approve': true,
+  'shipments:approve': true,
+  'aftersales:approve': true,
+  'procurement:approve': true,
+  'vouchers:approve:pay_lt5': true,
+  'tax:approve': true,
+  // 文档 §6.6：评级/BOM/用户管理最高档/HR 写/AI 高危/数据导入
+  'relations:admin': true,
+  'suppliers:admin': true,
+  'bom:admin': true,
+  'users:admin': true,
+  'hr:write': true,
+  'ai:write:high': true,
+  'data:import': true,
+  // 文档 §6.6 业务域全只读补遗：marketing/inventory（qc:read 已有）
+  'marketing:read': true,
+  'inventory:read': true,
   // 看所有业务域只读（Admin要能排障，不能两眼一抹黑）
   'dashboard:read': true,
   'cockpit:read': true,
@@ -583,10 +612,8 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'tax:read': true,
   'remit:read': true,
   'risk:read': true,
-  // HR：管理员看基本信息，看不了薪酬
+  // HR：管理员看基本信息 + hr:write（§6.6 人事管理归总领导）；薪酬明细仍需 sensitive:salary（不给）
   'hr:read': true,
-  // 但是！Admin 不给敏感scope（成本/利润/佣金/薪酬/税基全不给）
-  // 避免Admin权限过高看不该看的财务机密，敏感scope保留给Finance及以上
   // Phase 1 预分配：Admin 获得全部 15 个新 scope（配置/排障兜底；SUPER_ADMIN 代码级全放行）
   'settings:moq:write': true,
   'moq:line_override': true,
@@ -609,38 +636,63 @@ const ADMIN_BASE: RolePermissionMatrix = {
 };
 
 const QC_BASE: RolePermissionMatrix = {
-  // 经营总览
+  // 经营总览（文档 §6.4）
   'dashboard:read': true,
+  'cockpit:read': true,
   'reports:read': true,
   'ai:chat': true,
+  'ai:write:low': true,
+  // 客户市场（只读）
+  'relations:read': true,
+  'suppliers:read': true,
+  'seasons:read': true,
   // 订单履约（只读）
   'orders:read': true,
+  'quotations:read': true,
   'products:read': true,
   'production:read': true,
   'shipments:read': true,
   'customs:read': true,
+  'aftersales:read': true,
+  'procurement:read': true,
   // 财务 KPI 层只读（敏感字段遮罩；W-C 视图门禁对齐文档 §6.4）
   'finance:read': true,
   // QC 域（可写）
   'qc:read': true,
   'qc:write': true,
+  'production:write': true, // 阶段登记/疵点录入
+  'bom:read': true,
+  'bom:write': true, // Draft 编辑
   // BOM 版本/工艺模型管理（与 SM 共享；GAP-R11 FinMan 位移）
   'bom:admin': true,
   // 平台域
   'knowledge:read': true,
+  'knowledge:write': true,
   'tools:execute': true,
   'settings:account': true,
 };
 
 const LOGISTICS_BASE: RolePermissionMatrix = {
-  // 经营总览
+  // 经营总览（文档 §6.5）
   'dashboard:read': true,
+  'cockpit:read': true,
   'reports:read': true,
   'ai:chat': true,
+  'ai:write:low': true,
+  // 客户市场（只读）
+  'relations:read': true,
+  'crm:read': true,
+  'suppliers:read': true,
+  'seasons:read': true,
+  'marketing:read': true,
+  'emails:read': true,
   // 订单履约（只读）
   'orders:read': true,
+  'quotations:read': true,
   'products:read': true,
   'production:read': true,
+  'bom:read': true,
+  'qc:read': true,
   // 物流/单证域（可写）
   'shipments:read': true,
   'shipments:write': true,
@@ -648,14 +700,24 @@ const LOGISTICS_BASE: RolePermissionMatrix = {
   'customs:write': true,
   // 单证模板/公司签章配置（GAP-R11 FinMan 位移）
   'customs:admin': true,
+  // 采购/库存执行（GAP-R5 仓储归后勤）
+  'procurement:read': true,
+  'procurement:write': true,
+  'inventory:read': true,
+  'inventory:write': true,
+  // 售后物流部分
+  'aftersales:read': true,
+  'aftersales:write': true,
   // 财务只读（KPI/商业发票做报关/水单核对；W-C 视图门禁对齐文档 §6.5）
   'finance:read': true,
   'invoices:read': true,
   'vouchers:read': true,
   // 平台域
   'knowledge:read': true,
+  'knowledge:write': true,
   'tools:execute': true,
   'settings:account': true,
+  'data:import': true,
 };
 
 const SUPER_ADMIN_BASE: RolePermissionMatrix = {};
