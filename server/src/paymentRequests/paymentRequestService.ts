@@ -301,7 +301,8 @@ export function createPaymentRequestService(opts: PaymentRequestServiceOptions) 
       );
     }
 
-    // 凭证生成走共享 mutation 服务（编号/审计/事件/同步引用统一契约），voucherCategory 一并写入
+    // 凭证生成走共享 mutation 服务（编号/审计/事件/同步引用统一契约），voucherCategory 一并写入；
+    // 携带 paymentRequestId：凭证创建事务内 CAS 回写本申请单（VoucherIssued + paymentVoucherId，DR-017 闭环）
     const created = await createPaymentVoucher({
       prisma,
       input: {
@@ -314,6 +315,7 @@ export function createPaymentRequestService(opts: PaymentRequestServiceOptions) 
         customerRelationId: pr.supplierId ?? undefined,
         customerName: pr.supplierName ?? undefined,
         notes: `付款申请 ${pr.requestNumber}${pr.remark ? `：${pr.remark}` : ''}`,
+        paymentRequestId: pr.id,
       },
       actorId,
     });
@@ -326,26 +328,18 @@ export function createPaymentRequestService(opts: PaymentRequestServiceOptions) 
     }
     const voucher = created.data.voucher;
 
-    // 原子收尾：仅当仍未关联凭证时写入（并发防重）；竞态落败则回读既有凭证幂等返回
+    // 回读凭证事务内 CAS 回写后的申请单；并发落败（凭证被其他并发请求关联）时回读既有凭证幂等返回
     try {
-      const claim = await prisma.paymentRequest.updateMany({
-        where: { id: pr.id, paymentVoucherId: null },
-        data: { paymentVoucherId: voucher.id, status: 'VoucherIssued' },
-      });
-      if (claim.count === 0) {
-        const fresh = await prisma.paymentRequest.findUnique({ where: { id: pr.id } });
-        const concurrentVoucher = fresh?.paymentVoucherId
-          ? await prisma.paymentVoucher.findUnique({ where: { id: fresh.paymentVoucherId } }).catch(() => null)
-          : null;
-        logger.warn('[PaymentRequest] 凭证生成并发竞态，回读既有凭证幂等返回', {
-          paymentRequestId: pr.id, orphanVoucherId: voucher.id, existingVoucherId: fresh?.paymentVoucherId,
-        });
-        if (fresh && concurrentVoucher) {
-          return { ok: true, data: { paymentRequest: fresh, voucher: concurrentVoucher, idempotent: true } };
-        }
-        return fail(PAYMENT_REQUEST_ERRORS.VOUCHER_ISSUE_FAILED, '凭证关联并发冲突，请重试', 409);
-      }
       const updated = await prisma.paymentRequest.findUnique({ where: { id: pr.id } });
+      if (updated?.paymentVoucherId && updated.paymentVoucherId !== voucher.id) {
+        const concurrentVoucher = await prisma.paymentVoucher.findUnique({ where: { id: updated.paymentVoucherId } }).catch(() => null);
+        logger.warn('[PaymentRequest] 凭证生成并发竞态，回读既有凭证幂等返回', {
+          paymentRequestId: pr.id, orphanVoucherId: voucher.id, existingVoucherId: updated.paymentVoucherId,
+        });
+        if (concurrentVoucher) {
+          return { ok: true, data: { paymentRequest: updated, voucher: concurrentVoucher, idempotent: true } };
+        }
+      }
       await writeRouteAuditLog({
         prisma, actorId, source: 'service:payment-request:issue-voucher',
         operation: 'payment_request_voucher_issued', targetType: 'PaymentRequest', targetId: pr.id,
@@ -365,12 +359,13 @@ export function createPaymentRequestService(opts: PaymentRequestServiceOptions) 
 
   // ══════════════════════════════════════════════════════════════════
   // syncApprovalDecision — 审批决定回写（由审批侧回调/轮询驱动）
-  //   approved → Approved；rejected → Rejected；pending → 无操作
+  //   approved → Approved 并自动生成付款凭证（DR-017 闭环：审批通过事件驱动
+  //   issueVoucherForApprovedRequest，幂等防重）；rejected → Rejected；pending → 无操作
   // ══════════════════════════════════════════════════════════════════
   async function syncApprovalDecision(params: {
     paymentRequestId: string;
     actorId: string;
-  }): Promise<PaymentRequestResult<{ paymentRequest: any; synced: boolean }>> {
+  }): Promise<PaymentRequestResult<{ paymentRequest: any; synced: boolean; voucher?: any }>> {
     const { paymentRequestId, actorId } = params;
     const pr = await prisma.paymentRequest.findUnique({ where: { id: paymentRequestId } });
     if (!pr || pr.deletedAt) {
@@ -396,6 +391,18 @@ export function createPaymentRequestService(opts: PaymentRequestServiceOptions) 
       return next;
     });
     logger.info('[PaymentRequest] 审批决定已回写', { paymentRequestId: pr.id, status: nextStatus });
+    // DR-017 闭环（DE-3）：审批通过 → 自动生成付款凭证。
+    // 失败不回滚审批回写（审批结论是真源），记录错误供重试（POST /:id/issue-voucher 手动触发兜底）。
+    if (nextStatus === 'Approved') {
+      const issued = await issueVoucherForApprovedRequest({ paymentRequestId: pr.id, actorId });
+      if (!issued.ok) {
+        logger.error('[PaymentRequest] 审批通过后自动发凭证失败（可经 issue-voucher 端点重试）', {
+          paymentRequestId: pr.id, error: issued.error.code, message: issued.error.message,
+        });
+        return { ok: true, data: { paymentRequest: updated, synced: true } };
+      }
+      return { ok: true, data: { paymentRequest: issued.data.paymentRequest, synced: true, voucher: issued.data.voucher } };
+    }
     return { ok: true, data: { paymentRequest: updated, synced: true } };
   }
 

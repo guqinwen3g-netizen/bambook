@@ -281,7 +281,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       ip: req.ip || null,
     });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { INVALID_STATUS: 400, INVALID_AMOUNT: 400, CREATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { INVALID_STATUS: 400, INVALID_AMOUNT: 400, INVALID_VOUCHER_CATEGORY: 400, PAYMENT_REQUEST_REQUIRED: 403, CREATE_FAILED: 500 };
       const error = result.error;
       res.status(statusCodeMap[error.code] || 500).json({ error });
       return;

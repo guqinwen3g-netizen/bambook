@@ -978,6 +978,17 @@ describe('quotationService: 发送红标门禁（PRD 8.6，block 未审批禁止
     expect(publishSpy).not.toHaveBeenCalled();
   });
 
+  it('DE-6 审批单透传：block 门禁错误对象携带 approvalRequestId（route 回传 body 供前端跳转审批）', async () => {
+    const { prisma } = makePrisma({ existing: blockedQuotation });
+    prisma.approvalRequest.findUnique.mockResolvedValue({ id: 'ar_1', status: 'pending' });
+    const service = createQuotationService(prisma);
+
+    const err = await service.sendQuotation('QT_1', 'u_test').catch((e: any) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.code).toBe('PRICE_DEVIATION_BLOCKED');
+    expect(err.approvalRequestId).toBe('ar_1');
+  });
+
   it('block + 审批 rejected → 抛门禁错误', async () => {
     const { prisma, tx } = makePrisma({ existing: blockedQuotation });
     prisma.approvalRequest.findUnique.mockResolvedValue({ id: 'ar_1', status: 'rejected' });

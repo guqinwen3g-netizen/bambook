@@ -310,7 +310,12 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
       logger.error('[QuotationRoute] POST send failed', { error: e?.message });
       const msg = e?.message || '';
       const status = msg.includes('不存在') ? 404 : msg.includes('非法') || msg.includes('门禁') ? 409 : 400;
-      res.status(status).json({ error: msg || 'failed to send quotation' });
+      // DE-6 统一透传：门禁已发起审批单时回传 id，供前端提示「请至审批中心处理」
+      res.status(status).json({
+        error: msg || 'failed to send quotation',
+        ...(e?.code ? { code: e.code } : {}),
+        ...(e?.approvalRequestId ? { approvalRequestId: e.approvalRequestId } : {}),
+      });
     }
   });
 

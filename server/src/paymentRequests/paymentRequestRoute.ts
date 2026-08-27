@@ -8,6 +8,7 @@
  *   POST /              — 创建付款申请（scope finance:payment_request:create；创建即 Pending + 生成审批单）
  *   GET  /              — 列表（按 status / paymentCategory / applicantId 过滤）
  *   GET  /:id           — 详情（附 approvalRequest / paymentVoucher 关联快照）
+ *   POST /:id/issue-voucher — 生成付款凭证（scope finance:payment_request:create；DR-017 幂等）
  *   POST /:id/cancel    — 申请人作废（仅 Draft/Pending，仅本人）
  *
  * 鉴权：JWT fail-closed（无 token 401，无 scope 403）
@@ -154,6 +155,35 @@ export function createPaymentRequestRouter(options: PaymentRequestRouterOptions)
     } catch (e: any) {
       logger.error('[PaymentRequestRoute] GET /:id failed', { error: e?.message });
       return res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message || '查询付款申请详情失败' });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════
+  // POST /:id/issue-voucher — 生成付款凭证（手动触发兜底；幂等）
+  //   审批通过事件钩子（paymentRequestApprovalHook）为主链路；本端点用于
+  //   漏触发/失败重试：先惰性回写审批决议（Approved 自动生成凭证），再按
+  //   DR-017 状态机发凭证（未批准 409；已发凭证直接返回既有凭证）。
+  // ══════════════════════════════════════════════════════════════════
+  router.post('/:id/issue-voucher', async (req: Request, res: Response) => {
+    const auth = authenticate(req, res);
+    if (!auth) return;
+    if (!requireScope(req, res, 'finance:payment_request:create')) return;
+    try {
+      // 先回写审批决议（Pending 且审批已决议时推进状态并自动发凭证）
+      await paymentRequestService.syncApprovalDecision({ paymentRequestId: req.params.id, actorId: auth.userId });
+      const result = await paymentRequestService.issueVoucherForApprovedRequest({
+        paymentRequestId: req.params.id,
+        actorId: auth.userId,
+        paymentMethod: req.body?.paymentMethod ? String(req.body.paymentMethod).trim() : undefined,
+        paymentDate: req.body?.paymentDate ? String(req.body.paymentDate).trim() : undefined,
+      });
+      if (!result.ok) {
+        return res.status(result.error.statusCode).json({ error: result.error.code, message: result.error.message });
+      }
+      return res.status(result.data.idempotent ? 200 : 201).json(result.data);
+    } catch (e: any) {
+      logger.error('[PaymentRequestRoute] POST /:id/issue-voucher failed', { error: e?.message });
+      return res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message || '生成付款凭证失败' });
     }
   });
 

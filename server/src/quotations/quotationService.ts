@@ -714,9 +714,13 @@ export function createQuotationService(prisma: PrismaClient) {
         const conditionText = hitConditions.length > 0
           ? `命中价格审批条件 [${hitConditions.join(' / ')}]`
           : `双轨偏差 ${existing.priceDeviationPercent ?? '?'}% 超过 30% 红标阈值`;
-        throw new Error(
-          `报价单 ${existing.quotationNumber} ${conditionText}，`
-          + `需审批通过后方可发送（门禁：price-deviation${existing.priceApprovalId ? '' : '，审批请求缺失'}）`,
+        // DE-6 统一透传：审批单 id 挂到错误对象，route 层回传 body 供前端跳转审批中心
+        throw Object.assign(
+          new Error(
+            `报价单 ${existing.quotationNumber} ${conditionText}，`
+            + `需审批通过后方可发送（门禁：price-deviation${existing.priceApprovalId ? '' : '，审批请求缺失'}）`,
+          ),
+          { code: 'PRICE_DEVIATION_BLOCKED', ...(existing.priceApprovalId ? { approvalRequestId: existing.priceApprovalId } : {}) },
         );
       }
     }
@@ -738,9 +742,13 @@ export function createQuotationService(prisma: PrismaClient) {
         const approvedId = await findApprovedMoqExemption(id);
         if (!approvedId) {
           const worst = moqCheck.lines.find((l) => !l.compliant);
-          throw new Error(
-            `报价单 ${existing.quotationNumber} 存在低于 MOQ 的行（行 ${(worst?.lineIndex ?? 0) + 1} 数量 ${worst?.quantity} < MOQ ${worst?.effectiveMoq}，缺口 ${worst?.gapPct}%），`
-            + `需 MOQ 豁免审批通过后方可发送（门禁：moq-exemption${moqCheck.approvalRequestId ? `，审批单 ${moqCheck.approvalRequestId} 待审批` : ''}${moqCheck.approvalError ? '，审批单创建失败请联系管理员' : ''}）`,
+          // DE-6 统一透传：豁免审批单 id 挂到错误对象，route 层回传 body 供前端跳转审批中心
+          throw Object.assign(
+            new Error(
+              `报价单 ${existing.quotationNumber} 存在低于 MOQ 的行（行 ${(worst?.lineIndex ?? 0) + 1} 数量 ${worst?.quantity} < MOQ ${worst?.effectiveMoq}，缺口 ${worst?.gapPct}%），`
+              + `需 MOQ 豁免审批通过后方可发送（门禁：moq-exemption${moqCheck.approvalRequestId ? `，审批单 ${moqCheck.approvalRequestId} 待审批` : ''}${moqCheck.approvalError ? '，审批单创建失败请联系管理员' : ''}）`,
+            ),
+            { code: 'MOQ_VIOLATION', ...(moqCheck.approvalRequestId ? { approvalRequestId: moqCheck.approvalRequestId } : {}) },
           );
         }
       }

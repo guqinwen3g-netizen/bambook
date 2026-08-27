@@ -39,7 +39,7 @@ vi.mock('../../config/systemConfigService', () => ({
 }));
 
 vi.mock('../../lib/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  logger: { info: vi.fn(), warn: vi.fn(), error: (...args: any[]) => console.error('LOGGER.ERROR:', ...args), debug: vi.fn() },
 }));
 
 import { createOrderServiceV2 } from '../../orders/orderServiceV2';
@@ -61,6 +61,12 @@ function createSharedPrisma() {
 
     order: {
       findFirst: vi.fn(async ({ where }: any) => {
+        const o = orders.get(where.id);
+        if (!o) return null;
+        return { ...o, lines: o.lines || [] };
+      }),
+      // V1 transitionOrderStatus 使用 findUnique（DE-2/DE-4 委托路径）
+      findUnique: vi.fn(async ({ where }: any) => {
         const o = orders.get(where.id);
         if (!o) return null;
         return { ...o, lines: o.lines || [] };
@@ -136,6 +142,24 @@ function createSharedPrisma() {
     quotation: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null) },
     invoice: { findMany: vi.fn().mockResolvedValue([]) },
     paymentVoucher: { findMany: vi.fn().mockResolvedValue([]) },
+    // 信用门禁（createOrder fail-closed 依赖）：无额度档案 = 未启用信用管理 → 不阻断
+    creditLimit: { findFirst: vi.fn().mockResolvedValue(null) },
+    // 状态机事务副作用（DE-2/DE-4 委托 V1 路径）：EntityReference/EntityLink 同步 + 路由审计日志
+    entityReference: {
+      upsert: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    entityLink: {
+      upsert: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    auditLog: { create: vi.fn(async ({ data }: any) => ({ id: `AUDIT_${Date.now()}`, ...data })) },
   };
 
   return prisma;

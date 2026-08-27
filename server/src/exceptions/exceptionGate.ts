@@ -57,6 +57,9 @@ export const EXCEPTION_CATEGORIES = [
   'qc_fault',          // QC 瑕疵（缺陷率超标 / finalVerdict=Fail 仍推进）
   'payment_term',      // 付款条件例外
   'sample_skip',       // 样品环节跳过
+  // 信用豁免（W-A 走查 DE-5 修复：信用门禁阻断的系统内例外入口；
+  // schema 冻结仅扩代码枚举，Dr013ExceptionRequest.exceptionCategory 为 String 无 DB 枚举约束）
+  'credit_exemption',
   'other',             // 其他（reason 必须说明清楚）
 ] as const;
 export type ExceptionCategory = (typeof EXCEPTION_CATEGORIES)[number];

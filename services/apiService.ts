@@ -396,7 +396,21 @@ const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: str
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const serverMessage = data?.message || (typeof data?.error === 'string' ? data.error : data?.error?.message);
-    throw new Error(serverMessage || `HTTP ${response.status}`);
+    // DE-6 统一透传：门禁错误响应携带 approvalRequestId 时，抛出错误附带审批单号提示
+    // （toast/alert 直接展示 message 即可读「已发起审批单 XXX，请至审批中心处理」），
+    // 并将 approvalRequestId/code 挂到错误对象供调用方跳转审批中心。
+    const approvalRequestId: string | undefined =
+      (typeof data?.approvalRequestId === 'string' && data.approvalRequestId)
+      || (typeof data?.error?.approvalRequestId === 'string' && data.error.approvalRequestId)
+      || undefined;
+    const baseMessage = serverMessage || `HTTP ${response.status}`;
+    const message = approvalRequestId && !baseMessage.includes(approvalRequestId)
+      ? `${baseMessage}（已发起审批单 ${approvalRequestId}，请至审批中心处理）`
+      : baseMessage;
+    throw Object.assign(new Error(message), {
+      code: (typeof data?.error === 'object' && data?.error?.code) || data?.code || undefined,
+      approvalRequestId,
+    });
   }
   return data as T;
 };

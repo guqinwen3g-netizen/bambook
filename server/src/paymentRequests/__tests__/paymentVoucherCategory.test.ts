@@ -19,6 +19,12 @@ function makePrisma() {
   }));
   const prisma: any = {
     paymentVoucher: { create: voucherCreate, update: voucherUpdate, findUnique: voucherFindUnique },
+    // DR-017 门禁（DE-3）：Disbursement 必须关联 Approved PaymentRequest
+    paymentRequest: {
+      findUnique: vi.fn(async ({ where }: any) =>
+        where.id === 'PAYR__OK' ? { id: 'PAYR__OK', status: 'Approved', deletedAt: null } : null),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
     auditLog: { create: vi.fn(async () => ({ id: 'AL-1' })) },
     entityReference: { upsert: vi.fn(async () => ({})) },
     entityLink: { upsert: vi.fn(async () => ({})), findMany: vi.fn(async () => []), update: vi.fn(async () => ({})) },
@@ -33,6 +39,7 @@ const baseCreateInput = {
   currency: 'CNY',
   paymentDate: '2026-08-16',
   paymentMethod: 'TT',
+  paymentRequestId: 'PAYR__OK', // DR-017 先申请后付款门禁（DE-3）：Disbursement 必带已获批申请
 };
 
 beforeEach(() => vi.clearAllMocks());

@@ -17,6 +17,9 @@ import { createMoqResolutionService } from '../moq/moqResolutionService';
 import { createMoqValidationService } from '../moq/moqValidationService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
+import { createCreditExceptionService, resolveCreditException, consumeCreditException } from '../credit/creditExceptionGate';
+import type { ActiveExceptionSummary, ExceptionScopeMatch } from '../exceptions/exceptionGate';
+import type { ExceptionService } from '../exceptions/exceptionService';
 
 export const VALID_ORDER_STATUSES = ['Pending', 'Confirmed', 'Production', 'Shipping', 'Delivered', 'Alert'] as const;
 const VALID_STATUS_SET = new Set<string>(VALID_ORDER_STATUSES);
@@ -198,6 +201,8 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
   //   ① 信用门禁（信用控制规则 §6 #6）：Frozen/Revoked/Net61+ 逾期客户禁止确认执行
   //   ② MOQ Confirmed 门禁（MOQ最小起订量.md §4.3）：低于 MOQ 且无 approved 豁免审批单 → 阻断，
   //      阻断同时自动发起 MOQ 豁免审批单（DR-007 单人单次，approvalCreateService 幂等防重）
+  // DE-5：信用例外放行上下文（生效例外命中时记录，确认事务提交成功后核销）
+  let creditExceptionPass: { service: ExceptionService; exception: ActiveExceptionSummary; scope: ExceptionScopeMatch } | null = null;
   if (toStatus === 'Confirmed') {
     const gateOrder = await (prisma as any).order.findUnique({
       where: { id: orderId },
@@ -225,13 +230,28 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
           const creditData = credit.data as { blocked: boolean; blockCode: string | null; blockReason: string | null };
           if (creditData.blocked) {
             logger.warn('[OrderLifecycle] 信用门禁阻断订单确认', { orderId, relationId: gateOrder.customerRelationId, blockCode: creditData.blockCode });
-            return {
-              ok: false,
-              error: {
-                code: (creditData.blockCode ?? 'CREDIT_FROZEN_60_DAYS') as OrderLifecycleErrorCode,
-                message: creditData.blockReason ?? '客户信用门禁阻断，禁止确认订单',
-              },
-            };
+            // DE-5：DR-013 信用例外闭环 — 生效例外放行；无例外自动发起 credit_exemption 申请
+            // （审批单 id 透传 DE-6 契约）；审批中不重复发起；发起失败保持阻断并提示手工入口
+            const exceptionSvc = createCreditExceptionService(prisma);
+            const scope: ExceptionScopeMatch = { targetType: 'Order', targetId: orderId, action: 'order:confirm' };
+            const exemption = await resolveCreditException({
+              exceptionService: exceptionSvc,
+              scope,
+              actorId: actorId || operator || 'api',
+              blockReason: creditData.blockReason ?? '客户信用门禁阻断',
+            });
+            if (exemption.passed) {
+              creditExceptionPass = { service: exceptionSvc, exception: exemption.exception, scope };
+            } else {
+              return {
+                ok: false,
+                error: {
+                  code: (creditData.blockCode ?? 'CREDIT_FROZEN_60_DAYS') as OrderLifecycleErrorCode,
+                  message: `${creditData.blockReason ?? '客户信用门禁阻断，禁止确认订单'}（${exemption.hint}）`,
+                  ...(exemption.approvalRequestId ? { approvalRequestId: exemption.approvalRequestId } : {}),
+                },
+              };
+            }
           }
         } catch (e: any) {
           logger.error('[OrderLifecycle] 信用门禁校验异常（fail-closed 阻断 Confirmed）', { orderId, error: e?.message });
@@ -372,6 +392,17 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
         actorId: actorId || operator || 'api',
         transactionId: result.transitionId,
       }).catch(() => { /* event publish failure must not fail business */ });
+    }
+
+    // DE-5：信用例外放行的确认已提交 → 核销一次性例外（best-effort，失败不回滚确认事实）
+    if (creditExceptionPass) {
+      await consumeCreditException({
+        exceptionService: creditExceptionPass.service,
+        exceptionId: creditExceptionPass.exception.id,
+        scope: creditExceptionPass.scope,
+        actorId: actorId || operator || 'api',
+        note: `订单 ${orderId} 确认（Confirmed）经信用例外 ${creditExceptionPass.exception.exceptionNumber} 放行`,
+      });
     }
     return { ok: true, data: result };
   } catch (e: any) {

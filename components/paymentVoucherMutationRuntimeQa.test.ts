@@ -73,7 +73,13 @@ describe('runtime QA [route]: onDataChange + statusCode', () => {
   it('create → entity: finance.vouchers', () => { expect(ROUTE_SRC).toContain("onDataChange?.({ entity: 'finance.vouchers', action: 'create'"); });
   it('update → entity: finance.vouchers', () => { expect(ROUTE_SRC).toContain("onDataChange?.({ entity: 'finance.vouchers', action: 'update'"); });
   it('create statusCode: INVALID_STATUS→400, INVALID_AMOUNT→400, CREATE_FAILED→500', () => {
-    expect(ROUTE_SRC).toContain('INVALID_STATUS: 400, INVALID_AMOUNT: 400, CREATE_FAILED: 500');
+    // 断言映射存在性而非字面相邻（statusCodeMap 后续插入新错误码不应误报）
+    expect(ROUTE_SRC).toMatch(/INVALID_STATUS: 400/);
+    expect(ROUTE_SRC).toMatch(/INVALID_AMOUNT: 400/);
+    expect(ROUTE_SRC).toMatch(/CREATE_FAILED: 500/);
+  });
+  it('create statusCode: DE-3 直付旁路门禁 PAYMENT_REQUEST_REQUIRED→403', () => {
+    expect(ROUTE_SRC).toMatch(/PAYMENT_REQUEST_REQUIRED: 403/);
   });
   it('update statusCode: NOT_FOUND→404, UPDATE_FAILED→500', () => {
     // 断言映射存在性而非字面相邻（statusCodeMap 后续插入新错误码不应误报）

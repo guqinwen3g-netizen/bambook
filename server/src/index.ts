@@ -44,6 +44,7 @@ import { createExceptionRouter } from './exceptions/exceptionRoute';
 import { createCreditRouter } from './credit/creditRoute';
 import { createInternalTradeRouter } from './internalTrade/internalTradeRoute';
 import { createPaymentRequestRouter } from './paymentRequests/paymentRequestRoute';
+import { registerPaymentRequestApprovalHook } from './paymentRequests/paymentRequestApprovalHook';
 import { createProcurementRouter } from './procurement/procurementRoute';
 import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
@@ -750,6 +751,8 @@ app.use('/api/v1/exceptions', createExceptionRouter({ prisma, requireAuth: SDK_C
 app.use('/api/v1/credit', createCreditRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
 app.use('/api/v1/internal-trade', createInternalTradeRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
 app.use('/api/v1/payment-requests', createPaymentRequestRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+// DR-017 审批决议钩子（DE-3）：审批通过自动生成付款凭证（进程内总线 best-effort，issue-voucher 端点手动兜底）
+registerPaymentRequestApprovalHook({ prisma });
 
 // 阶段 D / D6：实体级审计查询（普通用户按 targetType+targetId，模块读权限门禁）
 app.use(

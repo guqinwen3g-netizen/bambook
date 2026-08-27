@@ -14,7 +14,7 @@ import {
  *   assertGateOrThrow — 正常资格直放 / 生效例外放行 / 无例外抛 GateBlockedError
  *   GateBlockedError  — code/statusCode/blockingReasons/入口提示/失效原因
  *   bindExceptionChecker — 固定 scope 绑定
- *   EXCEPTION_CATEGORIES — 8 类枚举（schema 注释真源）
+ *   EXCEPTION_CATEGORIES — 9 类枚举（8 类 + credit_exemption，schema 注释真源）
  */
 
 const activeCheck: ExceptionCheckResult = {
@@ -117,8 +117,8 @@ describe('bindExceptionChecker（固定 scope 绑定）', () => {
   });
 });
 
-describe('EXCEPTION_CATEGORIES（8 类枚举 = schema 注释真源）', () => {
-  it('精确等于任务契约 8 类', () => {
+describe('EXCEPTION_CATEGORIES（9 类枚举：8 类 + credit_exemption，schema 注释真源）', () => {
+  it('精确等于任务契约 9 类（DE-5 信用例外入口）', () => {
     expect([...EXCEPTION_CATEGORIES]).toEqual([
       'moq_exemption',
       'price_deviation',
@@ -127,6 +127,7 @@ describe('EXCEPTION_CATEGORIES（8 类枚举 = schema 注释真源）', () => {
       'qc_fault',
       'payment_term',
       'sample_skip',
+      'credit_exemption',
       'other',
     ]);
   });

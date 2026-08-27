@@ -179,7 +179,12 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
         UNAUTHORIZED: 401, FORBIDDEN: 403, VALIDATION_FAILED: 400, SEQUENCE_FAILED: 500, INTERNAL_ERROR: 500,
         CREDIT_FROZEN_60_DAYS: 403, CREDIT_REVOKED: 403, OVERDUE_60_DAYS: 403, CREDIT_CHECK_FAILED: 500,
       };
-      return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
+      return res.status(statusMap[result.error!.code] || 500).json({
+        error: result.error!.code,
+        message: result.error!.message,
+        // DE-6 统一透传：门禁已自动发起审批单时回传 id（信用例外/豁免审批），供前端跳转审批中心
+        ...(result.error!.approvalRequestId ? { approvalRequestId: result.error!.approvalRequestId } : {}),
+      });
     }
     return res.json({ ok: true, order: result.data });
   });

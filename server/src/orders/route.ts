@@ -501,7 +501,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     }
 
     try {
-      const results: Array<{ id: string; fromStatus: string; toStatus: string; skipped?: string }> = [];
+      const results: Array<{ id: string; fromStatus: string; toStatus: string; skipped?: string; approvalRequestId?: string }> = [];
 
       for (const id of ids) {
         // 走 transitionOrderStatus service，确保状态机校验 + 审计日志 + 事务完整性
@@ -516,8 +516,12 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
         if (result.ok && result.data) {
           results.push({ id, fromStatus: result.data.fromStatus, toStatus: result.data.toStatus });
         } else if (result.error) {
-          // 跳过失败项（已删除/无转换/非法转换），记录原因
-          results.push({ id, fromStatus: '', toStatus, skipped: result.error.code || 'FAILED' });
+          // 跳过失败项（已删除/无转换/非法转换），记录原因；
+          // DE-6 统一透传：门禁已自动发起审批单时回传 id（MOQ 豁免/信用例外），供前端提示
+          results.push({
+            id, fromStatus: '', toStatus, skipped: result.error.code || 'FAILED',
+            ...(result.error.approvalRequestId ? { approvalRequestId: result.error.approvalRequestId } : {}),
+          });
         }
       }
 

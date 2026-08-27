@@ -126,8 +126,16 @@ function makePrisma(opts: {
   creditLimit?: any;
   invoices?: any[];
   approvedMoqExemption?: any;
+  exceptions?: any[];
 } = {}) {
   const order = 'order' in opts ? opts.order : makeOrder();
+  // DE-5：信用例外流程读写 Dr013ExceptionRequest（hasActiveException 查询 / 自动发起落库）
+  const dr013ExceptionRequest = {
+    findMany: vi.fn().mockResolvedValue(opts.exceptions ?? []),
+    count: vi.fn().mockResolvedValue(0),
+    create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
+    update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
+  };
   const tx = {
     order: {
       findUnique: vi.fn().mockResolvedValue(order),
@@ -135,6 +143,7 @@ function makePrisma(opts: {
     },
     orderStatusTransition: { create: vi.fn().mockResolvedValue({}) },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
+    dr013ExceptionRequest,
     entityLink: { upsert: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]), update: vi.fn().mockResolvedValue({}) },
     entityReference: { upsert: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]), update: vi.fn().mockResolvedValue({}) },
   };
@@ -151,12 +160,17 @@ function makePrisma(opts: {
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     creditLimit: { findFirst: vi.fn().mockResolvedValue(opts.creditLimit ?? null), findMany: vi.fn().mockResolvedValue([]) },
     invoice: { findMany: vi.fn().mockResolvedValue(opts.invoices ?? []), count: vi.fn().mockResolvedValue(0) },
-    approvalRequest: { findFirst: vi.fn().mockResolvedValue(opts.approvedMoqExemption ?? null) },
+    approvalRequest: {
+      findFirst: vi.fn().mockResolvedValue(opts.approvedMoqExemption ?? null),
+      findUnique: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    dr013ExceptionRequest,
     entityLink: tx.entityLink,
     entityReference: tx.entityReference,
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   } as any;
-  return { prisma, tx, order };
+  return { prisma, tx, order, dr013ExceptionRequest };
 }
 
 beforeEach(() => { vi.clearAllMocks(); });

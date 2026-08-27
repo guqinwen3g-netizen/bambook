@@ -49,6 +49,7 @@ export function buildPaymentVoucherFlowError(code: PaymentVoucherFlowErrorCode, 
     CREATE_FAILED: '创建事务失败已回滚，请重试',
     UPDATE_FAILED: '更新事务失败已回滚，请重试',
     STATUS_NOT_MANUAL_SETTABLE: '凭证状态只能由核销/分配操作设置，不可手动修改',
+    PAYMENT_REQUEST_REQUIRED: '付款（Disbursement）凭证须先经付款申请并获批（DR-017），请携带 paymentRequestId 重试',
   };
   return { code, message, userAction: userActionMap[code] };
 }

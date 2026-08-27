@@ -32,6 +32,9 @@ import { createMoqValidationService, isCapsuleEligible } from '../moq/moqValidat
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
 import { createTeamShareService } from '../teams/teamShareService';
+import { createCreditExceptionService, resolveCreditException, consumeCreditException } from '../credit/creditExceptionGate';
+import type { ActiveExceptionSummary, ExceptionScopeMatch } from '../exceptions/exceptionGate';
+import type { ExceptionService } from '../exceptions/exceptionService';
 
 /**
  * Order 模型可选业务字段白名单（创建/更新共用）。
@@ -351,6 +354,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
     actor: TokenPayload | null | undefined,
     input: CreateOrderInput,
   ): Promise<OrderV2Result<any>> {
+    // DE-5：信用例外放行上下文（生效例外命中时记录，建单成功后核销）
+    let creditExceptionPass: { service: ExceptionService; exception: ActiveExceptionSummary; scope: ExceptionScopeMatch } | null = null;
     try {
       if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '创建订单需登录' } };
       if (!input.customer?.trim()) return { ok: false, error: { code: 'VALIDATION_FAILED', message: 'customer 必填' } };
@@ -394,13 +399,28 @@ export function createOrderServiceV2(prisma: PrismaClient) {
           const creditData = credit.data as { blocked: boolean; blockCode: string | null; blockReason: string | null };
           if (creditData.blocked) {
             logger.warn('[OrderV2] 信用门禁阻断建单', { relationId: withDefaults.customerRelationId, blockCode: creditData.blockCode, actorId: actor.userId });
-            return {
-              ok: false,
-              error: {
-                code: (creditData.blockCode ?? 'CREDIT_FROZEN_60_DAYS') as OrderV2Error,
-                message: creditData.blockReason ?? '客户信用门禁阻断，禁止新建订单',
-              },
-            };
+            // DE-5：DR-013 信用例外闭环 — 生效例外放行；无例外自动发起 credit_exemption 申请
+            // （审批单 id 透传 DE-6 契约）；审批中不重复发起；发起失败保持阻断并提示手工入口
+            const exceptionSvc = createCreditExceptionService(prisma);
+            const scope: ExceptionScopeMatch = { targetType: 'Relation', targetId: withDefaults.customerRelationId, action: 'order:create' };
+            const exemption = await resolveCreditException({
+              exceptionService: exceptionSvc,
+              scope,
+              actorId: actor.userId,
+              blockReason: creditData.blockReason ?? '客户信用门禁阻断',
+            });
+            if (exemption.passed) {
+              creditExceptionPass = { service: exceptionSvc, exception: exemption.exception, scope };
+            } else {
+              return {
+                ok: false,
+                error: {
+                  code: (creditData.blockCode ?? 'CREDIT_FROZEN_60_DAYS') as OrderV2Error,
+                  message: `${creditData.blockReason ?? '客户信用门禁阻断，禁止新建订单'}（${exemption.hint}）`,
+                  ...(exemption.approvalRequestId ? { approvalRequestId: exemption.approvalRequestId } : {}),
+                },
+              };
+            }
           }
         } catch (e: any) {
           logger.error('[OrderV2] 信用门禁校验异常（fail-closed 阻断建单）', { relationId: withDefaults.customerRelationId, error: e?.message });
@@ -459,6 +479,17 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       }
 
       const order = await (prisma as any).order.create({ data: payload, include: { lines: true } });
+
+      // DE-5：信用例外放行的建单已落库 → 核销一次性例外（best-effort，失败不回滚建单事实）
+      if (creditExceptionPass) {
+        await consumeCreditException({
+          exceptionService: creditExceptionPass.service,
+          exceptionId: creditExceptionPass.exception.id,
+          scope: creditExceptionPass.scope,
+          actorId: actor.userId,
+          note: `订单 ${order.id} 创建经信用例外 ${creditExceptionPass.exception.exceptionNumber} 放行`,
+        });
+      }
 
       // ── MOQ 创建校验（advisory：草稿保存不阻断；Confirmed 门禁/变更门禁 fail-closed 兜底） ──
       let moqCheck: unknown = null;

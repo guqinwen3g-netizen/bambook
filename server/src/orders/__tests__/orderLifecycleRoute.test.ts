@@ -21,6 +21,9 @@ function makeLifecycleApp(opts: {
 } = {}) {
   const order = opts.order === undefined ? {
     id: 'ORD__1', status: 'Pending', deletedAt: null, createdAt: BigInt(0), updatedAt: BigInt(0),
+    // Confirmed 门禁（信用+MOQ）已接入 transitionOrderStatus：默认单需可过门禁
+    // （quantity 1000 ≥ 面料兜底 MOQ 800；无 customerRelationId → 信用门禁跳过）
+    type: 'Fabric', businessLine: 'fabric', quantity: 1000, capsuleExemption: false, moqSnapshot: null,
   } : opts.order;
 
   const orderUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...order, ...data, id: where.id }));
@@ -47,6 +50,10 @@ function makeLifecycleApp(opts: {
 
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(order), findMany: vi.fn().mockResolvedValue(order ? [order] : []) },
+    // Confirmed 门禁前置查询（信用门禁 + MOQ approved 豁免单检查）
+    creditLimit: { findFirst: vi.fn().mockResolvedValue(null) },
+    invoice: { findMany: vi.fn().mockResolvedValue([]) },
+    approvalRequest: { findFirst: vi.fn().mockResolvedValue(null) },
     $transaction: opts.txFail ? vi.fn().mockRejectedValue(new Error('TX_BOOM')) : vi.fn(async (fn: any) => fn(tx)),
   } as any;
 
@@ -163,7 +170,8 @@ describe('task ERP-P1 order-lifecycle: POST /:id/status-transition', () => {
 
   it('syncOrderEntityReferences reject → TRANSITION_FAILED（事务回滚）', async () => {
     // order 含 customerRelationId 让 syncOrderEntityReferences 产生 entityReference.upsert 调用
-    const { app } = makeLifecycleApp({ syncOrderFail: true, order: { id: 'ORD__1', status: 'Pending', deletedAt: null, customerRelationId: 'R1', millRelationId: 'R2' } });
+    //（quantity/type 使 Confirmed 门禁可通过，信用门禁经 creditLimit=null/invoice=[] 放行）
+    const { app } = makeLifecycleApp({ syncOrderFail: true, order: { id: 'ORD__1', status: 'Pending', deletedAt: null, type: 'Fabric', quantity: 1000, capsuleExemption: false, moqSnapshot: null, customerRelationId: 'R1', millRelationId: 'R2' } });
     const res = await request(app).post('/api/v1/orders/ORD__1/status-transition').set(auth()).send({ toStatus: 'Confirmed' });
     expect(res.status).toBe(500);
     expect(res.body.error.code).toBe('TRANSITION_FAILED');
