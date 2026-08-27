@@ -78,6 +78,34 @@ export interface ShipmentCartonInput {
   items?: Array<{ shipmentLineId: string; quantity: number | string }>;
 }
 
+/** DR-016 合票建模 — 票内订单分配记录（镜像 server/src/shipping/allocationService.ts 返回行） */
+export interface ShipmentAllocation {
+  id: string;
+  shipmentId: string;
+  orderId: string;
+  orderLineId?: string | null;
+  plannedQty?: number | null;
+  actualQty?: number | null;
+  unit?: string | null;
+  status?: string; // Planned | PartiallyShipped | Fulfilled | ShortShipped | Cancelled
+  batchOrCartonNote?: string | null;
+  exception?: string | null;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+/** DR-016 — 新增票内分配载荷（合票/拆票；同客户同业务线由后端校验） */
+export interface ShipmentAllocationInput {
+  orderId: string;
+  orderLineId?: string | null;
+  plannedQty?: number | string | null;
+  actualQty?: number | string | null;
+  unit?: string | null;
+  status?: string;
+  batchOrCartonNote?: string | null;
+  exception?: string | null;
+}
+
 export const shipmentService = {
   async listShipments(endpoint?: string, params?: ShipmentListParams): Promise<Shipment[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
@@ -263,6 +291,32 @@ export const shipmentService = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `replaceShipmentCartons failed: HTTP ${res.status}`);
     return data.cartons || [];
+  },
+
+  /** DR-016 — 票内分配列表（GET /v1/shipping/:id/allocations，合票视角） */
+  async listShipmentAllocations(id: string, endpoint?: string): Promise<ShipmentAllocation[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/allocations`, base);
+    const res = await fetch(url, {
+      headers: apiService.getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`listShipmentAllocations failed: HTTP ${res.status}`);
+    const data = await res.json();
+    return data.items || [];
+  },
+
+  /** DR-016 — 新增票内分配（POST /v1/shipping/:id/allocations，合票/拆票；同客户同业务线后端校验） */
+  async createShipmentAllocation(id: string, input: ShipmentAllocationInput, endpoint?: string): Promise<ShipmentAllocation> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/allocations`, base);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: apiService.getAuthHeaders(),
+      body: JSON.stringify(input),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || `createShipmentAllocation failed: HTTP ${res.status}`);
+    return data;
   },
 
   /** C4 — 运输方式维度统计（GET /v1/shipping/stats/by-method） */

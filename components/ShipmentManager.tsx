@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box, Download } from 'lucide-react';
+import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box, Download, Split, Layers } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { bdsConfirm } from './ui/BdsDialog';
+import { hasRole } from '../services/authService';
+import { OrderShipmentBatchPanel } from './orders/OrderShipmentBatchPanel';
 import {
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
@@ -12,7 +14,7 @@ import {
 } from './ui/primitives/compiledPrimitives';
 import type { Shipment as ShipmentType, ShipmentStatus, ShipmentEvent, ShipmentLine, ShipmentCarton } from '../types';
 import { shipmentService } from '../services/shipmentService';
-import type { OnTimeStats, MethodStats } from '../services/shipmentService';
+import type { OnTimeStats, MethodStats, ShipmentAllocation } from '../services/shipmentService';
 import { apiService } from '../services/apiService';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
@@ -92,9 +94,35 @@ const tableColumns = [
 const tableGridClass =
   'grid w-full min-w-0 grid-cols-[minmax(0,1.1fr)_minmax(0,0.78fr)_minmax(0,0.9fr)_minmax(0,1fr)]';
 
-const SHIPMENT_STATUS_OPTIONS = SHIPMENT_STATUSES.filter(
-  (s): s is { id: ShipmentStatus; label: string } => s.id !== 'all',
-);
+// ── F3 状态引导下拉：镜像后端 server/src/statusTransition.ts SHIPMENT_TRANSITIONS（from → 合法下一步） ──
+// 后端 updateShipment 对非法转移 fail-closed（400 INVALID_TRANSITION）；前端下拉只给当前态可选项，不能乱跳。
+const SHIPMENT_STATUS_TRANSITIONS: Record<ShipmentStatus, ReadonlyArray<ShipmentStatus>> = {
+  Draft: ['Booked', 'Cancelled'],
+  Booked: ['Loading', 'Shipped', 'Cancelled'],
+  Loading: ['Shipped', 'Cancelled'],
+  Shipped: ['Arrived', 'Cancelled'],
+  Arrived: ['Cleared', 'Cancelled'],
+  Cleared: ['Delivered', 'Cancelled'],
+  Delivered: [], // 终态（已交付）
+  Cancelled: [], // 终态
+};
+
+// 创建入口合法初始态（镜像后端 createShipment：禁止直建终态 Delivered/Cancelled）
+const SHIPMENT_CREATE_STATUSES: ReadonlyArray<ShipmentStatus> = ['Draft', 'Booked', 'Loading', 'Shipped', 'Arrived', 'Cleared'];
+
+/**
+ * F3：状态下拉可选项。
+ * - create：仅创建合法初始态（不含 Delivered/Cancelled）
+ * - edit：当前态（幂等保留选中）+ 状态机允许的下一步
+ */
+export function getShipmentFormStatusOptions(mode: 'create' | 'edit', currentStatus?: ShipmentStatus | null): ShipmentStatus[] {
+  if (mode === 'create') return [...SHIPMENT_CREATE_STATUSES];
+  const current = currentStatus && SHIPMENT_STATUS_TRANSITIONS[currentStatus] ? currentStatus : 'Draft';
+  return [current, ...SHIPMENT_STATUS_TRANSITIONS[current]];
+}
+
+/** F1：费用币种选项（与 QuotationManager/SupplierInquiryPanel 同一口径） */
+const FEE_CURRENCY_OPTIONS = ['USD', 'CNY', 'EUR'];
 
 
 type ShipmentFormDraft = {
@@ -117,6 +145,14 @@ type ShipmentFormDraft = {
   grossWeight: string;
   netWeight: string;
   volume: string;
+  freightAmount: string;
+  freightCurrency: string;
+  insuranceAmount: string;
+  insuranceCurrency: string;
+  customsAmount: string;
+  customsCurrency: string;
+  otherCharges: string;
+  otherChargesCurrency: string;
   customerName: string;
   carrierName: string;
   orderId: string;
@@ -143,6 +179,14 @@ const createEmptyDraft = (): ShipmentFormDraft => ({
   grossWeight: '',
   netWeight: '',
   volume: '',
+  freightAmount: '',
+  freightCurrency: 'USD',
+  insuranceAmount: '',
+  insuranceCurrency: 'USD',
+  customsAmount: '',
+  customsCurrency: 'USD',
+  otherCharges: '',
+  otherChargesCurrency: 'USD',
   customerName: '',
   carrierName: '',
   orderId: '',
@@ -169,6 +213,14 @@ const draftFromShipment = (s: ShipmentType): ShipmentFormDraft => ({
   grossWeight: s.grossWeight != null ? String(s.grossWeight) : '',
   netWeight: s.netWeight != null ? String(s.netWeight) : '',
   volume: s.volume != null ? String(s.volume) : '',
+  freightAmount: s.freightAmount != null ? String(s.freightAmount) : '',
+  freightCurrency: s.freightCurrency || 'USD',
+  insuranceAmount: s.insuranceAmount != null ? String(s.insuranceAmount) : '',
+  insuranceCurrency: s.insuranceCurrency || 'USD',
+  customsAmount: s.customsAmount != null ? String(s.customsAmount) : '',
+  customsCurrency: s.customsCurrency || 'USD',
+  otherCharges: s.otherCharges != null ? String(s.otherCharges) : '',
+  otherChargesCurrency: s.otherChargesCurrency || 'USD',
   customerName: s.customerName || '',
   carrierName: s.carrierName || '',
   orderId: s.orderId || '',
@@ -192,7 +244,8 @@ const SHIPMENT_FORM_SECTIONS: Array<{ id: string; title: string; desc: string; f
     desc: '运单号、状态、运输方式',
     fields: [
       { name: 'shipmentNumber', label: '运单号', type: 'text', required: true, placeholder: 'SHIP-2026-001' },
-      { name: 'status', label: '状态', type: 'select', required: true, options: SHIPMENT_STATUS_OPTIONS.map(s => ({ value: s.id, label: s.label })) },
+      // F3：options 为占位，渲染时按状态机动态替换为「当前态 + 合法下一步」（见 renderShipmentField）
+      { name: 'status', label: '状态', type: 'select', required: true, options: [] },
       { name: 'shippingMethod', label: '运输方式', type: 'text' },
     ],
   },
@@ -213,12 +266,26 @@ const SHIPMENT_FORM_SECTIONS: Array<{ id: string; title: string; desc: string; f
     ],
   },
   {
+    id: 'shipment-fees',
+    title: '费用信息',
+    desc: '运费、保险费、报关费、其他费用',
+    fields: [
+      { name: 'freightAmount', label: '运费金额', type: 'text', placeholder: '如 12500.00' },
+      { name: 'freightCurrency', label: '运费币种', type: 'select', options: FEE_CURRENCY_OPTIONS.map(c => ({ value: c, label: c })) },
+      { name: 'insuranceAmount', label: '保险费金额', type: 'text', placeholder: '如 800.00' },
+      { name: 'insuranceCurrency', label: '保险费币种', type: 'select', options: FEE_CURRENCY_OPTIONS.map(c => ({ value: c, label: c })) },
+      { name: 'customsAmount', label: '报关费金额', type: 'text', placeholder: '如 1500.00' },
+      { name: 'customsCurrency', label: '报关费币种', type: 'select', options: FEE_CURRENCY_OPTIONS.map(c => ({ value: c, label: c })) },
+      { name: 'otherCharges', label: '其他费用金额', type: 'text', placeholder: '如 300.00' },
+      { name: 'otherChargesCurrency', label: '其他费用币种', type: 'select', options: FEE_CURRENCY_OPTIONS.map(c => ({ value: c, label: c })) },
+    ],
+  },
+  {
     id: 'shipment-consignee',
     title: '收货信息',
     desc: '收货方、地址、备注',
     fields: [
       { name: 'customerName', label: '客户', type: 'text' },
-      { name: 'carrierName', label: '承运人', type: 'text' },
       { name: 'containerNumber', label: '集装箱号', type: 'text' },
       { name: 'totalPackages', label: '总件数', type: 'text' },
       { name: 'grossWeight', label: '毛重(kg)', type: 'text' },
@@ -418,6 +485,10 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
         { label: '毛重', value: selectedShipment.grossWeight != null ? `${selectedShipment.grossWeight} kg` : '—' },
         { label: '净重', value: selectedShipment.netWeight != null ? `${selectedShipment.netWeight} kg` : '—' },
         { label: '体积', value: selectedShipment.volume != null ? `${selectedShipment.volume} CBM` : '—' },
+        { label: '运费', value: selectedShipment.freightAmount != null ? `${selectedShipment.freightAmount} ${selectedShipment.freightCurrency || ''}`.trim() : '—' },
+        { label: '保险费', value: selectedShipment.insuranceAmount != null ? `${selectedShipment.insuranceAmount} ${selectedShipment.insuranceCurrency || ''}`.trim() : '—' },
+        { label: '报关费', value: selectedShipment.customsAmount != null ? `${selectedShipment.customsAmount} ${selectedShipment.customsCurrency || ''}`.trim() : '—' },
+        { label: '其他费用', value: selectedShipment.otherCharges != null ? `${selectedShipment.otherCharges} ${selectedShipment.otherChargesCurrency || ''}`.trim() : '—' },
         { label: '备注', value: selectedShipment.notes || '—' },
       ]
     : [];
@@ -467,6 +538,14 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       grossWeight: numOrUndef(d.grossWeight) as any,
       netWeight: numOrUndef(d.netWeight) as any,
       volume: numOrUndef(d.volume) as any,
+      freightAmount: numOrUndef(d.freightAmount) as any,
+      freightCurrency: d.freightAmount.trim() ? maybe(d.freightCurrency) : undefined,
+      insuranceAmount: numOrUndef(d.insuranceAmount) as any,
+      insuranceCurrency: d.insuranceAmount.trim() ? maybe(d.insuranceCurrency) : undefined,
+      customsAmount: numOrUndef(d.customsAmount) as any,
+      customsCurrency: d.customsAmount.trim() ? maybe(d.customsCurrency) : undefined,
+      otherCharges: numOrUndef(d.otherCharges) as any,
+      otherChargesCurrency: d.otherCharges.trim() ? maybe(d.otherChargesCurrency) : undefined,
       customerName: maybe(d.customerName),
       carrierName: maybe(d.carrierName),
       orderId: maybe(d.orderId),
@@ -530,6 +609,10 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   const [pullingLines, setPullingLines] = useState(false);
   const packingEditable = !!selectedShipment && ['Draft', 'Booked', 'Loading'].includes(selectedShipment.status);
 
+  // F2 — 分批出运（订单批次面板）/ 合票出运（票内订单分配）入口窗口
+  const [showBatchPanel, setShowBatchPanel] = useState(false);
+  const [showAllocationPanel, setShowAllocationPanel] = useState(false);
+
   const handlePullLines = async () => {
     if (!selectedShipment || pullingLines) return;
     setPullingLines(true);
@@ -544,7 +627,20 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     }
   };
 
-  const renderShipmentField = (field: ShipmentFormFieldConfig) => (
+  // F3：状态下拉可选项（create=合法初始态；edit=当前态+合法下一步；镜像后端 SHIPMENT_TRANSITIONS）
+  const statusFieldOptions = useMemo<ReadonlyArray<{ value: string; label: string }>>(
+    () => getShipmentFormStatusOptions(editingShipment ? 'edit' : 'create', editingShipment?.status ?? null)
+      .map(s => ({ value: s, label: statusLabelMap[s] })),
+    [editingShipment],
+  );
+
+  // F4：删除按钮权限（后端 DELETE /shipping/:id 限 requireRole('owner','admin','manager')，无权限不渲染）
+  const canDeleteShipment = hasRole('owner', 'admin', 'manager');
+
+  const renderShipmentField = (field: ShipmentFormFieldConfig) => {
+    // F3：状态字段选项随编辑对象动态计算（新建/编辑合法集合不同）
+    const options = field.name === 'status' ? statusFieldOptions : field.options;
+    return (
     <div key={field.name} className={cx('flex flex-col', field.fullSpan && 'md:col-span-2')}>
       <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">
         {field.label}{field.required && <span className="ml-0.5 text-[var(--text-quaternary)]">*</span>}
@@ -558,7 +654,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           {!field.required && (
             <option value="">— 不指定 —</option>
           )}
-          {field.options?.map(opt => (
+          {options?.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
@@ -580,7 +676,8 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
         />
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="relative w-full h-full flex flex-col min-h-0 overflow-hidden">
@@ -825,13 +922,38 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                             <Pencil size={14} />
                             编辑
                           </button>
+                          {canDeleteShipment && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(selectedShipment)} disabled={deletingId !== null}
+                              className="bds-btn bds-btn-danger"
+                            >
+                              <Trash2 size={14} />
+                              删除
+                            </button>
+                          )}
+                        </div>
+                        {/* F2：分批出运（订单批次计划/发运确认）+ 合票出运（票内订单分配 DR-016）操作入口 */}
+                        <div className="flex items-center gap-1.5">
+                          {selectedShipment.orderId && (
+                            <button
+                              type="button"
+                              onClick={() => setShowBatchPanel(true)}
+                              title="订单分批出运：批次计划登记 / 排船回填 / 发运确认 / 尾款结算"
+                              className="bds-btn bds-btn-secondary"
+                            >
+                              <Split size={14} />
+                              分批出运
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => handleDelete(selectedShipment)} disabled={deletingId !== null}
-                            className="bds-btn bds-btn-danger"
+                            onClick={() => setShowAllocationPanel(true)}
+                            title="合票出运：本票运单分配多个订单（同客户同业务线，后端校验）"
+                            className="bds-btn bds-btn-secondary"
                           >
-                            <Trash2 size={14} />
-                            删除
+                            <Layers size={14} />
+                            合票出运
                           </button>
                         </div>
                       </div>
@@ -1131,6 +1253,50 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           onSaved={() => {
             setShowPackingEditor(false);
             setPackingRefreshKey(k => k + 1);
+          }}
+        />
+      )}
+      {/* F2：分批出运（全屏模态，复用订单详情 OrderShipmentBatchPanel） */}
+      {showBatchPanel && selectedShipment?.orderId && (
+        <div
+          className="absolute inset-0 z-[70] bg-transparent"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowBatchPanel(false); }}
+        >
+          <div className="flex h-full w-full flex-col overflow-hidden bg-transparent">
+            <CompiledModuleTitleBar
+              template="shipments.batch-panel.title"
+              source="ShipmentManager.batch"
+              leading={(
+                <div className="flex h-full min-w-0 items-center gap-1.5">
+                  <button type="button" onClick={() => setShowBatchPanel(false)} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
+                    <ChevronLeft size={18} strokeWidth={1.5} />
+                  </button>
+                  <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+                    分批出运 · {selectedShipment.shipmentNumber}
+                  </h3>
+                </div>
+              )}
+              actions={(
+                <div className="flex h-full shrink-0 items-center gap-2">
+                  <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
+                  <button type="button" onClick={() => setShowBatchPanel(false)} className="bds-btn bds-btn-secondary">关闭</button>
+                </div>
+              )}
+            />
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-3 pb-5">
+              <OrderShipmentBatchPanel orderId={selectedShipment.orderId} isDarkMode={isDarkMode} />
+            </div>
+          </div>
+        </div>
+      )}
+      {/* F2：合票出运（全屏模态；票内订单分配 DR-016） */}
+      {showAllocationPanel && selectedShipment && (
+        <AllocationEditorModal
+          shipment={selectedShipment}
+          onClose={() => setShowAllocationPanel(false)}
+          onChanged={(updated) => {
+            // 分配变动会触发后端 Shipment.orderId 投影维护，回刷父列表该行
+            setShipments(prev => prev.map(s => (s.id === updated.id ? updated : s)));
           }}
         />
       )}
@@ -1489,6 +1655,207 @@ function PackingEditorModal({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// F2 合票出运编辑器（全屏模态；DR-016 ShipmentOrderAllocation 票内订单分配）
+//   列表：票内全部分配（订单/数量/状态/备注）；
+//   新增：选择订单 + 计划数量 + 备注 → POST /v1/shipping/:id/allocations
+//   合票约束（同客户同业务线）由后端 assertConsolidationAllowed 强校验，失败原样透出。
+// ────────────────────────────────────────────────────────────────
+
+const ALLOCATION_STATUS_LABELS: Record<string, string> = {
+  Planned: '待出运',
+  PartiallyShipped: '部分出运',
+  Fulfilled: '已出运',
+  ShortShipped: '短装',
+  Cancelled: '已取消',
+};
+
+function AllocationEditorModal({
+  shipment,
+  onClose,
+  onChanged,
+}: {
+  shipment: ShipmentType;
+  onClose: () => void;
+  onChanged: (updated: ShipmentType) => void;
+}) {
+  const [allocations, setAllocations] = useState<ShipmentAllocation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // 新增分配表单
+  const [orders, setOrders] = useState<import('../types').Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [formOrderId, setFormOrderId] = useState('');
+  const [formQty, setFormQty] = useState('');
+  const [formUnit, setFormUnit] = useState('');
+  const [formNote, setFormNote] = useState('');
+
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const fieldClass = 'bds-input sm';
+
+  const loadAllocations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const items = await shipmentService.listShipmentAllocations(shipment.id);
+      setAllocations(items);
+    } catch (e) {
+      setAllocations([]);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [shipment.id]);
+
+  useEffect(() => { void loadAllocations(); }, [loadAllocations]);
+
+  // 候选订单（排除已在票内分配的，避免重复分配）
+  useEffect(() => {
+    let cancelled = false;
+    setOrdersLoading(true);
+    apiService.listOrders()
+      .then(items => { if (!cancelled) setOrders(items); })
+      .catch(() => { if (!cancelled) setOrders([]); })
+      .finally(() => { if (!cancelled) setOrdersLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const allocatedOrderIds = useMemo(() => new Set(allocations.map(a => a.orderId)), [allocations]);
+  const candidateOrders = useMemo(
+    () => orders.filter(o => !allocatedOrderIds.has(o.id)),
+    [orders, allocatedOrderIds],
+  );
+
+  const handleAdd = async () => {
+    if (saving) return;
+    if (!formOrderId) { setError('请选择要合票的订单'); return; }
+    const qty = formQty.trim() ? Number(formQty) : null;
+    if (formQty.trim() && !Number.isFinite(qty)) { setError('计划数量须为数字'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await shipmentService.createShipmentAllocation(shipment.id, {
+        orderId: formOrderId,
+        plannedQty: qty,
+        unit: formUnit.trim() || null,
+        batchOrCartonNote: formNote.trim() || null,
+      });
+      setFormOrderId(''); setFormQty(''); setFormUnit(''); setFormNote('');
+      await loadAllocations();
+      // Shipment.orderId 投影可能变动（首条分配派生），回刷父列表
+      const fresh = await shipmentService.getShipment(shipment.id).catch(() => null);
+      if (fresh) onChanged(fresh);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="absolute inset-0 z-[70] bg-transparent"
+      onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
+    >
+      <div className="flex h-full w-full flex-col overflow-hidden bg-transparent">
+        <CompiledModuleTitleBar
+          template="shipments.allocation-editor.title"
+          source="ShipmentManager.allocation"
+          leading={(
+            <div className="flex h-full min-w-0 items-center gap-1.5">
+              <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
+                <ChevronLeft size={18} strokeWidth={1.5} />
+              </button>
+              <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+                合票出运 · {shipment.shipmentNumber}
+              </h3>
+            </div>
+          )}
+          actions={(
+            <div className="flex h-full shrink-0 items-center gap-2">
+              <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
+              <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-secondary">关闭</button>
+            </div>
+          )}
+        />
+
+        {error && (
+          <div className="w-full px-5 pt-3">
+            <div className="bds-alert danger">{error}</div>
+          </div>
+        )}
+
+        <div className="flex min-h-0 flex-1 flex-col px-5 pt-3 pb-5">
+          <div className={cx('shrink-0 text-[10px]', textSecondary)}>
+            一票运单分配多个订单（合票出运）；合票要求同客户同业务线，由后端强校验。
+          </div>
+
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {loading ? (
+              <div className={cx('flex items-center gap-2 py-1 text-[10px]', textSecondary)}>
+                <Loader2 size={14} className="animate-spin" />加载票内分配…
+              </div>
+            ) : allocations.length === 0 ? (
+              <div className={cx('py-1 text-[10px]', textSecondary)}>暂无票内分配，可在下方添加订单形成合票。</div>
+            ) : (
+              <div className="space-y-1.5 pb-4">
+                {allocations.map(a => (
+                  <div key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-inset px-3 py-2 bds-inset">
+                    <span className="text-xs font-light text-[var(--text-primary)]">订单 {a.orderId.slice(-8)}</span>
+                    <span className={cx('text-[10px] bds-tnum', textSecondary)}>
+                      计划 {a.plannedQty != null ? `${a.plannedQty}${a.unit ? ` ${a.unit}` : ''}` : '—'}
+                      {a.actualQty != null && ` · 实际 ${a.actualQty}${a.unit ? ` ${a.unit}` : ''}`}
+                    </span>
+                    {a.status && (
+                      <span className={cx('bds-badge sm', a.status === 'Fulfilled' ? 'success' : a.status === 'Cancelled' ? 'neutral' : 'info')}>
+                        {ALLOCATION_STATUS_LABELS[a.status] || a.status}
+                      </span>
+                    )}
+                    {a.batchOrCartonNote && <span className={cx('text-[10px]', textSecondary)}>{a.batchOrCartonNote}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 新增分配（合票） */}
+            <div className="rounded-inset p-3 bg-[var(--recessed-bg)]">
+              <div className={cx('text-[10px] font-light tracking-wide', textSecondary)}>添加订单到本票（合票）</div>
+              <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+                <select
+                  className="bds-select sm col-span-2"
+                  value={formOrderId}
+                  onChange={e => setFormOrderId(e.target.value)}
+                  disabled={ordersLoading || saving}
+                >
+                  <option value="">{ordersLoading ? '加载订单…' : '— 选择订单 —'}</option>
+                  {candidateOrders.map(o => (
+                    <option key={o.id} value={o.id}>{o.customer} · 订单 {o.id.slice(-8)}</option>
+                  ))}
+                </select>
+                <input value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="计划数量" className={fieldClass} />
+                <input value={formUnit} onChange={e => setFormUnit(e.target.value)} placeholder="单位 (m/yd/pcs)" className={fieldClass} />
+                <input value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="批次/箱备注（可选）" className={cx(fieldClass, 'col-span-2 md:col-span-4')} />
+              </div>
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => void handleAdd()}
+                  disabled={saving || !formOrderId}
+                  className="bds-btn bds-btn-primary"
+                >
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} strokeWidth={1.5} />}
+                  {saving ? '提交中…' : '添加分配'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
