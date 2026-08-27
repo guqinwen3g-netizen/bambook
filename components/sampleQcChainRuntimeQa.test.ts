@@ -390,6 +390,13 @@ describe('runtime QA [SampleNodesPanel UI]: 节点动作 BDS 弹窗表单（G6�
     expect(SAMPLE_PANEL_SRC).toContain('trackingNumber: input.trackingNumber.trim() || undefined');
     expect(SAMPLE_PANEL_SRC).toContain('courier: input.courier.trim() || undefined');
   });
+  it('DR-039 寄送登记表单支持邮寄费（DR-057 v2.1：非负数值 + 提交透传 + 展示留痕）', () => {
+    // ShipForm（garment 双门禁轮次提交客户）邮寄费输入 + 非负校验
+    expect(SAMPLE_PANEL_SRC).toContain('placeholder="邮寄费（可留空）"');
+    expect(SAMPLE_PANEL_SRC).toContain('shippingFee: parsedFee');
+    // 轮次 shipment 展示行补费用留痕
+    expect(SAMPLE_PANEL_SRC).toContain('round.shipment.shippingFee != null');
+  });
   it('意见弹窗复用（客户修改意见预填既有反馈 / 批准意见空白起步）', () => {
     expect(SAMPLE_PANEL_SRC).toContain('NodeFeedbackDialogForm');
     expect(SAMPLE_PANEL_SRC).toContain('initialValue={dialog.node.feedback ||');

@@ -155,6 +155,7 @@ export interface SubmitToCustomerInput {
   trackingNumber: string;     // 必填
   recipientName: string;      // 必填：收件方
   recipientContact?: string;
+  shippingFee?: number;       // 邮寄费（DR-057 v2.1：非负，币种随客户合同）
   documents?: any[];          // 随附单据
 }
 
@@ -320,6 +321,9 @@ export function createGarmentSampleGateService(opts: { prisma: PrismaClient }) {
     if (!input.courier || !String(input.courier).trim()) return fail('INVALID_INPUT', 'courier（快递服务商）必填（DR-039）');
     if (!input.trackingNumber || !String(input.trackingNumber).trim()) return fail('INVALID_INPUT', 'trackingNumber（快递单号）必填（DR-039）');
     if (!input.recipientName || !String(input.recipientName).trim()) return fail('INVALID_INPUT', 'recipientName（收件方）必填（DR-039）');
+    if (input.shippingFee !== undefined && input.shippingFee !== null && (!Number.isFinite(input.shippingFee) || input.shippingFee < 0)) {
+      return fail('INVALID_INPUT', 'shippingFee（邮寄费）须为非负数值');
+    }
     if (input.sentDate !== undefined && input.sentDate !== '' && !isYmd(input.sentDate)) {
       return fail('INVALID_INPUT', 'sentDate 格式须为 YYYY-MM-DD');
     }
@@ -350,6 +354,7 @@ export function createGarmentSampleGateService(opts: { prisma: PrismaClient }) {
           trackingNumber: String(input.trackingNumber),
           recipientName: String(input.recipientName),
           recipientContact: input.recipientContact ?? null,
+          shippingFee: input.shippingFee ?? null,
           documents: Array.isArray(input.documents) ? input.documents : [],
         };
         target.updatedAt = now;

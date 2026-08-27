@@ -84,8 +84,14 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
     return <span className="bds-badge sm danger">逾期 {d} 天</span>;
   };
 
+  // 根因修复（2026-08-23）：本面板挂在 FinanceManager 的 flex column
+  // （KPI 行 + 切换栏 + 面板）内：
+  //   1. h-full → flex-1 —— height:100% 参考父容器总高，会把上方 KPI 行/
+  //      切换栏挤出压缩、内容溢出盖住面板顶部 bar；flex 子项正确写法 =
+  //      min-h-0 flex-1（与 PaymentRequests/CreditPanel 同模式）
+  //   2. 去掉全页时代的 px-7 pb-5 —— 外层 <main> 已带同款页级 padding，双重叠加
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overflow-x-hidden px-7 pb-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden">
       {/* 工具条：基准日 + 预测窗口 + 查询 */}
       <div className="flex shrink-0 items-center gap-2">
         <div className="bds-filterbar">

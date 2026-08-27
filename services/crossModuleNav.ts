@@ -44,6 +44,15 @@ export interface CrossModuleNavContext {
   /** 目标模块内部 tab（如 FinanceManager 的 'vatInvoices'、CustomsManager 的 'taxRefunds'） */
   tab?: string;
   filter?: CrossModuleNavFilter;
+  /**
+   * 实体聚焦 id（与 filter 并存的直达锚）。
+   * 当目标页需要直接打开某条具体记录的详情面板，而非仅做列表筛选时使用：
+   *   - Products：focusEntityId = productAssetId，进入档案详情；
+   *   - Development：focusEntityId = devCaseId，进入开发单详情；
+   *   - Orders：focusEntityId = orderId，进入订单详情。
+   * filter 仍可同时携带（如 product 锚用于列表过滤 + focusEntityId 精确定位）。
+   */
+  focusEntityId?: string;
   /** 写入时间戳（调试用） */
   primedAt: number;
 }
@@ -59,6 +68,10 @@ function parseContext(raw: string | null): CrossModuleNavContext | null {
     const ctx: CrossModuleNavContext = {
       view: parsed.view,
       tab: typeof parsed.tab === 'string' && parsed.tab ? parsed.tab : undefined,
+      focusEntityId:
+        typeof parsed.focusEntityId === 'string' && parsed.focusEntityId
+          ? parsed.focusEntityId
+          : undefined,
       primedAt: Number(parsed.primedAt) || Date.now(),
     };
     if (parsed.filter) {

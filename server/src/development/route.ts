@@ -39,10 +39,15 @@ type DevelopmentCaseCreateInput = {
   nextAction?: string;
   targetDate?: string;
   sampleType?: string;
+  sampleCategory?: string;
   sampleQuantity?: number;
   sampleUnit?: string;
   notes?: string;
   tags?: string[];
+  styleSpec?: string;
+  sizeSpec?: string;
+  fabricSpec?: string;
+  processSpec?: string;
 };
 
 type DevelopmentCaseUpdateInput = Partial<DevelopmentCaseCreateInput> & {
@@ -50,8 +55,14 @@ type DevelopmentCaseUpdateInput = Partial<DevelopmentCaseCreateInput> & {
   sampleSentDate?: string;
   sampleTrackingNumber?: string;
   sampleCourier?: string;
+  sampleShippingFee?: number;
+  sampleRecipientName?: string;
+  sampleRecipientCompany?: string;
+  sampleRecipientAddress?: string;
+  sampleRecipientPhone?: string;
   sampleFeedback?: string;
   sampleFeedbackDate?: string;
+  sampleInvoiceId?: string;
   linkedOrderId?: string;
   linkedOrderPo?: string;
   convertedAt?: number;
@@ -85,7 +96,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   // ─── GET / ─── List development cases ───
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { type, stage, customer, supplier, owner, search, limit = '50', offset = '0' } = req.query;
+      const { type, stage, customer, supplier, owner, search, sampleInvoiceId, productAssetId, limit = '50', offset = '0' } = req.query;
 
       const where: Prisma.DevelopmentCaseWhereInput = {
         deletedAt: null,
@@ -94,6 +105,10 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
         ...(customer ? { customerRelationId: String(customer) } : {}),
         ...(supplier ? { supplierRelationId: String(supplier) } : {}),
         ...(owner ? { owner: String(owner) } : {}),
+        // DR-057 v2.1 发票↔开发单双向闭环：发票详情反查引用本发票的开发单
+        ...(sampleInvoiceId ? { sampleInvoiceId: String(sampleInvoiceId) } : {}),
+        // DR-057 v2.1 档案↔开发单反查：产品档案详情反查关联开发单
+        ...(productAssetId ? { productAssetId: String(productAssetId) } : {}),
         ...(search ? {
           OR: [
             { name: { contains: String(search), mode: 'insensitive' } },

@@ -1159,8 +1159,12 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   // 根因修复（2026-08-21）：报表页最外层容器加 overflow-x-hidden，
   // 防止内部宽表格 grid（gridCls 多为多列 minmax 且含 auto 轨道）在窄视口下
   // 横向溢出、压到并排 card（"bar 容器重叠"同源问题）。
+  // 根因修复（2026-08-23）：h-full → flex-1——本面板挂在 FinanceManager 的
+  // flex column（KPI 行 + 切换栏 + 面板）内，height:100% 参考父容器总高，
+  // 会把上方 KPI 行/切换栏挤出压缩、内容溢出盖住面板顶部 bar；
+  // flex 子项正确写法 = min-h-0 flex-1（与 PaymentRequests/CreditPanel 同模式）。
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5 overflow-x-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-x-hidden">
       {/* 子 tab + 过滤器 */}
       <div className="flex min-h-0 shrink-0 items-center gap-2">
         <RdlToolbar density="compact">

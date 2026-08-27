@@ -564,6 +564,7 @@ function RoundCard(props: RoundCardProps) {
           <Truck size={14} strokeWidth={1.5} className="shrink-0" />
           <span className="truncate">
             寄出 {round.shipment.sentDate} · {round.shipment.courier} · {round.shipment.trackingNumber} · 收件 {round.shipment.recipientName}
+            {round.shipment.shippingFee != null ? ` · 邮费 ${round.shipment.shippingFee}` : ''}
             {Array.isArray(round.shipment.documents) && round.shipment.documents.length > 0
               ? ` · 随附单据 ${round.shipment.documents.length} 份`
               : ''}
@@ -734,12 +735,13 @@ function ShipForm({ busy, inputCls, onCancel, onSubmit }: {
   busy: boolean;
   inputCls: string;
   onCancel: () => void;
-  onSubmit: (input: { courier: string; trackingNumber: string; recipientName: string; recipientContact?: string; sentDate?: string }) => Promise<void>;
+  onSubmit: (input: { courier: string; trackingNumber: string; recipientName: string; recipientContact?: string; shippingFee?: number; sentDate?: string }) => Promise<void>;
 }) {
   const [courier, setCourier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientContact, setRecipientContact] = useState('');
+  const [shippingFee, setShippingFee] = useState('');
   const [sentDate, setSentDate] = useState(todayYmd());
   return (
     <form
@@ -747,11 +749,14 @@ function ShipForm({ busy, inputCls, onCancel, onSubmit }: {
       onSubmit={(e) => {
         e.preventDefault();
         if (!courier.trim() || !trackingNumber.trim() || !recipientName.trim()) return;
+        const parsedFee = shippingFee === '' ? undefined : Number(shippingFee);
+        if (parsedFee != null && (!Number.isFinite(parsedFee) || parsedFee < 0)) return;
         void onSubmit({
           courier: courier.trim(),
           trackingNumber: trackingNumber.trim(),
           recipientName: recipientName.trim(),
           recipientContact: recipientContact.trim() || undefined,
+          shippingFee: parsedFee,
           sentDate: sentDate || undefined,
         });
       }}
@@ -764,7 +769,10 @@ function ShipForm({ busy, inputCls, onCancel, onSubmit }: {
         <input className={inputCls} placeholder="收件方 *" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
         <input className={inputCls} placeholder="收件联系方式（可留空）" value={recipientContact} onChange={(e) => setRecipientContact(e.target.value)} />
       </div>
-      <CapsuleDateInput className={inputCls} value={sentDate} onChange={setSentDate} />
+      <div className="grid grid-cols-2 gap-1.5">
+        <CapsuleDateInput className={inputCls} value={sentDate} onChange={setSentDate} />
+        <input className={inputCls} type="number" min="0" step="0.01" placeholder="邮寄费（可留空）" value={shippingFee} onChange={(e) => setShippingFee(e.target.value)} />
+      </div>
       <FormButtons busy={busy} onCancel={onCancel} submitLabel="提交客户" />
     </form>
   );

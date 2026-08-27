@@ -5,6 +5,9 @@ import * as QRCode from 'qrcode';
 import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory } from '../types';
 import { apiService } from '../services/apiService';
 import { storageService } from '../services/storageService';
+import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
+import { sampleRoomService, SampleCardItemView } from '../services/sampleRoomService';
+import { developmentService } from '../services/developmentService';
 import RelationCombobox from './ui/RelationCombobox';
 import {
   COMPOSITION_TERMS,
@@ -26,7 +29,7 @@ import { OS_MATERIAL } from './ui/osMaterial';
 import { bdsToast } from './ui/bdsToast';
 import { PageHeader } from './ui/PageHeader';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
-import type { View } from '../types';
+import { View } from '../types';
 import {
   RELATIONS_FORM_NESTED_ROW_CLASS,
   RELATIONS_FORM_QUIET_ACTION_CLASS,
@@ -583,6 +586,92 @@ const CertificationCheckboxes: React.FC<{
   );
 };
 
+/**
+ * DR-057 v2.1 档案反查区块：产品档案详情反查「实物样卡（样品间）+ 开发单」。
+ * 自包含 fetch（挂载/换档案时拉取），行可点击：
+ *   - 样卡 → 库存管理·样品 Tab（product 锚预过滤）
+ *   - 开发单 → 开发管理详情（focusEntityId 直达）
+ */
+const LinkedSampleRoomSection: React.FC<{
+  productId: string;
+  productName?: string;
+  onNavigate?: (view: View) => void;
+}> = ({ productId, productName, onNavigate }) => {
+  const [cards, setCards] = useState<SampleCardItemView[]>([]);
+  const [devCases, setDevCases] = useState<Array<{ id: string; code: string; name: string; stage: string }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    sampleRoomService.listItems({ productAssetId: productId, limit: 6 })
+      .then(d => { if (!cancelled) setCards(d.items); })
+      .catch(() => { if (!cancelled) setCards([]); });
+    developmentService.listDevelopmentCases(undefined, { productAssetId: productId, limit: 6 })
+      .then(list => { if (!cancelled) setDevCases(list.map(c => ({ id: c.id, code: c.code, name: c.name, stage: String(c.stage) }))); })
+      .catch(() => { if (!cancelled) setDevCases([]); });
+    return () => { cancelled = true; };
+  }, [productId]);
+
+  if (cards.length === 0 && devCases.length === 0) return null;
+  return (
+    <div className="pt-2 space-y-3">
+      {cards.length > 0 && (
+        <div className="rounded-inset p-4" style={{ background: 'var(--recessed-bg)' }}>
+          <div className="text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]">实物样卡（{cards.length}）</div>
+          <div className="mt-2 space-y-1.5">
+            {cards.map(card => (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => {
+                  if (!onNavigate) return;
+                  primeCrossModuleNav({
+                    view: View.Inventory,
+                    tab: 'samples',
+                    filter: { anchor: 'product', productId, productName },
+                  });
+                  onNavigate(View.Inventory);
+                }}
+                title="跳转到库存管理·样品间，并按本档案预过滤"
+                className="w-full rounded-compact px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
+              >
+                <div className="truncate text-[11px] font-light text-[var(--text-primary)]">
+                  {card.code} · {card.name}
+                </div>
+                <div className="mt-0.5 truncate text-[10px] font-light text-[var(--text-tertiary)]">
+                  可用 {card.availableQty}/{card.quantity}{card.unit ? ` ${card.unit}` : ''}{card.warehouseName ? ` · ${card.warehouseName}` : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {devCases.length > 0 && (
+        <div className="rounded-inset p-4" style={{ background: 'var(--recessed-bg)' }}>
+          <div className="text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]">开发单（{devCases.length}）</div>
+          <div className="mt-2 space-y-1.5">
+            {devCases.map(dc => (
+              <button
+                key={dc.id}
+                type="button"
+                onClick={() => {
+                  if (!onNavigate) return;
+                  primeCrossModuleNav({ view: View.Development, focusEntityId: dc.id });
+                  onNavigate(View.Development);
+                }}
+                title="跳转到开发管理并直达该开发单详情"
+                className="w-full rounded-compact px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
+              >
+                <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{dc.code}</div>
+                <div className="mt-0.5 truncate text-[10px] font-light text-[var(--text-tertiary)]">{dc.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings, onNavigate }) => {
   const blueprint = useMemo(() => compileProductsPage(), []);
   const [navLevel, setNavLevel] = useState<NavLevel>('main');
@@ -660,6 +749,18 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [deleteProdId, setDeleteProdId] = useState<string | null>(null);
   const [showOptionsSheet, setShowOptionsSheet] = useState<ProductAsset | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProductAsset | null>(null);
+  // 跨模块导航 focusEntityId 直达：从样品间/开发单等入口跳转过来时，
+  // 用 focusEntityId = productAssetId 精准打开档案详情。
+  // 同时携带 filter.product 锚用于列表过滤（hitRelationFilter 链已支持）。
+  const [navFocusEntityId] = useState(() => consumeCrossModuleNav()?.focusEntityId ?? null);
+  useEffect(() => {
+    if (!navFocusEntityId) return;
+    const matched = products.find(p => p.id === navFocusEntityId);
+    if (matched) {
+      setSelectedProduct(matched);
+      setNavLevel('detail');
+    }
+  }, [navFocusEntityId, products]);
   // 详情相册：当前主图 index（selectedProduct 切换时重置为 0=主图）
   const [detailImageIndex, setDetailImageIndex] = useState(0);
   // 灯箱：点击主图全屏放大查看（ESC / 遮罩点击关闭，左右箭头翻看与相册同一 index）
@@ -3834,8 +3935,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                    </>
 	                  )}
 
-	                  {/* 关联业务（产品化 Links）— 该产品的订单/报价/采购/开发/库存/BOM/出运入口 */}
-	                  <div className="pt-2">
+	                  {/* DR-057 v2.1 档案反查：实物样卡（样品间）+ 开发单 */}
+                  <LinkedSampleRoomSection
+                    productId={selectedProduct.id}
+                    onNavigate={onNavigate}
+                  />
+
+                  {/* 关联业务（产品化 Links）— 该产品的订单/报价/采购/开发/库存/BOM/出运入口 */}
+                  <div className="pt-2">
 	                    <RelatedWorkspacesSection
 	                      sourceType="product"
                       productId={selectedProduct.id}

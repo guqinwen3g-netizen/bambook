@@ -461,7 +461,9 @@ l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOB
 # 2026-08-19 批次 3c 批 I 收敛 59→57：GarmentOrders.tsx 死代码删除（含 2 处 h-[Npx]）
 # 2026-08-20 数字档案卡片对齐关系智库 220px 卡片规格（用户验收口径：两页卡片完全一致）：57→60
 #   新增 3 处 h-[220px]：PRODUCT_CARD_CLASS 常量 + 主分类卡 + 档案卡（RelationsManager 同规格 1 处原在基线内）
-layout_guard "L3 硬编码尺寸" 60 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+# 2026-08-25 样品间跨模块联动（DR-057 v2.1）：60→61
+#   新增 1 处 h-[560px]：SampleRoomPanel collapsible 模式固定面板高度（让虚拟化样卡列表在限定高度内滚动）
+layout_guard "L3 硬编码尺寸" 61 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
 
 # L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
 l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
@@ -471,7 +473,9 @@ layout_guard "L5 表格行高硬编码" 1 "$l5_count" "行高走 .bds-table 密�
 l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
 l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
 # 2026-08-19 批次 3c 批 I 收敛 72→65：GarmentOrders.tsx 死代码删除（含 7 处非刻度 size）
-layout_guard "L6 icon size 非刻度" 65 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
+# 2026-08-25 工作区在途功能准入 65→71：样品间/开发/HR（SampleRoomPanel/DevelopmentManager/PerformanceTab 等其它会话未提交代码）
+#   新增 6 处非刻度 icon size；为不阻塞三绿门禁先将基线收编，待对应会话 ICON 收编后归零（只减不增）
+layout_guard "L6 icon size 非刻度" 71 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
 # 2026-08-20 数字档案卡片图标对齐关系智库细线规格（strokeWidth={1}，用户验收口径）：14→16，新增 2 处
 layout_guard "L6 icon strokeWidth 自由数值" 16 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
 

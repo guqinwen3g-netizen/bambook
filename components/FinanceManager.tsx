@@ -12,6 +12,7 @@ import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import { CashCalendarPanel } from './finance/CashCalendarPanel';
 import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
 import { FinanceCreditPanel } from './finance/FinanceCreditPanel';
+import { View } from '../types';
 import type {
   Invoice as InvoiceEntity,
   InvoiceStatus,
@@ -40,7 +41,8 @@ import CapsuleDateInput from './ui/CapsuleDateInput';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
-import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
+import { developmentService } from '../services/developmentService';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 
 // ── Typedefs & constants ──────────────────────────────────────────────────
@@ -704,6 +706,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const [invoiceAttachmentErr, setInvoiceAttachmentErr] = useState<string | null>(null);
   // 交单回链（发票 → 单据中心 CommercialInvoice 引用，sourceInvoiceId 反查）
   const [invoiceTradeDoc, setInvoiceTradeDoc] = useState<TradeDocument | null>(null);
+  // DR-057 v2.1 发票↔开发单双向闭环：引用本发票作为样品发票的开发单（发票详情反查）
+  const [linkedDevCases, setLinkedDevCases] = useState<Array<{ id: string; code: string; name: string }>>([]);
 
   // ── 跨模块 prime 消费：采购单 → 生成应付发票（预填供应商/币种/金额并直接开新建 modal）───
   useEffect(() => {
@@ -1316,6 +1320,16 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       .finally(() => { if (!cancelled) setInvoiceDetailLoading(false); });
     return () => { cancelled = true; };
   }, [selectedItem?.id, activeTab, invoices]);
+
+  // DR-057 v2.1 发票↔开发单双向闭环：发票详情反查引用本发票作为样品发票的开发单
+  useEffect(() => {
+    if (activeTab !== 'invoices' || !selectedItem?.id) { setLinkedDevCases([]); return; }
+    let cancelled = false;
+    developmentService.listDevelopmentCases(undefined, { sampleInvoiceId: selectedItem.id, limit: 5 })
+      .then(list => { if (!cancelled) setLinkedDevCases(list); })
+      .catch(() => { if (!cancelled) setLinkedDevCases([]); });
+    return () => { cancelled = true; };
+  }, [selectedItem?.id, activeTab]);
 
   // 交单回链：sourceInvoiceId 反查单据中心 CommercialInvoice（交单号=记账号，双向跳转用）
   useEffect(() => {
@@ -2038,6 +2052,38 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
             </div>
           )}
+          {/* DR-057 v2.1 发票↔开发单双向闭环：反查引用本发票作为样品发票的开发单（可点击直达开发单详情） */}
+          {isInvoice && invoice && linkedDevCases.length > 0 && (
+            <div className="mt-4">
+              <div className="rounded-inset p-4 bds-inset">
+                <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>关联开发单（{linkedDevCases.length}）</div>
+                <div className="mt-2 space-y-1.5">
+                  {linkedDevCases.map(dc => (
+                    <button
+                      key={dc.id}
+                      type="button"
+                      onClick={() => {
+                        if (!onNavigate) return;
+                        primeCrossModuleNav({ view: View.Development, focusEntityId: dc.id });
+                        onNavigate(View.Development);
+                      }}
+                      title="跳转到开发管理并直达该开发单详情"
+                      className="rdl-data-row min-h-0 w-full justify-between px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
+                    >
+                      <div className="min-w-0">
+                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                          开发 {dc.code}
+                        </div>
+                        <div className={cx('mt-0.5 truncate text-[10px] font-light', textSecondaryClass)}>
+                          {dc.name}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* 交单回链：sourceInvoiceId 反查单据中心 CI（交单号=记账号），双向跳转的财务侧入口 */}
           {isInvoice && invoice && (
             <div className="mt-4">
@@ -2265,13 +2311,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       <main className="min-h-0 flex-1 px-7 pb-5">
         <div className="flex h-full min-h-0 flex-col gap-2.5">
 
-          {/* KPI row */}
-          <div className="grid min-h-0 grid-cols-2 gap-3 xl:grid-cols-4">
+          {/* KPI row（shrink-0：固定摘要行不参与 flex 压缩，防止面板高度异常时被压扁、内容溢出盖住下方） */}
+          <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
             {kpiCards.map(card => <KpiCard key={card.label} card={card} />)}
           </div>
 
           {/* Segment switcher */}
-          <div className="flex min-h-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <div className="bds-segment">
               {FINANCE_TABS.map(tab => (
                 <button

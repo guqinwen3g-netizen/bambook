@@ -161,6 +161,60 @@ describe('product anchor round-trip', () => {
   });
 });
 
+describe('focusEntityId 直达锚 round-trip', () => {
+  it('preserves focusEntityId alongside filter through prime→consume', () => {
+    // 样品间跳产品档案：product 锚做列表过滤 + focusEntityId 精准打开详情
+    primeCrossModuleNav({
+      view: View.Products,
+      filter: { anchor: 'product', productId: 'PDT-7', productName: 'Wool Twill' },
+      focusEntityId: 'PDT-7',
+    });
+    const ctx = consumeCrossModuleNav()!;
+    expect(ctx.view).toBe(View.Products);
+    expect(ctx.focusEntityId).toBe('PDT-7');
+    expect(ctx.filter?.anchor).toBe('product');
+    expect(ctx.filter?.productId).toBe('PDT-7');
+  });
+
+  it('preserves focusEntityId alone (e.g. 样品间→开发单直达)', () => {
+    primeCrossModuleNav({
+      view: View.Development,
+      focusEntityId: 'DEV-26003',
+    });
+    const ctx = consumeCrossModuleNav()!;
+    expect(ctx.view).toBe(View.Development);
+    expect(ctx.focusEntityId).toBe('DEV-26003');
+    expect(ctx.filter).toBeUndefined();
+  });
+
+  it('drops empty / non-string focusEntityId during parseContext normalization', () => {
+    sessionStorage.setItem(
+      KEY,
+      JSON.stringify({ view: View.Development, focusEntityId: '', primedAt: 1 }),
+    );
+    const ctx = consumeCrossModuleNav() as CrossModuleNavContext;
+    expect(ctx.focusEntityId).toBeUndefined();
+
+    sessionStorage.setItem(
+      KEY,
+      JSON.stringify({ view: View.Development, focusEntityId: 123, primedAt: 1 }),
+    );
+    const ctx2 = consumeCrossModuleNav() as CrossModuleNavContext;
+    expect(ctx2.focusEntityId).toBeUndefined();
+  });
+
+  it('clears focusEntityId together with filter when consume clears sessionStorage', () => {
+    primeCrossModuleNav({
+      view: View.Products,
+      focusEntityId: 'PDT-99',
+      filter: { anchor: 'product', productId: 'PDT-99' },
+    });
+    expect(consumeCrossModuleNav()?.focusEntityId).toBe('PDT-99');
+    // 一次性消费后再次读取应为 null
+    expect(consumeCrossModuleNav()).toBeNull();
+  });
+});
+
 describe('parseNotificationLink（通知 link → 结构化导航目标）', () => {
   it('解析订单通知：view + id（App 侧走 handleOpenOrderById 直达详情）', () => {
     const r = parseNotificationLink('/orders?id=ORD-123&tab=production');

@@ -22,6 +22,7 @@ export interface SampleShipmentInput {
   trackingNumber: string;     // 必填：快递单号
   recipientName: string;      // 必填：收件方
   recipientContact?: string;
+  shippingFee?: number;       // 邮寄费（DR-057 v2.1：非负，币种随客户合同）
   documents?: unknown[];      // 随附单据（样品发票/快递运费凭证等）
 }
 
@@ -80,6 +81,7 @@ export interface FabricShipmentSampleRow {
   trackingNumber: string | null;
   recipientName: string | null;
   recipientContact: string | null;
+  shippingFee: number | null;         // DR-057 v2.1：邮寄费留痕
   customerStatus: FabricSampleCustomerStatus;
   customerFeedbackDate: string | null;
   customerFeedbackNote: string | null;
@@ -88,7 +90,7 @@ export interface FabricShipmentSampleRow {
   attachments?: {
     sampleKind?: 'SS' | 'RC';
     rc?: { enabledReason?: string; deadlineOverrideDays?: number; deadlineOverrideReason?: string };
-    lastShipment?: { courier?: string; trackingNumber?: string; recipientName?: string; sentDate?: string };
+    lastShipment?: { courier?: string; trackingNumber?: string; recipientName?: string; sentDate?: string; shippingFee?: number | null };
     shipmentDocuments?: unknown[];
     confirmations?: Array<{ result: string; date: string; channel: string; note?: string | null }>;
     [key: string]: unknown;
@@ -240,6 +242,7 @@ export interface GarmentSampleRound {
     trackingNumber: string;
     recipientName: string;
     recipientContact?: string | null;
+    shippingFee?: number | null;   // DR-057 v2.1：邮寄费留痕
     documents?: unknown[];
   } | null;
   // ── 客户确认 ──

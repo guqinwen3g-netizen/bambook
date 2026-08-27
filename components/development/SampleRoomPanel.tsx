@@ -1,21 +1,33 @@
 /**
- * SampleRoomPanel.tsx — REQ2-16 样品间管理面板（DR-057）
+ * SampleRoomPanel.tsx — REQ2-16 样品间管理面板（DR-057 v2 库存联动）
  *
- * 挂载：DevelopmentManager 列表视图底部（样品域延伸：开发样→实物样卡库存；
- * App.tsx 冻结至 W5，故不新开页面，W5 后可升级独立页）。
+ * 挂载点：
+ *   1) DevelopmentManager 列表视图底部（可折叠区块，预过滤 = 当前开发单）
+ *   2) InventoryManager 第 4 Tab「样品」（collapsible=false，整页展开）
  *
- * 交互：可折叠区块（默认收起）——
- *   样卡列表（状态筛选/搜索/二维码打印）+ 登记表单 + 借出/看样 BottomSheet + 归还/退役
- * 二维码：qrcode 库生成 PNG dataURL（载荷 = 样卡编号，扫码按编号直达详情）。
+ * v2 库存联动：
+ *   - 样卡支持 quantity/minStock/maxStock/unit/warehouseId 软关联 devCaseId/orderId
+ *   - 借出 loanQuantity（部分借出：availableQty>0 仍 in_stock；=0 才 borrowed）
+ *   - 盘点 adjustQuantity（保留在借数量）
+ *   - 低库存预警 listLowStock
+ *   - 关联单据摘要 join（devCase.code/order.poNumber/customer + warehouse.code/name）
+ *
+ * 二维码：qrcode 库生成 PNG dataURL（载荷 = 样卡编号）。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as QRCode from 'qrcode';
-import { ChevronDown, ChevronUp, Plus, QrCode, RotateCcw, Search, Archive } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
+import { ChevronDown, ChevronUp, ChevronRight, Plus, QrCode, RotateCcw, Search, Archive, ClipboardCheck, X, Boxes } from 'lucide-react';
 import BottomSheet from '../ui/BottomSheet';
 import { bdsToast } from '../ui/bdsToast';
 import { bdsConfirm } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { sampleRoomService, SampleCardItemView } from '../../services/sampleRoomService';
+import { apiService } from '../../services/apiService';
+import { primeCrossModuleNav } from '../../services/crossModuleNav';
+import { developmentService } from '../../services/developmentService';
+import { View } from '../../types';
+import type { Warehouse, ProductAssetDetail } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -31,31 +43,134 @@ const STATUS_TONES: Record<string, string> = {
   in_stock: 'success', borrowed: 'info', retired: 'neutral',
 };
 
-interface SampleRoomPanelProps { isDarkMode: boolean; }
+const UNITS = ['PC', 'YD', 'M', 'KG', 'SET'];
 
-const EMPTY_ITEM_FORM = { name: '', cardType: 'fabric', colorCardCode: '', location: '', notes: '' };
-const EMPTY_LOAN_FORM = { loanType: 'borrow' as 'borrow' | 'viewing', borrowerName: '', relationId: '', dueDate: '', conditionNote: '' };
+interface SampleRoomPanelProps {
+  isDarkMode: boolean;
+  /** 预过滤：开发单 ID（来自 DevelopmentManager 卡片入口） */
+  devCaseId?: string;
+  /** 预过滤：订单 ID（来自订单详情入口，未来扩展） */
+  orderId?: string;
+  /** 预过滤：产品档案 ID（来自产品档案详情反查入口，DR-057 v2.1） */
+  productAssetId?: string;
+  /** 是否可折叠（DevelopmentManager 底部挂载 = true；InventoryManager Tab = false） */
+  collapsible?: boolean;
+  /** 折叠初始展开（默认 false） */
+  defaultExpanded?: boolean;
+  /** 清除预过滤回调 */
+  onClearFilter?: () => void;
+  /** 跨模块导航：切 View（点击关联开发单/档案 chip 触发） */
+  onNavigate?: (view: View) => void;
+  /** 打开订单详情（点击关联订单 chip 触发） */
+  onOpenOrder?: (orderId: string) => void;
+}
 
-const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
-  const [expanded, setExpanded] = useState(false);
+const EMPTY_ITEM_FORM = {
+  name: '', cardType: 'fabric', colorCardCode: '', location: '', notes: '',
+  quantity: '1', minStock: '', maxStock: '', unit: 'PC',
+  warehouseId: '', devCaseId: '', orderId: '', productAssetId: '',
+};
+const EMPTY_LOAN_FORM = {
+  loanType: 'borrow' as 'borrow' | 'viewing',
+  loanQuantity: '1',
+  borrowerName: '', relationId: '', dueDate: '', conditionNote: '',
+};
+const EMPTY_ADJUST_FORM = {
+  newQuantity: '', newMinStock: '', newMaxStock: '', reason: '',
+};
+
+const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
+  isDarkMode,
+  devCaseId,
+  orderId,
+  productAssetId,
+  collapsible = true,
+  defaultExpanded = false,
+  onClearFilter,
+  onNavigate,
+  onOpenOrder,
+}) => {
+  const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);
   const [items, setItems] = useState<SampleCardItemView[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
 
   const [showItemSheet, setShowItemSheet] = useState(false);
   const [itemForm, setItemForm] = useState({ ...EMPTY_ITEM_FORM });
   const [itemSaving, setItemSaving] = useState(false);
 
+  // ── 登记表单关联搜索（DR-057 v2.1：产品档案/开发单搜索选择，替代手输 ID）──
+  const [paQuery, setPaQuery] = useState('');
+  const [paOptions, setPaOptions] = useState<ProductAssetDetail[]>([]);
+  const [devQuery, setDevQuery] = useState('');
+  const [devOptions, setDevOptions] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [devCasePicked, setDevCasePicked] = useState<string>('');
+
+  useEffect(() => {
+    if (!paQuery.trim()) { setPaOptions([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const assets = await apiService.listProductAssets(undefined, { search: paQuery.trim(), limit: 5 });
+        if (!cancelled) setPaOptions(assets);
+      } catch {
+        if (!cancelled) setPaOptions([]);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [paQuery]);
+
+  useEffect(() => {
+    if (!devQuery.trim()) { setDevOptions([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const list = await developmentService.listDevelopmentCases(undefined, { search: devQuery.trim(), limit: 5 });
+        if (!cancelled) setDevOptions(list.map(c => ({ id: c.id, code: c.code, name: c.name })));
+      } catch {
+        if (!cancelled) setDevOptions([]);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [devQuery]);
+
   const [loanTarget, setLoanTarget] = useState<SampleCardItemView | null>(null);
   const [loanForm, setLoanForm] = useState({ ...EMPTY_LOAN_FORM });
   const [loanSaving, setLoanSaving] = useState(false);
 
+  const [adjustTarget, setAdjustTarget] = useState<SampleCardItemView | null>(null);
+  const [adjustForm, setAdjustForm] = useState({ ...EMPTY_ADJUST_FORM });
+  const [adjustSaving, setAdjustSaving] = useState(false);
+
   const [qrItem, setQrItem] = useState<SampleCardItemView | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
+  // 行级展开（手风琴：详情/操作面板内联展开，承载万级样卡的紧凑浏览）
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
+  // ── 仓库下拉 ──
+  const fetchWarehouses = useCallback(async () => {
+    setWarehousesLoading(true);
+    try {
+      const data = await apiService.listWarehouses();
+      setWarehouses(Array.isArray(data) ? data : []);
+    } catch {
+      setWarehouses([]);
+    } finally {
+      setWarehousesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchWarehouses(); }, [fetchWarehouses]);
+
+  // ── 列表 ──
   const reload = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -63,7 +178,12 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
       const data = await sampleRoomService.listItems({
         status: statusFilter || undefined,
         search: searchTerm.trim() || undefined,
-        limit: 100,
+        warehouseId: warehouseFilter || undefined,
+        devCaseId: devCaseId || undefined,
+        orderId: orderId || undefined,
+        productAssetId: productAssetId || undefined,
+        lowStock: lowStockOnly || undefined,
+        limit: 2000,
       });
       setItems(data.items);
       setTotal(data.total);
@@ -72,20 +192,56 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm]);
+  }, [statusFilter, searchTerm, warehouseFilter, devCaseId, orderId, productAssetId, lowStockOnly]);
 
   useEffect(() => {
     if (expanded) reload();
   }, [expanded, reload]);
 
+  // 预过滤变化时自动展开（仅 collapsible 模式）
+  useEffect(() => {
+    if (collapsible && (devCaseId || orderId || productAssetId)) {
+      setExpanded(true);
+    }
+  }, [devCaseId, orderId, productAssetId, collapsible]);
+
   const stats = useMemo(() => ({
     inStock: items.filter(i => i.status === 'in_stock').length,
     borrowed: items.filter(i => i.status === 'borrowed').length,
     overdue: items.filter(i => i.overdue).length,
+    lowStock: items.filter(i => i.minStock != null && Number(i.availableQty) <= Number(i.minStock)).length,
   }), [items]);
+
+  // ── 跨模块导航：点击 chip 跳转关联开发单/订单/产品档案 ──
+  // 设计遵循 crossModuleNav 三段式：先 prime（写 sessionStorage 上下文），
+  // 再 onNavigate 切 View，目标 Manager 挂载时 consumeCrossModuleNav 消费。
+  // 当 props 未提供（如 DevelopmentManager 内挂载态）→ chips 退化为纯文本。
+  const openDevCaseDetail = useCallback((devCaseId: string) => {
+    if (!onNavigate) return;
+    primeCrossModuleNav({ view: View.Development, focusEntityId: devCaseId });
+    onNavigate(View.Development);
+  }, [onNavigate]);
+  const openOrderDetail = useCallback((oid: string) => {
+    onOpenOrder?.(oid);
+  }, [onOpenOrder]);
+  const openProductDetail = useCallback((productId: string, productName?: string | null) => {
+    if (!onNavigate) return;
+    primeCrossModuleNav({
+      view: View.Products,
+      filter: { anchor: 'product', productId, productName: productName || undefined },
+      focusEntityId: productId,
+    });
+    onNavigate(View.Products);
+  }, [onNavigate]);
 
   const handleCreateItem = async () => {
     if (!itemForm.name.trim() || itemSaving) return;
+    const minNum = itemForm.minStock === '' ? null : Number(itemForm.minStock);
+    const maxNum = itemForm.maxStock === '' ? null : Number(itemForm.maxStock);
+    if (minNum != null && maxNum != null && minNum > maxNum) {
+      setError('最低库存不可大于最高库存');
+      return;
+    }
     setItemSaving(true);
     setError('');
     try {
@@ -95,12 +251,29 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
         colorCardCode: itemForm.colorCardCode.trim() || undefined,
         location: itemForm.location.trim() || undefined,
         notes: itemForm.notes.trim() || undefined,
+        quantity: Number(itemForm.quantity) || 0,
+        minStock: minNum,
+        maxStock: maxNum,
+        unit: itemForm.unit,
+        warehouseId: itemForm.warehouseId || undefined,
+        devCaseId: itemForm.devCaseId.trim() || undefined,
+        orderId: itemForm.orderId.trim() || undefined,
+        productAssetId: itemForm.productAssetId.trim() || undefined,
       });
       bdsToast.success(`样卡已登记：${item.code}`);
       setShowItemSheet(false);
-      setItemForm({ ...EMPTY_ITEM_FORM });
+      setItemForm({
+        ...EMPTY_ITEM_FORM,
+        warehouseId: warehouses[0]?.id || '',
+        devCaseId: devCaseId || '',
+        orderId: orderId || '',
+      });
+      setDevQuery('');
+      setDevOptions([]);
+      setDevCasePicked('');
+      setPaQuery('');
+      setPaOptions([]);
       await reload();
-      // 登记后直出二维码打印（DR-057-③：贴卡即用）
       openQr(item);
     } catch (e: any) {
       setError(e.message || '样卡登记失败');
@@ -126,6 +299,15 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
       setError('看样登记需选择客户');
       return;
     }
+    const qty = Number(loanForm.loanQuantity) || 1;
+    if (qty < 1) {
+      setError('借出数量至少为 1');
+      return;
+    }
+    if (qty > Number(loanTarget.availableQty)) {
+      setError(`借出数量不可超过可用库存（${loanTarget.availableQty}）`);
+      return;
+    }
     setLoanSaving(true);
     setError('');
     try {
@@ -134,11 +316,12 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
         : undefined;
       await sampleRoomService.createLoan(loanTarget.id, {
         loanType: loanForm.loanType,
+        loanQuantity: qty,
         borrowerName: loanForm.borrowerName.trim(),
         relationId: loanForm.loanType === 'viewing' ? loanForm.relationId.trim() : undefined,
         dueAt,
       });
-      bdsToast.success(loanForm.loanType === 'borrow' ? `已借出：${loanTarget.code}` : `看样已登记：${loanTarget.code}`);
+      bdsToast.success(loanForm.loanType === 'borrow' ? `已借出 ${qty}：${loanTarget.code}` : `看样已登记：${loanTarget.code}`);
       setLoanTarget(null);
       setLoanForm({ ...EMPTY_LOAN_FORM });
       await reload();
@@ -146,6 +329,41 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
       setError(e.message || '借出/看样登记失败');
     } finally {
       setLoanSaving(false);
+    }
+  };
+
+  const handleAdjust = async () => {
+    if (!adjustTarget || adjustSaving) return;
+    setAdjustSaving(true);
+    setError('');
+    try {
+      const newQty = adjustForm.newQuantity === '' ? undefined : Number(adjustForm.newQuantity);
+      const newMin = adjustForm.newMinStock === '' ? null : Number(adjustForm.newMinStock);
+      const newMax = adjustForm.newMaxStock === '' ? null : Number(adjustForm.newMaxStock);
+      if (newQty != null && newQty < 0) {
+        setError('数量不可为负');
+        setAdjustSaving(false);
+        return;
+      }
+      if (newMin != null && newMax != null && newMin > newMax) {
+        setError('最低库存不可大于最高库存');
+        setAdjustSaving(false);
+        return;
+      }
+      await sampleRoomService.adjustQuantity(adjustTarget.id, {
+        newQuantity: newQty,
+        newMinStock: newMin,
+        newMaxStock: newMax,
+        reason: adjustForm.reason.trim() || undefined,
+      });
+      bdsToast.success(`已盘点：${adjustTarget.code}`);
+      setAdjustTarget(null);
+      setAdjustForm({ ...EMPTY_ADJUST_FORM });
+      await reload();
+    } catch (e: any) {
+      setError(e.message || '盘点失败');
+    } finally {
+      setAdjustSaving(false);
     }
   };
 
@@ -176,30 +394,112 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
     }
   };
 
-  return (
-    <div className="shrink-0">
-      {/* 折叠头 */}
-      <button
-        type="button"
-        onClick={() => setExpanded(v => !v)}
-        className="bds-btn bds-btn-ghost w-full justify-between px-4 h-11"
-      >
-        <span className="flex items-center gap-2 text-xs tracking-[0.14em] text-[var(--text-secondary)]">
-          <QrCode size={14} />
-          样品间 SAMPLE ROOM
-          {expanded && !loading && (
-            <span className="text-[10px] font-light text-[var(--text-tertiary)]">
-              {total} 张 · 在库 {stats.inStock} · 在借 {stats.borrowed}{stats.overdue > 0 ? ` · 逾期 ${stats.overdue}` : ''}
-            </span>
-          )}
-        </span>
-        {expanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-      </button>
+  const openLoanSheet = (item: SampleCardItemView) => {
+    setLoanTarget(item);
+    setLoanForm({ ...EMPTY_LOAN_FORM });
+    setError('');
+  };
 
-      {expanded && (
-        <div className="mt-2 space-y-2">
-          {/* 工具行：搜索 + 状态筛选 + 登记 */}
-          <div className="flex flex-wrap items-center gap-2">
+  const openAdjustSheet = (item: SampleCardItemView) => {
+    setAdjustTarget(item);
+    setAdjustForm({
+      newQuantity: String(item.quantity ?? ''),
+      newMinStock: item.minStock != null ? String(item.minStock) : '',
+      newMaxStock: item.maxStock != null ? String(item.maxStock) : '',
+      reason: '',
+    });
+    setError('');
+  };
+
+  const openItemSheet = () => {
+    setItemForm({
+      ...EMPTY_ITEM_FORM,
+      warehouseId: warehouses[0]?.id || '',
+      devCaseId: devCaseId || '',
+      orderId: orderId || '',
+    });
+    setDevQuery('');
+    setDevOptions([]);
+    setDevCasePicked(devCaseId ? `预过滤 ${devCaseId.slice(-8)}` : '');
+    setPaQuery('');
+    setPaOptions([]);
+    setShowItemSheet(true);
+    setError('');
+  };
+
+  // ── 渲染 ──
+  const headerStats = (
+    <span className="flex items-center gap-2 text-[10px] font-light text-[var(--text-tertiary)]">
+      <span>{total} 张</span>
+      <span className="opacity-50">·</span>
+      <span>在库 {stats.inStock}</span>
+      <span className="opacity-50">·</span>
+      <span>在借 {stats.borrowed}</span>
+      {stats.lowStock > 0 && (
+        <>
+          <span className="opacity-50">·</span>
+          <span style={{ color: 'var(--warning-text)' }}>低库存 {stats.lowStock}</span>
+        </>
+      )}
+      {stats.overdue > 0 && (
+        <>
+          <span className="opacity-50">·</span>
+          <span style={{ color: 'var(--danger-text)' }}>逾期 {stats.overdue}</span>
+        </>
+      )}
+    </span>
+  );
+
+  const filterBadge = (devCaseId || orderId || productAssetId) ? (
+    <span className="inline-flex items-center gap-1 rounded-compact px-2 py-1 text-[10px] font-light" style={{ background: 'var(--accent-tint)', color: 'var(--accent-text)' }}>
+      {devCaseId
+        ? `预过滤：开发单 ${devCaseId.slice(-6)}`
+        : orderId
+          ? `预过滤：订单 ${orderId.slice(-6)}`
+          : `预过滤：产品档案 ${productAssetId!.slice(-10)}`}
+      {onClearFilter && (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onClearFilter(); }} className="hover:opacity-70" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}>
+          <X size={14} />
+        </button>
+      )}
+    </span>
+  ) : null;
+
+  return (
+    <div className={cx('shrink-0', !collapsible && 'h-full flex flex-col')}>
+      {/* 折叠头（仅 collapsible 模式） */}
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="bds-btn bds-btn-ghost w-full justify-between px-4 h-11"
+        >
+          <span className="flex items-center gap-2 text-xs tracking-[0.14em] text-[var(--text-secondary)]">
+            <QrCode size={14} />
+            样品间 SAMPLE ROOM
+            {expanded && !loading && headerStats}
+            {filterBadge}
+          </span>
+          {expanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+        </button>
+      )}
+
+      {/* 非折叠模式：标题栏 */}
+      {!collapsible && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 px-1">
+          <span className="flex items-center gap-2 text-sm font-light tracking-[0.14em] text-[var(--text-primary)]">
+            <Boxes size={16} />
+            样品库存 SAMPLE ROOM
+          </span>
+          {!loading && headerStats}
+          {filterBadge}
+        </div>
+      )}
+
+      {(expanded || !collapsible) && (
+        <div className={cx('flex flex-col min-h-0', collapsible ? 'mt-2 h-[560px]' : 'flex-1 min-h-0')}>
+          {/* 工具行：搜索 + 状态筛选 + 仓库筛选 + 低库存 + 登记 */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <div className="relative min-w-0 flex-1 max-w-64">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
               <input
@@ -216,63 +516,195 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
               <option value="borrowed">在借</option>
               <option value="retired">已退役</option>
             </select>
-            <button type="button" className="bds-btn bds-btn-primary h-9 text-xs" onClick={() => { setShowItemSheet(true); setError(''); }}>
+            <select className="bds-select w-32 h-9 text-xs shrink-0" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)} disabled={warehousesLoading}>
+              <option value="">全部仓库</option>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            <label className="flex items-center gap-1 text-[11px] font-light text-[var(--text-tertiary)] shrink-0">
+              <input type="checkbox" checked={lowStockOnly} onChange={e => setLowStockOnly(e.target.checked)} />
+              仅低库存
+            </label>
+            <button type="button" className="bds-btn bds-btn-primary h-9 text-xs" onClick={openItemSheet}>
               <Plus size={14} />登记样卡
             </button>
           </div>
 
-          {error && <div className="bds-alert danger text-xs">{error}</div>}
-          {loading && <div className="text-xs font-light text-[var(--text-tertiary)] px-1">加载中...</div>}
+          {error && <div className="bds-alert danger text-xs shrink-0">{error}</div>}
+          {loading && <div className="text-xs font-light text-[var(--text-tertiary)] px-1 py-3 shrink-0">加载中...</div>}
 
-          {/* 样卡列表 */}
-          {!loading && items.length === 0 && (
-            <div className="text-xs font-light text-[var(--text-tertiary)] px-1 py-3">
+          {/* 样卡列表 — 虚拟化紧凑表格（react-virtuoso，承载万级样卡） */}
+          {!loading && items.length === 0 ? (
+            <div className="text-xs font-light text-[var(--text-tertiary)] px-1 py-8 text-center">
               暂无样卡。登记后自动生成样卡编号（二维码载荷），打印贴卡即用。
             </div>
+          ) : (
+            <div className="flex-1 min-h-0" ref={listRef}>
+              <Virtuoso
+                data={items}
+                style={{ height: '100%' }}
+                className="custom-scrollbar"
+                itemContent={(index, item) => {
+                  const isLowStock = item.minStock != null && Number(item.availableQty) <= Number(item.minStock);
+                  const onLoanQty = Number(item.quantity) - Number(item.availableQty);
+                  const isExpanded = expandedItemId === item.id;
+                  return (
+                    <div key={item.id} style={{ borderBottom: 'var(--border-c-subtle)' }}>
+                      {/* 紧凑行（单击展开） */}
+                      <div
+                        className="flex items-center gap-2 px-3 h-10 cursor-pointer transition-colors hover:bg-[var(--recessed-bg-hover)]"
+                        onClick={() => setExpandedItemId(prev => prev === item.id ? null : item.id)}
+                      >
+                        {/* 状态徽章 */}
+                        <span className={cx('bds-badge sm shrink-0 w-16 justify-center', STATUS_TONES[item.status] ?? 'neutral')}>
+                          {STATUS_LABELS[item.status] ?? item.status}
+                        </span>
+                        {/* 编号 */}
+                        <span className="bds-mono text-[11px] text-[var(--text-tertiary)] shrink-0">{item.code}</span>
+                        {/* 名称 */}
+                        <span className="font-light text-xs text-[var(--text-primary)] truncate flex-1 min-w-0">{item.name}</span>
+                        {/* 类型 */}
+                        <span className="text-[10px] font-light text-[var(--text-tertiary)] shrink-0 hidden md:inline">{CARD_TYPE_LABELS[item.cardType] ?? item.cardType}</span>
+                        {/* 数量 */}
+                        <span className="bds-tnum text-[11px] font-light text-[var(--text-secondary)] shrink-0">
+                          {item.availableQty}<span className="text-[var(--text-tertiary)]">/{item.quantity}</span>{item.unit ? ` ${item.unit}` : ''}
+                        </span>
+                        {/* 低库存标记 */}
+                        {isLowStock && (
+                          <span className="shrink-0 text-[10px] font-light" style={{ color: 'var(--warning-text)' }}>低库存</span>
+                        )}
+                        {/* 关联摘要（仅 xl+ 视口） */}
+                        {(item.devCaseCode || item.orderPoNumber || item.productAssetSku || item.productAssetName || item.warehouseName) && (
+                          <span className="text-[10px] font-light text-[var(--text-tertiary)] shrink-0 max-w-32 truncate hidden xl:inline">
+                            {item.devCaseCode
+                              ? `开发 ${item.devCaseCode}`
+                              : item.orderPoNumber
+                                ? `订单 ${item.orderPoNumber}`
+                                : (item.productAssetSku || item.productAssetName)
+                                  ? `档案 ${item.productAssetSku || item.productAssetName}`
+                                  : `仓库 ${item.warehouseName}`}
+                          </span>
+                        )}
+                        {/* 展开指示 */}
+                        {isExpanded
+                          ? <ChevronDown size={14} className="shrink-0 text-[var(--text-tertiary)]" />
+                          : <ChevronRight size={14} className="shrink-0 text-[var(--text-tertiary)]" />}
+                      </div>
+                      {/* 展开详情 + 操作（手风琴） */}
+                      {isExpanded && (
+                        <div className="px-3 py-3 space-y-2" style={{ background: 'var(--recessed-bg)' }}>
+                          {/* 数量明细 */}
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] font-light text-[var(--text-tertiary)]">
+                            <span>可用 <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{item.availableQty}</span></span>
+                            <span>· 总 <span className="bds-tnum">{item.quantity}</span>{item.unit ? ` ${item.unit}` : ''}</span>
+                            <span>· 在借 <span className="bds-tnum">{onLoanQty}</span></span>
+                            {item.minStock != null && <span style={isLowStock ? { color: 'var(--warning-text)' } : undefined}>· 最低 {item.minStock}</span>}
+                            {item.maxStock != null && <span>· 最高 {item.maxStock}</span>}
+                            {item.location && <span>· 架位 {item.location}</span>}
+                            {item.colorCardCode && <span>· Pantone {item.colorCardCode}</span>}
+                          </div>
+                          {/* 关联单据 chips（可点击跳转：开发单→focusEntityId 直达详情，订单→onOpenOrder，档案→product 锚直达） */}
+                          {(item.devCaseCode || item.orderPoNumber || item.productAssetSku || item.productAssetName || item.warehouseName) && (
+                            <div className="flex flex-wrap gap-2 text-[10px] font-light">
+                              {item.devCaseCode && (
+                                onNavigate && item.devCaseId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openDevCaseDetail(item.devCaseId!)}
+                                    className="rounded-compact px-2 py-0.5 transition-colors hover:brightness-105 active:brightness-95"
+                                    style={{ background: 'var(--accent-tint)', color: 'var(--accent-text)' }}
+                                    title="跳转到开发单详情"
+                                  >
+                                    开发 · {item.devCaseCode}{item.devCaseName ? ` ${item.devCaseName}` : ''}
+                                  </button>
+                                ) : (
+                                  <span className="rounded-compact px-2 py-0.5" style={{ background: 'var(--accent-tint)', color: 'var(--accent-text)' }}>
+                                    开发 · {item.devCaseCode}{item.devCaseName ? ` ${item.devCaseName}` : ''}
+                                  </span>
+                                )
+                              )}
+                              {item.orderPoNumber && (
+                                onOpenOrder && item.orderId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openOrderDetail(item.orderId!)}
+                                    className="rounded-compact px-2 py-0.5 transition-colors hover:brightness-105 active:brightness-95"
+                                    style={{ background: 'var(--recessed-bg-strong)' }}
+                                    title="跳转到订单详情"
+                                  >
+                                    订单 · {item.orderPoNumber}{item.orderCustomer ? ` ${item.orderCustomer}` : ''}
+                                  </button>
+                                ) : (
+                                  <span className="rounded-compact px-2 py-0.5" style={{ background: 'var(--recessed-bg-strong)' }}>
+                                    订单 · {item.orderPoNumber}{item.orderCustomer ? ` ${item.orderCustomer}` : ''}
+                                  </span>
+                                )
+                              )}
+                              {(item.productAssetSku || item.productAssetName) && (
+                                onNavigate && item.productAssetId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openProductDetail(item.productAssetId!, item.productAssetName)}
+                                    className="rounded-compact px-2 py-0.5 transition-colors hover:brightness-105 active:brightness-95"
+                                    style={{ background: 'var(--accent-tint)', color: 'var(--accent-text)' }}
+                                    title="跳转到产品档案详情"
+                                  >
+                                    档案 · {item.productAssetSku || item.productAssetName}{item.productAssetCategory ? ` · ${item.productAssetCategory}` : ''}
+                                  </button>
+                                ) : (
+                                  <span className="rounded-compact px-2 py-0.5" style={{ background: 'var(--accent-tint)', color: 'var(--accent-text)' }}>
+                                    档案 · {item.productAssetSku || item.productAssetName}{item.productAssetCategory ? ` · ${item.productAssetCategory}` : ''}
+                                  </span>
+                                )
+                              )}
+                              {item.warehouseName && (
+                                <span className="rounded-compact px-2 py-0.5" style={{ background: 'var(--recessed-bg-strong)' }}>
+                                  仓库 · {item.warehouseName}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {/* 在借信息 */}
+                          {item.activeLoan && (
+                            <div className="text-[10px] font-light text-[var(--text-tertiary)]">
+                              {item.activeLoan.borrowerName}{item.activeLoan.loanQuantity > 1 ? ` ×${item.activeLoan.loanQuantity}` : ''}
+                              {item.activeLoan.dueAt ? ` · 应还 ${new Date(item.activeLoan.dueAt).toLocaleDateString('zh-CN')}` : ''}
+                              {item.overdue ? ' · 逾期' : ''}
+                            </div>
+                          )}
+                          {/* 操作按钮簇 */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="二维码打印" onClick={() => openQr(item)}>
+                              <QrCode size={14} />二维码
+                            </button>
+                            {item.status !== 'retired' && (
+                              <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="盘点" onClick={() => openAdjustSheet(item)}>
+                                <ClipboardCheck size={14} />盘点
+                              </button>
+                            )}
+                            {item.status === 'in_stock' && Number(item.availableQty) > 0 && (
+                              <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => openLoanSheet(item)}>
+                                借出/看样
+                              </button>
+                            )}
+                            {item.status === 'borrowed' && item.activeLoan && (
+                              <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => handleReturn(item)}>
+                                <RotateCcw size={14} />归还
+                              </button>
+                            )}
+                            {item.status !== 'retired' && (
+                              <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="退役" onClick={() => handleRetire(item)}>
+                                <Archive size={14} />退役
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+            </div>
           )}
-          <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1.5">
-            {items.map(item => (
-              <div key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-compact bg-[var(--recessed-bg)] px-3 py-2 text-xs">
-                <span className="font-light text-[var(--text-primary)] min-w-0 truncate max-w-52">{item.name}</span>
-                <span className="text-[10px] font-light text-[var(--text-tertiary)]">{item.code}</span>
-                <span className="text-[10px] font-light text-[var(--text-tertiary)]">{CARD_TYPE_LABELS[item.cardType] ?? item.cardType}</span>
-                {item.location && <span className="text-[10px] font-light text-[var(--text-tertiary)]">{item.location}</span>}
-                <span className={cx('bds-badge', STATUS_TONES[item.status] ?? 'neutral')}>
-                  {STATUS_LABELS[item.status] ?? item.status}
-                  {item.overdue ? ' · 逾期' : ''}
-                </span>
-                {item.activeLoan && (
-                  <span className="text-[10px] font-light text-[var(--text-tertiary)] truncate max-w-44">
-                    {item.activeLoan.borrowerName}{item.activeLoan.dueAt ? ` · 应还 ${new Date(item.activeLoan.dueAt).toLocaleDateString('zh-CN')}` : ''}
-                  </span>
-                )}
-                <span className="ml-auto flex items-center gap-1">
-                  <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="二维码打印" onClick={() => openQr(item)}>
-                    <QrCode size={14} />
-                  </button>
-                  {item.status === 'in_stock' && (
-                    <button
-                      type="button"
-                      className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]"
-                      onClick={() => { setLoanTarget(item); setLoanForm({ ...EMPTY_LOAN_FORM }); setError(''); }}
-                    >
-                      借出/看样
-                    </button>
-                  )}
-                  {item.status === 'borrowed' && item.activeLoan && (
-                    <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => handleReturn(item)}>
-                      <RotateCcw size={14} />归还
-                    </button>
-                  )}
-                  {item.status !== 'retired' && (
-                    <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="退役" onClick={() => handleRetire(item)}>
-                      <Archive size={14} />
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
@@ -296,9 +728,119 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
                 <input value={itemForm.location} onChange={e => setItemForm(f => ({ ...f, location: e.target.value }))} placeholder="如 A-01" className="bds-input sm w-full" />
               </div>
             </div>
-            <div>
-              <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联 Pantone 色号（可选）</label>
-              <input value={itemForm.colorCardCode} onChange={e => setItemForm(f => ({ ...f, colorCardCode: e.target.value }))} placeholder="如 19-4052 TCX" className="bds-input sm w-full" />
+            {/* v2 库存字段 */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">数量 *</label>
+                <input type="number" min="0" value={itemForm.quantity} onChange={e => setItemForm(f => ({ ...f, quantity: e.target.value }))} className="bds-input sm w-full" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">单位</label>
+                <select className="bds-select sm w-full" value={itemForm.unit} onChange={e => setItemForm(f => ({ ...f, unit: e.target.value }))}>
+                  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">仓库</label>
+                <select className="bds-select sm w-full" value={itemForm.warehouseId} onChange={e => setItemForm(f => ({ ...f, warehouseId: e.target.value }))}>
+                  <option value="">未指定</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">最低库存</label>
+                <input type="number" min="0" value={itemForm.minStock} onChange={e => setItemForm(f => ({ ...f, minStock: e.target.value }))} placeholder="如 5" className="bds-input sm w-full" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">最高库存</label>
+                <input type="number" min="0" value={itemForm.maxStock} onChange={e => setItemForm(f => ({ ...f, maxStock: e.target.value }))} placeholder="如 100" className="bds-input sm w-full" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联 Pantone 色号</label>
+                <input value={itemForm.colorCardCode} onChange={e => setItemForm(f => ({ ...f, colorCardCode: e.target.value }))} placeholder="如 19-4052 TCX" className="bds-input sm w-full" />
+              </div>
+            </div>
+            {/* v2 软关联（DR-057 v2.1：产品档案/开发单搜索选择，订单保留 ID 直输） */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="relative">
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联开发单（可选）</label>
+                <input
+                  value={devQuery}
+                  onChange={(e) => {
+                    setDevQuery(e.target.value);
+                    if (!e.target.value.trim()) setItemForm(f => ({ ...f, devCaseId: '' }));
+                  }}
+                  placeholder="搜索开发单编号/名称"
+                  className="bds-input sm w-full"
+                />
+                {itemForm.devCaseId && !devOptions.length && (
+                  <div className="mt-1 truncate text-[10px] font-light" style={{ color: 'var(--success-text)' }}>
+                    已选 · {devCasePicked || itemForm.devCaseId.slice(-8)}
+                  </div>
+                )}
+                {devOptions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-field border border-[var(--border-c-subtle)] bg-[var(--bg-elevated)] p-1 shadow-sm" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                    {devOptions.map(d => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => {
+                          setItemForm(f => ({ ...f, devCaseId: d.id }));
+                          setDevQuery(`${d.code} · ${d.name}`);
+                          setDevCasePicked(d.code);
+                          setDevOptions([]);
+                        }}
+                        className="w-full rounded-compact px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
+                      >
+                        <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{d.code}</div>
+                        <div className="truncate text-[10px] font-light text-[var(--text-tertiary)]">{d.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联订单 ID（可选）</label>
+                <input value={itemForm.orderId} onChange={e => setItemForm(f => ({ ...f, orderId: e.target.value }))} placeholder="订单 ID" className="bds-input sm w-full" />
+              </div>
+              <div className="relative">
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联产品档案（可选）</label>
+                <input
+                  value={paQuery}
+                  onChange={(e) => {
+                    setPaQuery(e.target.value);
+                    if (!e.target.value.trim()) setItemForm(f => ({ ...f, productAssetId: '' }));
+                  }}
+                  placeholder="搜索面料/成衣档案"
+                  className="bds-input sm w-full"
+                />
+                {itemForm.productAssetId && !paOptions.length && (
+                  <div className="mt-1 truncate text-[10px] font-light" style={{ color: 'var(--success-text)' }}>
+                    已选档案
+                  </div>
+                )}
+                {paOptions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-field border border-[var(--border-c-subtle)] bg-[var(--bg-elevated)] p-1" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                    {paOptions.map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          setItemForm(f => ({ ...f, productAssetId: a.id }));
+                          setPaQuery(a.name || (a as any).sku || a.id);
+                          setPaOptions([]);
+                        }}
+                        className="w-full rounded-compact px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
+                      >
+                        <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{a.name}</div>
+                        <div className="truncate text-[10px] font-light text-[var(--text-tertiary)]">
+                          {(a as any).sku ? `SKU ${(a as any).sku}` : a.id}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">备注</label>
@@ -322,6 +864,11 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
       {loanTarget && (
         <BottomSheet isOpen onClose={() => !loanSaving && setLoanTarget(null)} title={`借出 / 看样 · ${loanTarget.code}`} isDarkMode={isDarkMode}>
           <div className="space-y-4 px-6 py-5">
+            {/* 库存摘要 */}
+            <div className="rounded-inset px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
+              可用 {loanTarget.availableQty} / 总 {loanTarget.quantity}{loanTarget.unit ? ` ${loanTarget.unit}` : ''}
+              {loanTarget.minStock != null && ` · 最低 ${loanTarget.minStock}`}
+            </div>
             <div className="flex flex-wrap gap-2">
               {([['borrow', '内部借出'], ['viewing', '客户看样']] as const).map(([type, label]) => (
                 <button
@@ -333,6 +880,18 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
                   {label}
                 </button>
               ))}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">借出数量 *</label>
+              <input
+                type="number"
+                min="1"
+                max={Number(loanTarget.availableQty)}
+                value={loanForm.loanQuantity}
+                onChange={e => setLoanForm(f => ({ ...f, loanQuantity: e.target.value }))}
+                className="bds-input sm w-full"
+              />
+              <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">单次最多 {loanTarget.availableQty}；部分借出（仍有余量）保持「在库」状态。</div>
             </div>
             <div>
               <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">
@@ -365,7 +924,46 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
         </BottomSheet>
       )}
 
-      {/* 二维码打印 BottomSheet（载荷 = 样卡编号） */}
+      {/* 盘点 BottomSheet */}
+      {adjustTarget && (
+        <BottomSheet isOpen onClose={() => !adjustSaving && setAdjustTarget(null)} title={`盘点 · ${adjustTarget.code}`} isDarkMode={isDarkMode}>
+          <div className="space-y-4 px-6 py-5">
+            <div className="rounded-inset px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
+              当前 · 总 {adjustTarget.quantity} · 可用 {adjustTarget.availableQty}{adjustTarget.unit ? ` ${adjustTarget.unit}` : ''} · 在借 {Number(adjustTarget.quantity) - Number(adjustTarget.availableQty)}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">新总数量 *</label>
+                <input type="number" min="0" value={adjustForm.newQuantity} onChange={e => setAdjustForm(f => ({ ...f, newQuantity: e.target.value }))} className="bds-input sm w-full" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">新最低库存</label>
+                <input type="number" min="0" value={adjustForm.newMinStock} onChange={e => setAdjustForm(f => ({ ...f, newMinStock: e.target.value }))} placeholder="留空清除" className="bds-input sm w-full" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">新最高库存</label>
+                <input type="number" min="0" value={adjustForm.newMaxStock} onChange={e => setAdjustForm(f => ({ ...f, newMaxStock: e.target.value }))} placeholder="留空清除" className="bds-input sm w-full" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">盘点原因</label>
+              <input value={adjustForm.reason} onChange={e => setAdjustForm(f => ({ ...f, reason: e.target.value }))} placeholder="如 周期盘点 / 损耗调整" className="bds-input sm w-full" />
+            </div>
+            <div className="text-[10px] font-light leading-relaxed text-[var(--text-tertiary)]">
+              盘点只改总量；在借数量自动保留。新总数量不可小于当前在借数量（{Number(adjustTarget.quantity) - Number(adjustTarget.availableQty)}）。
+            </div>
+            {error && <div className="bds-alert danger">{error}</div>}
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" disabled={adjustSaving} onClick={() => setAdjustTarget(null)} className="bds-btn bds-btn-ghost">取消</button>
+              <button type="button" disabled={adjustSaving} onClick={handleAdjust} className="bds-btn bds-btn-primary">
+                {adjustSaving ? '盘点中...' : '确认盘点'}
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* 二维码打印 BottomSheet */}
       {qrItem && (
         <BottomSheet isOpen onClose={() => setQrItem(null)} title="样卡二维码" isDarkMode={isDarkMode}>
           <div className="space-y-4 px-6 py-5">

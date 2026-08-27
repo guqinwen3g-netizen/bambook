@@ -34,9 +34,12 @@ import {
   X,
   AlertTriangle,
   FileDown,
+  Package,
   Warehouse as WarehouseIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import SampleRoomPanel from './development/SampleRoomPanel';
 import {
   Warehouse,
   WarehouseInput,
@@ -46,6 +49,7 @@ import {
   StockMovement,
   StockMovementInput,
   StockMovementType,
+  View,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
@@ -75,10 +79,24 @@ const MOVEMENT_TYPES: Array<{ id: StockMovementType; label: string; icon: React.
 
 interface InventoryManagerProps {
   isDarkMode: boolean;
+  /** 跨模块导航：切 View（样品间 chips 点击跳转用） */
+  onNavigate?: (view: View) => void;
+  /** 打开订单详情（样品间关联订单 chip 点击跳转用） */
+  onOpenOrder?: (orderId: string) => void;
 }
 
-const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
-  const [activeTab, setActiveTab] = useState<'items' | 'warehouses' | 'alerts'>('items');
+const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavigate, onOpenOrder }) => {
+  // 跨模块导航消费（挂载时一次）：开发单详情「样品库存」按钮跳转过来时，
+  // tab='samples' 直达样品 Tab，focusEntityId=devCaseId 预过滤样品间列表；
+  // 产品档案详情反查跳转时 filter.product 锚 → productAssetId 预过滤。
+  const navCtx = useState(() => consumeCrossModuleNav())[0];
+  const navToSamples = navCtx?.view === View.Inventory && navCtx?.tab === 'samples';
+  const navProductFilter = navToSamples && navCtx?.filter?.anchor === 'product' ? navCtx.filter.productId ?? null : null;
+  const [activeTab, setActiveTab] = useState<'items' | 'warehouses' | 'alerts' | 'samples'>(navToSamples ? 'samples' : 'items');
+  const [sampleFilterDevCaseId, setSampleFilterDevCaseId] = useState<string | null>(
+    navToSamples && !navProductFilter ? navCtx?.focusEntityId ?? null : null,
+  );
+  const [sampleFilterProductAssetId, setSampleFilterProductAssetId] = useState<string | null>(navProductFilter);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
@@ -310,6 +328,9 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
               {lowStockItems.length > 0 && (
                 <span className="bds-badge sm danger ml-1">{lowStockItems.length}</span>
               )}
+            </button>
+            <button onClick={() => setActiveTab('samples')} className={`seg ${activeTab === 'samples' ? 'active' : ''}`}>
+              <Package size={14} className="inline mr-1" />样品
             </button>
           </div>
 
@@ -650,6 +671,21 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                   ))}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* ════════════ 样品 Tab（DR-057 v2 库存联动 · 虚拟化万级样卡） ════════════ */}
+          {activeTab === 'samples' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">
+              <SampleRoomPanel
+                isDarkMode={isDarkMode}
+                collapsible={false}
+                devCaseId={sampleFilterDevCaseId || undefined}
+                productAssetId={sampleFilterProductAssetId || undefined}
+                onClearFilter={() => { setSampleFilterDevCaseId(null); setSampleFilterProductAssetId(null); }}
+                onNavigate={onNavigate}
+                onOpenOrder={onOpenOrder}
+              />
             </motion.div>
           )}
         </div>

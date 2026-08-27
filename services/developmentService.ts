@@ -22,6 +22,10 @@ type DevelopmentListParams = {
   supplier?: string;
   owner?: string;
   search?: string;
+  /** 发票详情反查：引用该样品发票的开发单（DR-057 v2.1 双向闭环） */
+  sampleInvoiceId?: string;
+  /** 产品档案详情反查：关联该档案的开发单（DR-057 v2.1） */
+  productAssetId?: string;
   limit?: number;
   offset?: number;
 };
@@ -40,6 +44,8 @@ export const developmentService = {
     if (params?.supplier) query.set('supplier', params.supplier);
     if (params?.owner) query.set('owner', params.owner);
     if (params?.search) query.set('search', params.search);
+    if (params?.sampleInvoiceId) query.set('sampleInvoiceId', params.sampleInvoiceId);
+    if (params?.productAssetId) query.set('productAssetId', params.productAssetId);
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
 

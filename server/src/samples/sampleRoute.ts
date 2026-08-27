@@ -473,6 +473,7 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
   });
 
   // GET /room/items — 列表（状态/类型/搜索/编号直达；附活跃借出与逾期派生标记）
+  // v2：支持 warehouseId/devCaseId/orderId/productAssetId 联动过滤 + lowStock 预警过滤
   router.get('/room/items', async (req: Request, res: Response) => {
     try {
       const r = await sampleRoomService.listItems({
@@ -480,6 +481,11 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
         cardType: typeof req.query.cardType === 'string' ? req.query.cardType : undefined,
         search: typeof req.query.search === 'string' ? req.query.search : undefined,
         code: typeof req.query.code === 'string' ? req.query.code : undefined,
+        warehouseId: typeof req.query.warehouseId === 'string' ? req.query.warehouseId : undefined,
+        devCaseId: typeof req.query.devCaseId === 'string' ? req.query.devCaseId : undefined,
+        orderId: typeof req.query.orderId === 'string' ? req.query.orderId : undefined,
+        productAssetId: typeof req.query.productAssetId === 'string' ? req.query.productAssetId : undefined,
+        lowStock: req.query.lowStock === 'true' ? true : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         offset: req.query.offset ? Number(req.query.offset) : undefined,
       });
@@ -514,11 +520,13 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
   });
 
   // POST /room/items/:id/loans — 借出（borrow）/ 看样登记（viewing）
+  // v2：透传 loanQuantity 支持一次借多张
   router.post('/room/items/:id/loans', ...requireRoomWrite, async (req: Request, res: Response) => {
     try {
       const body = req.body ?? {};
       const r = await sampleRoomService.createLoan(req.params.id, {
         loanType: body.loanType,
+        loanQuantity: body.loanQuantity != null ? Number(body.loanQuantity) : undefined,
         borrowerName: body.borrowerName,
         borrowerUserId: body.borrowerUserId,
         relationId: body.relationId,
@@ -529,6 +537,35 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
     } catch (e: any) {
       logger.error('[SampleRoute] ROOM_LOAN_CREATE_FAILED', { error: e?.message });
       res.status(500).json({ error: { code: 'ROOM_LOAN_CREATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // POST /room/items/:id/adjust — 盘点调整（v2 新增：调整 quantity/minStock/maxStock）
+  router.post('/room/items/:id/adjust', ...requireRoomWrite, async (req: Request, res: Response) => {
+    try {
+      const body = req.body ?? {};
+      const r = await sampleRoomService.adjustQuantity(req.params.id, {
+        newQuantity: body.newQuantity != null ? Number(body.newQuantity) : undefined,
+        newMinStock: body.newMinStock === null ? null : (body.newMinStock != null ? Number(body.newMinStock) : undefined),
+        newMaxStock: body.newMaxStock === null ? null : (body.newMaxStock != null ? Number(body.newMaxStock) : undefined),
+        reason: body.reason,
+      }, actorIdFromRequest(req));
+      if (r.ok) notify('adjust_sample_card', [req.params.id]);
+      sendResult(res, r, 200, 'item');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_ITEM_ADJUST_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_ITEM_ADJUST_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // GET /room/low-stock — 低库存预警（v2 新增：availableQty <= minStock）
+  router.get('/room/low-stock', async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.listLowStock(req.query.limit ? Number(req.query.limit) : undefined);
+      sendResult(res, r, 200, 'list');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_LOW_STOCK_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_LOW_STOCK_FAILED', message: e?.message ?? 'operation failed' } });
     }
   });
 

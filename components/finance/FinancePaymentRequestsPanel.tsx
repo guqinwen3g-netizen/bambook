@@ -452,7 +452,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
         {canCreate && (
           <button
             type="button"
-            className="bds-btn bds-btn-primary ml-auto"
+            className="bds-btn bds-btn-primary ml-auto shrink-0"
             onClick={() => { setForm(EMPTY_FORM); setCreateError(null); setShowCreate(true); }}
           >
             <Plus size={14} strokeWidth={1.5} />

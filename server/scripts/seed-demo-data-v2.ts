@@ -1185,7 +1185,9 @@ const developmentCases: DevelopmentCaseSeed[] = [
     completedDate: null,
     sampleType: 'yardage', sampleQuantity: 50, sampleUnit: 'meter',
     sampleSentDate: '2026-02-20', sampleTrackingNumber: 'DEMO-DEV-26001-SAMPLE',
-    sampleCourier: 'DHL',
+    sampleCourier: 'DHL', sampleShippingFee: 68.5,
+    sampleRecipientName: 'Emma Lindqvist', sampleRecipientCompany: 'Norden Studio AB',
+    sampleRecipientAddress: 'Sveavagen 44, Stockholm, Sweden', sampleRecipientPhone: '+46 70 555 0142',
     sampleFeedback: null, sampleFeedbackDate: null,
     linkedOrderId: null, linkedOrderPo: null, convertedAt: null,
     notes: 'DEMO: 北欧高端休闲品牌首次毛感针织合作，需重点关注手感样反馈。',
@@ -1207,7 +1209,9 @@ const developmentCases: DevelopmentCaseSeed[] = [
     completedDate: null,
     sampleType: 'fit-sample', sampleQuantity: 2, sampleUnit: 'piece',
     sampleSentDate: '2026-02-25', sampleTrackingNumber: 'DEMO-DEV-26002-SAMPLE',
-    sampleCourier: 'FedEx',
+    sampleCourier: 'FedEx', sampleShippingFee: 52.0,
+    sampleRecipientName: 'Sarah Chen', sampleRecipientCompany: 'Atlas Outfitters Ltd.',
+    sampleRecipientAddress: '2400 NW Front Ave, Portland, OR, USA', sampleRecipientPhone: '+1 503 555 0187',
     sampleFeedback: '罗纹密度偏松，拉链颜色略浅，请调整后重新寄样。',
     sampleFeedbackDate: '2026-03-05',
     linkedOrderId: null, linkedOrderPo: null, convertedAt: null,
@@ -1230,7 +1234,9 @@ const developmentCases: DevelopmentCaseSeed[] = [
     completedDate: '2026-02-28',
     sampleType: 'pp-sample', sampleQuantity: 5, sampleUnit: 'piece',
     sampleSentDate: '2026-02-10', sampleTrackingNumber: 'DEMO-DEV-26003-SAMPLE',
-    sampleCourier: 'UPS',
+    sampleCourier: 'UPS', sampleShippingFee: 45.8,
+    sampleRecipientName: 'Michael Ross', sampleRecipientCompany: 'Peerless Clothing International',
+    sampleRecipientAddress: '500 7th Ave, New York, NY, USA', sampleRecipientPhone: '+1 212 555 0119',
     sampleFeedback: '版型 approved，可进入大货。',
     sampleFeedbackDate: '2026-02-28',
     linkedOrderId: 'DEMO-PO-2601009', linkedOrderPo: 'DEMO-PO-2601009',
@@ -1254,7 +1260,9 @@ const developmentCases: DevelopmentCaseSeed[] = [
     completedDate: null,
     sampleType: 'lab-dip', sampleQuantity: 10, sampleUnit: 'piece',
     sampleSentDate: '2026-03-10', sampleTrackingNumber: 'DEMO-DEV-26004-SAMPLE',
-    sampleCourier: 'DHL',
+    sampleCourier: 'DHL', sampleShippingFee: 61.2,
+    sampleRecipientName: 'Emma Lindqvist', sampleRecipientCompany: 'Norden Studio AB',
+    sampleRecipientAddress: 'Sveavagen 44, Stockholm, Sweden', sampleRecipientPhone: '+46 70 555 0142',
     sampleFeedback: null, sampleFeedbackDate: null,
     linkedOrderId: null, linkedOrderPo: null, convertedAt: null,
     notes: 'DEMO: Norden 复购订单，优先锁定纱线和交期。',
@@ -1276,7 +1284,9 @@ const developmentCases: DevelopmentCaseSeed[] = [
     completedDate: null,
     sampleType: 'yardage', sampleQuantity: 30, sampleUnit: 'meter',
     sampleSentDate: '2026-02-01', sampleTrackingNumber: 'DEMO-DEV-26005-SAMPLE',
-    sampleCourier: 'DHL',
+    sampleCourier: 'DHL', sampleShippingFee: 73.9,
+    sampleRecipientName: 'Sarah Chen', sampleRecipientCompany: 'Atlas Outfitters Ltd.',
+    sampleRecipientAddress: '2400 NW Front Ave, Portland, OR, USA', sampleRecipientPhone: '+1 503 555 0187',
     sampleFeedback: '样品手感合格，大货坯布库存告急。',
     sampleFeedbackDate: '2026-02-20',
     linkedOrderId: 'DEMO-PO-2601005', linkedOrderPo: 'DEMO-PO-2601005',
@@ -1881,6 +1891,290 @@ const insights: InsightSeed[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
+// 14. SAMPLE ROOM WAREHOUSES（样品间仓库；3 个：主仓/面料仓/成衣仓）
+// ═══════════════════════════════════════════════════════════════════
+const sampleRoomWarehouses = [
+  {
+    id: 'DEMO-WH-SAMPLE-001', code: 'SH-SAMPLE-MAIN', name: '样品间主仓',
+    type: 'Main', address: '上海总部 3F-A 区样品间', manager: '陈芳', phone: '021-5555-0001',
+    isActive: true, sortOrder: 1, notes: 'DEMO: 主样品间，存放色卡/工艺样/辅料样',
+    createdAt: BigInt(now), updatedAt: BigInt(now), deletedAt: null,
+  },
+  {
+    id: 'DEMO-WH-SAMPLE-002', code: 'SH-SAMPLE-FABRIC', name: '面料档案仓',
+    type: 'Auxiliary', address: '上海总部 3F-B 区面料档案室', manager: '林娜', phone: '021-5555-0002',
+    isActive: true, sortOrder: 2, notes: 'DEMO: 面料实物档案，恒温恒湿',
+    createdAt: BigInt(now), updatedAt: BigInt(now), deletedAt: null,
+  },
+  {
+    id: 'DEMO-WH-SAMPLE-003', code: 'SH-SAMPLE-GARMENT', name: '成衣样品仓',
+    type: 'Auxiliary', address: '上海总部 3F-C 区成衣样品间', manager: '王强', phone: '021-5555-0003',
+    isActive: true, sortOrder: 3, notes: 'DEMO: 成衣服装样品，按客户分区',
+    createdAt: BigInt(now), updatedAt: BigInt(now), deletedAt: null,
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// 15. SAMPLE CARD ITEMS（30 个样卡；覆盖 fabric/garment/colorcard/trim/other
+//     + 关联 devCaseId/orderId/productAssetId/warehouseId + 库存/借出/退役多样性
+//     + 部分低库存（availableQty <= minStock）+ 部分在借（borrowed）/逾期 + 部分退役）
+// ═══════════════════════════════════════════════════════════════════
+const sampleCardItems = [
+  // ── 面料样卡 12 个 ──
+  {
+    id: 'DEMO-SCI-001', code: 'SC-20260101-001', name: '棉弹力斜纹布样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'A-01-03', status: 'in_stock', notes: 'DEMO: Atlas 主力面料，关联开发单 DEMO-DEV-26001',
+    quantity: 8, availableQty: 8, minStock: 3, maxStock: 20, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: 'DEMO-DEV-26001', orderId: 'DEMO-PO-2601001', productAssetId: 'DEMO-PROD-COTTON-STRETCH-TWILL',
+    createdAt: BigInt(now - 1 * 86400000), updatedAt: BigInt(now - 1 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-002', code: 'SC-20260101-002', name: '棉府绸白色样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-01', status: 'in_stock', notes: 'DEMO: Norden 衬衫面料，关联开发单 DEMO-DEV-26004',
+    quantity: 5, availableQty: 5, minStock: 2, maxStock: 15, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: 'DEMO-DEV-26004', orderId: 'DEMO-PO-2601002', productAssetId: 'DEMO-PROD-COTTON-POPLIN-WHITE',
+    createdAt: BigInt(now - 2 * 86400000), updatedAt: BigInt(now - 2 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-003', code: 'SC-20260101-003', name: 'PV 混纺马来丝样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-02', status: 'in_stock', notes: 'DEMO: PV 混纺，关联开发单 DEMO-DEV-26004',
+    quantity: 6, availableQty: 6, minStock: 2, maxStock: 15, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: 'DEMO-DEV-26004', orderId: null, productAssetId: 'DEMO-PROD-POLY-VISCOSE-MELANGE',
+    createdAt: BigInt(now - 3 * 86400000), updatedAt: BigInt(now - 3 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-004', code: 'SC-20260101-004', name: '再生涤纶 ripstop 样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-03', status: 'in_stock', notes: 'DEMO: GRS 认证再生面料',
+    quantity: 4, availableQty: 4, minStock: 2, maxStock: 10, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: null, orderId: 'DEMO-PO-2601003', productAssetId: 'DEMO-PROD-RECYCLED-POLY-RIPSTOP',
+    createdAt: BigInt(now - 4 * 86400000), updatedAt: BigInt(now - 4 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-005', code: 'SC-20260101-005', name: '仿羊毛针织样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'A-01-05', status: 'in_stock', notes: 'DEMO: 仿羊毛针织，关联开发单 DEMO-DEV-26001',
+    quantity: 5, availableQty: 5, minStock: 2, maxStock: 12, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: 'DEMO-DEV-26001', orderId: null, productAssetId: 'DEMO-PROD-WOOL-LIKE-KNIT',
+    createdAt: BigInt(now - 5 * 86400000), updatedAt: BigInt(now - 5 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-006', code: 'SC-20260101-006', name: 'NC 弹力卡其样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-06', status: 'in_stock', notes: 'DEMO: NC 卡其，低库存预警，关联开发单 DEMO-DEV-26005',
+    quantity: 4, availableQty: 1, minStock: 3, maxStock: 10, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: 'DEMO-DEV-26005', orderId: 'DEMO-PO-2601005', productAssetId: 'DEMO-PROD-NYLON-COTTON-STRETCH',
+    createdAt: BigInt(now - 6 * 86400000), updatedAt: BigInt(now - 1 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-007', code: 'SC-20260101-007', name: '精纺羊毛炭灰样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-07', status: 'borrowed', notes: 'DEMO: Peerless 西装面料，在借中',
+    quantity: 3, availableQty: 0, minStock: 2, maxStock: 8, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-WOOL-WORSTED-CHARCOAL',
+    createdAt: BigInt(now - 7 * 86400000), updatedAt: BigInt(now - 2 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-008', code: 'SC-20260101-008', name: '羊毛弹力藏青样卡', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-08', status: 'borrowed', notes: 'DEMO: 逾期未还（dueAt 已过），关联开发单 DEMO-DEV-26001',
+    quantity: 4, availableQty: 0, minStock: 2, maxStock: 10, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: 'DEMO-DEV-26001', orderId: null, productAssetId: 'DEMO-PROD-WOOL-STRETCH-NAVY',
+    createdAt: BigInt(now - 8 * 86400000), updatedAt: BigInt(now - 3 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-009', code: 'SC-20260101-009', name: '棉弹力斜纹布样卡-副本 A', cardType: 'fabric',
+    colorCardCode: null, location: 'A-01-09', status: 'in_stock', notes: 'DEMO: 同款面料备份样卡',
+    quantity: 6, availableQty: 6, minStock: 3, maxStock: 15, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-COTTON-STRETCH-TWILL',
+    createdAt: BigInt(now - 9 * 86400000), updatedAt: BigInt(now - 9 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-010', code: 'SC-20260101-010', name: '精纺羊毛炭灰样卡-褪色退役', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-10', status: 'retired', notes: 'DEMO: 长期光照褪色，已退役存档',
+    quantity: 2, availableQty: 2, minStock: null, maxStock: null, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-WOOL-WORSTED-CHARCOAL',
+    createdAt: BigInt(now - 30 * 86400000), updatedAt: BigInt(now - 10 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-011', code: 'SC-20260101-011', name: 'PV 混纺马来丝样卡-副本', cardType: 'fabric',
+    colorCardCode: null, location: 'B-02-11', status: 'in_stock', notes: 'DEMO: 低库存临界，紧急补库',
+    quantity: 3, availableQty: 0, minStock: 3, maxStock: 8, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-002', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-POLY-VISCOSE-MELANGE',
+    createdAt: BigInt(now - 11 * 86400000), updatedAt: BigInt(now - 1 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-012', code: 'SC-20260101-012', name: '棉府绸白色样卡-副本', cardType: 'fabric',
+    colorCardCode: null, location: 'A-01-12', status: 'in_stock', notes: 'DEMO: 备份样卡',
+    quantity: 5, availableQty: 5, minStock: 2, maxStock: 12, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-COTTON-POPLIN-WHITE',
+    createdAt: BigInt(now - 12 * 86400000), updatedAt: BigInt(now - 12 * 86400000), deletedAt: null,
+  },
+  // ── 成衣样卡 5 个 ──
+  {
+    id: 'DEMO-SCI-013', code: 'SC-20260101-013', name: 'Peerless 男士修身西装样衣', cardType: 'garment',
+    colorCardCode: null, location: 'C-03-01', status: 'in_stock', notes: 'DEMO: PP 样已批准，关联开发单 DEMO-DEV-26003，已转大货订单 DEMO-PO-2601009',
+    quantity: 2, availableQty: 2, minStock: 1, maxStock: 5, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-003', devCaseId: 'DEMO-DEV-26003', orderId: 'DEMO-PO-2601009', productAssetId: 'DEMO-PROD-GARMENT-BLAZER',
+    createdAt: BigInt(now - 13 * 86400000), updatedAt: BigInt(now - 13 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-014', code: 'SC-20260101-014', name: 'Atlas 男士斜纹棉长裤样衣', cardType: 'garment',
+    colorCardCode: null, location: 'C-03-02', status: 'in_stock', notes: 'DEMO: Atlas Chino 样衣',
+    quantity: 3, availableQty: 3, minStock: 2, maxStock: 8, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-003', devCaseId: null, orderId: 'DEMO-PO-2601002', productAssetId: 'DEMO-PROD-GARMENT-CHINO',
+    createdAt: BigInt(now - 14 * 86400000), updatedAt: BigInt(now - 14 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-015', code: 'SC-20260101-015', name: 'Norden 轻量飞行夹克样衣', cardType: 'garment',
+    colorCardCode: null, location: 'C-03-03', status: 'borrowed', notes: 'DEMO: 在借中（销售部出差借用），关联开发单 DEMO-DEV-26002',
+    quantity: 2, availableQty: 0, minStock: 1, maxStock: 4, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-003', devCaseId: 'DEMO-DEV-26002', orderId: null, productAssetId: 'DEMO-PROD-GARMENT-JACKET',
+    createdAt: BigInt(now - 15 * 86400000), updatedAt: BigInt(now - 5 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-016', code: 'SC-20260101-016', name: 'Peerless 西装 M 码样衣', cardType: 'garment',
+    colorCardCode: null, location: 'C-03-04', status: 'in_stock', notes: 'DEMO: 低库存预警，关联开发单 DEMO-DEV-26003',
+    quantity: 1, availableQty: 1, minStock: 2, maxStock: 4, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-003', devCaseId: 'DEMO-DEV-26003', orderId: null, productAssetId: 'DEMO-PROD-GARMENT-BLAZER',
+    createdAt: BigInt(now - 16 * 86400000), updatedAt: BigInt(now - 16 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-017', code: 'SC-20260101-017', name: 'Atlas 长裤样衣-退役', cardType: 'garment',
+    colorCardCode: null, location: 'C-03-05', status: 'retired', notes: 'DEMO: 试穿磨损，已退役',
+    quantity: 1, availableQty: 1, minStock: null, maxStock: null, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-003', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-GARMENT-CHINO',
+    createdAt: BigInt(now - 40 * 86400000), updatedAt: BigInt(now - 20 * 86400000), deletedAt: null,
+  },
+  // ── 色卡 6 个 ──
+  {
+    id: 'DEMO-SCI-018', code: 'SC-20260101-018', name: 'Classic Blue 色卡', cardType: 'colorcard',
+    colorCardCode: '19-4052 TCX', location: 'A-02-01', status: 'in_stock', notes: 'DEMO: Pantone 19-4052 TCX 经典蓝',
+    quantity: 10, availableQty: 10, minStock: 3, maxStock: 20, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 18 * 86400000), updatedAt: BigInt(now - 18 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-019', code: 'SC-20260101-019', name: 'Sunset Orange 色卡', cardType: 'colorcard',
+    colorCardCode: '18-1664 TCX', location: 'A-02-02', status: 'in_stock', notes: 'DEMO: Pantone 18-1664 TCX，低库存',
+    quantity: 2, availableQty: 2, minStock: 3, maxStock: 8, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 19 * 86400000), updatedAt: BigInt(now - 1 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-020', code: 'SC-20260101-020', name: 'Pastel Pink 色卡', cardType: 'colorcard',
+    colorCardCode: '16-1546 TCX', location: 'A-02-03', status: 'in_stock', notes: 'DEMO: Pantone 16-1546 TCX',
+    quantity: 8, availableQty: 8, minStock: 3, maxStock: 15, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 20 * 86400000), updatedAt: BigInt(now - 20 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-021', code: 'SC-20260101-021', name: 'Lemon Yellow 色卡', cardType: 'colorcard',
+    colorCardCode: '14-0740 TCX', location: 'A-02-04', status: 'borrowed', notes: 'DEMO: 客户看样借用',
+    quantity: 4, availableQty: 0, minStock: 2, maxStock: 8, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 21 * 86400000), updatedAt: BigInt(now - 4 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-022', code: 'SC-20260101-022', name: 'Scuba Blue 色卡', cardType: 'colorcard',
+    colorCardCode: '17-2624 TCX', location: 'A-02-05', status: 'in_stock', notes: 'DEMO: Pantone 17-2624 TCX',
+    quantity: 6, availableQty: 6, minStock: 2, maxStock: 12, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 22 * 86400000), updatedAt: BigInt(now - 22 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-023', code: 'SC-20260101-023', name: 'Royal Purple 色卡-退役', cardType: 'colorcard',
+    colorCardCode: '18-3838 TCX', location: 'A-02-06', status: 'retired', notes: 'DEMO: 已退役归档',
+    quantity: 2, availableQty: 2, minStock: null, maxStock: null, unit: '张',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 50 * 86400000), updatedAt: BigInt(now - 25 * 86400000), deletedAt: null,
+  },
+  // ── 辅料样卡 5 个 ──
+  {
+    id: 'DEMO-SCI-024', code: 'SC-20260101-024', name: 'YKK #5 黄铜拉链样卡', cardType: 'trim',
+    colorCardCode: null, location: 'A-03-01', status: 'in_stock', notes: 'DEMO: 关联开发单 DEMO-DEV-26002（夹克拉链）',
+    quantity: 20, availableQty: 20, minStock: 5, maxStock: 50, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: 'DEMO-DEV-26002', orderId: 'DEMO-PO-2601008', productAssetId: 'DEMO-PROD-TRIM-ZIPPER-YKK5',
+    createdAt: BigInt(now - 24 * 86400000), updatedAt: BigInt(now - 24 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-025', code: 'SC-20260101-025', name: '天然牛角扣 22mm 样卡', cardType: 'trim',
+    colorCardCode: null, location: 'A-03-02', status: 'in_stock', notes: 'DEMO: 低库存预警，关联开发单 DEMO-DEV-26003（西装扣）',
+    quantity: 8, availableQty: 2, minStock: 4, maxStock: 20, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: 'DEMO-DEV-26003', orderId: null, productAssetId: 'DEMO-PROD-TRIM-BUTTON-HORN',
+    createdAt: BigInt(now - 25 * 86400000), updatedAt: BigInt(now - 1 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-026', code: 'SC-20260101-026', name: '主标 woven label 样卡', cardType: 'trim',
+    colorCardCode: null, location: 'A-03-03', status: 'in_stock', notes: 'DEMO: 主标样品',
+    quantity: 15, availableQty: 15, minStock: 5, maxStock: 30, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-TRIM-LABEL-MAIN',
+    createdAt: BigInt(now - 26 * 86400000), updatedAt: BigInt(now - 26 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-027', code: 'SC-20260101-027', name: 'YKK #5 拉链样卡-副本', cardType: 'trim',
+    colorCardCode: null, location: 'A-03-04', status: 'borrowed', notes: 'DEMO: 逾期未还（工厂打样借用）',
+    quantity: 10, availableQty: 0, minStock: 3, maxStock: 20, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-TRIM-ZIPPER-YKK5',
+    createdAt: BigInt(now - 27 * 86400000), updatedAt: BigInt(now - 15 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-028', code: 'SC-20260101-028', name: '天然牛角扣 22mm 样卡-退役', cardType: 'trim',
+    colorCardCode: null, location: 'A-03-05', status: 'retired', notes: 'DEMO: 已退役',
+    quantity: 2, availableQty: 2, minStock: null, maxStock: null, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: 'DEMO-PROD-TRIM-BUTTON-HORN',
+    createdAt: BigInt(now - 45 * 86400000), updatedAt: BigInt(now - 18 * 86400000), deletedAt: null,
+  },
+  // ── 其他样卡 2 个 ──
+  {
+    id: 'DEMO-SCI-029', code: 'SC-20260101-029', name: '工艺配套说明样卡', cardType: 'other',
+    colorCardCode: null, location: 'A-04-01', status: 'in_stock', notes: 'DEMO: 工艺样配套说明',
+    quantity: 4, availableQty: 4, minStock: 2, maxStock: 10, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-001', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 29 * 86400000), updatedAt: BigInt(now - 29 * 86400000), deletedAt: null,
+  },
+  {
+    id: 'DEMO-SCI-030', code: 'SC-20260101-030', name: '成衣工艺样卡', cardType: 'other',
+    colorCardCode: null, location: 'C-04-01', status: 'in_stock', notes: 'DEMO: 成衣工艺参考样',
+    quantity: 3, availableQty: 3, minStock: 1, maxStock: 8, unit: 'PC',
+    warehouseId: 'DEMO-WH-SAMPLE-003', devCaseId: null, orderId: null, productAssetId: null,
+    createdAt: BigInt(now - 30 * 86400000), updatedAt: BigInt(now - 30 * 86400000), deletedAt: null,
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// 16. SAMPLE CARD LOANS（借出流水；为 borrowed 状态的样卡附活跃借出记录）
+//     含 2 笔逾期未还（SCI-008 / SCI-027）
+// ═══════════════════════════════════════════════════════════════════
+const sampleCardLoans = [
+  {
+    id: 'DEMO-SCL-001', itemId: 'DEMO-SCI-007', loanType: 'borrow', loanQuantity: 3,
+    borrowerName: 'Peerless 样品间', borrowerUserId: null, relationId: null, relationName: null,
+    loanedAt: BigInt(now - 2 * 86400000), dueAt: BigInt(now + 5 * 86400000), returnedAt: null,
+    conditionNote: null, operatorId: 'demo-user', createdAt: BigInt(now - 2 * 86400000),
+  },
+  {
+    id: 'DEMO-SCL-002', itemId: 'DEMO-SCI-008', loanType: 'borrow', loanQuantity: 4,
+    borrowerName: '设计部-李工', borrowerUserId: null, relationId: null, relationName: null,
+    loanedAt: BigInt(now - 3 * 86400000), dueAt: BigInt(now - 1 * 86400000), returnedAt: null, // 逾期
+    conditionNote: null, operatorId: 'demo-user', createdAt: BigInt(now - 3 * 86400000),
+  },
+  {
+    id: 'DEMO-SCL-003', itemId: 'DEMO-SCI-015', loanType: 'borrow', loanQuantity: 2,
+    borrowerName: '销售部-张经理', borrowerUserId: null, relationId: null, relationName: null,
+    loanedAt: BigInt(now - 5 * 86400000), dueAt: BigInt(now + 2 * 86400000), returnedAt: null,
+    conditionNote: null, operatorId: 'demo-user', createdAt: BigInt(now - 5 * 86400000),
+  },
+  {
+    id: 'DEMO-SCL-004', itemId: 'DEMO-SCI-021', loanType: 'borrow', loanQuantity: 4,
+    borrowerName: '设计部-王工', borrowerUserId: null, relationId: null, relationName: null,
+    loanedAt: BigInt(now - 4 * 86400000), dueAt: BigInt(now + 3 * 86400000), returnedAt: null,
+    conditionNote: null, operatorId: 'demo-user', createdAt: BigInt(now - 4 * 86400000),
+  },
+  {
+    id: 'DEMO-SCL-005', itemId: 'DEMO-SCI-027', loanType: 'borrow', loanQuantity: 10,
+    borrowerName: '南通北星工厂', borrowerUserId: null, relationId: null, relationName: null,
+    loanedAt: BigInt(now - 15 * 86400000), dueAt: BigInt(now - 8 * 86400000), returnedAt: null, // 逾期
+    conditionNote: null, operatorId: 'demo-user', createdAt: BigInt(now - 15 * 86400000),
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
@@ -2095,10 +2389,18 @@ function printSummary(): void {
   console.log(`Shipments: ${shipments.length}`);
   console.log(`  Shipment lines: ${shipmentLines.length}`);
   console.log(`Insights: ${insights.length}`);
+  console.log(`Sample room warehouses: ${sampleRoomWarehouses.length}`);
+  console.log(`  Sample card items: ${sampleCardItems.length}`);
+  console.log(`  Sample card loans: ${sampleCardLoans.length}`);
 }
 
 async function rollbackDemo(prisma: PrismaClient): Promise<void> {
   await prisma.$transaction(async (tx) => {
+    // ─── Sample room module (Loans → Items → Warehouses；借出流水先于样卡，避免孤儿引用） ───
+    await tx.sampleCardLoan.deleteMany({ where: { id: { startsWith: 'DEMO-SCL-' } } });
+    await tx.sampleCardItem.deleteMany({ where: { id: { startsWith: 'DEMO-SCI-' } } });
+    await tx.warehouse.deleteMany({ where: { id: { startsWith: 'DEMO-WH-SAMPLE-' } } });
+
     // ─── New modules (Development / Finance / Shipping / Insight) ───
     // Delete ShipmentLines before Shipments (foreign key)
     await tx.shipmentLine.deleteMany({ where: { id: { startsWith: 'DEMO-SHPL-' } } });
@@ -2285,6 +2587,17 @@ async function applyDemo(prisma: PrismaClient): Promise<void> {
 
     // 13. Insights
     await tx.insight.createMany({ data: insights });
+
+    // 14. Sample room warehouses（3 个样品间仓库）
+    for (const wh of sampleRoomWarehouses) {
+      await tx.warehouse.upsert({ where: { id: wh.id }, update: wh, create: wh });
+    }
+
+    // 15. Sample card items（30 个样卡；关联 devCase/order/productAsset/warehouse）
+    await tx.sampleCardItem.createMany({ data: sampleCardItems });
+
+    // 16. Sample card loans（借出流水；为 borrowed 状态样卡附活跃借出记录）
+    await tx.sampleCardLoan.createMany({ data: sampleCardLoans });
   });
 }
 
@@ -2324,9 +2637,13 @@ async function main(): Promise<void> {
     const shpCount = await prisma.shipment.count({ where: { id: { startsWith: 'DEMO-SHP-' } } });
     const shpLineCount = await prisma.shipmentLine.count({ where: { id: { startsWith: 'DEMO-SHPL-' } } });
     const insCount = await prisma.insight.count({ where: { id: { startsWith: 'DEMO-INS-' } } });
+    const whSampleCount = await prisma.warehouse.count({ where: { id: { startsWith: 'DEMO-WH-SAMPLE-' } } });
+    const sciCount = await prisma.sampleCardItem.count({ where: { id: { startsWith: 'DEMO-SCI-' } } });
+    const sclCount = await prisma.sampleCardLoan.count({ where: { id: { startsWith: 'DEMO-SCL-' } } });
     console.log(`\nVerification:`);
     console.log(`  Relations: ${relCount} | Products: ${prodCount} | Orders: ${ordCount} | EntityLinks: ${linkCount}`);
     console.log(`  DevelopmentCases: ${devCount} | Invoices: ${invCount} | Payments: ${payCount} | Shipments: ${shpCount} | ShipmentLines: ${shpLineCount} | Insights: ${insCount}`);
+    console.log(`  SampleRoom: Warehouses: ${whSampleCount} | SampleCardItems: ${sciCount} | SampleCardLoans: ${sclCount}`);
   } finally {
     await prisma.$disconnect();
   }

@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { ChevronLeft, FileText, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { ChevronLeft, FileText, Package, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import {
@@ -11,7 +11,8 @@ import {
   CompiledTableShell,
 } from './ui/primitives/compiledPrimitives';
 import { developmentService } from '../services/developmentService';
-import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { apiService } from '../services/apiService';
+import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import type {
   DevelopmentCase as DevCase,
@@ -20,13 +21,14 @@ import type {
   DevelopmentType as DevType,
   DevelopmentStage as DevStage,
   SampleType,
+  ProductAssetDetail,
 } from '../types';
 import { View } from '../types';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
-import SampleRoomPanel from './development/SampleRoomPanel';
 import { primeQuotationCreateFromDevCase } from './QuotationManager';
+import { primeFinanceInvoiceFocus } from './FinanceManager';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 
@@ -36,6 +38,8 @@ interface DevelopmentManagerProps {
   setCases: React.Dispatch<React.SetStateAction<DevCase[]>>;
   /** 阶段 IA-3：开发案详情「发起报价」跳转报价管理 */
   onNavigate?: (view: View) => void;
+  /** DR-057 v2.1：开发单详情「已转订单」直达订单详情（App.handleOpenOrderById） */
+  onOpenOrder?: (orderId: string) => void;
 }
 
 type DevelopmentTypeId = 'all' | DevType;
@@ -64,9 +68,10 @@ const DEVELOPMENT_STAGES: Array<{ id: DevelopmentStageId; label: string }> = [
 const typeLabelMap = Object.fromEntries(DEVELOPMENT_TYPES.map(item => [item.id, item.label])) as Record<DevelopmentTypeId, string>;
 const stageLabelMap = Object.fromEntries(DEVELOPMENT_STAGES.map(item => [item.id, item.label])) as Record<DevelopmentStageId, string>;
 
-const DEV_FORM_SECTIONS = [
+const DEV_FORM_SECTIONS_BASE = [
   { id: 'dev-basic', title: '基本信息', desc: '编号、名称、类型、阶段' },
   { id: 'dev-partner', title: '关联信息', desc: '客户、供应商、产品' },
+  { id: 'dev-garment-spec', title: '成衣规格', desc: '款式、尺码、面料、工艺' },
   { id: 'dev-sample-plan', title: '样品与计划', desc: '样品类型、目标日、备注' },
 ];
 
@@ -112,14 +117,36 @@ interface DevFormState {
   owner: string;
   customerName: string;
   supplierName: string;
+  productAssetId: string;
   productName: string;
   currentRound: string;
   nextAction: string;
   targetDate: string;
   sampleType: SampleType | '';
   sampleCategory: 'normal' | '5a';
+  // 寄样信息（DR-057 v2.1 用户验收口径：开发单须承载寄样快递全量留痕）
+  sampleQuantity: string;
+  sampleUnit: string;
+  sampleSentDate: string;
+  sampleCourier: string;
+  sampleTrackingNumber: string;
+  sampleShippingFee: string;
+  // 寄样收件信息（DR-057 v2.1：收件方全量留痕）
+  sampleRecipientName: string;
+  sampleRecipientCompany: string;
+  sampleRecipientAddress: string;
+  sampleRecipientPhone: string;
+  // 样品发票关联（跳财务发票详情直达）
+  sampleInvoiceId: string;
+  styleSpec: string;
+  sizeSpec: string;
+  fabricSpec: string;
+  processSpec: string;
   notes: string;
 }
+
+const COURIER_OPTIONS = ['DHL', 'FedEx', 'UPS', 'TNT', 'SF Express', 'EMS', 'Other'] as const;
+const SAMPLE_UNIT_OPTIONS = ['meter', 'yard', 'pc', 'set', 'kg'] as const;
 
 const EMPTY_FORM: DevFormState = {
   code: '',
@@ -129,12 +156,28 @@ const EMPTY_FORM: DevFormState = {
   owner: '',
   customerName: '',
   supplierName: '',
+  productAssetId: '',
   productName: '',
   currentRound: '1',
   nextAction: '',
   targetDate: '',
   sampleType: '',
   sampleCategory: 'normal',
+  sampleQuantity: '',
+  sampleUnit: 'meter',
+  sampleSentDate: '',
+  sampleCourier: '',
+  sampleTrackingNumber: '',
+  sampleShippingFee: '',
+  sampleRecipientName: '',
+  sampleRecipientCompany: '',
+  sampleRecipientAddress: '',
+  sampleRecipientPhone: '',
+  sampleInvoiceId: '',
+  styleSpec: '',
+  sizeSpec: '',
+  fabricSpec: '',
+  processSpec: '',
   notes: '',
 };
 
@@ -148,17 +191,33 @@ const buildInitialForm = (editingCase: DevCase | null): DevFormState => {
     owner: editingCase.owner || '',
     customerName: editingCase.customerName || '',
     supplierName: editingCase.supplierName || '',
+    productAssetId: (editingCase as any).productAssetId || '',
     productName: editingCase.productName || '',
     currentRound: String(editingCase.currentRound ?? 1),
     nextAction: editingCase.nextAction || '',
     targetDate: editingCase.targetDate || '',
     sampleType: editingCase.sampleType || '',
     sampleCategory: (editingCase as any).sampleCategory === '5a' ? '5a' : 'normal',
+    sampleQuantity: editingCase.sampleQuantity != null ? String(editingCase.sampleQuantity) : '',
+    sampleUnit: editingCase.sampleUnit || 'meter',
+    sampleSentDate: editingCase.sampleSentDate || '',
+    sampleCourier: editingCase.sampleCourier || '',
+    sampleTrackingNumber: editingCase.sampleTrackingNumber || '',
+    sampleShippingFee: editingCase.sampleShippingFee != null ? String(editingCase.sampleShippingFee) : '',
+    sampleRecipientName: editingCase.sampleRecipientName || '',
+    sampleRecipientCompany: editingCase.sampleRecipientCompany || '',
+    sampleRecipientAddress: editingCase.sampleRecipientAddress || '',
+    sampleRecipientPhone: editingCase.sampleRecipientPhone || '',
+    sampleInvoiceId: editingCase.sampleInvoiceId || '',
+    styleSpec: (editingCase as any).styleSpec || '',
+    sizeSpec: (editingCase as any).sizeSpec || '',
+    fabricSpec: (editingCase as any).fabricSpec || '',
+    processSpec: (editingCase as any).processSpec || '',
     notes: editingCase.notes || '',
   };
 };
 
-const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cases, setCases, onNavigate }) => {
+const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cases, setCases, onNavigate, onOpenOrder }) => {
   const [selectedType, setSelectedType] = useState<DevelopmentTypeId>('all');
   const [selectedStage, setSelectedStage] = useState<DevelopmentStageId>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,8 +226,11 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const formScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // 跨模块导航筛选（关系智库档案「关联业务 → 开发」入口）：挂载时消费一次
-  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+  // 跨模块导航筛选（关系/样品间档案「关联业务 → 开发」入口）：挂载时消费一次
+  // 同时携带 filter（列表筛选）与 focusEntityId（精准定位开发单详情）
+  const [navCtx, setNavCtx] = useState(() => consumeCrossModuleNav());
+  const navRelationFilter = navCtx?.filter ?? null;
+  const navFocusEntityId = navCtx?.focusEntityId ?? null;
 
   // 手动刷新（从后端拉取最新数据，不阻塞渲染）
   const handleRefresh = useCallback(async () => {
@@ -200,6 +262,16 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
 
   const selectedCase = filteredCases.find(item => item.id === selectedCaseId) || filteredCases[0];
 
+  // 跨模块导航 focusEntityId 直达：从样品间/订单详情等入口跳转过来时，
+  // 定位对应开发单（首选 filteredCases 命中，回退到 cases 全量匹配，避免被当前筛选条件吞掉）
+  useEffect(() => {
+    if (!navFocusEntityId) return;
+    const matched =
+      filteredCases.find(c => c.id === navFocusEntityId) ??
+      cases.find(c => c.id === navFocusEntityId);
+    if (matched) setSelectedCaseId(matched.id);
+  }, [navFocusEntityId, filteredCases, cases]);
+
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<DevCase | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -209,6 +281,34 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
   const updateField = useCallback(<K extends keyof DevFormState>(key: K, value: DevFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  // ── ProductAsset 搜索（2.10 关联产品资产）──
+  const [paSearch, setPaSearch] = useState('');
+  const [paResults, setPaResults] = useState<ProductAssetDetail[]>([]);
+  const [paLoading, setPaLoading] = useState(false);
+  const [paDropdownOpen, setPaDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (!paSearch.trim()) { setPaResults([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setPaLoading(true);
+      try {
+        const mainCategory = form.type === 'garment' ? 'Garment' : 'Fabric';
+        const assets = await apiService.listProductAssets(undefined, { search: paSearch.trim(), mainCategory, limit: 6 });
+        if (!cancelled) setPaResults(assets);
+      } catch { if (!cancelled) setPaResults([]); }
+      finally { if (!cancelled) setPaLoading(false); }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [paSearch, form.type]);
+
+  const selectProductAsset = useCallback((asset: ProductAssetDetail) => {
+    updateField('productAssetId', asset.id);
+    updateField('productName', asset.name);
+    setPaSearch('');
+    setPaDropdownOpen(false);
+  }, [updateField]);
 
   const openCreateModal = useCallback(() => {
     setEditingCase(null);
@@ -264,7 +364,23 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       const d = new Date(form.targetDate);
       if (isNaN(d.getTime())) { bdsToast.warning('交样日期格式无效'); return; }
     }
-    const input: DevelopmentCaseCreateInput = {
+    if (form.sampleSentDate) {
+      const d = new Date(form.sampleSentDate);
+      if (isNaN(d.getTime())) { bdsToast.warning('寄出日期格式无效'); return; }
+    }
+    const parsedQty = form.sampleQuantity === '' ? null : Number(form.sampleQuantity);
+    if (parsedQty != null && (!Number.isFinite(parsedQty) || parsedQty < 0)) {
+      bdsToast.warning('样品数量必须是有效的非负数值');
+      return;
+    }
+    const parsedFee = form.sampleShippingFee === '' ? null : Number(form.sampleShippingFee);
+    if (parsedFee != null && (!Number.isFinite(parsedFee) || parsedFee < 0)) {
+      bdsToast.warning('邮寄费必须是有效的非负数值');
+      return;
+    }
+    // 寄样字段（sampleSentDate 等）属于 UpdateInput 专属：create 场景后端显式字段表同样支持
+    // sampleQuantity/sampleUnit/sampleShippingFee，其余寄样字段随 update 链路提交。
+    const input: DevelopmentCaseCreateInput & Partial<DevelopmentCaseUpdateInput> = {
       code: form.code.trim(),
       name: form.name.trim(),
       type: form.type,
@@ -272,12 +388,30 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       ...(form.owner.trim() ? { owner: form.owner.trim() } : {}),
       ...(form.customerName.trim() ? { customerName: form.customerName.trim() } : {}),
       ...(form.supplierName.trim() ? { supplierName: form.supplierName.trim() } : {}),
+      ...(form.productAssetId.trim() ? { productAssetId: form.productAssetId.trim() } : {}),
       ...(form.productName.trim() ? { productName: form.productName.trim() } : {}),
       currentRound: Number.isFinite(parsedRound) && parsedRound > 0 ? parsedRound : 1,
       ...(form.nextAction.trim() ? { nextAction: form.nextAction.trim() } : {}),
       ...(form.targetDate ? { targetDate: form.targetDate } : {}),
       ...(form.sampleType ? { sampleType: form.sampleType } : {}),
       sampleCategory: form.sampleCategory,
+      // 寄样信息（DR-057 v2.1）：数量/单位/邮寄费为 create+update 共有；寄出日期/快递公司/单号随 update 提交
+      ...(parsedQty != null ? { sampleQuantity: parsedQty } : {}),
+      sampleUnit: form.sampleUnit,
+      ...(parsedFee != null ? { sampleShippingFee: parsedFee } : {}),
+      ...(form.sampleSentDate ? { sampleSentDate: form.sampleSentDate } : {}),
+      ...(form.sampleCourier.trim() ? { sampleCourier: form.sampleCourier.trim() } : {}),
+      ...(form.sampleTrackingNumber.trim() ? { sampleTrackingNumber: form.sampleTrackingNumber.trim() } : {}),
+      // 寄样收件信息（DR-057 v2.1）+ 样品发票关联
+      ...(form.sampleRecipientName.trim() ? { sampleRecipientName: form.sampleRecipientName.trim() } : {}),
+      ...(form.sampleRecipientCompany.trim() ? { sampleRecipientCompany: form.sampleRecipientCompany.trim() } : {}),
+      ...(form.sampleRecipientAddress.trim() ? { sampleRecipientAddress: form.sampleRecipientAddress.trim() } : {}),
+      ...(form.sampleRecipientPhone.trim() ? { sampleRecipientPhone: form.sampleRecipientPhone.trim() } : {}),
+      ...(form.sampleInvoiceId.trim() ? { sampleInvoiceId: form.sampleInvoiceId.trim() } : {}),
+      ...(form.styleSpec.trim() ? { styleSpec: form.styleSpec.trim() } : {}),
+      ...(form.sizeSpec.trim() ? { sizeSpec: form.sizeSpec.trim() } : {}),
+      ...(form.fabricSpec.trim() ? { fabricSpec: form.fabricSpec.trim() } : {}),
+      ...(form.processSpec.trim() ? { processSpec: form.processSpec.trim() } : {}),
       ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
     };
     handleFormSubmit(input);
@@ -317,7 +451,23 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
         { label: '评审状态', value: (selectedCase as any).reviewStatus === 'passed' ? '通过' : (selectedCase as any).reviewStatus === 'failed' ? '不通过' : (selectedCase as any).reviewStatus === 'pending' ? '待评审' : '—' },
         { label: '目标日期', value: selectedCase.targetDate || '—' },
         { label: '当前轮次', value: `S${selectedCase.currentRound}` },
+        {
+          label: '样品数量',
+          value: selectedCase.sampleQuantity != null ? `${selectedCase.sampleQuantity} ${selectedCase.sampleUnit || ''}`.trim() : '—',
+        },
+        { label: '寄出日期', value: selectedCase.sampleSentDate || '—' },
+        { label: '快递公司', value: selectedCase.sampleCourier || '—' },
         { label: '快递单号', value: selectedCase.sampleTrackingNumber || '—' },
+        {
+          label: '邮寄费',
+          value: selectedCase.sampleShippingFee != null ? String(selectedCase.sampleShippingFee) : '—',
+        },
+        {
+          label: '收件人',
+          value: [selectedCase.sampleRecipientName, selectedCase.sampleRecipientCompany].filter(Boolean).join(' · ') || '—',
+        },
+        { label: '收件地址', value: selectedCase.sampleRecipientAddress || '—' },
+        { label: '联系电话', value: selectedCase.sampleRecipientPhone || '—' },
         { label: '客户反馈', value: selectedCase.sampleFeedback || '—' },
         { label: '大货关联', value: selectedCase.linkedOrderPo || '未转大货' },
       ]
@@ -356,7 +506,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       <main className={cx('flex-1 min-h-0 flex flex-col px-7 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', isFormModalOpen && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
           {navRelationFilter && (
-            <NavRelationFilterChip filter={navRelationFilter} label="开发" onClear={() => setNavRelationFilter(null)} />
+            <NavRelationFilterChip filter={navRelationFilter} label="开发" onClear={() => setNavCtx(null)} />
           )}
           {/* 根因修复（2026-08-21）：原搜索框 min-w-48 + 两 select shrink-0（且 w-30 为无效
               Tailwind 类导致 auto 宽度跳变），窄视口下整行最小宽 ~500px 不可收缩，flex-wrap
@@ -394,6 +544,16 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </option>
               ))}
             </select>
+            {/* DR-057 v2.1 寄样成本统计：当前筛选范围邮寄费合计（币种随各开发单客户合同） */}
+            {(() => {
+              const total = filteredCases.reduce((sum, c) => sum + (Number(c.sampleShippingFee) || 0), 0);
+              if (total <= 0) return null;
+              return (
+                <span className="bds-badge sm neutral ml-auto shrink-0" title="当前筛选范围开发单的邮寄费合计（币种随各客户合同）">
+                  寄样支出 {total % 1 === 0 ? total : total.toFixed(2)}
+                </span>
+              );
+            })()}
           </div>
 
           {/* 侧栏宽改为响应式 minmax(320px,360px)：原硬锁 320px 在窄 xl 视口下过小，
@@ -495,6 +655,42 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       </div>
                       {/* 按钮簇只放纯动作按钮；flex-wrap + justify-start：窄 panel 下可换行且左对齐整齐 */}
                       <div className="flex flex-wrap items-center justify-start gap-2">
+                        {/* REQ2-16 v2.1 跨模块联动：跳转库存管理·样品 Tab 并按本开发单预过滤
+                            （crossModuleNav 三段式：tab='samples' 定位 Tab，focusEntityId=devCaseId 预过滤） */}
+                        {onNavigate && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              primeCrossModuleNav({ view: View.Inventory, tab: 'samples', focusEntityId: selectedCase.id });
+                              onNavigate(View.Inventory);
+                            }}
+                            title="跳转到库存管理·样品间，并按本开发单预过滤"
+                            className="bds-btn bds-btn-secondary"
+                          >
+                            <Package size={14} />
+                            样品库存
+                          </button>
+                        )}
+                        {/* 样品发票 → 财务发票管理（View.Invoices 映射 FinanceManager initialTab='invoices'）；
+                            已关联 sampleInvoiceId 时 primeFinanceInvoiceFocus 直达该发票详情 */}
+                        {onNavigate && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedCase.sampleInvoiceId) {
+                                primeFinanceInvoiceFocus(selectedCase.sampleInvoiceId);
+                              }
+                              onNavigate(View.Invoices);
+                            }}
+                            title={selectedCase.sampleInvoiceId
+                              ? '跳转到财务·发票管理，并直达关联的样品发票详情'
+                              : '跳转到财务·发票管理，登记或查看本开发单的样品发票（编辑表单可关联发票 ID 直达）'}
+                            className="bds-btn bds-btn-secondary"
+                          >
+                            <FileText size={14} />
+                            样品发票
+                          </button>
+                        )}
                         {onNavigate && selectedCase.stage !== 'cancelled' && (
                           <button
                             type="button"
@@ -573,9 +769,21 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       </button>
                     )}
                     {selectedCase.linkedOrderId && (
-                      <div className="bds-alert success mt-3">
-                        已转订单 · {selectedCase.linkedOrderPo || selectedCase.linkedOrderId}
-                      </div>
+                      onOpenOrder ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenOrder(selectedCase.linkedOrderId!)}
+                          title="直达关联大货订单详情"
+                          className="bds-btn bds-btn-secondary w-full mt-3"
+                        >
+                          <PackageCheck size={14} />
+                          已转订单 · {selectedCase.linkedOrderPo || selectedCase.linkedOrderId}
+                        </button>
+                      ) : (
+                        <div className="bds-alert success mt-3">
+                          已转订单 · {selectedCase.linkedOrderPo || selectedCase.linkedOrderId}
+                        </div>
+                      )
                     )}
                     {selectedCase.customerRelationId && (
                     <div className="mt-4">
@@ -601,8 +809,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
           </div>
         </div>
 
-        {/* REQ2-16 样品间（DR-057）：开发样→实物样卡库存延伸；App.tsx 冻结期挂本页底部可折叠区块 */}
-        <SampleRoomPanel isDarkMode={isDarkMode} />
+        {/* REQ2-16 样品间联动（DR-057 v2.1）：开发单详情「样品库存」按钮跳转
+            库存管理·样品 Tab（crossModuleNav tab='samples' + focusEntityId 预过滤），
+            本页不再底部内嵌 SampleRoomPanel（用户验收口径：内嵌展开视觉混乱，改为整页跳转）。 */}
       </main>
 
       {isFormModalOpen && (
@@ -662,7 +871,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   source="DevelopmentManager.form-map"
                 >
                   <div className="space-y-1">
-                    {DEV_FORM_SECTIONS.map((section, idx) => (
+                    {DEV_FORM_SECTIONS_BASE.filter(s => s.id !== 'dev-garment-spec' || form.type === 'garment').map((section, idx) => (
                       <button
                         key={section.id}
                         type="button"
@@ -781,15 +990,76 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">产品名</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">关联产品 / 产品名</label>
+                  {form.productAssetId && (
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="bds-badge info text-[10px]">已关联</span>
+                      <span className="text-xs font-light text-[var(--text-primary)] truncate flex-1">{form.productName}</span>
+                      <button type="button" onClick={() => { updateField('productAssetId', ''); }} className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0">
+                        取消关联
+                      </button>
+                    </div>
+                  )}
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
+                    <input
+                      value={paSearch}
+                      onChange={(e) => { setPaSearch(e.target.value); setPaDropdownOpen(true); }}
+                      onFocus={() => setPaDropdownOpen(true)}
+                      onBlur={() => setTimeout(() => setPaDropdownOpen(false), 200)}
+                      placeholder={`搜索${form.type === 'garment' ? '成衣' : '面料'}产品资产…`}
+                      className="bds-input pl-9 mb-2"
+                    />
+                    {paDropdownOpen && (paSearch.trim() || paLoading) && (
+                      <div className="absolute z-50 mt-1 w-full rounded-card border border-[var(--border-c-subtle)] bg-[var(--surface-bg)] max-h-48 overflow-y-auto">
+                        {paLoading && <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">搜索中…</div>}
+                        {!paLoading && paResults.length === 0 && paSearch.trim() && (
+                          <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">无匹配结果</div>
+                        )}
+                        {paResults.map(asset => (
+                          <button key={asset.id} type="button" onMouseDown={(e) => { e.preventDefault(); selectProductAsset(asset); }} className="w-full px-3 py-2 text-left hover:bg-[var(--recessed-bg)] transition-colors">
+                            <div className="text-xs font-light text-[var(--text-primary)] truncate">{asset.name}</div>
+                            <div className="text-[10px] text-[var(--text-tertiary)] truncate">{asset.sku}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <input
                     value={form.productName}
                     onChange={(e) => updateField('productName', e.target.value)}
-                    placeholder="产品名称"
+                    placeholder="产品名称（可手动输入或从上方搜索选择）"
                     className="bds-input"
                   />
                 </div>
               </CompiledFormSectionPanel>
+
+              {form.type === 'garment' && (
+              <CompiledFormSectionPanel
+                id="dev-garment-spec"
+                title="成衣规格"
+                isDarkMode={isDarkMode}
+                materialRole="raisedCard"
+                contentBaseClassName="grid grid-cols-2 gap-4"
+              >
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">款式</label>
+                  <input value={form.styleSpec} onChange={(e) => updateField('styleSpec', e.target.value)} placeholder="如 V领衬衫" className="bds-input" />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">尺码</label>
+                  <input value={form.sizeSpec} onChange={(e) => updateField('sizeSpec', e.target.value)} placeholder="如 S/M/L" className="bds-input" />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">面料</label>
+                  <input value={form.fabricSpec} onChange={(e) => updateField('fabricSpec', e.target.value)} placeholder="如 全棉府绸" className="bds-input" />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">工艺</label>
+                  <input value={form.processSpec} onChange={(e) => updateField('processSpec', e.target.value)} placeholder="如 成衣染色" className="bds-input" />
+                </div>
+              </CompiledFormSectionPanel>
+              )}
 
               <CompiledFormSectionPanel
                 id="dev-sample-plan"
@@ -842,6 +1112,124 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     onChange={(e) => updateField('notes', e.target.value)}
                     placeholder="备注信息"
                     className="bds-input bds-textarea resize-none min-h-24"
+                  />
+                </div>
+              </CompiledFormSectionPanel>
+
+              {/* 寄样信息（DR-057 v2.1 用户验收口径）：快递单号/快递公司/寄出日期/样品数量/单位/邮寄费全量留痕 */}
+              <CompiledFormSectionPanel
+                id="dev-sample-shipment"
+                title="寄样信息"
+                isDarkMode={isDarkMode}
+                materialRole="raisedCard"
+                contentBaseClassName="grid grid-cols-2 gap-4"
+              >
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样品数量</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.sampleQuantity}
+                    onChange={(e) => updateField('sampleQuantity', e.target.value)}
+                    placeholder="如 3"
+                    className="bds-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">单位</label>
+                  <select
+                    className="bds-select"
+                    value={form.sampleUnit}
+                    onChange={(e) => updateField('sampleUnit', e.target.value)}
+                  >
+                    {SAMPLE_UNIT_OPTIONS.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">寄出日期</label>
+                  <CapsuleDateInput className="bds-input" value={form.sampleSentDate} onChange={(value) => updateField('sampleSentDate', value)} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">快递公司</label>
+                  <select
+                    className="bds-select"
+                    value={form.sampleCourier}
+                    onChange={(e) => updateField('sampleCourier', e.target.value)}
+                  >
+                    <option value="">未寄出</option>
+                    {COURIER_OPTIONS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">快递单号</label>
+                  <input
+                    value={form.sampleTrackingNumber}
+                    onChange={(e) => updateField('sampleTrackingNumber', e.target.value)}
+                    placeholder="如 7798 1234 5678"
+                    className="bds-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">邮寄费</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.sampleShippingFee}
+                    onChange={(e) => updateField('sampleShippingFee', e.target.value)}
+                    placeholder="如 45.50（随客户合同币种）"
+                    className="bds-input"
+                  />
+                </div>
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">收件人</label>
+                    <input
+                      value={form.sampleRecipientName}
+                      onChange={(e) => updateField('sampleRecipientName', e.target.value)}
+                      placeholder="如 Emma Lindqvist"
+                      className="bds-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">收件公司</label>
+                    <input
+                      value={form.sampleRecipientCompany}
+                      onChange={(e) => updateField('sampleRecipientCompany', e.target.value)}
+                      placeholder="如 Norden Studio AB"
+                      className="bds-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">收件地址</label>
+                    <input
+                      value={form.sampleRecipientAddress}
+                      onChange={(e) => updateField('sampleRecipientAddress', e.target.value)}
+                      placeholder="如 Stockholm, Sweden"
+                      className="bds-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">联系电话</label>
+                    <input
+                      value={form.sampleRecipientPhone}
+                      onChange={(e) => updateField('sampleRecipientPhone', e.target.value)}
+                      placeholder="如 +46 70 123 4567"
+                      className="bds-input"
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">关联样品发票 ID（可选，用于发票详情直达）</label>
+                  <input
+                    value={form.sampleInvoiceId}
+                    onChange={(e) => updateField('sampleInvoiceId', e.target.value)}
+                    placeholder="发票管理中的发票 ID；填写后「样品发票」按钮直达该发票详情"
+                    className="bds-input"
                   />
                 </div>
               </CompiledFormSectionPanel>

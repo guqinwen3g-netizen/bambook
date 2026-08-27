@@ -24,14 +24,12 @@ export const DESIGN_TUNER_TOGGLE_SHORTCUT = 'mod+shift+t';
 
 const PRODUCT_MAIN_CATEGORIES: MainCategory[] = ['Garment', 'Fabric', 'Accessories', 'Trimmings', 'Merchandise', 'Other'];
 
-// v0.8 未交付模块的装修遮挡清单：页面 → 提示文案（由开发者选项「装修遮挡」开关统一控制显隐）
+// 未交付模块的装修遮挡清单：页面 → 提示文案（由开发者选项「装修遮挡」开关统一控制显隐）
+// Emails/Seasons/Marketing 已实测验收通过（2026-08-24 第二幕），移出遮挡清单
 const COMING_SOON_PAGES: Partial<Record<View, string>> = {
   [View.Dashboard]: '工作台开发中 · 即将上线',
   [View.Assistant]: 'AI 助手开发中 · 即将上线',
-  [View.Emails]: '智能邮箱开发中 · 即将上线',
   [View.DataCenter]: '数据中心开发中 · 即将上线',
-  [View.Seasons]: '季节性与趋势开发中 · 即将上线',
-  [View.Marketing]: '营销推广开发中 · 即将上线',
 };
 const PRODUCT_MAIN_CATEGORY_ALIASES: Record<string, MainCategory> = {
   garment: 'Garment',
@@ -1536,7 +1534,7 @@ const App: React.FC = () => {
               </div>
             )}
             {activeView === View.Development && (
-              <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} onNavigate={handleViewChange} />
+              <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} onNavigate={handleViewChange} onOpenOrder={handleOpenOrderById} />
             )}
             {(activeView === View.Invoices || activeView === View.PaymentVouchers) && (
               <FinanceManager
@@ -1563,7 +1561,7 @@ const App: React.FC = () => {
               <ProcurementManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
             )}
             {activeView === View.Inventory && (
-              <InventoryManager isDarkMode={isDarkMode} />
+              <InventoryManager isDarkMode={isDarkMode} onNavigate={handleViewChange} onOpenOrder={handleOpenOrderById} />
             )}
             {activeView === View.BOM && (
               <BomManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />

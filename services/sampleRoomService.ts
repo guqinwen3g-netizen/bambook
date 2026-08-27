@@ -1,13 +1,15 @@
 /**
- * SampleRoom API service — REQ2-16 样品间管理（DR-057）。
+ * SampleRoom API service — REQ2-16 样品间管理（DR-057 v2 库存联动）。
  * Communicates with /api/v1/samples/room endpoints:
  *   POST /room/items            — 样卡登记（编号自动 SC-YYYYMMDD-NNN，二维码载荷）
  *   GET  /room/items            — 列表（状态/类型/搜索/编号直达；附活跃借出与逾期派生）
  *   GET  /room/items/:id        — 详情（含借还历史正序）
  *   POST /room/items/:id/retire — 退役（终态）
  *   POST /room/items/:id/loans  — 借出（borrow）/ 看样登记（viewing）
+ *   POST /room/items/:id/adjust — 盘点调整（v2 新增）
  *   POST /room/loans/:id/return — 归还（append-only 补记）
  *   GET  /room/loans            — 借还流水（在借/逾期/历史/看样）
+ *   GET  /room/low-stock        — 低库存预警（v2 新增）
  *
  * 类型定义内聚在本文件（root types.ts 为冻结区，禁止编辑）。
  * 设计真源：docs/design/04-模块设计/03-订单与生产/Development-开发/样品间管理.md
@@ -22,6 +24,7 @@ export interface SampleCardLoanView {
   id: string;
   itemId: string;
   loanType: SampleLoanType | string;
+  loanQuantity: number; // v2：借出数量
   borrowerName: string;
   borrowerUserId?: string | null;
   relationId?: string | null;
@@ -46,6 +49,28 @@ export interface SampleCardItemView {
   status: SampleCardStatus | string;
   notes?: string | null;
   createdAt: number;
+  // v2 库存字段
+  quantity: number;
+  availableQty: number;
+  minStock?: number | null;
+  maxStock?: number | null;
+  unit?: string | null;
+  // v2 软关联
+  warehouseId?: string | null;
+  devCaseId?: string | null;
+  orderId?: string | null;
+  productAssetId?: string | null;
+  // v2 关联单据摘要（列表 join）
+  devCaseCode?: string | null;
+  devCaseName?: string | null;
+  orderPoNumber?: string | null;
+  orderCustomer?: string | null;
+  warehouseCode?: string | null;
+  warehouseName?: string | null;
+  productAssetSku?: string | null;
+  productAssetName?: string | null;
+  productAssetCategory?: string | null;
+  // 派生
   activeLoan: SampleCardLoanView | null;
   overdue: boolean;
 }
@@ -68,7 +93,11 @@ function roomUrl(path: string, endpoint?: string): string {
 
 export const sampleRoomService = {
   /** 样卡登记（编号自动生成，二维码载荷 = code） */
-  async createItem(input: { name: string; cardType?: string; colorCardCode?: string; location?: string; notes?: string }, endpoint?: string): Promise<SampleCardItemView> {
+  async createItem(input: {
+    name: string; cardType?: string; colorCardCode?: string; location?: string; notes?: string;
+    quantity?: number; minStock?: number | null; maxStock?: number | null; unit?: string;
+    warehouseId?: string; devCaseId?: string; orderId?: string; productAssetId?: string;
+  }, endpoint?: string): Promise<SampleCardItemView> {
     const res = await fetch(roomUrl('/items', endpoint), {
       method: 'POST',
       headers: apiService.getAuthHeaders(),
@@ -79,13 +108,22 @@ export const sampleRoomService = {
     return data.item;
   },
 
-  /** 列表（状态/类型/搜索/编号直达） */
-  async listItems(params: { status?: string; cardType?: string; search?: string; code?: string; limit?: number } = {}, endpoint?: string): Promise<{ items: SampleCardItemView[]; total: number }> {
+  /** 列表（状态/类型/搜索/编号直达 + v2 关联过滤 + lowStock + productAssetId） */
+  async listItems(params: {
+    status?: string; cardType?: string; search?: string; code?: string;
+    warehouseId?: string; devCaseId?: string; orderId?: string; productAssetId?: string;
+    lowStock?: boolean; limit?: number;
+  } = {}, endpoint?: string): Promise<{ items: SampleCardItemView[]; total: number }> {
     const query = new URLSearchParams();
     if (params.status) query.set('status', params.status);
     if (params.cardType) query.set('cardType', params.cardType);
     if (params.search) query.set('search', params.search);
     if (params.code) query.set('code', params.code);
+    if (params.warehouseId) query.set('warehouseId', params.warehouseId);
+    if (params.devCaseId) query.set('devCaseId', params.devCaseId);
+    if (params.orderId) query.set('orderId', params.orderId);
+    if (params.productAssetId) query.set('productAssetId', params.productAssetId);
+    if (params.lowStock) query.set('lowStock', 'true');
     if (params.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
     const res = await fetch(`${roomUrl('/items', endpoint)}${qs ? `?${qs}` : ''}`, { headers: apiService.getAuthHeaders() });
@@ -115,7 +153,7 @@ export const sampleRoomService = {
 
   /** 借出（borrow）/ 看样登记（viewing，relationId 挂客户） */
   async createLoan(itemId: string, input: {
-    loanType: SampleLoanType; borrowerName: string; borrowerUserId?: string; relationId?: string; dueAt?: number;
+    loanType: SampleLoanType; loanQuantity?: number; borrowerName: string; borrowerUserId?: string; relationId?: string; dueAt?: number;
   }, endpoint?: string): Promise<{ loan: SampleCardLoanView; item: SampleCardItemView }> {
     const res = await fetch(roomUrl(`/items/${encodeURIComponent(itemId)}/loans`, endpoint), {
       method: 'POST',
@@ -124,6 +162,20 @@ export const sampleRoomService = {
     });
     if (!res.ok) await readError(res, 'sample room createLoan failed');
     return await res.json();
+  },
+
+  /** 盘点调整（v2 新增） */
+  async adjustQuantity(id: string, input: {
+    newQuantity?: number; newMinStock?: number | null; newMaxStock?: number | null; reason?: string;
+  }, endpoint?: string): Promise<SampleCardItemView> {
+    const res = await fetch(roomUrl(`/items/${encodeURIComponent(id)}/adjust`, endpoint), {
+      method: 'POST',
+      headers: apiService.getAuthHeaders(),
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) await readError(res, 'sample room adjustQuantity failed');
+    const data = await res.json();
+    return data.item;
   },
 
   /** 归还（append-only：只补 returnedAt/conditionNote） */
@@ -150,5 +202,16 @@ export const sampleRoomService = {
     if (!res.ok) await readError(res, 'sample room listLoans failed');
     const data = await res.json();
     return { loans: Array.isArray(data.loans) ? data.loans : [] };
+  },
+
+  /** 低库存预警（v2 新增） */
+  async listLowStock(limit?: number, endpoint?: string): Promise<{ items: SampleCardItemView[]; total: number }> {
+    const query = new URLSearchParams();
+    if (limit) query.set('limit', String(limit));
+    const qs = query.toString();
+    const res = await fetch(`${roomUrl('/low-stock', endpoint)}${qs ? `?${qs}` : ''}`, { headers: apiService.getAuthHeaders() });
+    if (!res.ok) await readError(res, 'sample room listLowStock failed');
+    const data = await res.json();
+    return { items: Array.isArray(data.items) ? data.items : [], total: Number(data.total ?? 0) };
   },
 };

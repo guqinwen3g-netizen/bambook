@@ -731,7 +731,7 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
 /* ============ 21. Filterbar 筛选条 — pill 工具条（主容器玻璃面，与 bds-card 同材质） ============ */
 .bds-filterbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
   padding: 6px;
@@ -740,9 +740,13 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
   border-radius: var(--radius-pill);
 }
-/* 根因修复（2026-08-21）：filterbar 内控件此前既无换行也无收缩保障，
-   窄视口下整条工具条横向溢出、撞到下方 card（资金日历/报表等页"bar 重叠"）。
-   子项统一 min-width:0，保证可被压缩并在必要时内部滚动而非撑破容器。 */
+/* 根因修复（2026-08-23）：bar 单行铁律——原 flex-wrap:wrap 下，行内 flex-basis
+   总和超容器时换行判定先于收缩发生（付款申请页：搜索 + 状态 segment + 性质
+   segment + 主按钮内容多，被推成两行，bar 造型崩坏）。
+   收缩语义已就位：子项统一 min-width:0（下方规则），segment 族以
+   min-w-0 + overflow-x-auto 模式内部滚动吸收，搜索框以 min-w-* 为收缩下限。
+   固定摘要控件（主按钮 / 徽章）须自加 shrink-0 防压扁。
+   例外：显式声明 Tailwind flex-wrap 的使用点（utilities 后加载可覆盖）保留换行。 */
 .bds-filterbar > * {
   min-width: 0;
 }

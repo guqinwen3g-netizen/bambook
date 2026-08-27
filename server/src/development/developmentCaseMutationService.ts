@@ -79,6 +79,10 @@ export interface DevelopmentCaseCreateInput {
   sampleUnit?: string;
   notes?: string;
   tags?: string[];
+  styleSpec?: string;
+  sizeSpec?: string;
+  fabricSpec?: string;
+  processSpec?: string;
 }
 
 export type DevelopmentCaseUpdateInput = Partial<DevelopmentCaseCreateInput> & {
@@ -86,8 +90,14 @@ export type DevelopmentCaseUpdateInput = Partial<DevelopmentCaseCreateInput> & {
   sampleSentDate?: string;
   sampleTrackingNumber?: string;
   sampleCourier?: string;
+  sampleShippingFee?: number;
+  sampleRecipientName?: string;
+  sampleRecipientCompany?: string;
+  sampleRecipientAddress?: string;
+  sampleRecipientPhone?: string;
   sampleFeedback?: string;
   sampleFeedbackDate?: string;
+  sampleInvoiceId?: string;
   linkedOrderId?: string;
   linkedOrderPo?: string;
   convertedAt?: number;
@@ -138,10 +148,21 @@ export async function createDevelopmentCase(params: {
           nextAction: input.nextAction || null,
           targetDate: input.targetDate || null,
           sampleType: input.sampleType || null,
+          sampleCategory: input.sampleCategory || null,
           sampleQuantity: input.sampleQuantity || null,
           sampleUnit: input.sampleUnit || 'meter',
+          sampleShippingFee: (input as DevelopmentCaseUpdateInput).sampleShippingFee ?? null,
+          sampleRecipientName: (input as DevelopmentCaseUpdateInput).sampleRecipientName || null,
+          sampleRecipientCompany: (input as DevelopmentCaseUpdateInput).sampleRecipientCompany || null,
+          sampleRecipientAddress: (input as DevelopmentCaseUpdateInput).sampleRecipientAddress || null,
+          sampleRecipientPhone: (input as DevelopmentCaseUpdateInput).sampleRecipientPhone || null,
+          sampleInvoiceId: (input as DevelopmentCaseUpdateInput).sampleInvoiceId || null,
           notes: input.notes || null,
           tags: input.tags || [],
+          styleSpec: input.styleSpec || null,
+          sizeSpec: input.sizeSpec || null,
+          fabricSpec: input.fabricSpec || null,
+          processSpec: input.processSpec || null,
           createdAt: now,
           updatedAt: now,
         },
