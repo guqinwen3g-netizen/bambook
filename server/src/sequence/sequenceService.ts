@@ -179,6 +179,8 @@ export interface NextNumberOptions {
   overrideStartSeq?: number;
   /** 覆盖补零位数 */
   overridePadding?: number;
+  /** 业务表占用校验（查目标业务表含软删行；返回 true=已占用需继续递增）。由调用方提供表映射。 */
+  occupied?: (number: string) => Promise<boolean>;
 }
 
 export interface PeekNextNumberOptions {
@@ -299,6 +301,20 @@ export function createSequenceService(prisma: PrismaClient) {
     if (alreadyVoided) {
       logger.warn('[Sequence] nextNumber collided with voided, retrying once', { seqType, number, periodKey });
       return nextNumber(db, seqType, opts);
+    }
+
+    // 1e. 业务表唯一约束自愈：若调用方提供 occupied 回调且返回 true，则递归重试（与 nextBusinessNumber 同口径）
+    if (opts?.occupied) {
+      let isOccupied = false;
+      try {
+        isOccupied = await opts.occupied(number);
+      } catch (e: any) {
+        throw new Error(`SEQUENCE_OCCUPIED_CHECK_FAILED: seqType=${seqType} number=${number} error=${e?.message ?? e}`);
+      }
+      if (isOccupied) {
+        logger.warn('[Sequence] nextNumber collided with business table, retrying', { seqType, number, periodKey });
+        return nextNumber(db, seqType, opts);
+      }
     }
 
     if (typeof logger.debug === 'function') {

@@ -411,7 +411,15 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     setConvertedOrderId(null);
     try {
       if (action === 'send') await apiService.sendQuotation(id);
-      else if (action === 'accept') await apiService.acceptQuotation(id);
+      else if (action === 'accept') {
+        const result = await apiService.acceptQuotation(id);
+        // L9 联动：接受后系统自动转为订单草稿，提示用户
+        if (result?.convertedOrderId) {
+          bdsToast.success(`已接受报价并自动转为订单草稿（订单号：${result.convertedOrderId}）。可在订单管理中查看。`);
+        } else {
+          bdsToast.success('已接受报价。可点击「转为订单」手动转为正式订单。');
+        }
+      }
       else if (action === 'reject') await apiService.rejectQuotation(id);
       else if (action === 'delete') await apiService.deleteQuotation(id);
       else if (action === 'revise') await apiService.reviseQuotation(id, '砍价修订');

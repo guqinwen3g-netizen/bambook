@@ -23,7 +23,7 @@ export interface ProductionRouterOptions {
 }
 
 function actorIdFromRequest(req: Request): string {
-  return (req as any).user?.id || (req.headers['x-bambook-actor'] as string) || 'api';
+  return (req as any).actor?.id || (req.headers['x-bambook-actor'] as string) || 'api';
 }
 
 export function createProductionRouter(opts: ProductionRouterOptions): Router {

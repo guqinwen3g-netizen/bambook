@@ -587,6 +587,7 @@ export function createProcurementService(prisma: PrismaClient) {
     const [items, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
         where,
+        include: { lines: { orderBy: { lineNumber: 'asc' } } },
         orderBy: { createdAt: 'desc' },
         ...(limit != null ? { take: limit, skip: offset } : {}),
       }),

@@ -2841,6 +2841,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" disabled={invoiceSaving} onClick={() => setShowInvoiceModal(false)}
                 className="bds-btn bds-btn-secondary">取消</button>
+              {!editingInvoice && (
+                <button type="button" disabled={invoiceSaving} onClick={async () => {
+                  setInvoiceForm(f => ({ ...f, status: 'Issued' as InvoiceStatus }));
+                  await handleSaveInvoice();
+                }}
+                  className="bds-btn bds-btn-secondary">
+                  保存并开票
+                </button>
+              )}
               <button type="button" disabled={invoiceSaving} onClick={handleSaveInvoice}
                 className="bds-btn bds-btn-primary">
                 {invoiceSaving ? '保存中...' : '保存'}

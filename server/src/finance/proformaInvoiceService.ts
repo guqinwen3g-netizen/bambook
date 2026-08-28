@@ -132,7 +132,12 @@ export function createProformaInvoiceService(prisma: PrismaClient) {
       // ── 2. 生成编号 ──
       let invoiceNumber: string;
       try {
-        invoiceNumber = await seqSvc.nextNumber(prisma as any, 'invoice');
+        invoiceNumber = await seqSvc.nextNumber(prisma as any, 'invoice', {
+          occupied: async (num) => {
+            const dup = await prisma.invoice.findFirst({ where: { invoiceNumber: num }, select: { id: true } });
+            return dup != null;
+          },
+        });
       } catch (e: any) {
         return { ok: false, error: { code: 'SEQUENCE_FAILED', message: `编号生成失败: ${e?.message}` } };
       }
@@ -276,7 +281,12 @@ export function createProformaInvoiceService(prisma: PrismaClient) {
       // ── 2. 生成正式应收发票编号 ──
       let receivableNumber: string;
       try {
-        receivableNumber = await seqSvc.nextNumber(prisma as any, 'invoice');
+        receivableNumber = await seqSvc.nextNumber(prisma as any, 'invoice', {
+          occupied: async (num) => {
+            const dup = await prisma.invoice.findFirst({ where: { invoiceNumber: num }, select: { id: true } });
+            return dup != null;
+          },
+        });
       } catch (e: any) {
         return { ok: false, error: { code: 'SEQUENCE_FAILED', message: `编号生成失败: ${e?.message}` } };
       }
