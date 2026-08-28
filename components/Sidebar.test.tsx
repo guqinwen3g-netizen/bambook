@@ -104,6 +104,39 @@ describe('Sidebar reveal material system', () => {
     expect(source).not.toContain('data-sidebar-active-target');
   });
 
+  it('syncs collapsed rail and expanded hub transitions with the aside width spring', () => {
+    const source = readFileSync(new URL('./Sidebar.tsx', import.meta.url), 'utf8');
+    const collapsedRailSource = source.slice(
+      source.indexOf('{/* The Neutral Spine */}'),
+      source.indexOf('{/* The Expanded Hub */}')
+    );
+    const expandedHubSource = source.slice(
+      source.indexOf('{/* The Expanded Hub */}'),
+      source.indexOf('</motion.aside>')
+    );
+
+    // 收起 rail：motion.div 接管 opacity/x，与 aside 宽度同一 spring（damping 25 / stiffness 150），
+    // 不再用 700ms CSS 过渡（与 spring 不同步导致 button "戳出来"）
+    expect(collapsedRailSource).toContain('<motion.div');
+    expect(collapsedRailSource).toContain('opacity: isCollapsed ? 1 : 0');
+    expect(collapsedRailSource).toContain('x: isCollapsed ? 0 : -20');
+    expect(collapsedRailSource).toContain("transition={{ type: 'spring', damping: 25, stiffness: 150 }}");
+    expect(collapsedRailSource).not.toContain('transition-all duration-700');
+    expect(collapsedRailSource).not.toContain("'opacity-100' : 'opacity-0 pointer-events-none'");
+    expect(collapsedRailSource).toContain("${isCollapsed ? 'pointer-events-auto' : 'pointer-events-none'}");
+
+    // 展开块：始终挂载 + motion 过渡（原条件渲染导致 button 直接出现/消失）；
+    // 收起时 inert + aria-hidden + pointer-events-none，可达性与原卸载行为对齐
+    expect(source).not.toContain('{!isCollapsed && (');
+    expect(expandedHubSource).toContain('opacity: isCollapsed ? 0 : 1');
+    expect(expandedHubSource).toContain('x: isCollapsed ? 20 : 0');
+    expect(expandedHubSource).toContain("transition={{ type: 'spring', damping: 25, stiffness: 150 }}");
+    expect(expandedHubSource).toContain('inert={isCollapsed}');
+    expect(expandedHubSource).toContain('aria-hidden={isCollapsed}');
+    expect(expandedHubSource).toContain("${isCollapsed ? '!pointer-events-none' : ''}");
+    expect(expandedHubSource).toContain('{!isCollapsed && accountMenuOpen && (');
+  });
+
   it('keeps hover, press, and selected states in the HarmonyOS motion language', () => {
     const source = readFileSync(new URL('./Sidebar.tsx', import.meta.url), 'utf8');
     const osVnextCss = readFileSync(new URL('../styles/os-vnext.css', import.meta.url), 'utf8');

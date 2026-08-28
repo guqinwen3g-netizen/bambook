@@ -157,9 +157,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
       className="app-sidebar absolute left-0 top-0 bottom-0 z-10 flex-shrink-0 h-screen overflow-visible"
     >
       {/* The Neutral Spine */}
-      <div
-        className={`absolute left-0 top-0 bottom-0 w-16 z-10 flex flex-col items-center ${blueprint.collapsedRail.paddingClass} transition-all duration-700 ease-in-out
-          ${isCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      {/* motion 控制 opacity/x，与 aside 宽度 spring 同步（damping 25 / stiffness 150），
+          button 跟随滑入滑出，不再"戳出来"；不再用 700ms CSS 过渡（与 spring 不同步） */}
+      <motion.div
+        initial={false}
+        animate={{
+          opacity: isCollapsed ? 1 : 0,
+          x: isCollapsed ? 0 : -20,
+        }}
+        transition={{ type: 'spring', damping: 25, stiffness: 150 }}
+        className={`absolute left-0 top-0 bottom-0 w-16 z-10 flex flex-col items-center ${blueprint.collapsedRail.paddingClass}
+          ${isCollapsed ? 'pointer-events-auto' : 'pointer-events-none'}`}
         data-sidebar-collapsed-rail
       >
         <button
@@ -202,18 +210,29 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
         >
           <Settings size={20} strokeWidth={1.25} className="relative z-10" />
         </button>
-      </div>
+      </motion.div>
 
       {/* The Expanded Hub */}
-      {!isCollapsed && (
-        <>
-          <div
-            ref={sidebarRef}
-            className={`${BAMBOOK_OS.layout.desktopSidebarShellClass} app-sidebar-underlay-content relative z-10 min-h-0 overflow-hidden`}
-            data-sidebar-underlay-content
-            data-os-compiler-role="global-sidebar-underlay"
-            data-os-compiler-source="CompiledSidebar.global-sidebar-underlay"
-          >
+      {/* 始终挂载，motion 控制 opacity/x 与 aside 宽度 spring 同步，内容跟随宽度动画滑入滑出
+          （原条件渲染导致 button 直接出现/消失"戳出来"）。
+          收起时 pointer-events-none + inert + aria-hidden，鼠标/键盘/读屏均不可达（与原卸载行为对齐）。
+          壳无 backdrop-filter（desktopSidebarShellClass 纯布局），x 位移动画不触发磨砂快照失效 */}
+      <motion.div
+        ref={sidebarRef}
+        initial={false}
+        animate={{
+          opacity: isCollapsed ? 0 : 1,
+          x: isCollapsed ? 20 : 0,
+        }}
+        transition={{ type: 'spring', damping: 25, stiffness: 150 }}
+        inert={isCollapsed}
+        aria-hidden={isCollapsed}
+        className={`${BAMBOOK_OS.layout.desktopSidebarShellClass} app-sidebar-underlay-content relative z-10 min-h-0 overflow-hidden
+          ${isCollapsed ? '!pointer-events-none' : ''}`}
+        data-sidebar-underlay-content
+        data-os-compiler-role="global-sidebar-underlay"
+        data-os-compiler-source="CompiledSidebar.global-sidebar-underlay"
+      >
             <button
               type="button"
               onClick={() => setIsCollapsed(true)}
@@ -312,13 +331,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                 </div>
               </button>
             </div>
-          </div>
+      </motion.div>
 
-          {/* Account Menu Popover — 材质（bds-frosted / backdrop-filter）与动画同元素承载。
-              动画仅用 opacity，禁用 transform：transform 动画会让 Chrome 对 backdrop-filter
-              缓存合成层快照，动画期间磨砂失效；纯 opacity 淡入可保证磨砂全程实时采样。 */}
-          <AnimatePresence>
-            {accountMenuOpen && (
+      {/* Account Menu Popover — 材质（bds-frosted / backdrop-filter）与动画同元素承载。
+          动画仅用 opacity，禁用 transform：transform 动画会让 Chrome 对 backdrop-filter
+          缓存合成层快照，动画期间磨砂失效；纯 opacity 淡入可保证磨砂全程实时采样。 */}
+      <AnimatePresence>
+        {!isCollapsed && accountMenuOpen && (
               // bds-ok: 账户菜单弹层宽度 240px（=w-60 刻度），刻意设计宽度
               <motion.div
                 initial={{ opacity: 0 }}
@@ -369,9 +388,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                   </button>
               </motion.div>
             )}
-          </AnimatePresence>
-        </>
-      )}
+      </AnimatePresence>
     </motion.aside>
   );
 };
