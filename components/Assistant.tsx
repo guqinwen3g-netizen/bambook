@@ -17,7 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { AgentMessageCard } from './AgentMessageCard';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
@@ -421,6 +421,11 @@ const Assistant: React.FC<AssistantProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const agentScrollRef = useRef<HTMLDivElement>(null);
   const historyScrollRef = useRef<HTMLDivElement>(null);
+  // 边缘渐隐：固定 mask 挂滚动容器自身（与 ScrollEdgeFades 原参数同口径——会话列表/Agent 列表 12/12、
+  // 主消息区 96/112 默认档）；稳定字符串 + 阈值开关，滚动过程零重算不抖动
+  useStaticEdgeMask(historyScrollRef, { topFadeEnd: 12, bottomFade: 12 });
+  useStaticEdgeMask(agentScrollRef, { topFadeEnd: 12, bottomFade: 12 });
+  useStaticEdgeMask(scrollRef, { topFadeEnd: 96, bottomFade: 112 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
   const typingAnimationRef = useRef<{
@@ -2242,7 +2247,6 @@ const Assistant: React.FC<AssistantProps> = ({
                     <div className="-mt-2 flex flex-col min-h-0 shrink-0 space-y-1.5 no-drag">
                       <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>Agent 功能</div>
                       <div className="relative min-h-0">
-                        <ScrollEdgeFades scrollRef={agentScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
                         <div ref={agentScrollRef} className="max-h-[180px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
                           {AGENTS.map(agent => {
                             const Icon = agent.icon;
@@ -2288,7 +2292,6 @@ const Assistant: React.FC<AssistantProps> = ({
                         <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${actionControlClass}`}>还没有历史对话。</div>
                       )}
                       <div className="relative flex-1 min-h-0">
-                        <ScrollEdgeFades scrollRef={historyScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
                         <div ref={historyScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
                           {sessions.map(session => {
                             const isActive = session.id === activeSessionId;
@@ -2937,7 +2940,6 @@ const Assistant: React.FC<AssistantProps> = ({
             </div>
           </div>
           <div className="relative min-h-0 flex-1">
-            <ScrollEdgeFades scrollRef={scrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} />
             {/* Phase 10：用户上滚阅读历史时浮出 FAB，点击回到底部并恢复跟随 */}
             {!isMainPinned && (
               <button

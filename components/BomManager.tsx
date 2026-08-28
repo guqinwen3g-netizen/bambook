@@ -41,7 +41,7 @@ import {
   BOMStatus,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { bdsConfirm } from './ui/BdsDialog';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 
@@ -112,6 +112,8 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐，与 ScrollEdgeFades 原参数同口径）
+  useStaticEdgeMask(scrollRef, { topFadeEnd: 12, bottomFade: 12 });
 
   // ── 加载 BOM 列表 ──
   const loadBOMs = useCallback(async () => {
@@ -292,7 +294,6 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
         )}
 
         {/* ── BOM 列表 ── */}
-        <ScrollEdgeFades scrollRef={scrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           {loading && boms.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-sm" style={{ color: 'var(--text-quaternary)' }}>

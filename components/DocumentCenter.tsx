@@ -52,7 +52,7 @@ import { BdsDialog } from './ui/BdsDialog';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { printFullHtmlDocument } from './tools/printDocument';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 
@@ -236,6 +236,9 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  useStaticEdgeMask(contentScrollRef, { topFadeEnd: 12, bottomFade: 12 });
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   // B4 域视图：单据中心 = 全系统文件枢纽，按业务域过滤（customs 主体 + B2 起各运营域归档）
@@ -529,8 +532,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           {/* 工具栏（组合嵌套 bar：搜索 + 类型/状态筛选 + 刷新共行，spec §2.1） */}
           <div className="bds-filterbar mb-4 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">

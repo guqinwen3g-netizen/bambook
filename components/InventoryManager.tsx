@@ -13,7 +13,7 @@
  * 本组件对主题透明 — 无 isDarkMode 样式分支，暗色由 tokens.css [data-theme] 统一覆盖。
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -55,7 +55,7 @@ import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 
 // ==================== 常量 ====================
 const WAREHOUSE_TYPES: Array<{ id: WarehouseType; label: string }> = [
@@ -112,6 +112,9 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
   const navToSamples = navCtx?.view === View.Inventory && navCtx?.tab === 'samples';
   const navProductFilter = navToSamples && navCtx?.filter?.anchor === 'product' ? navCtx.filter.productId ?? null : null;
   const [activeTab, setActiveTab] = useState<'items' | 'warehouses' | 'alerts' | 'samples'>(navToSamples ? 'samples' : 'items');
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  useStaticEdgeMask(contentScrollRef, { topFadeEnd: 12, bottomFade: 12 });
   const [sampleFilterDevCaseId, setSampleFilterDevCaseId] = useState<string | null>(
     navToSamples && !navProductFilter ? navCtx?.focusEntityId ?? null : null,
   );
@@ -352,8 +355,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           {/* 顶部 Tab 切换 */}
           <div className="bds-segment mb-4">
             <button onClick={() => setActiveTab('items')} className={`seg ${activeTab === 'items' ? 'active' : ''}`}>

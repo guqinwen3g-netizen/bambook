@@ -13,7 +13,7 @@
  * 设计：BDS v2.1 — 组件对主题透明（无 isDarkMode 样式分支），暗色由 tokens.css 统一覆盖
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -59,7 +59,7 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
@@ -135,6 +135,9 @@ type TabId = 'plans' | 'workStations' | 'workHours' | 'pieceRateRules' | 'pieceR
 
 const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
   const [activeTab, setActiveTab] = useState<TabId>('plans');
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  useStaticEdgeMask(contentScrollRef, { topFadeEnd: 12, bottomFade: 12 });
 
   // ── 跨模块导航：消费上下文（外协入口跳转 → 自动切外协 tab + 供应商筛选）──
   const navContext = useState(() => consumeCrossModuleNav())[0];
@@ -158,7 +161,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [exportingXlsx, setExportingXlsx] = useState(false);
 
-  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支（仅透传 PageHeader/ScrollEdgeFades） ──
+  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支（仅透传 PageHeader 等） ──
 
   // ── 拉取数据 ──
   const fetchPlans = useCallback(async () => {
@@ -504,8 +507,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           {/* Tab 切换（BDS 分段控制器） */}
           <div className="bds-segment mb-4 flex-wrap">
             {tabs.map(t => (

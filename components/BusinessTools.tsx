@@ -29,7 +29,7 @@ import FabricCalculatorPanel from './tools/FabricCalculatorPanel';
 import ShippingNoticeGenerator from './tools/ShippingNoticeGenerator';
 import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { CompiledInteractiveCard } from './ui/primitives/compiledPrimitives';
 import { PageHeader } from './ui/PageHeader';
 import { SIDEBAR_HOVER_CLASS } from './ui/sidebarConstants';
@@ -58,6 +58,9 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const toolsScrollRef = useRef<HTMLDivElement>(null);
   const toolContentScrollRef = useRef<HTMLDivElement>(null);
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐，与 ScrollEdgeFades 原参数同口径）
+  useStaticEdgeMask(toolsScrollRef, { topFadeEnd: 12, bottomFade: 12, enabled: !selectedTool });
+  useStaticEdgeMask(toolContentScrollRef, { topFadeEnd: 12, bottomFade: 12, enabled: !!selectedTool });
 
   const tools: Tool[] = [
     {
@@ -193,7 +196,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
 
               {/* Tool Content with Fade */}
               <div className="flex-1 min-h-0 relative">
-                <ScrollEdgeFades scrollRef={toolContentScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
                 <div ref={toolContentScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar p-1">
                   {tools.find(t => t.id === selectedTool)?.component}
                 </div>
@@ -208,7 +210,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="flex-1 min-h-0 flex flex-col relative"
             >
-              <ScrollEdgeFades scrollRef={toolsScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
               <div ref={toolsScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar px-8 pb-12 pt-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {tools.map((tool, index) => (

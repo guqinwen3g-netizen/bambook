@@ -18,7 +18,7 @@ import { bdsToast } from './ui/bdsToast';
 import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 
 // 与后端 PRODUCTION_STAGES 顺序镜像（stageService.ts）；单订单泳道 ProductionPipeline 亦用同一中文标签集
 const BOARD_STAGES: Array<{ key: string; label: string }> = [
@@ -97,6 +97,8 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
   // C18：阻塞标记提交中的订单 id（防双击）
   const [blockPendingId, setBlockPendingId] = useState<string | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐，与 ScrollEdgeFades 原参数同口径）
+  useStaticEdgeMask(scrollRef, { topFadeEnd: 12, bottomFade: 12 });
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -226,7 +228,6 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
 
       {/* 泳道区 */}
       <div className="flex-1 min-h-0 relative px-7 pb-6">
-        <ScrollEdgeFades scrollRef={scrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
         <div ref={scrollRef} className="h-full overflow-auto custom-scrollbar">
           {loading && items.length === 0 ? (
             <div className={`h-40 flex items-center justify-center gap-2 text-xs font-light ${textSecondary}`}>

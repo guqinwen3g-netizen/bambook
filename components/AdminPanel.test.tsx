@@ -31,7 +31,12 @@ describe('AdminPanel layout bounds', () => {
     expect(ADMIN_USER_LIST_SCROLL_CLASS).toContain('overflow-y-auto');
     expect(source).toContain("activeTab === 'users' ? 'h-full min-h-0 overflow-hidden' : ADMIN_PANEL_SCROLL_CLASS");
     expect(source).toContain('ref={userListScrollRef}');
-    expect(source).toContain('scrollRef={userListScrollRef}');
+    // 边缘渐隐已由 useStaticEdgeMask 挂滚动容器自身承接（替代 ScrollEdgeFades JSX）——
+    // 主区 96/112 默认档（users tab 不启用）、用户列表 56/72
+    expect(source).toContain("import { useStaticEdgeMask } from './ui/useStaticEdgeMask'");
+    expect(source).not.toContain('<ScrollEdgeFades');
+    expect(source).toContain("useStaticEdgeMask(mainScrollRef, { topFadeEnd: 96, bottomFade: 112, enabled: activeTab !== 'users' })");
+    expect(source).toContain("useStaticEdgeMask(userListScrollRef, { topFadeEnd: 56, bottomFade: 72, enabled: activeTab === 'users' })");
   });
 
   it('uses the Bambook OS glass material for admin surfaces and user fields', () => {

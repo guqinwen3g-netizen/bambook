@@ -7,7 +7,7 @@ import { WorkflowPanel } from './WorkflowPanel';
 import { CompanyProfileSection } from './admin/CompanyProfileSection';
 import { PlatformRulesSection } from './admin/PlatformRulesSection';
 import { DataMigrationPanel } from './admin/DataMigrationPanel';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
@@ -204,7 +204,11 @@ interface AdminPanelProps { isDarkMode: boolean; }
 const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
   const userListScrollRef = useRef<HTMLDivElement | null>(null);
+  // 边缘渐隐：固定 mask 挂滚动容器自身（与 ScrollEdgeFades 原参数同口径——主区 96/112 默认档、
+  // 用户列表 56/72）；users tab 主区不滚动（ADMIN_PANEL_SCROLL_CLASS 不挂），enabled 跟随 tab
   const [activeTab, setActiveTab] = useState<TabId>('users');
+  useStaticEdgeMask(mainScrollRef, { topFadeEnd: 96, bottomFade: 112, enabled: activeTab !== 'users' });
+  useStaticEdgeMask(userListScrollRef, { topFadeEnd: 56, bottomFade: 72, enabled: activeTab === 'users' });
   const [users, setUsers] = useState<any[]>(() => readAdminPanelCache().users?.users || []);
   const [approvals, setApprovals] = useState<any[]>(() => readAdminPanelCache().approvals?.approvals || []);
   const [suggestions, setSuggestions] = useState<any[]>(() => readAdminPanelCache().approvals?.suggestions || []);
@@ -714,9 +718,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
           className={`${ADMIN_PANEL_SURFACE_CLASS} relative flex-1`}
           contentClassName="relative z-10 h-full min-h-0"
         >
-          {activeTab !== 'users' && (
-            <ScrollEdgeFades scrollRef={mainScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} />
-          )}
           <div
             ref={activeTab === 'users' ? undefined : mainScrollRef}
             className={`${activeTab === 'users' ? 'h-full min-h-0 overflow-hidden' : ADMIN_PANEL_SCROLL_CLASS} px-5 py-4`}
@@ -1018,14 +1019,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         </tr>
                       </thead>
                     </table>
-                    <ScrollEdgeFades
-                      scrollRef={userListScrollRef}
-                      isDarkMode={isDarkMode}
-                      variant="normal"
-                      renderMode="content-mask"
-                      topHeight={56}
-                      bottomHeight={72}
-                    />
                     <div ref={userListScrollRef} className={ADMIN_USER_LIST_SCROLL_CLASS}>
                     <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs">
                       <colgroup>

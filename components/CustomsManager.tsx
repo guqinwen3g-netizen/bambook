@@ -16,7 +16,7 @@
  *   - BDS v2.1 组件族（bds-card/bds-btn/bds-input/bds-modal 等）
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus,
@@ -67,7 +67,7 @@ import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 
 // ==================== 常量 ====================
@@ -181,6 +181,9 @@ interface CustomsManagerProps {
 
 const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab, onOpenDocumentCenter, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'declarations');
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  useStaticEdgeMask(contentScrollRef, { topFadeEnd: 12, bottomFade: 12 });
   // A5d：与 FinanceManager 同一口径 — initialTab 变更时响应式同步（下钻落点定位）
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
@@ -498,8 +501,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           {/* Tab 导航（BDS Tabs 下划线式） */}
           <div className="bds-tabs mb-4">
             {tabs.map(t => (

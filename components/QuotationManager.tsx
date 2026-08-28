@@ -53,7 +53,7 @@ import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
@@ -204,6 +204,9 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  useStaticEdgeMask(contentScrollRef, { topFadeEnd: 12, bottomFade: 12 });
   // ── 阶段 P3c：历史报价导入向导（PRD 16.1/16.2）──
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -841,8 +844,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           <AnimatePresence mode="wait">
             {showCreateForm ? (
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
