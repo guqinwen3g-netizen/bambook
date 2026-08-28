@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { createAuthService } from '../auth/service';
 import { requireRole } from '../auth/middleware';
 import { invalidateAccountStatusCache } from '../auth/accountStatusGuard';
@@ -225,16 +226,39 @@ export function createAdminRouter(options: AdminRouterOptions) {
   router.post('/users/:id/reset-password', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { newPassword } = req.body || {};
-    if (!newPassword || newPassword.length < 6) {
+    // 弱口令治理（运维冲刺）：管理员未显式提供新密码时，由服务端生成随机一次性密码，
+    // 仅在本响应中返回一次展示，并在 metadata 标记 forceChangePassword 提示前端引导改密。
+    // 禁止回退到 'bambook2026' 之类的固定弱口令。
+    const generated = !newPassword;
+    const finalPassword = generated ? crypto.randomBytes(8).toString('hex') : String(newPassword);
+    if (finalPassword.length < 6) {
       return res.status(400).json({ ok: false, error: 'WEAK_PASSWORD', message: 'New password must be at least 6 characters.' });
     }
-    const passwordHash = await auth.hashPassword(newPassword);
-    await options.prisma.userAccount.update({ where: { id }, data: { passwordHash } });
+    const passwordHash = await auth.hashPassword(finalPassword);
+    const target = await options.prisma.userAccount.findUnique({ where: { id }, select: { metadata: true } });
+    if (!target) {
+      return res.status(404).json({ ok: false, error: 'NOT_FOUND', message: '用户不存在。' });
+    }
+    await options.prisma.userAccount.update({
+      where: { id },
+      data: {
+        passwordHash,
+        metadata: {
+          ...(target.metadata as any || {}),
+          forceChangePassword: true,
+          passwordResetAt: new Date().toISOString(),
+        },
+      },
+    });
     const actor = (req as any).actor;
     await options.prisma.auditLog.create({
       data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: actor?.userId || 'system', action: 'reset_password', targetType: 'UserAccount', targetId: id, ip: req.ip },
     });
-    res.json({ ok: true });
+    res.json({
+      ok: true,
+      forceChangePassword: true,
+      ...(generated ? { temporaryPassword: finalPassword } : {}),
+    });
   }));
 
   const disableUserAccount = withRouteErrorGuard(async (req: Request, res: Response) => {

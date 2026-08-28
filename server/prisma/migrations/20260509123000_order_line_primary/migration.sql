@@ -1,16 +1,16 @@
 -- Promote OrderLine into the line-level follow-up entity used by Order Management.
-ALTER TABLE "OrderLine" ADD COLUMN "status" TEXT DEFAULT 'Pending';
-ALTER TABLE "OrderLine" ADD COLUMN "productionBatch" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "shippingDate" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "shippingMethod" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "invoiceNumber" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "invoiceDate" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "shipmentQuantity" DOUBLE PRECISION;
-ALTER TABLE "OrderLine" ADD COLUMN "shipmentAmount" DOUBLE PRECISION;
-ALTER TABLE "OrderLine" ADD COLUMN "actualPaymentDate" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "actualPaymentAmount" DOUBLE PRECISION;
-ALTER TABLE "OrderLine" ADD COLUMN "specialInstructions" TEXT;
-ALTER TABLE "OrderLine" ADD COLUMN "fieldSources" JSONB;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'Pending';
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "productionBatch" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "shippingDate" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "shippingMethod" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "invoiceNumber" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "invoiceDate" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "shipmentQuantity" DOUBLE PRECISION;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "shipmentAmount" DOUBLE PRECISION;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "actualPaymentDate" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "actualPaymentAmount" DOUBLE PRECISION;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "specialInstructions" TEXT;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS "fieldSources" JSONB;
 
-CREATE INDEX "OrderLine_status_idx" ON "OrderLine"("status");
-CREATE UNIQUE INDEX "OrderLine_orderId_itemNo_key" ON "OrderLine"("orderId", "itemNo");
+CREATE INDEX IF NOT EXISTS "OrderLine_status_idx" ON "OrderLine"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrderLine_orderId_itemNo_key" ON "OrderLine"("orderId", "itemNo");

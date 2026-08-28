@@ -1,4 +1,4 @@
-CREATE TABLE "SystemAsset" (
+CREATE TABLE IF NOT EXISTS "SystemAsset" (
     "id" TEXT NOT NULL,
     "kind" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -16,6 +16,6 @@ CREATE TABLE "SystemAsset" (
     CONSTRAINT "SystemAsset_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "SystemAsset_kind_idx" ON "SystemAsset"("kind");
-CREATE INDEX "SystemAsset_hidden_idx" ON "SystemAsset"("hidden");
-CREATE INDEX "SystemAsset_sortOrder_idx" ON "SystemAsset"("sortOrder");
+CREATE INDEX IF NOT EXISTS "SystemAsset_kind_idx" ON "SystemAsset"("kind");
+CREATE INDEX IF NOT EXISTS "SystemAsset_hidden_idx" ON "SystemAsset"("hidden");
+CREATE INDEX IF NOT EXISTS "SystemAsset_sortOrder_idx" ON "SystemAsset"("sortOrder");

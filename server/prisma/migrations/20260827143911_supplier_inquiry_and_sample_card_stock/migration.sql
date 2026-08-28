@@ -1,34 +1,34 @@
 -- AlterTable
-ALTER TABLE "DevelopmentCase" ADD COLUMN     "fabricSpec" TEXT,
-ADD COLUMN     "processSpec" TEXT,
-ADD COLUMN     "sampleInvoiceId" TEXT,
-ADD COLUMN     "sampleRecipientAddress" TEXT,
-ADD COLUMN     "sampleRecipientCompany" TEXT,
-ADD COLUMN     "sampleRecipientName" TEXT,
-ADD COLUMN     "sampleRecipientPhone" TEXT,
-ADD COLUMN     "sampleShippingFee" DOUBLE PRECISION,
-ADD COLUMN     "sizeSpec" TEXT,
-ADD COLUMN     "styleSpec" TEXT;
+ALTER TABLE "DevelopmentCase" ADD COLUMN IF NOT EXISTS     "fabricSpec" TEXT,
+ADD COLUMN IF NOT EXISTS     "processSpec" TEXT,
+ADD COLUMN IF NOT EXISTS     "sampleInvoiceId" TEXT,
+ADD COLUMN IF NOT EXISTS     "sampleRecipientAddress" TEXT,
+ADD COLUMN IF NOT EXISTS     "sampleRecipientCompany" TEXT,
+ADD COLUMN IF NOT EXISTS     "sampleRecipientName" TEXT,
+ADD COLUMN IF NOT EXISTS     "sampleRecipientPhone" TEXT,
+ADD COLUMN IF NOT EXISTS     "sampleShippingFee" DOUBLE PRECISION,
+ADD COLUMN IF NOT EXISTS     "sizeSpec" TEXT,
+ADD COLUMN IF NOT EXISTS     "styleSpec" TEXT;
 
 -- AlterTable
-ALTER TABLE "FabricShipmentSample" ADD COLUMN     "shippingFee" DOUBLE PRECISION;
+ALTER TABLE "FabricShipmentSample" ADD COLUMN IF NOT EXISTS     "shippingFee" DOUBLE PRECISION;
 
 -- AlterTable
-ALTER TABLE "SampleCardItem" ADD COLUMN     "availableQty" INTEGER NOT NULL DEFAULT 1,
-ADD COLUMN     "devCaseId" TEXT,
-ADD COLUMN     "maxStock" INTEGER,
-ADD COLUMN     "minStock" INTEGER,
-ADD COLUMN     "orderId" TEXT,
-ADD COLUMN     "productAssetId" TEXT,
-ADD COLUMN     "quantity" INTEGER NOT NULL DEFAULT 1,
-ADD COLUMN     "unit" TEXT DEFAULT '张',
-ADD COLUMN     "warehouseId" TEXT;
+ALTER TABLE "SampleCardItem" ADD COLUMN IF NOT EXISTS     "availableQty" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS     "devCaseId" TEXT,
+ADD COLUMN IF NOT EXISTS     "maxStock" INTEGER,
+ADD COLUMN IF NOT EXISTS     "minStock" INTEGER,
+ADD COLUMN IF NOT EXISTS     "orderId" TEXT,
+ADD COLUMN IF NOT EXISTS     "productAssetId" TEXT,
+ADD COLUMN IF NOT EXISTS     "quantity" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS     "unit" TEXT DEFAULT '张',
+ADD COLUMN IF NOT EXISTS     "warehouseId" TEXT;
 
 -- AlterTable
-ALTER TABLE "SampleCardLoan" ADD COLUMN     "loanQuantity" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "SampleCardLoan" ADD COLUMN IF NOT EXISTS     "loanQuantity" INTEGER NOT NULL DEFAULT 1;
 
 -- CreateTable
-CREATE TABLE "SupplierInquiry" (
+CREATE TABLE IF NOT EXISTS "SupplierInquiry" (
     "id" TEXT NOT NULL,
     "inquiryNumber" TEXT NOT NULL,
     "status" TEXT NOT NULL,
@@ -55,32 +55,32 @@ CREATE TABLE "SupplierInquiry" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SupplierInquiry_inquiryNumber_key" ON "SupplierInquiry"("inquiryNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "SupplierInquiry_inquiryNumber_key" ON "SupplierInquiry"("inquiryNumber");
 
 -- CreateIndex
-CREATE INDEX "SupplierInquiry_status_idx" ON "SupplierInquiry"("status");
+CREATE INDEX IF NOT EXISTS "SupplierInquiry_status_idx" ON "SupplierInquiry"("status");
 
 -- CreateIndex
-CREATE INDEX "SupplierInquiry_inquiryNumber_idx" ON "SupplierInquiry"("inquiryNumber");
+CREATE INDEX IF NOT EXISTS "SupplierInquiry_inquiryNumber_idx" ON "SupplierInquiry"("inquiryNumber");
 
 -- CreateIndex
-CREATE INDEX "SupplierInquiry_materialCode_idx" ON "SupplierInquiry"("materialCode");
+CREATE INDEX IF NOT EXISTS "SupplierInquiry_materialCode_idx" ON "SupplierInquiry"("materialCode");
 
 -- CreateIndex
-CREATE INDEX "SupplierInquiry_orderId_idx" ON "SupplierInquiry"("orderId");
+CREATE INDEX IF NOT EXISTS "SupplierInquiry_orderId_idx" ON "SupplierInquiry"("orderId");
 
 -- CreateIndex
-CREATE INDEX "SupplierInquiry_selectedSupplierId_idx" ON "SupplierInquiry"("selectedSupplierId");
+CREATE INDEX IF NOT EXISTS "SupplierInquiry_selectedSupplierId_idx" ON "SupplierInquiry"("selectedSupplierId");
 
 -- CreateIndex
-CREATE INDEX "SampleCardItem_warehouseId_idx" ON "SampleCardItem"("warehouseId");
+CREATE INDEX IF NOT EXISTS "SampleCardItem_warehouseId_idx" ON "SampleCardItem"("warehouseId");
 
 -- CreateIndex
-CREATE INDEX "SampleCardItem_devCaseId_idx" ON "SampleCardItem"("devCaseId");
+CREATE INDEX IF NOT EXISTS "SampleCardItem_devCaseId_idx" ON "SampleCardItem"("devCaseId");
 
 -- CreateIndex
-CREATE INDEX "SampleCardItem_orderId_idx" ON "SampleCardItem"("orderId");
+CREATE INDEX IF NOT EXISTS "SampleCardItem_orderId_idx" ON "SampleCardItem"("orderId");
 
 -- CreateIndex
-CREATE INDEX "SampleCardItem_productAssetId_idx" ON "SampleCardItem"("productAssetId");
+CREATE INDEX IF NOT EXISTS "SampleCardItem_productAssetId_idx" ON "SampleCardItem"("productAssetId");
 

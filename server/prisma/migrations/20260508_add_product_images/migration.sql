@@ -1,4 +1,4 @@
-CREATE TABLE "ProductImage" (
+CREATE TABLE IF NOT EXISTS "ProductImage" (
     "id" TEXT NOT NULL,
     "productAssetId" TEXT NOT NULL,
     "filePath" TEXT NOT NULL,
@@ -12,8 +12,12 @@ CREATE TABLE "ProductImage" (
     CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ProductImage_productAssetId_idx" ON "ProductImage"("productAssetId");
-CREATE INDEX "ProductImage_isPrimary_idx" ON "ProductImage"("isPrimary");
+CREATE INDEX IF NOT EXISTS "ProductImage_productAssetId_idx" ON "ProductImage"("productAssetId");
+CREATE INDEX IF NOT EXISTS "ProductImage_isPrimary_idx" ON "ProductImage"("isPrimary");
 
-ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_productAssetId_fkey"
-    FOREIGN KEY ("productAssetId") REFERENCES "ProductAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProductImage_productAssetId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_productAssetId_fkey" FOREIGN KEY ("productAssetId") REFERENCES "ProductAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

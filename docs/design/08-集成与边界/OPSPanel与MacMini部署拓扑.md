@@ -84,6 +84,11 @@
 | **一键部署** | `npm run deploy:web`（Ops Token 从 macOS Keychain 自动读取） |
 | **后续可打通 GitHub 自动更新** | com.bambook.ops-panel-auto 每分钟轮询（规划中） |
 
+**部署通道已收敛到 `migrate deploy` 单一真源（2026-08-28 运维冲刺任务 2）**：
+- `server/scripts/run-main-data-api.sh` 与 OPS Panel `deployUploadedPackage` 均已删除 `prisma db push --accept-data-loss`，schema 变更只走 `npx prisma migrate deploy`（严格按迁移账本，禁止绕过账本静默丢列）。
+- 迁移账本断链（库曾以 db push 领先账本运行）时，先执行 `npx ts-node scripts/fix-migration-ledger.ts --apply` 补账（对已生效未记账迁移逐个 `migrate resolve --applied`），再 `migrate deploy`；所有 `ADD COLUMN` 迁移已幂等化（`IF NOT EXISTS`），重跑安全。
+- 六表（FabricProfile/DevelopmentCase/Invoice/PaymentVoucher/Shipment/MaterialReturn）从未被迁移 CREATE 属历史断链，已通过补账 + 幂等化 + 外科迁移（`20260828000000_material_return_stock_item_id`）闭环；全新库按账本 deploy 即可，生产库按补账流程追平。
+
 ---
 
 ## §4 部署命令矩阵

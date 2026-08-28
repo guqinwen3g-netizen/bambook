@@ -4,7 +4,7 @@ CREATE TYPE "TeamMemberRole" AS ENUM ('leader', 'member');
 -- AlterTable: Department gets reverse relations (no actual column, just FK from other tables)
 
 -- CreateTable: JobPosition
-CREATE TABLE "JobPosition" (
+CREATE TABLE IF NOT EXISTS "JobPosition" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "departmentId" TEXT,
@@ -20,7 +20,7 @@ CREATE TABLE "JobPosition" (
 );
 
 -- CreateTable: Team
-CREATE TABLE "Team" (
+CREATE TABLE IF NOT EXISTS "Team" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -36,7 +36,7 @@ CREATE TABLE "Team" (
 );
 
 -- CreateTable: TeamMember
-CREATE TABLE "TeamMember" (
+CREATE TABLE IF NOT EXISTS "TeamMember" (
     "id" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE "TeamMember" (
 );
 
 -- CreateTable: Project
-CREATE TABLE "Project" (
+CREATE TABLE IF NOT EXISTS "Project" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT,
@@ -67,7 +67,7 @@ CREATE TABLE "Project" (
 );
 
 -- CreateTable: ProjectMember
-CREATE TABLE "ProjectMember" (
+CREATE TABLE IF NOT EXISTS "ProjectMember" (
     "id" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE "ProjectMember" (
 );
 
 -- CreateTable: WorkAssignment
-CREATE TABLE "WorkAssignment" (
+CREATE TABLE IF NOT EXISTS "WorkAssignment" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT,
@@ -98,37 +98,61 @@ CREATE TABLE "WorkAssignment" (
 );
 
 -- CreateIndex
-CREATE INDEX "JobPosition_departmentId_idx" ON "JobPosition"("departmentId");
-CREATE INDEX "JobPosition_status_idx" ON "JobPosition"("status");
-CREATE INDEX "Team_departmentId_idx" ON "Team"("departmentId");
-CREATE INDEX "Team_status_idx" ON "Team"("status");
-CREATE INDEX "TeamMember_userId_idx" ON "TeamMember"("userId");
-CREATE INDEX "Project_teamId_idx" ON "Project"("teamId");
-CREATE INDEX "Project_status_idx" ON "Project"("status");
-CREATE INDEX "ProjectMember_userId_idx" ON "ProjectMember"("userId");
-CREATE INDEX "WorkAssignment_userId_idx" ON "WorkAssignment"("userId");
-CREATE INDEX "WorkAssignment_projectId_idx" ON "WorkAssignment"("projectId");
-CREATE INDEX "WorkAssignment_status_idx" ON "WorkAssignment"("status");
+CREATE INDEX IF NOT EXISTS "JobPosition_departmentId_idx" ON "JobPosition"("departmentId");
+CREATE INDEX IF NOT EXISTS "JobPosition_status_idx" ON "JobPosition"("status");
+CREATE INDEX IF NOT EXISTS "Team_departmentId_idx" ON "Team"("departmentId");
+CREATE INDEX IF NOT EXISTS "Team_status_idx" ON "Team"("status");
+CREATE INDEX IF NOT EXISTS "TeamMember_userId_idx" ON "TeamMember"("userId");
+CREATE INDEX IF NOT EXISTS "Project_teamId_idx" ON "Project"("teamId");
+CREATE INDEX IF NOT EXISTS "Project_status_idx" ON "Project"("status");
+CREATE INDEX IF NOT EXISTS "ProjectMember_userId_idx" ON "ProjectMember"("userId");
+CREATE INDEX IF NOT EXISTS "WorkAssignment_userId_idx" ON "WorkAssignment"("userId");
+CREATE INDEX IF NOT EXISTS "WorkAssignment_projectId_idx" ON "WorkAssignment"("projectId");
+CREATE INDEX IF NOT EXISTS "WorkAssignment_status_idx" ON "WorkAssignment"("status");
 
 -- Unique constraints
-CREATE UNIQUE INDEX "TeamMember_teamId_userId_key" ON "TeamMember"("teamId", "userId");
-CREATE UNIQUE INDEX "ProjectMember_projectId_userId_key" ON "ProjectMember"("projectId", "userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "TeamMember_teamId_userId_key" ON "TeamMember"("teamId", "userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ProjectMember_projectId_userId_key" ON "ProjectMember"("projectId", "userId");
 
 -- AddForeignKey
-ALTER TABLE "JobPosition" ADD CONSTRAINT "JobPosition_departmentId_fkey"
-    FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'JobPosition_departmentId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "JobPosition" ADD CONSTRAINT "JobPosition_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "Team" ADD CONSTRAINT "Team_departmentId_fkey"
-    FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Team_departmentId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "Team" ADD CONSTRAINT "Team_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "TeamMember" ADD CONSTRAINT "TeamMember_teamId_fkey"
-    FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeamMember_teamId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "TeamMember" ADD CONSTRAINT "TeamMember_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "Project" ADD CONSTRAINT "Project_teamId_fkey"
-    FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Project_teamId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "Project" ADD CONSTRAINT "Project_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_projectId_fkey"
-    FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProjectMember_projectId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "ProjectMember" ADD CONSTRAINT "ProjectMember_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "WorkAssignment" ADD CONSTRAINT "WorkAssignment_projectId_fkey"
-    FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WorkAssignment_projectId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "WorkAssignment" ADD CONSTRAINT "WorkAssignment_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

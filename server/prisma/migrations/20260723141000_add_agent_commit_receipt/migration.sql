@@ -1,5 +1,5 @@
 -- Durable idempotency receipts for approved Agent write commits.
-CREATE TABLE "AgentCommitReceipt" (
+CREATE TABLE IF NOT EXISTS "AgentCommitReceipt" (
     "id" TEXT NOT NULL,
     "idempotencyKey" TEXT NOT NULL,
     "toolId" TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE "AgentCommitReceipt" (
     CONSTRAINT "AgentCommitReceipt_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "AgentCommitReceipt_idempotencyKey_key" ON "AgentCommitReceipt"("idempotencyKey");
-CREATE INDEX "AgentCommitReceipt_toolId_idx" ON "AgentCommitReceipt"("toolId");
-CREATE INDEX "AgentCommitReceipt_approvalId_idx" ON "AgentCommitReceipt"("approvalId");
-CREATE INDEX "AgentCommitReceipt_status_idx" ON "AgentCommitReceipt"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "AgentCommitReceipt_idempotencyKey_key" ON "AgentCommitReceipt"("idempotencyKey");
+CREATE INDEX IF NOT EXISTS "AgentCommitReceipt_toolId_idx" ON "AgentCommitReceipt"("toolId");
+CREATE INDEX IF NOT EXISTS "AgentCommitReceipt_approvalId_idx" ON "AgentCommitReceipt"("approvalId");
+CREATE INDEX IF NOT EXISTS "AgentCommitReceipt_status_idx" ON "AgentCommitReceipt"("status");

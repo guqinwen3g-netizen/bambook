@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "TrimmingProfile" (
+CREATE TABLE IF NOT EXISTS "TrimmingProfile" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "productAssetId" TEXT NOT NULL,
     "trimmingCode" TEXT,
@@ -38,16 +38,16 @@ CREATE TABLE "TrimmingProfile" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TrimmingProfile_productAssetId_key" ON "TrimmingProfile"("productAssetId");
+CREATE UNIQUE INDEX IF NOT EXISTS "TrimmingProfile_productAssetId_key" ON "TrimmingProfile"("productAssetId");
 
 -- CreateIndex
-CREATE INDEX "TrimmingProfile_trimmingCode_idx" ON "TrimmingProfile"("trimmingCode");
+CREATE INDEX IF NOT EXISTS "TrimmingProfile_trimmingCode_idx" ON "TrimmingProfile"("trimmingCode");
 
 -- CreateIndex
-CREATE INDEX "TrimmingProfile_trimmingCategory_idx" ON "TrimmingProfile"("trimmingCategory");
+CREATE INDEX IF NOT EXISTS "TrimmingProfile_trimmingCategory_idx" ON "TrimmingProfile"("trimmingCategory");
 
 -- CreateIndex
-CREATE INDEX "TrimmingProfile_supplier_idx" ON "TrimmingProfile"("supplier");
+CREATE INDEX IF NOT EXISTS "TrimmingProfile_supplier_idx" ON "TrimmingProfile"("supplier");
 
 -- CreateIndex
-CREATE INDEX "TrimmingProfile_customer_idx" ON "TrimmingProfile"("customer");
+CREATE INDEX IF NOT EXISTS "TrimmingProfile_customer_idx" ON "TrimmingProfile"("customer");

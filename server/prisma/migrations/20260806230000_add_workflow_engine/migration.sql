@@ -2,7 +2,7 @@
 -- Phase 0 Sprint 2 — 工作流引擎（多步审批状态机）
 
 -- WorkflowDefinition: reusable approval flow template
-CREATE TABLE "WorkflowDefinition" (
+CREATE TABLE IF NOT EXISTS "WorkflowDefinition" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -17,12 +17,12 @@ CREATE TABLE "WorkflowDefinition" (
     CONSTRAINT "WorkflowDefinition_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "WorkflowDefinition_entityType_idx" ON "WorkflowDefinition"("entityType");
-CREATE INDEX "WorkflowDefinition_triggerEvent_idx" ON "WorkflowDefinition"("triggerEvent");
-CREATE INDEX "WorkflowDefinition_isActive_idx" ON "WorkflowDefinition"("isActive");
+CREATE INDEX IF NOT EXISTS "WorkflowDefinition_entityType_idx" ON "WorkflowDefinition"("entityType");
+CREATE INDEX IF NOT EXISTS "WorkflowDefinition_triggerEvent_idx" ON "WorkflowDefinition"("triggerEvent");
+CREATE INDEX IF NOT EXISTS "WorkflowDefinition_isActive_idx" ON "WorkflowDefinition"("isActive");
 
 -- WorkflowInstance: a concrete approval flow bound to a business entity
-CREATE TABLE "WorkflowInstance" (
+CREATE TABLE IF NOT EXISTS "WorkflowInstance" (
     "id" TEXT NOT NULL,
     "definitionId" TEXT NOT NULL,
     "entityType" TEXT NOT NULL,
@@ -38,21 +38,27 @@ CREATE TABLE "WorkflowInstance" (
     CONSTRAINT "WorkflowInstance_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "WorkflowInstance_definitionId_idx" ON "WorkflowInstance"("definitionId");
-CREATE INDEX "WorkflowInstance_entityType_entityId_idx" ON "WorkflowInstance"("entityType", "entityId");
-CREATE INDEX "WorkflowInstance_status_idx" ON "WorkflowInstance"("status");
-CREATE INDEX "WorkflowInstance_initiatedById_idx" ON "WorkflowInstance"("initiatedById");
+CREATE INDEX IF NOT EXISTS "WorkflowInstance_definitionId_idx" ON "WorkflowInstance"("definitionId");
+CREATE INDEX IF NOT EXISTS "WorkflowInstance_entityType_entityId_idx" ON "WorkflowInstance"("entityType", "entityId");
+CREATE INDEX IF NOT EXISTS "WorkflowInstance_status_idx" ON "WorkflowInstance"("status");
+CREATE INDEX IF NOT EXISTS "WorkflowInstance_initiatedById_idx" ON "WorkflowInstance"("initiatedById");
 
-ALTER TABLE "WorkflowInstance"
-    ADD CONSTRAINT "WorkflowInstance_definitionId_fkey"
-    FOREIGN KEY ("definitionId") REFERENCES "WorkflowDefinition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WorkflowInstance_definitionId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "WorkflowInstance" ADD CONSTRAINT "WorkflowInstance_definitionId_fkey" FOREIGN KEY ("definitionId") REFERENCES "WorkflowDefinition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "WorkflowInstance"
-    ADD CONSTRAINT "WorkflowInstance_initiatedById_fkey"
-    FOREIGN KEY ("initiatedById") REFERENCES "UserAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WorkflowInstance_initiatedById_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "WorkflowInstance" ADD CONSTRAINT "WorkflowInstance_initiatedById_fkey" FOREIGN KEY ("initiatedById") REFERENCES "UserAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- WorkflowStep: individual step in a workflow instance
-CREATE TABLE "WorkflowStep" (
+CREATE TABLE IF NOT EXISTS "WorkflowStep" (
     "id" TEXT NOT NULL,
     "instanceId" TEXT NOT NULL,
     "stepIndex" INTEGER NOT NULL,
@@ -68,14 +74,20 @@ CREATE TABLE "WorkflowStep" (
     CONSTRAINT "WorkflowStep_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "WorkflowStep_instanceId_idx" ON "WorkflowStep"("instanceId");
-CREATE INDEX "WorkflowStep_decision_idx" ON "WorkflowStep"("decision");
-CREATE INDEX "WorkflowStep_approverRole_idx" ON "WorkflowStep"("approverRole");
+CREATE INDEX IF NOT EXISTS "WorkflowStep_instanceId_idx" ON "WorkflowStep"("instanceId");
+CREATE INDEX IF NOT EXISTS "WorkflowStep_decision_idx" ON "WorkflowStep"("decision");
+CREATE INDEX IF NOT EXISTS "WorkflowStep_approverRole_idx" ON "WorkflowStep"("approverRole");
 
-ALTER TABLE "WorkflowStep"
-    ADD CONSTRAINT "WorkflowStep_instanceId_fkey"
-    FOREIGN KEY ("instanceId") REFERENCES "WorkflowInstance"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WorkflowStep_instanceId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "WorkflowStep" ADD CONSTRAINT "WorkflowStep_instanceId_fkey" FOREIGN KEY ("instanceId") REFERENCES "WorkflowInstance"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "WorkflowStep"
-    ADD CONSTRAINT "WorkflowStep_decidedById_fkey"
-    FOREIGN KEY ("decidedById") REFERENCES "UserAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WorkflowStep_decidedById_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "WorkflowStep" ADD CONSTRAINT "WorkflowStep_decidedById_fkey" FOREIGN KEY ("decidedById") REFERENCES "UserAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "AgentCheckpoint" (
+CREATE TABLE IF NOT EXISTS "AgentCheckpoint" (
     "id" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
     "step" INTEGER NOT NULL,
@@ -13,10 +13,10 @@ CREATE TABLE "AgentCheckpoint" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AgentCheckpoint_conversationId_key" ON "AgentCheckpoint"("conversationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "AgentCheckpoint_conversationId_key" ON "AgentCheckpoint"("conversationId");
 
 -- CreateIndex
-CREATE INDEX "AgentCheckpoint_conversationId_idx" ON "AgentCheckpoint"("conversationId");
+CREATE INDEX IF NOT EXISTS "AgentCheckpoint_conversationId_idx" ON "AgentCheckpoint"("conversationId");
 
 -- CreateIndex
-CREATE INDEX "AgentCheckpoint_createdAt_idx" ON "AgentCheckpoint"("createdAt");
+CREATE INDEX IF NOT EXISTS "AgentCheckpoint_createdAt_idx" ON "AgentCheckpoint"("createdAt");

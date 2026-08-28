@@ -22,7 +22,8 @@
  *
  * 可选环境变量：
  *   DATABASE_URL              — 显式覆盖 DB 连接；否则按 .env.local → .env 顺序加载
- *   BAMBOOK_SEED_SUPER_ADMIN  — =1 时创建默认 SuperAdmin 账号（admin@bambook.local / bambook2026）
+ *   BAMBOOK_SEED_SUPER_ADMIN  — =1 时创建默认 SuperAdmin 账号（admin@bambook.local）
+ *   BAMBOOK_INITIAL_ADMIN_PASSWORD — 初始口令；未设置时随机生成 32 位十六进制并打印一次（弱口令治理）
  */
 import path from 'path';
 import crypto from 'crypto';
@@ -223,7 +224,12 @@ async function seedDefaultSuperAdmin() {
     );
     return;
   }
-  const passwordHash = await bcrypt.hash('bambook2026', 12);
+  // 弱口令治理：初始口令不再硬编码。优先取 BAMBOOK_INITIAL_ADMIN_PASSWORD；
+  // 未设置时随机生成 32 位十六进制口令并打印到 console（仅此一次，不落盘）。
+  const envPassword = (process.env.BAMBOOK_INITIAL_ADMIN_PASSWORD || '').trim();
+  const generated = !envPassword;
+  const initialPassword = generated ? crypto.randomBytes(16).toString('hex') : envPassword;
+  const passwordHash = await bcrypt.hash(initialPassword, 12);
   const userId = 'usr_super_admin_default';
   await prisma.$transaction(async (tx) => {
     await tx.userAccount.upsert({
@@ -261,9 +267,19 @@ async function seedDefaultSuperAdmin() {
       },
     });
   });
-  console.log(
-    '[5/6] 默认账号：已创建 SuperAdmin → admin@bambook.local / bambook2026 （请在首次登录后立即修改密码）',
-  );
+  if (generated) {
+    console.log(
+      `[5/6] 默认账号：已创建 SuperAdmin → admin@bambook.local\n` +
+      `      ╔══════════════════════════════════════════════════════════╗\n` +
+      `      ║  初始随机口令（仅显示一次，请立即保存）：${initialPassword}  ║\n` +
+      `      ║  ⚠ 首次登录后请立即修改密码！                                  ║\n` +
+      `      ╚══════════════════════════════════════════════════════════╝`,
+    );
+  } else {
+    console.log(
+      '[5/6] 默认账号：已创建 SuperAdmin → admin@bambook.local（口令取自 BAMBOOK_INITIAL_ADMIN_PASSWORD，首次登录后请立即修改）',
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -334,6 +350,7 @@ async function seedDemoAccounts() {
     });
   }
   console.log(`[5.25/6] 演示账号：已 upsert ${DEMO_ACCOUNTS.length} 个（密码 Bambook@2026，DEV 演示快速切换专用）`);
+  console.warn('  ⚠  演示账号使用固定弱口令，仅限开发/验收环境；生产投产前请停用或删除 usr_demo_* 账号！');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

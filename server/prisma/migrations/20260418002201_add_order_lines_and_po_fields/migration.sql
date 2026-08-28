@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "ProjectMemory" (
+CREATE TABLE IF NOT EXISTS "ProjectMemory" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "layer" TEXT NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE "ProjectMemory" (
 );
 
 -- CreateTable
-CREATE TABLE "KnowledgeItem" (
+CREATE TABLE IF NOT EXISTS "KnowledgeItem" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE "KnowledgeItem" (
 );
 
 -- CreateTable
-CREATE TABLE "Order" (
+CREATE TABLE IF NOT EXISTS "Order" (
     "id" TEXT NOT NULL,
     "customer" TEXT NOT NULL,
     "product" TEXT NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE "Order" (
 );
 
 -- CreateTable
-CREATE TABLE "OrderLine" (
+CREATE TABLE IF NOT EXISTS "OrderLine" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "lineNumber" INTEGER NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE "OrderLine" (
 );
 
 -- CreateTable
-CREATE TABLE "Relation" (
+CREATE TABLE IF NOT EXISTS "Relation" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -108,7 +108,7 @@ CREATE TABLE "Relation" (
 );
 
 -- CreateTable
-CREATE TABLE "ProductAsset" (
+CREATE TABLE IF NOT EXISTS "ProductAsset" (
     "id" TEXT NOT NULL,
     "sku" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE "ProductAsset" (
 );
 
 -- CreateTable
-CREATE TABLE "ProductSubCategory" (
+CREATE TABLE IF NOT EXISTS "ProductSubCategory" (
     "id" TEXT NOT NULL,
     "mainCategory" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE "ProductSubCategory" (
 );
 
 -- CreateTable
-CREATE TABLE "Insight" (
+CREATE TABLE IF NOT EXISTS "Insight" (
     "id" TEXT NOT NULL,
     "fact" TEXT NOT NULL,
     "importance" TEXT NOT NULL,
@@ -150,40 +150,45 @@ CREATE TABLE "Insight" (
 );
 
 -- CreateIndex
-CREATE INDEX "ProjectMemory_layer_idx" ON "ProjectMemory"("layer");
+CREATE INDEX IF NOT EXISTS "ProjectMemory_layer_idx" ON "ProjectMemory"("layer");
 
 -- CreateIndex
-CREATE INDEX "ProjectMemory_type_idx" ON "ProjectMemory"("type");
+CREATE INDEX IF NOT EXISTS "ProjectMemory_type_idx" ON "ProjectMemory"("type");
 
 -- CreateIndex
-CREATE INDEX "KnowledgeItem_category_idx" ON "KnowledgeItem"("category");
+CREATE INDEX IF NOT EXISTS "KnowledgeItem_category_idx" ON "KnowledgeItem"("category");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Order_poNumber_key" ON "Order"("poNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "Order_poNumber_key" ON "Order"("poNumber");
 
 -- CreateIndex
-CREATE INDEX "Order_status_idx" ON "Order"("status");
+CREATE INDEX IF NOT EXISTS "Order_status_idx" ON "Order"("status");
 
 -- CreateIndex
-CREATE INDEX "Order_factoryName_idx" ON "Order"("factoryName");
+CREATE INDEX IF NOT EXISTS "Order_factoryName_idx" ON "Order"("factoryName");
 
 -- CreateIndex
-CREATE INDEX "Order_customerCode_idx" ON "Order"("customerCode");
+CREATE INDEX IF NOT EXISTS "Order_customerCode_idx" ON "Order"("customerCode");
 
 -- CreateIndex
-CREATE INDEX "OrderLine_orderId_idx" ON "OrderLine"("orderId");
+CREATE INDEX IF NOT EXISTS "OrderLine_orderId_idx" ON "OrderLine"("orderId");
 
 -- CreateIndex
-CREATE INDEX "Relation_category_idx" ON "Relation"("category");
+CREATE INDEX IF NOT EXISTS "Relation_category_idx" ON "Relation"("category");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ProductAsset_sku_key" ON "ProductAsset"("sku");
+CREATE UNIQUE INDEX IF NOT EXISTS "ProductAsset_sku_key" ON "ProductAsset"("sku");
 
 -- CreateIndex
-CREATE INDEX "ProductAsset_sku_idx" ON "ProductAsset"("sku");
+CREATE INDEX IF NOT EXISTS "ProductAsset_sku_idx" ON "ProductAsset"("sku");
 
 -- CreateIndex
-CREATE INDEX "ProductAsset_season_idx" ON "ProductAsset"("season");
+CREATE INDEX IF NOT EXISTS "ProductAsset_season_idx" ON "ProductAsset"("season");
 
 -- AddForeignKey
-ALTER TABLE "OrderLine" ADD CONSTRAINT "OrderLine_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrderLine_orderId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "OrderLine" ADD CONSTRAINT "OrderLine_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

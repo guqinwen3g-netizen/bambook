@@ -20,8 +20,9 @@ set +a
 
 npm install --include=dev
 npx prisma generate
+# 部署通道已收敛到 migrate deploy 单一真源（运维冲刺任务 2）——禁止 db push --accept-data-loss
+# （绕过账本、可能静默丢列）；迁移账本断链时用 scripts/fix-migration-ledger.ts 补账。
 npx prisma migrate deploy
-npx prisma db push --accept-data-loss
 npm run build
 
 export NODE_ENV="${NODE_ENV:-production}"

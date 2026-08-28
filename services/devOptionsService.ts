@@ -16,7 +16,8 @@ const DEV_OPTIONS_KEY = 'bambook_dev_options';
 
 const DEFAULT_DEV_OPTIONS: DevOptions = {
   developerMode: false,
-  comingSoonOverlay: true,
+  // 2026-08-28 运维冲刺任务 5：投产默认不遮挡（原默认 true 导致全新安装首页即被糊住）
+  comingSoonOverlay: false,
   demoAccountSwitch: true,
 };
 

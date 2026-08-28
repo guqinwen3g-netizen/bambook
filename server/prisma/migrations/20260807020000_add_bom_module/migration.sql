@@ -1,7 +1,7 @@
 -- ============ Phase 2 B4: BOM / 成本核算 ============
 
 -- CreateTable: BOM
-CREATE TABLE "BOM" (
+CREATE TABLE IF NOT EXISTS "BOM" (
     "id" TEXT NOT NULL,
     "bomNumber" TEXT NOT NULL,
     "status" TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE "BOM" (
 );
 
 -- CreateTable: BOMLine
-CREATE TABLE "BOMLine" (
+CREATE TABLE IF NOT EXISTS "BOMLine" (
     "id" TEXT NOT NULL,
     "bomId" TEXT NOT NULL,
     "lineNumber" INTEGER NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE "BOMLine" (
 );
 
 -- CreateTable: CostEstimate
-CREATE TABLE "CostEstimate" (
+CREATE TABLE IF NOT EXISTS "CostEstimate" (
     "id" TEXT NOT NULL,
     "bomId" TEXT NOT NULL,
     "costType" TEXT NOT NULL,
@@ -66,26 +66,34 @@ CREATE TABLE "CostEstimate" (
 );
 
 -- CreateIndex (BOM)
-CREATE UNIQUE INDEX "BOM_bomNumber_key" ON "BOM"("bomNumber");
-CREATE INDEX "BOM_status_idx" ON "BOM"("status");
-CREATE INDEX "BOM_productAssetId_idx" ON "BOM"("productAssetId");
-CREATE INDEX "BOM_orderId_idx" ON "BOM"("orderId");
-CREATE INDEX "BOM_quotationId_idx" ON "BOM"("quotationId");
-CREATE INDEX "BOM_bomNumber_idx" ON "BOM"("bomNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "BOM_bomNumber_key" ON "BOM"("bomNumber");
+CREATE INDEX IF NOT EXISTS "BOM_status_idx" ON "BOM"("status");
+CREATE INDEX IF NOT EXISTS "BOM_productAssetId_idx" ON "BOM"("productAssetId");
+CREATE INDEX IF NOT EXISTS "BOM_orderId_idx" ON "BOM"("orderId");
+CREATE INDEX IF NOT EXISTS "BOM_quotationId_idx" ON "BOM"("quotationId");
+CREATE INDEX IF NOT EXISTS "BOM_bomNumber_idx" ON "BOM"("bomNumber");
 
 -- CreateIndex (BOMLine)
-CREATE INDEX "BOMLine_bomId_idx" ON "BOMLine"("bomId");
-CREATE INDEX "BOMLine_materialCode_idx" ON "BOMLine"("materialCode");
-CREATE INDEX "BOMLine_materialType_idx" ON "BOMLine"("materialType");
-CREATE INDEX "BOMLine_category_idx" ON "BOMLine"("category");
+CREATE INDEX IF NOT EXISTS "BOMLine_bomId_idx" ON "BOMLine"("bomId");
+CREATE INDEX IF NOT EXISTS "BOMLine_materialCode_idx" ON "BOMLine"("materialCode");
+CREATE INDEX IF NOT EXISTS "BOMLine_materialType_idx" ON "BOMLine"("materialType");
+CREATE INDEX IF NOT EXISTS "BOMLine_category_idx" ON "BOMLine"("category");
 
 -- CreateIndex (CostEstimate)
-CREATE INDEX "CostEstimate_bomId_idx" ON "CostEstimate"("bomId");
-CREATE INDEX "CostEstimate_costType_idx" ON "CostEstimate"("costType");
+CREATE INDEX IF NOT EXISTS "CostEstimate_bomId_idx" ON "CostEstimate"("bomId");
+CREATE INDEX IF NOT EXISTS "CostEstimate_costType_idx" ON "CostEstimate"("costType");
 
 -- AddForeignKey
-ALTER TABLE "BOMLine" ADD CONSTRAINT "BOMLine_bomId_fkey"
-    FOREIGN KEY ("bomId") REFERENCES "BOM"("id") ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BOMLine_bomId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "BOMLine" ADD CONSTRAINT "BOMLine_bomId_fkey" FOREIGN KEY ("bomId") REFERENCES "BOM"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "CostEstimate" ADD CONSTRAINT "CostEstimate_bomId_fkey"
-    FOREIGN KEY ("bomId") REFERENCES "BOM"("id") ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CostEstimate_bomId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "CostEstimate" ADD CONSTRAINT "CostEstimate_bomId_fkey" FOREIGN KEY ("bomId") REFERENCES "BOM"("id") ON DELETE CASCADE;
+  END IF;
+END $$;

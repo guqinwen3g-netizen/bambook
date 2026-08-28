@@ -90,5 +90,9 @@ CREATE INDEX IF NOT EXISTS "GarmentProfile_garmentCategory_idx" ON "GarmentProfi
 CREATE INDEX IF NOT EXISTS "GarmentProfile_customer_idx" ON "GarmentProfile"("customer");
 CREATE INDEX IF NOT EXISTS "GarmentProfile_factory_idx" ON "GarmentProfile"("factory");
 
-ALTER TABLE "GarmentProfile" ADD CONSTRAINT "GarmentProfile_productAssetId_fkey"
-    FOREIGN KEY ("productAssetId") REFERENCES "ProductAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'GarmentProfile_productAssetId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "GarmentProfile" ADD CONSTRAINT "GarmentProfile_productAssetId_fkey" FOREIGN KEY ("productAssetId") REFERENCES "ProductAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

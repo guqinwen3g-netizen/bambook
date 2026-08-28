@@ -2,7 +2,7 @@
 -- 服装外贸出口合规闭环：发货 → 报关 → 退税 → 外汇结算 → 信用证
 
 -- CreateTable: CustomsDeclaration
-CREATE TABLE "CustomsDeclaration" (
+CREATE TABLE IF NOT EXISTS "CustomsDeclaration" (
     "id" TEXT NOT NULL,
     "declarationNumber" TEXT NOT NULL,
     "shipmentId" TEXT,
@@ -33,7 +33,7 @@ CREATE TABLE "CustomsDeclaration" (
 );
 
 -- CreateTable: CustomsDeclarationLine
-CREATE TABLE "CustomsDeclarationLine" (
+CREATE TABLE IF NOT EXISTS "CustomsDeclarationLine" (
     "id" TEXT NOT NULL,
     "declarationId" TEXT NOT NULL,
     "lineNumber" INTEGER NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE "CustomsDeclarationLine" (
 );
 
 -- CreateTable: HsCode
-CREATE TABLE "HsCode" (
+CREATE TABLE IF NOT EXISTS "HsCode" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE "HsCode" (
 );
 
 -- CreateTable: LetterOfCredit
-CREATE TABLE "LetterOfCredit" (
+CREATE TABLE IF NOT EXISTS "LetterOfCredit" (
     "id" TEXT NOT NULL,
     "lcNumber" TEXT NOT NULL,
     "relationId" TEXT,
@@ -112,7 +112,7 @@ CREATE TABLE "LetterOfCredit" (
 );
 
 -- CreateTable: TaxRefund
-CREATE TABLE "TaxRefund" (
+CREATE TABLE IF NOT EXISTS "TaxRefund" (
     "id" TEXT NOT NULL,
     "refundNumber" TEXT NOT NULL,
     "declarationId" TEXT,
@@ -140,7 +140,7 @@ CREATE TABLE "TaxRefund" (
 );
 
 -- CreateTable: TradeDocument
-CREATE TABLE "TradeDocument" (
+CREATE TABLE IF NOT EXISTS "TradeDocument" (
     "id" TEXT NOT NULL,
     "documentNumber" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -168,44 +168,48 @@ CREATE TABLE "TradeDocument" (
 );
 
 -- CreateIndex: CustomsDeclaration
-CREATE UNIQUE INDEX "CustomsDeclaration_declarationNumber_key" ON "CustomsDeclaration"("declarationNumber");
-CREATE INDEX "CustomsDeclaration_shipmentId_idx" ON "CustomsDeclaration"("shipmentId");
-CREATE INDEX "CustomsDeclaration_orderId_idx" ON "CustomsDeclaration"("orderId");
-CREATE INDEX "CustomsDeclaration_relationId_idx" ON "CustomsDeclaration"("relationId");
-CREATE INDEX "CustomsDeclaration_status_idx" ON "CustomsDeclaration"("status");
-CREATE INDEX "CustomsDeclaration_type_idx" ON "CustomsDeclaration"("type");
+CREATE UNIQUE INDEX IF NOT EXISTS "CustomsDeclaration_declarationNumber_key" ON "CustomsDeclaration"("declarationNumber");
+CREATE INDEX IF NOT EXISTS "CustomsDeclaration_shipmentId_idx" ON "CustomsDeclaration"("shipmentId");
+CREATE INDEX IF NOT EXISTS "CustomsDeclaration_orderId_idx" ON "CustomsDeclaration"("orderId");
+CREATE INDEX IF NOT EXISTS "CustomsDeclaration_relationId_idx" ON "CustomsDeclaration"("relationId");
+CREATE INDEX IF NOT EXISTS "CustomsDeclaration_status_idx" ON "CustomsDeclaration"("status");
+CREATE INDEX IF NOT EXISTS "CustomsDeclaration_type_idx" ON "CustomsDeclaration"("type");
 
 -- CreateIndex: CustomsDeclarationLine
-CREATE INDEX "CustomsDeclarationLine_declarationId_idx" ON "CustomsDeclarationLine"("declarationId");
-CREATE INDEX "CustomsDeclarationLine_hsCode_idx" ON "CustomsDeclarationLine"("hsCode");
+CREATE INDEX IF NOT EXISTS "CustomsDeclarationLine_declarationId_idx" ON "CustomsDeclarationLine"("declarationId");
+CREATE INDEX IF NOT EXISTS "CustomsDeclarationLine_hsCode_idx" ON "CustomsDeclarationLine"("hsCode");
 
 -- CreateIndex: HsCode
-CREATE UNIQUE INDEX "HsCode_code_key" ON "HsCode"("code");
-CREATE INDEX "HsCode_category_idx" ON "HsCode"("category");
-CREATE INDEX "HsCode_isActive_idx" ON "HsCode"("isActive");
+CREATE UNIQUE INDEX IF NOT EXISTS "HsCode_code_key" ON "HsCode"("code");
+CREATE INDEX IF NOT EXISTS "HsCode_category_idx" ON "HsCode"("category");
+CREATE INDEX IF NOT EXISTS "HsCode_isActive_idx" ON "HsCode"("isActive");
 
 -- CreateIndex: LetterOfCredit
-CREATE UNIQUE INDEX "LetterOfCredit_lcNumber_key" ON "LetterOfCredit"("lcNumber");
-CREATE INDEX "LetterOfCredit_relationId_idx" ON "LetterOfCredit"("relationId");
-CREATE INDEX "LetterOfCredit_orderId_idx" ON "LetterOfCredit"("orderId");
-CREATE INDEX "LetterOfCredit_status_idx" ON "LetterOfCredit"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "LetterOfCredit_lcNumber_key" ON "LetterOfCredit"("lcNumber");
+CREATE INDEX IF NOT EXISTS "LetterOfCredit_relationId_idx" ON "LetterOfCredit"("relationId");
+CREATE INDEX IF NOT EXISTS "LetterOfCredit_orderId_idx" ON "LetterOfCredit"("orderId");
+CREATE INDEX IF NOT EXISTS "LetterOfCredit_status_idx" ON "LetterOfCredit"("status");
 
 -- CreateIndex: TaxRefund
-CREATE UNIQUE INDEX "TaxRefund_refundNumber_key" ON "TaxRefund"("refundNumber");
-CREATE INDEX "TaxRefund_declarationId_idx" ON "TaxRefund"("declarationId");
-CREATE INDEX "TaxRefund_orderId_idx" ON "TaxRefund"("orderId");
-CREATE INDEX "TaxRefund_relationId_idx" ON "TaxRefund"("relationId");
-CREATE INDEX "TaxRefund_status_idx" ON "TaxRefund"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "TaxRefund_refundNumber_key" ON "TaxRefund"("refundNumber");
+CREATE INDEX IF NOT EXISTS "TaxRefund_declarationId_idx" ON "TaxRefund"("declarationId");
+CREATE INDEX IF NOT EXISTS "TaxRefund_orderId_idx" ON "TaxRefund"("orderId");
+CREATE INDEX IF NOT EXISTS "TaxRefund_relationId_idx" ON "TaxRefund"("relationId");
+CREATE INDEX IF NOT EXISTS "TaxRefund_status_idx" ON "TaxRefund"("status");
 
 -- CreateIndex: TradeDocument
-CREATE UNIQUE INDEX "TradeDocument_documentNumber_key" ON "TradeDocument"("documentNumber");
-CREATE INDEX "TradeDocument_shipmentId_idx" ON "TradeDocument"("shipmentId");
-CREATE INDEX "TradeDocument_declarationId_idx" ON "TradeDocument"("declarationId");
-CREATE INDEX "TradeDocument_orderId_idx" ON "TradeDocument"("orderId");
-CREATE INDEX "TradeDocument_relationId_idx" ON "TradeDocument"("relationId");
-CREATE INDEX "TradeDocument_type_idx" ON "TradeDocument"("type");
-CREATE INDEX "TradeDocument_status_idx" ON "TradeDocument"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "TradeDocument_documentNumber_key" ON "TradeDocument"("documentNumber");
+CREATE INDEX IF NOT EXISTS "TradeDocument_shipmentId_idx" ON "TradeDocument"("shipmentId");
+CREATE INDEX IF NOT EXISTS "TradeDocument_declarationId_idx" ON "TradeDocument"("declarationId");
+CREATE INDEX IF NOT EXISTS "TradeDocument_orderId_idx" ON "TradeDocument"("orderId");
+CREATE INDEX IF NOT EXISTS "TradeDocument_relationId_idx" ON "TradeDocument"("relationId");
+CREATE INDEX IF NOT EXISTS "TradeDocument_type_idx" ON "TradeDocument"("type");
+CREATE INDEX IF NOT EXISTS "TradeDocument_status_idx" ON "TradeDocument"("status");
 
 -- AddForeignKey: CustomsDeclarationLine → CustomsDeclaration
-ALTER TABLE "CustomsDeclarationLine" ADD CONSTRAINT "CustomsDeclarationLine_declarationId_fkey"
-    FOREIGN KEY ("declarationId") REFERENCES "CustomsDeclaration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CustomsDeclarationLine_declarationId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "CustomsDeclarationLine" ADD CONSTRAINT "CustomsDeclarationLine_declarationId_fkey" FOREIGN KEY ("declarationId") REFERENCES "CustomsDeclaration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

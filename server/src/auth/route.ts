@@ -6,12 +6,19 @@ import { EmailService, buildVerificationEmail, createEmailService } from './emai
 import { VerificationStore, createVerificationStore } from './verification';
 import { logger } from '../lib/logger';
 import { ROLE_ID_TO_LEGACY_AGENT_ROLE } from './permissionService';
+import { createLoginRateLimiter } from './loginRateLimiter';
 
 type AuthRouterOptions = {
   prisma: PrismaClient;
   email?: EmailService;
   verification?: VerificationStore;
   requireEmailVerification?: boolean;
+  /**
+   * 登录防爆破限流配置（默认：同一 IP+账号 15 分钟内最多 5 次失败）。
+   * 传 false 显式关闭（测试场景）；亦可用环境变量 BAMBOOK_LOGIN_RATE_LIMIT_DISABLED=1 关闭，
+   * 或用 BAMBOOK_LOGIN_RATE_LIMIT_WINDOW_MS / BAMBOOK_LOGIN_RATE_LIMIT_MAX_FAILURES 调整阈值。
+   */
+  loginRateLimit?: { windowMs?: number; maxFailures?: number } | false;
 };
 
 const COOKIE_NAME = 'bambook_token';
@@ -91,11 +98,35 @@ export function createAuthRouter(options: AuthRouterOptions) {
   const email = options.email || createEmailService();
   const verification = options.verification || createVerificationStore();
 
+  const envWindowMs = Number(process.env.BAMBOOK_LOGIN_RATE_LIMIT_WINDOW_MS);
+  const envMaxFailures = Number(process.env.BAMBOOK_LOGIN_RATE_LIMIT_MAX_FAILURES);
+  const loginRateLimiter =
+    options.loginRateLimit === false || process.env.BAMBOOK_LOGIN_RATE_LIMIT_DISABLED === '1'
+      ? null
+      : createLoginRateLimiter({
+          windowMs: (options.loginRateLimit && options.loginRateLimit.windowMs) || envWindowMs || undefined,
+          maxFailures: (options.loginRateLimit && options.loginRateLimit.maxFailures) || envMaxFailures || undefined,
+        });
+
   router.post('/login', async (req: Request, res: Response) => {
     const { email, identifier, password } = req.body || {};
     const loginIdentifier = normalizeLoginIdentifier(identifier || email);
     if (!loginIdentifier || !password) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'Name/email and password are required.' });
+    }
+
+    // 防爆破：同一 IP 对同一账号的失败尝试计入滑动窗口，超限直接 429（不查库）
+    const rateLimitKey = `${req.ip || 'unknown'}|${loginIdentifier.toLowerCase()}`;
+    if (loginRateLimiter) {
+      const verdict = loginRateLimiter.check(rateLimitKey);
+      if (verdict.blocked) {
+        return res.status(429).json({
+          ok: false,
+          error: 'RATE_LIMITED',
+          message: '登录失败次数过多，请稍后重试。',
+          retryAfterMs: verdict.retryAfterMs,
+        });
+      }
     }
 
     const normalizedEmail = normalizeEmail(loginIdentifier);
@@ -114,6 +145,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
     });
 
     if (!user || !user.passwordHash) {
+      loginRateLimiter?.recordFailure(rateLimitKey);
       return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: 'Invalid name/email or password.' });
     }
 
@@ -132,8 +164,12 @@ export function createAuthRouter(options: AuthRouterOptions) {
 
     const valid = await auth.verifyPassword(password, user.passwordHash);
     if (!valid) {
+      loginRateLimiter?.recordFailure(rateLimitKey);
       return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: 'Invalid name/email or password.' });
     }
+
+    // 登录成功：清除该 IP+账号的失败计数
+    loginRateLimiter?.reset(rateLimitKey);
 
     const { legacy: roles, newRoleIds } = userRolesToLegacyAgentRoles(
       user.roles.map((ur: any) => ({ roleId: ur.roleId, role: { name: ur.role?.name, isSystem: ur.role?.isSystem } })),

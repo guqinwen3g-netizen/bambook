@@ -1,78 +1,78 @@
 -- AlterTable
-ALTER TABLE "ApprovalRequest" ADD COLUMN     "bossFinalBypassAt" TIMESTAMP(3),
-ADD COLUMN     "bossFinalBypassBy" TEXT,
-ADD COLUMN     "bossFinalBypassReason" TEXT,
-ADD COLUMN     "bypassedApprovalId" TEXT,
-ADD COLUMN     "clientReviewerIdSupplied" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "delegateReason" TEXT,
-ADD COLUMN     "delegatedAt" TIMESTAMP(3),
-ADD COLUMN     "delegatedBy" TEXT,
-ADD COLUMN     "departmentSnapshotId" TEXT,
-ADD COLUMN     "reviewerResolverRoute" TEXT;
+ALTER TABLE "ApprovalRequest" ADD COLUMN IF NOT EXISTS     "bossFinalBypassAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS     "bossFinalBypassBy" TEXT,
+ADD COLUMN IF NOT EXISTS     "bossFinalBypassReason" TEXT,
+ADD COLUMN IF NOT EXISTS     "bypassedApprovalId" TEXT,
+ADD COLUMN IF NOT EXISTS     "clientReviewerIdSupplied" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS     "delegateReason" TEXT,
+ADD COLUMN IF NOT EXISTS     "delegatedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS     "delegatedBy" TEXT,
+ADD COLUMN IF NOT EXISTS     "departmentSnapshotId" TEXT,
+ADD COLUMN IF NOT EXISTS     "reviewerResolverRoute" TEXT;
 
 -- AlterTable
-ALTER TABLE "CreditLimit" ADD COLUMN     "frozenAt" TIMESTAMP(3),
-ADD COLUMN     "frozenBy" TEXT,
-ADD COLUMN     "lastAutoScanDate" TIMESTAMP(3),
-ADD COLUMN     "thawedReason" TEXT;
+ALTER TABLE "CreditLimit" ADD COLUMN IF NOT EXISTS     "frozenAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS     "frozenBy" TEXT,
+ADD COLUMN IF NOT EXISTS     "lastAutoScanDate" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS     "thawedReason" TEXT;
 
 -- AlterTable
-ALTER TABLE "CustomerTier" ADD COLUMN     "moqOverrideRatio" DECIMAL(5,2);
+ALTER TABLE "CustomerTier" ADD COLUMN IF NOT EXISTS     "moqOverrideRatio" DECIMAL(5,2);
 
 -- AlterTable
-ALTER TABLE "Department" ADD COLUMN     "headId" TEXT;
+ALTER TABLE "Department" ADD COLUMN IF NOT EXISTS     "headId" TEXT;
 
 -- AlterTable
-ALTER TABLE "GarmentProfile" ADD COLUMN     "moqUnit" TEXT NOT NULL DEFAULT 'PCS',
-ADD COLUMN     "moqValue" INTEGER;
+ALTER TABLE "GarmentProfile" ADD COLUMN IF NOT EXISTS     "moqUnit" TEXT NOT NULL DEFAULT 'PCS',
+ADD COLUMN IF NOT EXISTS     "moqValue" INTEGER;
 
 -- AlterTable
-ALTER TABLE "InspectionReport" ADD COLUMN     "signatures" JSONB DEFAULT '{}';
+ALTER TABLE "InspectionReport" ADD COLUMN IF NOT EXISTS     "signatures" JSONB DEFAULT '{}';
 
 -- AlterTable
-ALTER TABLE "Invoice" ADD COLUMN     "departmentId" TEXT,
-ADD COLUMN     "ownerId" TEXT;
+ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS     "departmentId" TEXT,
+ADD COLUMN IF NOT EXISTS     "ownerId" TEXT;
 
 -- AlterTable
-ALTER TABLE "Order" ADD COLUMN     "capsuleExemption" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "capsuleExemptionAt" TIMESTAMP(3),
-ADD COLUMN     "capsuleExemptionBy" TEXT,
-ADD COLUMN     "code" TEXT,
-ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "departmentId" TEXT,
-ADD COLUMN     "internalCounterpartyId" TEXT,
-ADD COLUMN     "isInternalFabricTrade" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "moqSnapshot" JSONB NOT NULL DEFAULT '{}',
-ADD COLUMN     "ownerId" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS     "capsuleExemption" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS     "capsuleExemptionAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS     "capsuleExemptionBy" TEXT,
+ADD COLUMN IF NOT EXISTS     "code" TEXT,
+ADD COLUMN IF NOT EXISTS     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS     "departmentId" TEXT,
+ADD COLUMN IF NOT EXISTS     "internalCounterpartyId" TEXT,
+ADD COLUMN IF NOT EXISTS     "isInternalFabricTrade" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS     "moqSnapshot" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS     "ownerId" TEXT;
 
 -- AlterTable
-ALTER TABLE "OrderLine" ADD COLUMN     "internalTransferPrice" DECIMAL(18,4),
-ADD COLUMN     "moqOverride" INTEGER;
+ALTER TABLE "OrderLine" ADD COLUMN IF NOT EXISTS     "internalTransferPrice" DECIMAL(18,4),
+ADD COLUMN IF NOT EXISTS     "moqOverride" INTEGER;
 
 -- AlterTable
-ALTER TABLE "PaymentVoucher" ADD COLUMN     "departmentId" TEXT,
-ADD COLUMN     "ownerId" TEXT,
-ADD COLUMN     "voucherCategory" TEXT NOT NULL DEFAULT 'normal';
+ALTER TABLE "PaymentVoucher" ADD COLUMN IF NOT EXISTS     "departmentId" TEXT,
+ADD COLUMN IF NOT EXISTS     "ownerId" TEXT,
+ADD COLUMN IF NOT EXISTS     "voucherCategory" TEXT NOT NULL DEFAULT 'normal';
 
 -- AlterTable
-ALTER TABLE "Quotation" ADD COLUMN     "departmentId" TEXT,
-ADD COLUMN     "moqSnapshot" JSONB NOT NULL DEFAULT '{}',
-ADD COLUMN     "ownerId" TEXT;
+ALTER TABLE "Quotation" ADD COLUMN IF NOT EXISTS     "departmentId" TEXT,
+ADD COLUMN IF NOT EXISTS     "moqSnapshot" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS     "ownerId" TEXT;
 
 -- AlterTable
-ALTER TABLE "QuotationLine" ADD COLUMN     "moqOverride" INTEGER;
+ALTER TABLE "QuotationLine" ADD COLUMN IF NOT EXISTS     "moqOverride" INTEGER;
 
 -- AlterTable
-ALTER TABLE "Relation" ADD COLUMN     "code" TEXT,
-ADD COLUMN     "customerAgreementMoq" JSONB,
-ADD COLUMN     "departmentId" TEXT,
-ADD COLUMN     "ownerId" TEXT,
-ADD COLUMN     "salesRepIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
-ADD COLUMN     "stage" TEXT DEFAULT 'Customer',
-ADD COLUMN     "tier" TEXT;
+ALTER TABLE "Relation" ADD COLUMN IF NOT EXISTS     "code" TEXT,
+ADD COLUMN IF NOT EXISTS     "customerAgreementMoq" JSONB,
+ADD COLUMN IF NOT EXISTS     "departmentId" TEXT,
+ADD COLUMN IF NOT EXISTS     "ownerId" TEXT,
+ADD COLUMN IF NOT EXISTS     "salesRepIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN IF NOT EXISTS     "stage" TEXT DEFAULT 'Customer',
+ADD COLUMN IF NOT EXISTS     "tier" TEXT;
 
 -- CreateTable
-CREATE TABLE "SequenceRegister" (
+CREATE TABLE IF NOT EXISTS "SequenceRegister" (
     "id" TEXT NOT NULL,
     "seqType" TEXT NOT NULL,
     "period" TEXT NOT NULL,
@@ -89,7 +89,7 @@ CREATE TABLE "SequenceRegister" (
 );
 
 -- CreateTable
-CREATE TABLE "VoidedNumber" (
+CREATE TABLE IF NOT EXISTS "VoidedNumber" (
     "id" TEXT NOT NULL,
     "seqType" TEXT NOT NULL,
     "number" TEXT NOT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE "VoidedNumber" (
 );
 
 -- CreateTable
-CREATE TABLE "DirtyCacheMarker" (
+CREATE TABLE IF NOT EXISTS "DirtyCacheMarker" (
     "id" TEXT NOT NULL,
     "cacheKey" TEXT NOT NULL,
     "scope" TEXT NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE "DirtyCacheMarker" (
 );
 
 -- CreateTable
-CREATE TABLE "DataDictionary" (
+CREATE TABLE IF NOT EXISTS "DataDictionary" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE "DataDictionary" (
 );
 
 -- CreateTable
-CREATE TABLE "DataDictionaryHistory" (
+CREATE TABLE IF NOT EXISTS "DataDictionaryHistory" (
     "id" TEXT NOT NULL,
     "dictCode" TEXT NOT NULL,
     "versionFrom" INTEGER NOT NULL,
@@ -158,7 +158,7 @@ CREATE TABLE "DataDictionaryHistory" (
 );
 
 -- CreateTable
-CREATE TABLE "SystemConfig" (
+CREATE TABLE IF NOT EXISTS "SystemConfig" (
     "id" TEXT NOT NULL,
     "scope" TEXT NOT NULL DEFAULT 'global',
     "key" TEXT NOT NULL,
@@ -179,7 +179,7 @@ CREATE TABLE "SystemConfig" (
 );
 
 -- CreateTable
-CREATE TABLE "SystemConfigHistory" (
+CREATE TABLE IF NOT EXISTS "SystemConfigHistory" (
     "id" TEXT NOT NULL,
     "configId" TEXT NOT NULL,
     "versionFrom" INTEGER NOT NULL,
@@ -195,7 +195,7 @@ CREATE TABLE "SystemConfigHistory" (
 );
 
 -- CreateTable
-CREATE TABLE "MarketingCampaign" (
+CREATE TABLE IF NOT EXISTS "MarketingCampaign" (
     "id" TEXT NOT NULL,
     "code" TEXT,
     "name" TEXT NOT NULL,
@@ -219,7 +219,7 @@ CREATE TABLE "MarketingCampaign" (
 );
 
 -- CreateTable
-CREATE TABLE "MarketingLead" (
+CREATE TABLE IF NOT EXISTS "MarketingLead" (
     "id" TEXT NOT NULL,
     "campaignId" TEXT NOT NULL,
     "relationId" TEXT,
@@ -240,7 +240,7 @@ CREATE TABLE "MarketingLead" (
 );
 
 -- CreateTable
-CREATE TABLE "MoqThresholdConfig" (
+CREATE TABLE IF NOT EXISTS "MoqThresholdConfig" (
     "id" TEXT NOT NULL,
     "fabricDefaultMoq" INTEGER NOT NULL,
     "garmentDefaultMoq" INTEGER NOT NULL,
@@ -257,7 +257,7 @@ CREATE TABLE "MoqThresholdConfig" (
 );
 
 -- CreateTable
-CREATE TABLE "MoqThresholdConfigHistory" (
+CREATE TABLE IF NOT EXISTS "MoqThresholdConfigHistory" (
     "id" TEXT NOT NULL,
     "configId" TEXT NOT NULL,
     "beforeFabricDefaultMoq" INTEGER NOT NULL,
@@ -274,7 +274,7 @@ CREATE TABLE "MoqThresholdConfigHistory" (
 );
 
 -- CreateTable
-CREATE TABLE "OrderChangeRequest" (
+CREATE TABLE IF NOT EXISTS "OrderChangeRequest" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "requestNumber" TEXT NOT NULL,
@@ -299,7 +299,7 @@ CREATE TABLE "OrderChangeRequest" (
 );
 
 -- CreateTable
-CREATE TABLE "FabricShipmentSample" (
+CREATE TABLE IF NOT EXISTS "FabricShipmentSample" (
     "id" TEXT NOT NULL,
     "sampleCode" TEXT NOT NULL,
     "shipmentId" TEXT NOT NULL,
@@ -332,7 +332,7 @@ CREATE TABLE "FabricShipmentSample" (
 );
 
 -- CreateTable
-CREATE TABLE "PaymentRequest" (
+CREATE TABLE IF NOT EXISTS "PaymentRequest" (
     "id" TEXT NOT NULL,
     "requestNumber" TEXT NOT NULL,
     "supplierId" TEXT,
@@ -359,7 +359,7 @@ CREATE TABLE "PaymentRequest" (
 );
 
 -- CreateTable
-CREATE TABLE "CreditLimitHistory" (
+CREATE TABLE IF NOT EXISTS "CreditLimitHistory" (
     "id" TEXT NOT NULL,
     "creditLimitId" TEXT NOT NULL,
     "relationId" TEXT NOT NULL,
@@ -376,7 +376,7 @@ CREATE TABLE "CreditLimitHistory" (
 );
 
 -- CreateTable
-CREATE TABLE "OrderInternalTransfer" (
+CREATE TABLE IF NOT EXISTS "OrderInternalTransfer" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "transferDirection" TEXT NOT NULL,
@@ -396,7 +396,7 @@ CREATE TABLE "OrderInternalTransfer" (
 );
 
 -- CreateTable
-CREATE TABLE "UserPermissionOverrides" (
+CREATE TABLE IF NOT EXISTS "UserPermissionOverrides" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "scope" TEXT NOT NULL,
@@ -413,7 +413,7 @@ CREATE TABLE "UserPermissionOverrides" (
 );
 
 -- CreateTable
-CREATE TABLE "EarlyProductionSample" (
+CREATE TABLE IF NOT EXISTS "EarlyProductionSample" (
     "id" TEXT NOT NULL,
     "sampleCode" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
@@ -444,7 +444,7 @@ CREATE TABLE "EarlyProductionSample" (
 );
 
 -- CreateTable
-CREATE TABLE "Dr013ExceptionRequest" (
+CREATE TABLE IF NOT EXISTS "Dr013ExceptionRequest" (
     "id" TEXT NOT NULL,
     "exceptionNumber" TEXT NOT NULL,
     "exceptionCategory" TEXT NOT NULL,
@@ -470,308 +470,313 @@ CREATE TABLE "Dr013ExceptionRequest" (
 );
 
 -- CreateIndex
-CREATE INDEX "SequenceRegister_seqType_idx" ON "SequenceRegister"("seqType");
+CREATE INDEX IF NOT EXISTS "SequenceRegister_seqType_idx" ON "SequenceRegister"("seqType");
 
 -- CreateIndex
-CREATE INDEX "SequenceRegister_periodKey_idx" ON "SequenceRegister"("periodKey");
+CREATE INDEX IF NOT EXISTS "SequenceRegister_periodKey_idx" ON "SequenceRegister"("periodKey");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SequenceRegister_seqType_periodKey_key" ON "SequenceRegister"("seqType", "periodKey");
+CREATE UNIQUE INDEX IF NOT EXISTS "SequenceRegister_seqType_periodKey_key" ON "SequenceRegister"("seqType", "periodKey");
 
 -- CreateIndex
-CREATE INDEX "VoidedNumber_seqType_idx" ON "VoidedNumber"("seqType");
+CREATE INDEX IF NOT EXISTS "VoidedNumber_seqType_idx" ON "VoidedNumber"("seqType");
 
 -- CreateIndex
-CREATE INDEX "VoidedNumber_voidedAt_idx" ON "VoidedNumber"("voidedAt");
+CREATE INDEX IF NOT EXISTS "VoidedNumber_voidedAt_idx" ON "VoidedNumber"("voidedAt");
 
 -- CreateIndex
-CREATE INDEX "VoidedNumber_sourceDocType_sourceDocId_idx" ON "VoidedNumber"("sourceDocType", "sourceDocId");
+CREATE INDEX IF NOT EXISTS "VoidedNumber_sourceDocType_sourceDocId_idx" ON "VoidedNumber"("sourceDocType", "sourceDocId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "VoidedNumber_seqType_number_key" ON "VoidedNumber"("seqType", "number");
+CREATE UNIQUE INDEX IF NOT EXISTS "VoidedNumber_seqType_number_key" ON "VoidedNumber"("seqType", "number");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "DirtyCacheMarker_cacheKey_key" ON "DirtyCacheMarker"("cacheKey");
+CREATE UNIQUE INDEX IF NOT EXISTS "DirtyCacheMarker_cacheKey_key" ON "DirtyCacheMarker"("cacheKey");
 
 -- CreateIndex
-CREATE INDEX "DirtyCacheMarker_scope_idx" ON "DirtyCacheMarker"("scope");
+CREATE INDEX IF NOT EXISTS "DirtyCacheMarker_scope_idx" ON "DirtyCacheMarker"("scope");
 
 -- CreateIndex
-CREATE INDEX "DirtyCacheMarker_entityType_entityId_idx" ON "DirtyCacheMarker"("entityType", "entityId");
+CREATE INDEX IF NOT EXISTS "DirtyCacheMarker_entityType_entityId_idx" ON "DirtyCacheMarker"("entityType", "entityId");
 
 -- CreateIndex
-CREATE INDEX "DirtyCacheMarker_dirty_idx" ON "DirtyCacheMarker"("dirty");
+CREATE INDEX IF NOT EXISTS "DirtyCacheMarker_dirty_idx" ON "DirtyCacheMarker"("dirty");
 
 -- CreateIndex
-CREATE INDEX "DirtyCacheMarker_dirtyAt_idx" ON "DirtyCacheMarker"("dirtyAt");
+CREATE INDEX IF NOT EXISTS "DirtyCacheMarker_dirtyAt_idx" ON "DirtyCacheMarker"("dirtyAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "DataDictionary_code_key" ON "DataDictionary"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "DataDictionary_code_key" ON "DataDictionary"("code");
 
 -- CreateIndex
-CREATE INDEX "DataDictionary_category_idx" ON "DataDictionary"("category");
+CREATE INDEX IF NOT EXISTS "DataDictionary_category_idx" ON "DataDictionary"("category");
 
 -- CreateIndex
-CREATE INDEX "DataDictionary_scope_idx" ON "DataDictionary"("scope");
+CREATE INDEX IF NOT EXISTS "DataDictionary_scope_idx" ON "DataDictionary"("scope");
 
 -- CreateIndex
-CREATE INDEX "DataDictionary_isSystem_idx" ON "DataDictionary"("isSystem");
+CREATE INDEX IF NOT EXISTS "DataDictionary_isSystem_idx" ON "DataDictionary"("isSystem");
 
 -- CreateIndex
-CREATE INDEX "DataDictionaryHistory_dictCode_createdAt_idx" ON "DataDictionaryHistory"("dictCode", "createdAt");
+CREATE INDEX IF NOT EXISTS "DataDictionaryHistory_dictCode_createdAt_idx" ON "DataDictionaryHistory"("dictCode", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "SystemConfig_group_idx" ON "SystemConfig"("group");
+CREATE INDEX IF NOT EXISTS "SystemConfig_group_idx" ON "SystemConfig"("group");
 
 -- CreateIndex
-CREATE INDEX "SystemConfig_scope_idx" ON "SystemConfig"("scope");
+CREATE INDEX IF NOT EXISTS "SystemConfig_scope_idx" ON "SystemConfig"("scope");
 
 -- CreateIndex
-CREATE INDEX "SystemConfig_encrypted_idx" ON "SystemConfig"("encrypted");
+CREATE INDEX IF NOT EXISTS "SystemConfig_encrypted_idx" ON "SystemConfig"("encrypted");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SystemConfig_scope_key_key" ON "SystemConfig"("scope", "key");
+CREATE UNIQUE INDEX IF NOT EXISTS "SystemConfig_scope_key_key" ON "SystemConfig"("scope", "key");
 
 -- CreateIndex
-CREATE INDEX "SystemConfigHistory_configId_createdAt_idx" ON "SystemConfigHistory"("configId", "createdAt");
+CREATE INDEX IF NOT EXISTS "SystemConfigHistory_configId_createdAt_idx" ON "SystemConfigHistory"("configId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "SystemConfigHistory_actorId_idx" ON "SystemConfigHistory"("actorId");
+CREATE INDEX IF NOT EXISTS "SystemConfigHistory_actorId_idx" ON "SystemConfigHistory"("actorId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "MarketingCampaign_code_key" ON "MarketingCampaign"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "MarketingCampaign_code_key" ON "MarketingCampaign"("code");
 
 -- CreateIndex
-CREATE INDEX "MarketingCampaign_status_idx" ON "MarketingCampaign"("status");
+CREATE INDEX IF NOT EXISTS "MarketingCampaign_status_idx" ON "MarketingCampaign"("status");
 
 -- CreateIndex
-CREATE INDEX "MarketingCampaign_type_idx" ON "MarketingCampaign"("type");
+CREATE INDEX IF NOT EXISTS "MarketingCampaign_type_idx" ON "MarketingCampaign"("type");
 
 -- CreateIndex
-CREATE INDEX "MarketingCampaign_seasonId_idx" ON "MarketingCampaign"("seasonId");
+CREATE INDEX IF NOT EXISTS "MarketingCampaign_seasonId_idx" ON "MarketingCampaign"("seasonId");
 
 -- CreateIndex
-CREATE INDEX "MarketingCampaign_ownerId_idx" ON "MarketingCampaign"("ownerId");
+CREATE INDEX IF NOT EXISTS "MarketingCampaign_ownerId_idx" ON "MarketingCampaign"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "MarketingCampaign_departmentId_idx" ON "MarketingCampaign"("departmentId");
+CREATE INDEX IF NOT EXISTS "MarketingCampaign_departmentId_idx" ON "MarketingCampaign"("departmentId");
 
 -- CreateIndex
-CREATE INDEX "MarketingLead_campaignId_idx" ON "MarketingLead"("campaignId");
+CREATE INDEX IF NOT EXISTS "MarketingLead_campaignId_idx" ON "MarketingLead"("campaignId");
 
 -- CreateIndex
-CREATE INDEX "MarketingLead_relationId_idx" ON "MarketingLead"("relationId");
+CREATE INDEX IF NOT EXISTS "MarketingLead_relationId_idx" ON "MarketingLead"("relationId");
 
 -- CreateIndex
-CREATE INDEX "MarketingLead_status_idx" ON "MarketingLead"("status");
+CREATE INDEX IF NOT EXISTS "MarketingLead_status_idx" ON "MarketingLead"("status");
 
 -- CreateIndex
-CREATE INDEX "MoqThresholdConfig_isActive_idx" ON "MoqThresholdConfig"("isActive");
+CREATE INDEX IF NOT EXISTS "MoqThresholdConfig_isActive_idx" ON "MoqThresholdConfig"("isActive");
 
 -- CreateIndex
-CREATE INDEX "MoqThresholdConfig_effectiveFrom_idx" ON "MoqThresholdConfig"("effectiveFrom");
+CREATE INDEX IF NOT EXISTS "MoqThresholdConfig_effectiveFrom_idx" ON "MoqThresholdConfig"("effectiveFrom");
 
 -- CreateIndex
-CREATE INDEX "MoqThresholdConfigHistory_configId_idx" ON "MoqThresholdConfigHistory"("configId");
+CREATE INDEX IF NOT EXISTS "MoqThresholdConfigHistory_configId_idx" ON "MoqThresholdConfigHistory"("configId");
 
 -- CreateIndex
-CREATE INDEX "MoqThresholdConfigHistory_changedAt_idx" ON "MoqThresholdConfigHistory"("changedAt");
+CREATE INDEX IF NOT EXISTS "MoqThresholdConfigHistory_changedAt_idx" ON "MoqThresholdConfigHistory"("changedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrderChangeRequest_requestNumber_key" ON "OrderChangeRequest"("requestNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrderChangeRequest_requestNumber_key" ON "OrderChangeRequest"("requestNumber");
 
 -- CreateIndex
-CREATE INDEX "OrderChangeRequest_orderId_idx" ON "OrderChangeRequest"("orderId");
+CREATE INDEX IF NOT EXISTS "OrderChangeRequest_orderId_idx" ON "OrderChangeRequest"("orderId");
 
 -- CreateIndex
-CREATE INDEX "OrderChangeRequest_status_idx" ON "OrderChangeRequest"("status");
+CREATE INDEX IF NOT EXISTS "OrderChangeRequest_status_idx" ON "OrderChangeRequest"("status");
 
 -- CreateIndex
-CREATE INDEX "OrderChangeRequest_requesterId_idx" ON "OrderChangeRequest"("requesterId");
+CREATE INDEX IF NOT EXISTS "OrderChangeRequest_requesterId_idx" ON "OrderChangeRequest"("requesterId");
 
 -- CreateIndex
-CREATE INDEX "OrderChangeRequest_reviewerId_idx" ON "OrderChangeRequest"("reviewerId");
+CREATE INDEX IF NOT EXISTS "OrderChangeRequest_reviewerId_idx" ON "OrderChangeRequest"("reviewerId");
 
 -- CreateIndex
-CREATE INDEX "OrderChangeRequest_requestNumber_idx" ON "OrderChangeRequest"("requestNumber");
+CREATE INDEX IF NOT EXISTS "OrderChangeRequest_requestNumber_idx" ON "OrderChangeRequest"("requestNumber");
 
 -- CreateIndex
-CREATE INDEX "OrderChangeRequest_impactLevel_idx" ON "OrderChangeRequest"("impactLevel");
+CREATE INDEX IF NOT EXISTS "OrderChangeRequest_impactLevel_idx" ON "OrderChangeRequest"("impactLevel");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "FabricShipmentSample_sampleCode_key" ON "FabricShipmentSample"("sampleCode");
+CREATE UNIQUE INDEX IF NOT EXISTS "FabricShipmentSample_sampleCode_key" ON "FabricShipmentSample"("sampleCode");
 
 -- CreateIndex
-CREATE INDEX "FabricShipmentSample_shipmentId_idx" ON "FabricShipmentSample"("shipmentId");
+CREATE INDEX IF NOT EXISTS "FabricShipmentSample_shipmentId_idx" ON "FabricShipmentSample"("shipmentId");
 
 -- CreateIndex
-CREATE INDEX "FabricShipmentSample_orderId_idx" ON "FabricShipmentSample"("orderId");
+CREATE INDEX IF NOT EXISTS "FabricShipmentSample_orderId_idx" ON "FabricShipmentSample"("orderId");
 
 -- CreateIndex
-CREATE INDEX "FabricShipmentSample_customerStatus_idx" ON "FabricShipmentSample"("customerStatus");
+CREATE INDEX IF NOT EXISTS "FabricShipmentSample_customerStatus_idx" ON "FabricShipmentSample"("customerStatus");
 
 -- CreateIndex
-CREATE INDEX "FabricShipmentSample_sampleCode_idx" ON "FabricShipmentSample"("sampleCode");
+CREATE INDEX IF NOT EXISTS "FabricShipmentSample_sampleCode_idx" ON "FabricShipmentSample"("sampleCode");
 
 -- CreateIndex
-CREATE INDEX "FabricShipmentSample_qcInspectionReportId_idx" ON "FabricShipmentSample"("qcInspectionReportId");
+CREATE INDEX IF NOT EXISTS "FabricShipmentSample_qcInspectionReportId_idx" ON "FabricShipmentSample"("qcInspectionReportId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PaymentRequest_requestNumber_key" ON "PaymentRequest"("requestNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "PaymentRequest_requestNumber_key" ON "PaymentRequest"("requestNumber");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_status_idx" ON "PaymentRequest"("status");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_status_idx" ON "PaymentRequest"("status");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_supplierId_idx" ON "PaymentRequest"("supplierId");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_supplierId_idx" ON "PaymentRequest"("supplierId");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_applicantId_idx" ON "PaymentRequest"("applicantId");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_applicantId_idx" ON "PaymentRequest"("applicantId");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_reviewerId_idx" ON "PaymentRequest"("reviewerId");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_reviewerId_idx" ON "PaymentRequest"("reviewerId");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_requestNumber_idx" ON "PaymentRequest"("requestNumber");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_requestNumber_idx" ON "PaymentRequest"("requestNumber");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_requestDate_idx" ON "PaymentRequest"("requestDate");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_requestDate_idx" ON "PaymentRequest"("requestDate");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_ownerId_idx" ON "PaymentRequest"("ownerId");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_ownerId_idx" ON "PaymentRequest"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "PaymentRequest_departmentId_idx" ON "PaymentRequest"("departmentId");
+CREATE INDEX IF NOT EXISTS "PaymentRequest_departmentId_idx" ON "PaymentRequest"("departmentId");
 
 -- CreateIndex
-CREATE INDEX "CreditLimitHistory_creditLimitId_idx" ON "CreditLimitHistory"("creditLimitId");
+CREATE INDEX IF NOT EXISTS "CreditLimitHistory_creditLimitId_idx" ON "CreditLimitHistory"("creditLimitId");
 
 -- CreateIndex
-CREATE INDEX "CreditLimitHistory_relationId_idx" ON "CreditLimitHistory"("relationId");
+CREATE INDEX IF NOT EXISTS "CreditLimitHistory_relationId_idx" ON "CreditLimitHistory"("relationId");
 
 -- CreateIndex
-CREATE INDEX "CreditLimitHistory_triggerType_idx" ON "CreditLimitHistory"("triggerType");
+CREATE INDEX IF NOT EXISTS "CreditLimitHistory_triggerType_idx" ON "CreditLimitHistory"("triggerType");
 
 -- CreateIndex
-CREATE INDEX "CreditLimitHistory_createdAt_idx" ON "CreditLimitHistory"("createdAt");
+CREATE INDEX IF NOT EXISTS "CreditLimitHistory_createdAt_idx" ON "CreditLimitHistory"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "OrderInternalTransfer_orderId_idx" ON "OrderInternalTransfer"("orderId");
+CREATE INDEX IF NOT EXISTS "OrderInternalTransfer_orderId_idx" ON "OrderInternalTransfer"("orderId");
 
 -- CreateIndex
-CREATE INDEX "OrderInternalTransfer_counterpartyId_idx" ON "OrderInternalTransfer"("counterpartyId");
+CREATE INDEX IF NOT EXISTS "OrderInternalTransfer_counterpartyId_idx" ON "OrderInternalTransfer"("counterpartyId");
 
 -- CreateIndex
-CREATE INDEX "OrderInternalTransfer_transferDirection_idx" ON "OrderInternalTransfer"("transferDirection");
+CREATE INDEX IF NOT EXISTS "OrderInternalTransfer_transferDirection_idx" ON "OrderInternalTransfer"("transferDirection");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrderInternalTransfer_orderId_transferDirection_key" ON "OrderInternalTransfer"("orderId", "transferDirection");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrderInternalTransfer_orderId_transferDirection_key" ON "OrderInternalTransfer"("orderId", "transferDirection");
 
 -- CreateIndex
-CREATE INDEX "UserPermissionOverrides_userId_idx" ON "UserPermissionOverrides"("userId");
+CREATE INDEX IF NOT EXISTS "UserPermissionOverrides_userId_idx" ON "UserPermissionOverrides"("userId");
 
 -- CreateIndex
-CREATE INDEX "UserPermissionOverrides_scope_idx" ON "UserPermissionOverrides"("scope");
+CREATE INDEX IF NOT EXISTS "UserPermissionOverrides_scope_idx" ON "UserPermissionOverrides"("scope");
 
 -- CreateIndex
-CREATE INDEX "UserPermissionOverrides_isActive_idx" ON "UserPermissionOverrides"("isActive");
+CREATE INDEX IF NOT EXISTS "UserPermissionOverrides_isActive_idx" ON "UserPermissionOverrides"("isActive");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserPermissionOverrides_userId_scope_key" ON "UserPermissionOverrides"("userId", "scope");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserPermissionOverrides_userId_scope_key" ON "UserPermissionOverrides"("userId", "scope");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EarlyProductionSample_sampleCode_key" ON "EarlyProductionSample"("sampleCode");
+CREATE UNIQUE INDEX IF NOT EXISTS "EarlyProductionSample_sampleCode_key" ON "EarlyProductionSample"("sampleCode");
 
 -- CreateIndex
-CREATE INDEX "EarlyProductionSample_orderId_idx" ON "EarlyProductionSample"("orderId");
+CREATE INDEX IF NOT EXISTS "EarlyProductionSample_orderId_idx" ON "EarlyProductionSample"("orderId");
 
 -- CreateIndex
-CREATE INDEX "EarlyProductionSample_customerStatus_idx" ON "EarlyProductionSample"("customerStatus");
+CREATE INDEX IF NOT EXISTS "EarlyProductionSample_customerStatus_idx" ON "EarlyProductionSample"("customerStatus");
 
 -- CreateIndex
-CREATE INDEX "EarlyProductionSample_previousSampleId_idx" ON "EarlyProductionSample"("previousSampleId");
+CREATE INDEX IF NOT EXISTS "EarlyProductionSample_previousSampleId_idx" ON "EarlyProductionSample"("previousSampleId");
 
 -- CreateIndex
-CREATE INDEX "EarlyProductionSample_qcInspectionReportId_idx" ON "EarlyProductionSample"("qcInspectionReportId");
+CREATE INDEX IF NOT EXISTS "EarlyProductionSample_qcInspectionReportId_idx" ON "EarlyProductionSample"("qcInspectionReportId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Dr013ExceptionRequest_exceptionNumber_key" ON "Dr013ExceptionRequest"("exceptionNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "Dr013ExceptionRequest_exceptionNumber_key" ON "Dr013ExceptionRequest"("exceptionNumber");
 
 -- CreateIndex
-CREATE INDEX "Dr013ExceptionRequest_exceptionCategory_idx" ON "Dr013ExceptionRequest"("exceptionCategory");
+CREATE INDEX IF NOT EXISTS "Dr013ExceptionRequest_exceptionCategory_idx" ON "Dr013ExceptionRequest"("exceptionCategory");
 
 -- CreateIndex
-CREATE INDEX "Dr013ExceptionRequest_status_idx" ON "Dr013ExceptionRequest"("status");
+CREATE INDEX IF NOT EXISTS "Dr013ExceptionRequest_status_idx" ON "Dr013ExceptionRequest"("status");
 
 -- CreateIndex
-CREATE INDEX "Dr013ExceptionRequest_requesterId_idx" ON "Dr013ExceptionRequest"("requesterId");
+CREATE INDEX IF NOT EXISTS "Dr013ExceptionRequest_requesterId_idx" ON "Dr013ExceptionRequest"("requesterId");
 
 -- CreateIndex
-CREATE INDEX "Dr013ExceptionRequest_reviewerId_idx" ON "Dr013ExceptionRequest"("reviewerId");
+CREATE INDEX IF NOT EXISTS "Dr013ExceptionRequest_reviewerId_idx" ON "Dr013ExceptionRequest"("reviewerId");
 
 -- CreateIndex
-CREATE INDEX "Dr013ExceptionRequest_exceptionNumber_idx" ON "Dr013ExceptionRequest"("exceptionNumber");
+CREATE INDEX IF NOT EXISTS "Dr013ExceptionRequest_exceptionNumber_idx" ON "Dr013ExceptionRequest"("exceptionNumber");
 
 -- CreateIndex
-CREATE INDEX "ApprovalRequest_reviewerResolverRoute_idx" ON "ApprovalRequest"("reviewerResolverRoute");
+CREATE INDEX IF NOT EXISTS "ApprovalRequest_reviewerResolverRoute_idx" ON "ApprovalRequest"("reviewerResolverRoute");
 
 -- CreateIndex
-CREATE INDEX "ApprovalRequest_departmentSnapshotId_idx" ON "ApprovalRequest"("departmentSnapshotId");
+CREATE INDEX IF NOT EXISTS "ApprovalRequest_departmentSnapshotId_idx" ON "ApprovalRequest"("departmentSnapshotId");
 
 -- CreateIndex
-CREATE INDEX "ApprovalRequest_bypassedApprovalId_idx" ON "ApprovalRequest"("bypassedApprovalId");
+CREATE INDEX IF NOT EXISTS "ApprovalRequest_bypassedApprovalId_idx" ON "ApprovalRequest"("bypassedApprovalId");
 
 -- CreateIndex
-CREATE INDEX "Department_headId_idx" ON "Department"("headId");
+CREATE INDEX IF NOT EXISTS "Department_headId_idx" ON "Department"("headId");
 
 -- CreateIndex
-CREATE INDEX "Invoice_ownerId_idx" ON "Invoice"("ownerId");
+CREATE INDEX IF NOT EXISTS "Invoice_ownerId_idx" ON "Invoice"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "Invoice_departmentId_idx" ON "Invoice"("departmentId");
+CREATE INDEX IF NOT EXISTS "Invoice_departmentId_idx" ON "Invoice"("departmentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Order_code_key" ON "Order"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "Order_code_key" ON "Order"("code");
 
 -- CreateIndex
-CREATE INDEX "Order_code_idx" ON "Order"("code");
+CREATE INDEX IF NOT EXISTS "Order_code_idx" ON "Order"("code");
 
 -- CreateIndex
-CREATE INDEX "Order_ownerId_idx" ON "Order"("ownerId");
+CREATE INDEX IF NOT EXISTS "Order_ownerId_idx" ON "Order"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "Order_departmentId_idx" ON "Order"("departmentId");
+CREATE INDEX IF NOT EXISTS "Order_departmentId_idx" ON "Order"("departmentId");
 
 -- CreateIndex
-CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
+CREATE INDEX IF NOT EXISTS "Order_createdAt_idx" ON "Order"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "PaymentVoucher_ownerId_idx" ON "PaymentVoucher"("ownerId");
+CREATE INDEX IF NOT EXISTS "PaymentVoucher_ownerId_idx" ON "PaymentVoucher"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "PaymentVoucher_departmentId_idx" ON "PaymentVoucher"("departmentId");
+CREATE INDEX IF NOT EXISTS "PaymentVoucher_departmentId_idx" ON "PaymentVoucher"("departmentId");
 
 -- CreateIndex
-CREATE INDEX "Quotation_ownerId_idx" ON "Quotation"("ownerId");
+CREATE INDEX IF NOT EXISTS "Quotation_ownerId_idx" ON "Quotation"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "Quotation_departmentId_idx" ON "Quotation"("departmentId");
+CREATE INDEX IF NOT EXISTS "Quotation_departmentId_idx" ON "Quotation"("departmentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Relation_code_key" ON "Relation"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "Relation_code_key" ON "Relation"("code");
 
 -- CreateIndex
-CREATE INDEX "Relation_stage_idx" ON "Relation"("stage");
+CREATE INDEX IF NOT EXISTS "Relation_stage_idx" ON "Relation"("stage");
 
 -- CreateIndex
-CREATE INDEX "Relation_tier_idx" ON "Relation"("tier");
+CREATE INDEX IF NOT EXISTS "Relation_tier_idx" ON "Relation"("tier");
 
 -- CreateIndex
-CREATE INDEX "Relation_ownerId_idx" ON "Relation"("ownerId");
+CREATE INDEX IF NOT EXISTS "Relation_ownerId_idx" ON "Relation"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "Relation_departmentId_idx" ON "Relation"("departmentId");
+CREATE INDEX IF NOT EXISTS "Relation_departmentId_idx" ON "Relation"("departmentId");
 
 -- AddForeignKey
-ALTER TABLE "MarketingLead" ADD CONSTRAINT "MarketingLead_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "MarketingCampaign"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MarketingLead_campaignId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "MarketingLead" ADD CONSTRAINT "MarketingLead_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "MarketingCampaign"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 

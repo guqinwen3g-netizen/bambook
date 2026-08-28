@@ -1,5 +1,5 @@
 -- CreateTable: Warehouse
-CREATE TABLE "Warehouse" (
+CREATE TABLE IF NOT EXISTS "Warehouse" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE "Warehouse" (
 );
 
 -- CreateTable: InventoryItem
-CREATE TABLE "InventoryItem" (
+CREATE TABLE IF NOT EXISTS "InventoryItem" (
     "id" TEXT NOT NULL,
     "warehouseId" TEXT NOT NULL,
     "productAssetId" TEXT,
@@ -46,7 +46,7 @@ CREATE TABLE "InventoryItem" (
 );
 
 -- CreateTable: StockMovement
-CREATE TABLE "StockMovement" (
+CREATE TABLE IF NOT EXISTS "StockMovement" (
     "id" TEXT NOT NULL,
     "movementNumber" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -70,27 +70,35 @@ CREATE TABLE "StockMovement" (
 );
 
 -- CreateIndex: Warehouse
-CREATE UNIQUE INDEX "Warehouse_code_key" ON "Warehouse"("code");
-CREATE INDEX "Warehouse_type_idx" ON "Warehouse"("type");
-CREATE INDEX "Warehouse_isActive_idx" ON "Warehouse"("isActive");
+CREATE UNIQUE INDEX IF NOT EXISTS "Warehouse_code_key" ON "Warehouse"("code");
+CREATE INDEX IF NOT EXISTS "Warehouse_type_idx" ON "Warehouse"("type");
+CREATE INDEX IF NOT EXISTS "Warehouse_isActive_idx" ON "Warehouse"("isActive");
 
 -- CreateIndex: InventoryItem
-CREATE INDEX "InventoryItem_warehouseId_idx" ON "InventoryItem"("warehouseId");
-CREATE INDEX "InventoryItem_productAssetId_idx" ON "InventoryItem"("productAssetId");
-CREATE INDEX "InventoryItem_materialCode_idx" ON "InventoryItem"("materialCode");
-CREATE INDEX "InventoryItem_category_idx" ON "InventoryItem"("category");
-CREATE INDEX "InventoryItem_batchNumber_idx" ON "InventoryItem"("batchNumber");
+CREATE INDEX IF NOT EXISTS "InventoryItem_warehouseId_idx" ON "InventoryItem"("warehouseId");
+CREATE INDEX IF NOT EXISTS "InventoryItem_productAssetId_idx" ON "InventoryItem"("productAssetId");
+CREATE INDEX IF NOT EXISTS "InventoryItem_materialCode_idx" ON "InventoryItem"("materialCode");
+CREATE INDEX IF NOT EXISTS "InventoryItem_category_idx" ON "InventoryItem"("category");
+CREATE INDEX IF NOT EXISTS "InventoryItem_batchNumber_idx" ON "InventoryItem"("batchNumber");
 
 -- CreateIndex: StockMovement
-CREATE INDEX "StockMovement_itemId_idx" ON "StockMovement"("itemId");
-CREATE INDEX "StockMovement_type_idx" ON "StockMovement"("type");
-CREATE INDEX "StockMovement_warehouseId_idx" ON "StockMovement"("warehouseId");
-CREATE INDEX "StockMovement_movementDate_idx" ON "StockMovement"("movementDate");
-CREATE INDEX "StockMovement_referenceType_referenceId_idx" ON "StockMovement"("referenceType", "referenceId");
+CREATE INDEX IF NOT EXISTS "StockMovement_itemId_idx" ON "StockMovement"("itemId");
+CREATE INDEX IF NOT EXISTS "StockMovement_type_idx" ON "StockMovement"("type");
+CREATE INDEX IF NOT EXISTS "StockMovement_warehouseId_idx" ON "StockMovement"("warehouseId");
+CREATE INDEX IF NOT EXISTS "StockMovement_movementDate_idx" ON "StockMovement"("movementDate");
+CREATE INDEX IF NOT EXISTS "StockMovement_referenceType_referenceId_idx" ON "StockMovement"("referenceType", "referenceId");
 
 -- AddForeignKey
-ALTER TABLE "InventoryItem" ADD CONSTRAINT "InventoryItem_warehouseId_fkey"
-    FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InventoryItem_warehouseId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "InventoryItem" ADD CONSTRAINT "InventoryItem_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id");
+  END IF;
+END $$;
 
-ALTER TABLE "StockMovement" ADD CONSTRAINT "StockMovement_itemId_fkey"
-    FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'StockMovement_itemId_fkey' AND connamespace = 'public'::regnamespace) THEN
+    ALTER TABLE "StockMovement" ADD CONSTRAINT "StockMovement_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE CASCADE;
+  END IF;
+END $$;

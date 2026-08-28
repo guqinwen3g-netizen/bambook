@@ -439,7 +439,11 @@ async function seedRbacDirect() {
     let ownerCreated = false;
     if (process.env.BAMBOOK_SEED_DEFAULT_OWNER === '1' && existingOwner.length === 0) {
       const bcrypt = require('bcryptjs') as typeof import('bcryptjs');
-      const passwordHash = await bcrypt.hash('bambook2026', 12);
+      // 弱口令治理：初始口令不再硬编码。优先取 BAMBOOK_INITIAL_ADMIN_PASSWORD；
+      // 未设置时随机生成并打印到 ops-panel 日志（仅此一次；不回传 HTTP 响应、不写行动日志）。
+      const envPassword = String(process.env.BAMBOOK_INITIAL_ADMIN_PASSWORD || '').trim();
+      const initialPassword = envPassword || require('crypto').randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(initialPassword, 12);
       await client.query(`
         INSERT INTO "UserAccount" (id, "displayName", email, "passwordHash", status, "primaryDeptId", "createdAt", "updatedAt")
         VALUES ('usr_owner_default', 'Admin', 'admin@bambook.local', $1, 'active', 'company', NOW(), NOW())
@@ -451,6 +455,17 @@ async function seedRbacDirect() {
         ON CONFLICT DO NOTHING
       `);
       ownerCreated = true;
+      if (envPassword) {
+        console.log('[seedRbac] owner bootstrap 完成：admin@bambook.local（口令取自 BAMBOOK_INITIAL_ADMIN_PASSWORD，首次登录后请立即修改）');
+      } else {
+        console.log(
+          `[seedRbac] owner bootstrap 完成：admin@bambook.local\n` +
+          `  ══════════════════════════════════════════════════════════\n` +
+          `  初始随机口令（仅显示一次，请立即保存）：${initialPassword}\n` +
+          `  ⚠ 首次登录后请立即修改密码！\n` +
+          `  ══════════════════════════════════════════════════════════`,
+        );
+      }
     }
 
     await client.query('COMMIT');
@@ -729,9 +744,10 @@ async function deployUploadedPackage(req: Request, res: Response) {
         env: process.env,
       }));
       if (fs.existsSync(path.join(SERVER_ROOT, 'prisma'))) {
-        // 与 run-main-data-api.sh 启动路径约定一致：schema 变更在开发侧已评审，
-        // 部署路径非交互执行必须带 --accept-data-loss，否则唯一约束等变更会阻断整个部署。
-        mainLogs.push(await execFileAsync('/usr/bin/env', ['npx', 'prisma', 'db', 'push', '--accept-data-loss'], {
+        // 部署通道已收敛到 migrate deploy 单一真源（运维冲刺任务 2）——禁止 db push
+        // --accept-data-loss（绕过账本、可能静默丢列）；迁移账本断链时用
+        // scripts/fix-migration-ledger.ts 补账后再 deploy。
+        mainLogs.push(await execFileAsync('/usr/bin/env', ['npx', 'prisma', 'migrate', 'deploy'], {
           cwd: SERVER_ROOT,
           timeout: 120_000,
           maxBuffer: 1024 * 1024 * 2,

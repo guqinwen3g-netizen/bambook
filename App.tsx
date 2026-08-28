@@ -26,11 +26,9 @@ const PRODUCT_MAIN_CATEGORIES: MainCategory[] = ['Garment', 'Fabric', 'Accessori
 
 // 未交付模块的装修遮挡清单：页面 → 提示文案（由开发者选项「装修遮挡」开关统一控制显隐）
 // Emails/Seasons/Marketing 已实测验收通过（2026-08-24 第二幕），移出遮挡清单
-const COMING_SOON_PAGES: Partial<Record<View, string>> = {
-  [View.Dashboard]: '工作台开发中 · 即将上线',
-  [View.Assistant]: 'AI 助手开发中 · 即将上线',
-  [View.DataCenter]: '数据中心开发中 · 即将上线',
-};
+// 2026-08-28 运维冲刺任务 5：投产清雷——Dashboard/Assistant/DataCenter 三页移出遮挡清单，
+// 全新安装首页不再糊「开发中 · 即将上线」；遮挡机制保留供后续未交付模块使用。
+const COMING_SOON_PAGES: Partial<Record<View, string>> = {};
 const PRODUCT_MAIN_CATEGORY_ALIASES: Record<string, MainCategory> = {
   garment: 'Garment',
   garments: 'Garment',
