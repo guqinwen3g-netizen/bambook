@@ -715,13 +715,14 @@ async function deployUploadedPackage(req: Request, res: Response) {
     }
     await execFileAsync('/bin/cp', ['-R', path.join(scriptsSrc, 'ops'), path.join(SERVER_ROOT, 'scripts', 'ops')], { timeout: 60_000 });
     // Copy seed / utility scripts (non-ops scripts used by ops actions and runtime services)
-    for (const seedFile of fs.readdirSync(scriptsSrc).filter(f => f.endsWith('.ts') || f.endsWith('.js') || f.endsWith('.py'))) {
+    // 2026-08-28 运维冲刺：.sh 一并拷贝（backup-postgres.sh 曾因只拷 .ts/.js/.py 而长期滞留旧版）
+    for (const seedFile of fs.readdirSync(scriptsSrc).filter(f => f.endsWith('.ts') || f.endsWith('.js') || f.endsWith('.py') || f.endsWith('.sh'))) {
       await execFileAsync('/bin/cp', [path.join(scriptsSrc, seedFile), path.join(SERVER_ROOT, 'scripts', seedFile)], { timeout: 60_000 });
     }
     if (fs.existsSync(docsSrc)) {
       await execFileAsync('/bin/cp', [docsSrc, path.join(SERVER_ROOT, 'docs')], { timeout: 60_000 });
     }
-    await execFileAsync('/bin/chmod', ['+x', path.join(SERVER_ROOT, 'scripts', 'run-ops-panel.sh'), ...fs.readdirSync(path.join(SERVER_ROOT, 'scripts', 'ops')).filter(name => name.endsWith('.sh')).map(name => path.join(SERVER_ROOT, 'scripts', 'ops', name))], { timeout: 60_000 });
+    await execFileAsync('/bin/chmod', ['+x', path.join(SERVER_ROOT, 'scripts', 'run-ops-panel.sh'), ...fs.readdirSync(path.join(SERVER_ROOT, 'scripts', 'ops')).filter(name => name.endsWith('.sh')).map(name => path.join(SERVER_ROOT, 'scripts', 'ops', name)), ...fs.readdirSync(path.join(SERVER_ROOT, 'scripts')).filter(name => name.endsWith('.sh')).map(name => path.join(SERVER_ROOT, 'scripts', name))], { timeout: 60_000 });
 
     const mainLogs: Array<{ stdout: string; stderr: string }> = [];
     if (hasMainApi) {

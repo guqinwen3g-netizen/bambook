@@ -369,3 +369,134 @@ describe('阶段 D / D2 产品档案 Relation sync', () => {
     expect(prisma2.$transaction).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// W-C 功能修复任务包 A1：MaterialReceipt / StockMovement 图谱 sync
+// ---------------------------------------------------------------------------
+
+describe('W-C A1 采购库存链 sync', () => {
+  it('syncMaterialReceiptReferences：forPurchaseOrder 恒入图；stockItemId 携带时 stockedAs 入图', async () => {
+    const { syncMaterialReceiptReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncMaterialReceiptReferences(prisma as any, {
+      id: 'MR-1', receiptNumber: 'RPT-001', purchaseOrderId: 'PO-1', status: 'Accepted',
+      stockItemId: 'INV-1',
+    }, { source: 'api:procurement', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['forPurchaseOrder', 'stockedAs']);
+    const poLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'forPurchaseOrder');
+    expect(poLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'materialReceipt', fromId: 'MR-1', toType: 'purchaseOrder', toId: 'PO-1',
+    }));
+    const poRef = ops.find(o => o.kind === 'reference' && o.op.create?.fieldKey === 'purchaseOrderId');
+    expect(poRef.op.create).toEqual(expect.objectContaining({
+      ownerType: 'materialReceipt', ownerId: 'MR-1',
+      targetType: 'purchaseOrder', targetId: 'PO-1',
+      source: 'api:procurement', status: 'active',
+    }));
+    expect(poRef.op.create.snapshot).toEqual(expect.objectContaining({ receiptNumber: 'RPT-001', status: 'Accepted' }));
+    const stockLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'stockedAs');
+    expect(stockLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'materialReceipt', fromId: 'MR-1', toType: 'inventoryItem', toId: 'INV-1',
+    }));
+  });
+
+  it('syncMaterialReceiptReferences：无 stockItemId 仅 forPurchaseOrder；无 purchaseOrderId 零 ops', async () => {
+    const { syncMaterialReceiptReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncMaterialReceiptReferences(prisma as any, {
+      id: 'MR-2', receiptNumber: 'RPT-002', purchaseOrderId: 'PO-2', status: 'Accepted',
+    }, { source: 'api:procurement', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['forPurchaseOrder']);
+
+    const { prisma: prisma2, ops: ops2 } = makeSyncPrisma();
+    await syncMaterialReceiptReferences(prisma2 as any, {
+      id: 'MR-3', receiptNumber: 'RPT-003', purchaseOrderId: null,
+    }, { source: 'api:procurement' });
+    expect(ops2).toHaveLength(0);
+    expect(prisma2.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('syncStockMovementReferences：movesItem / inWarehouse / referencesDocument（L8 契约 referenceType=PurchaseOrder）', async () => {
+    const { syncStockMovementReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncStockMovementReferences(prisma as any, {
+      id: 'SM-1', movementNumber: 'SM-20260810-AB12', type: 'Inbound',
+      itemId: 'INV-1', warehouseId: 'WH-1',
+      referenceType: 'PurchaseOrder', referenceId: 'MR-1',
+    }, { source: 'api:inventory', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['movesItem', 'inWarehouse', 'referencesDocument']);
+    const itemLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'movesItem');
+    expect(itemLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'stockMovement', fromId: 'SM-1', toType: 'inventoryItem', toId: 'INV-1',
+    }));
+    const whLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'inWarehouse');
+    expect(whLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'stockMovement', fromId: 'SM-1', toType: 'warehouse', toId: 'WH-1',
+    }));
+    const docLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'referencesDocument');
+    expect(docLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'stockMovement', fromId: 'SM-1', toType: 'purchaseOrder', toId: 'MR-1',
+    }));
+    const itemRef = ops.find(o => o.kind === 'reference' && o.op.create?.fieldKey === 'itemId');
+    expect(itemRef.op.create.snapshot).toEqual(expect.objectContaining({ movementNumber: 'SM-20260810-AB12', type: 'Inbound' }));
+  });
+
+  it('syncStockMovementReferences：referenceType=Manual/Adjustment 等非单据来源不出 referencesDocument', async () => {
+    const { syncStockMovementReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncStockMovementReferences(prisma as any, {
+      id: 'SM-2', movementNumber: 'SM-INIT-1', type: 'Inbound',
+      itemId: 'INV-2', warehouseId: 'WH-1',
+      referenceType: 'Manual', referenceId: null,
+    }, { source: 'api:inventory', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['movesItem', 'inWarehouse']);
+  });
+
+  it('syncStockMovementReferences：Transfer 目标流水 referencesDocument → stockMovement（配对互链）', async () => {
+    const { syncStockMovementReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncStockMovementReferences(prisma as any, {
+      id: 'SM-3', movementNumber: 'SM-20260810-CD34', type: 'Inbound',
+      itemId: 'INV-3', warehouseId: 'WH-2',
+      referenceType: 'Transfer', referenceId: 'SM-1',
+    }, { source: 'api:inventory', now: () => 1234 });
+
+    const docLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'referencesDocument');
+    expect(docLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'stockMovement', fromId: 'SM-3', toType: 'stockMovement', toId: 'SM-1',
+    }));
+  });
+
+  it('tx 模式：传入事务上下文时不走 prisma.$transaction，逐个 await', async () => {
+    const { syncStockMovementReferences, syncMaterialReceiptReferences } = await import('../sync');
+    const { prisma } = makeSyncPrisma();
+    const txOps: any[] = [];
+    const tx = {
+      entityReference: { upsert: vi.fn((op) => { txOps.push({ kind: 'reference', op }); return Promise.resolve({}); }) },
+      entityLink: { upsert: vi.fn((op) => { txOps.push({ kind: 'link', op }); return Promise.resolve({}); }) },
+    };
+
+    await syncMaterialReceiptReferences(prisma as any, {
+      id: 'MR-9', receiptNumber: 'RPT-009', purchaseOrderId: 'PO-9', status: 'Accepted',
+    }, { source: 'api:procurement', now: () => 1234 }, tx);
+    await syncStockMovementReferences(prisma as any, {
+      id: 'SM-9', movementNumber: 'SM-9', type: 'Inbound',
+      itemId: 'INV-9', warehouseId: 'WH-9', referenceType: null, referenceId: null,
+    }, { source: 'api:inventory', now: () => 1234 }, tx);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    // MR: 1 ref + 1 link；SM: 2 ref + 2 link（无 referencesDocument）
+    expect(tx.entityReference.upsert).toHaveBeenCalledTimes(3);
+    expect(tx.entityLink.upsert).toHaveBeenCalledTimes(3);
+    expect(linkKindsOf(txOps)).toEqual(['forPurchaseOrder', 'movesItem', 'inWarehouse']);
+  });
+});

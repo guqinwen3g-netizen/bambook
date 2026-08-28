@@ -21,9 +21,12 @@ const EMAIL = read('email/route.ts');
 const INDEX = read('index.ts');
 
 describe('Auth guard restoration · finance', () => {
-  it('imports requireRole from auth/middleware', () => {
-    expect(FINANCE).toContain("requireRole");
-    expect(FINANCE).toContain("from '../auth/middleware'");
+  it('imports requirePermission scope guard from auth (legacy requireRole 已退役)', () => {
+    // W-C 批三-E：财务域全面 scope 门化——requirePermission（permissionGuard）+
+    // createModuleAuthGuard/requireJwtForWrite（moduleGuard），不再 import requireRole。
+    expect(FINANCE).toContain("requirePermission");
+    expect(FINANCE).toContain("from '../auth/permissionGuard'");
+    expect(FINANCE).toContain("from '../auth/moduleGuard'");
     expect(FINANCE).toContain('createModuleAuthGuard');
   });
 
@@ -40,13 +43,17 @@ describe('Auth guard restoration · finance', () => {
   });
 
   it('high-risk routes have requireRole: cancel invoice + delete invoice + delete voucher', () => {
-    expect(FINANCE).toContain("requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {");
+    // W-C 批三-E（族 C）：财务写端点从 legacy requireRole(...HIGH_RISK_ROLES) 升级为矩阵 scope 门
+    // requirePermission('invoices:write'/'vouchers:write')——写门禁仍存在且更细（FINANCE/owner/超管放行，
+    // SALES/QC/LOGISTICS 403 由 permissionDenyPath.test.ts 锁定），字面 requireRole 写法已退役。
+    expect(FINANCE).toContain("requirePermission('invoices:write')");
+    expect(FINANCE).toContain("requirePermission('vouchers:write')");
     const cancelIdx = FINANCE.indexOf("router.post('/:id/cancel'");
-    expect(FINANCE.slice(cancelIdx, cancelIdx + 100)).toContain('requireRole');
+    expect(FINANCE.slice(cancelIdx, cancelIdx + 100)).toContain('requireInvoicesWrite');
     const delIdx = FINANCE.indexOf("router.delete('/:id',");
-    expect(FINANCE.slice(delIdx, delIdx + 100)).toContain('requireRole');
+    expect(FINANCE.slice(delIdx, delIdx + 100)).toContain('requireInvoicesWrite');
     const delVoucherIdx = FINANCE.indexOf("router.delete('/vouchers/:id',");
-    expect(FINANCE.slice(delVoucherIdx, delVoucherIdx + 100)).toContain('requireRole');
+    expect(FINANCE.slice(delVoucherIdx, delVoucherIdx + 100)).toContain('requireVouchersWrite');
   });
 });
 

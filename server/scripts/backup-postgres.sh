@@ -8,14 +8,28 @@
 # 连接方式（二选一）：
 #   1. DATABASE_URL 已设置（如经 OPS Panel 手动触发，env 已从 server .env 加载）：
 #      直接使用，自动剥掉 Prisma 专有 ?schema= 参数
-#   2. 未设置（launchd 定时触发场景）：回退 localhost:5432，用户 postgres，
-#      库名 pandahub（BAMBOOK_BACKUP_DB 可覆盖；PGHOST/PGPORT/PGUSER 同 libpq 惯例）
+#   2. 未设置（launchd 定时触发场景）：从脚本上一级目录的 .env 提取 DATABASE_URL
+#      （grep 单行提取而非 source 全文件，避免 .env 其他行的副作用）；
+#      再回退 localhost:5432，用户 postgres，库名 pandahub
+#      （BAMBOOK_BACKUP_DB 可覆盖；PGHOST/PGPORT/PGUSER 同 libpq 惯例）
 #      若 postgres 用户设了密码，从环境变量 PGPASSWORD 读（勿写进脚本/plist，
 #      生产建议用 ~/.pgpass，权限 600）
 set -euo pipefail
 
 # launchd 环境 PATH 极简，补齐 nvm node 与 homebrew（pg_dump/pg_restore）路径
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+# launchd 场景补齐 DATABASE_URL：仅从 .env 提取该行（去首尾引号）
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env"
+  if [[ -f "$ENV_FILE" ]]; then
+    EXTRACTED="$(grep -E '^DATABASE_URL=' "$ENV_FILE" | head -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+    if [[ -n "$EXTRACTED" ]]; then
+      DATABASE_URL="$EXTRACTED"
+      export DATABASE_URL
+    fi
+  fi
+fi
 
 BACKUP_DIR="${BAMBOOK_BACKUP_DIR:-/Users/Shared/BambookBackups}"
 LOG_FILE="$BACKUP_DIR/backup.log"
