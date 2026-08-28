@@ -28,7 +28,7 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import { CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { PageHeader } from './ui/PageHeader';
 import { bdsToast } from './ui/bdsToast';
 import { motion } from 'framer-motion';
@@ -399,11 +399,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const [resolvedCoords, setResolvedCoords] = useState<ResolvedCoordinates | null>(null);
   const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const relationListScrollRef = useRef<HTMLDivElement | null>(null);
-  // 静止遮罩外壳：边缘淡出 mask 挂在外壳上而非滚动容器自身——滚动时遮罩层无需
-  // 逐帧重栅格化，避免与 main 圆角裁剪 + 侧栏 backdrop-filter 在左缘圆角区叠加
-  // 产生阶梯残影（Chromium 对运动中的 masked 层合成路径差异，随内核版本忽有忽无）
-  const relationCategoryMaskRef = useRef<HTMLDivElement | null>(null);
-  const relationListMaskRef = useRef<HTMLDivElement | null>(null);
+  // 边缘渐隐由 useStaticEdgeMask 挂滚动容器自身承接（不再使用静止外壳 mask ref）——
+  // 外壳 mask 会截断卡片 backdrop-filter 采样，导致 hover 毛玻璃失效
   const relationTableScrollRef = useRef<HTMLDivElement | null>(null);
   const relationFormScrollRef = useRef<HTMLDivElement | null>(null);
   const relationFormContainerRef = useRef<HTMLDivElement | null>(null);
@@ -465,7 +462,20 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     };
   }, [navLevel, relationListDisplayMode]);
 
-  // 分类/组织网格视图的淡出已统一改由 ScrollEdgeFades 承接（见视图容器处），
+  // 分类/组织网格视图的边缘渐隐由 useStaticEdgeMask 承接：固定 mask 直接挂滚动容器自身，
+  // 一次设置、不监听滚动（不抖动）；真透明度渐隐（内容淡出而非覆盖色带）；
+  // 滚动容器合成路径末端应用，不截断卡片 backdrop-filter（两级页面 hover 毛玻璃一致）。
+  // 顶部渐隐终点 = 标题栏重叠区 64 + 渐隐 32 = 96（渐隐从标题栏下缘开始，贴视口无多余留白）。
+  useStaticEdgeMask(relationCategoryScrollRef, {
+    topFadeEnd: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32,
+    bottomFade: 48,
+    enabled: navLevel === 'category',
+  });
+  useStaticEdgeMask(relationListScrollRef, {
+    topFadeEnd: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32,
+    bottomFade: 48,
+    enabled: navLevel === 'organizations' && relationListDisplayMode === 'grid',
+  });
   // 不再使用逐卡片 useGlassSurfaceEdgeMasks——毛玻璃卡片 + 逐卡片 mask 会触发
   // Chrome 合成层快照缓存，导致边缘鬼影/漂移/闪烁。
   useGlassSurfaceEdgeMasks({
@@ -1282,21 +1292,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         {/* VIEW 1: CATEGORY GRID */}
         {navLevel === 'category' && (
           <div className="relative h-full">
-            {/* ScrollEdgeFades 与侧边栏同源：mask 挂在静止外壳（maskRef）而非滚动容器
-                自身——滚动时遮罩层不逐帧重栅格化，杜绝左缘圆角区与侧栏玻璃叠加的阶梯残影；
-                同时不叠加 panelShadowViewportClass 的 margin bleed + framer layout
-                （backdrop-filter 毛玻璃卡片 + transform 布局动画在 Chrome 会合成层快照 → 漂移/闪烁/鬼影） */}
-            <ScrollEdgeFades
-              scrollRef={relationCategoryScrollRef}
-              maskRef={relationCategoryMaskRef}
-              isDarkMode={isDarkMode}
-              variant="subtle"
-              topHeight={32}
-              topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}
-              bottomHeight={48}
-            />
             <div
-              ref={relationCategoryMaskRef}
               className={`absolute -top-16 ${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass}`}
             >
               <motion.div
@@ -1324,22 +1320,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         {/* VIEW 2: ORGANIZATION LIST */}
         {navLevel === 'organizations' && (
           <div className="relative h-full">
-            {relationListDisplayMode === 'grid' && (
-              <ScrollEdgeFades
-                scrollRef={relationListScrollRef}
-                maskRef={relationListMaskRef}
-                isDarkMode={isDarkMode}
-                variant="subtle"
-                topHeight={32}
-                topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}
-                bottomHeight={48}
-              />
-            )}
-            {/* 静止遮罩外壳：grid 模式承载边缘淡出 mask（滚动时遮罩不逐帧重栅格化，
-                杜绝左缘圆角区与侧栏玻璃叠加的阶梯残影）；table 模式降级为
-                display:contents 透明包裹，不参与盒树布局 */}
+            {/* grid 模式用静止外壳承载卡片滚动（边缘渐隐 mask 由 useStaticEdgeMask 挂在
+                滚动容器自身，仅 grid 模式启用）；table 模式降级为 display:contents
+                透明包裹，不参与盒树布局 */}
             <div
-              ref={relationListMaskRef}
               className={relationListDisplayMode === 'grid' ? `absolute -top-16 ${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass}` : 'contents'}
             >
             <motion.div

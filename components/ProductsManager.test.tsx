@@ -155,7 +155,7 @@ describe('ProductsManager Bambook OS tokens', () => {
       mainCardStart,
       productsSource.indexOf("navLevel === 'sub' && (", mainCardStart)
     );
-    const recordCardStart = productsSource.indexOf('scrollRef={productGridScrollRef}');
+    const recordCardStart = productsSource.indexOf('profile="record"');
     const recordCardSource = productsSource.slice(
       recordCardStart,
       productsSource.indexOf('CompiledTableShell', recordCardStart)
@@ -253,27 +253,33 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('className="relative flex-1 min-h-0 overflow-visible"');
     expect(productsSource).toContain('scrollClassName={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}');
     expect(productsSource).not.toContain('<div ref={subIndexScrollRef} className="flex-1 min-h-0 overflow-y-scroll">');
-    // 分类/档案卡片网格淡出已切换为 ScrollEdgeFades 静止外壳（与关系智库同套方案）——
-    // mask 挂在静止外壳（maskRef）而非滚动容器自身，滚动时遮罩不逐帧重栅格化，
-    // 避免与 main 圆角裁剪 + 侧栏 backdrop-filter 在左缘圆角区叠加产生阶梯残影；
+    // 分类/档案卡片网格边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器自身（与关系智库同套方案）——
+    // 真透明度渐隐（内容淡出而非覆盖色带）、一次设置不监听滚动（不抖动）、
+    // 不截断卡片 backdrop-filter（两级页面 hover 毛玻璃一致）；
     // 仅保留 sub 索引行的逐行 mask hook（表格行非毛玻璃卡片，不在此问题域）
     expect(edgeMaskHookSource).not.toContain('scrollRef: productGridScrollRef');
     expect(edgeMaskHookSource).not.toContain('scrollRef: mainCategoryScrollRef');
     expect(edgeMaskHookSource).toContain('scrollRef: subIndexScrollRef');
     expect(edgeMaskHookSource).toContain("enabled: navLevel === 'sub'");
-    expect(mainViewSource).toContain('<ScrollEdgeFades');
-    expect(mainViewSource).toContain('scrollRef={mainCategoryScrollRef}');
-    expect(mainViewSource).toContain('maskRef={mainCategoryMaskRef}');
-    expect(mainViewSource).toContain('ref={mainCategoryMaskRef}');
-    expect(mainViewSource).toContain('topFadeStartOffset={isMobile ? 0 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
+    expect(productsSource).not.toContain('<ScrollEdgeFades');
+    expect(productsSource).not.toContain('<StaticEdgeFade');
+    expect(productsSource).not.toContain('mainCategoryMaskRef');
+    expect(productsSource).not.toContain('productGridMaskRef');
+    expect(productsSource).toContain("import { useStaticEdgeMask } from './ui/useStaticEdgeMask'");
+    expect(productsSource).toContain('useStaticEdgeMask(mainCategoryScrollRef, {');
+    expect(productsSource).toContain('topFadeEnd: isMobile ? 32 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32');
+    expect(productsSource).toContain('bottomFade: 48');
+    expect(productsSource).toContain("enabled: navLevel === 'main'");
+    expect(productsSource).toContain('useStaticEdgeMask(productGridScrollRef, {');
+    expect(productsSource).toContain('topFadeEnd: 32');
+    expect(productsSource).toContain("enabled: navLevel === 'list' && listDisplayMode === 'grid'");
     expect(mainViewSource).toContain('ref={mainCategoryScrollRef}');
     // 分类卡片已脱离 SpotlightCard 体系（motion.button，无液态蓝光、无逐卡 mask 属性）
     expect(mainViewSource).toContain('<motion.button');
     expect(mainViewSource).not.toContain('spotlightColor');
     expect(mainViewSource).not.toContain('liquidSpotlight');
     expect(mainViewSource).not.toContain('data-glass-edge-mask');
-    expect(productsSource).toContain('scrollRef={productGridScrollRef}');
-    expect(productsSource).toContain('maskRef={productGridMaskRef}');
+    expect(productsSource).toContain('ref={productGridScrollRef}');
     // 卡片/行全面禁用 framer layout 动画与 hover 位移——毛玻璃 + transform 会触发
     // Chrome 合成层快照缓存，导致高光冻结/边缘鬼影（入场仅保留 opacity 淡入）
     expect(productsSource).not.toMatch(/whileHover\s*=\s*\{/);

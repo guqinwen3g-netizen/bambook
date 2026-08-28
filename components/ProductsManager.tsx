@@ -68,7 +68,7 @@ import {
   CompiledTableShell,
   useCompiledGlassSurfaceEdgeMasks,
 } from './ui/primitives/compiledPrimitives';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 
 export interface ProductsManagerProps {
   products: ProductAsset[];
@@ -517,7 +517,7 @@ export const PRODUCT_SUB_INDEX_ROW_CLASS = 'min-h-[4.5rem] border-b last:border-
 export const PRODUCT_EDGE_FADE_TOP_HEIGHT = 56;
 export const PRODUCT_EDGE_FADE_TOP_START = 0;
 export const PRODUCT_EDGE_FADE_BOTTOM_HEIGHT = 72;
-// 卡片网格容器级淡出（ScrollEdgeFades 静止外壳方案）顶部起始偏移——与关系智库同口径
+// 卡片网格容器级渐隐（useStaticEdgeMask 固定 mask 方案）顶部起始偏移——与关系智库同口径
 export const PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET = 64;
 
 type CompiledProductsPageBlueprint = {
@@ -915,18 +915,28 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const mainCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const subIndexScrollRef = useRef<HTMLDivElement>(null);
-  // 静止遮罩外壳（与关系智库同套方案）：边缘淡出 mask 挂在外壳而非滚动容器自身——
-  // 滚动时遮罩层不逐帧重栅格化，避免与 main 圆角裁剪 + 侧栏 backdrop-filter
-  // 在左缘圆角区叠加产生阶梯残影（Chromium 合成路径差异）
-  const mainCategoryMaskRef = useRef<HTMLDivElement | null>(null);
-  const productGridMaskRef = useRef<HTMLDivElement | null>(null);
+  // 边缘渐隐由 useStaticEdgeMask 挂滚动容器自身承接（不再使用静止外壳 mask ref）——
+  // 外壳 mask 会截断卡片 backdrop-filter 采样，导致溢出页 hover 毛玻璃失效
   const pdmlRawScrollRef = useRef<HTMLDivElement | null>(null);
   const productGridScrollRef = useRef<HTMLDivElement>(null);
   const productFormScrollRef = useRef<HTMLDivElement | null>(null);
   const productDetailSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const productDetailBodyScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // 分类/档案卡片网格的淡出已统一改由 ScrollEdgeFades 静止外壳承接（见视图容器处），
+  // 分类/档案卡片网格的边缘渐隐由 useStaticEdgeMask 承接：固定 mask 直接挂滚动容器自身，
+  // 一次设置、不监听滚动（不抖动）；真透明度渐隐（内容淡出而非覆盖色带）；
+  // 滚动容器合成路径末端应用，不截断卡片 backdrop-filter（两级页面 hover 毛玻璃一致）。
+  // 顶部渐隐终点 = 标题栏重叠区 64 + 渐隐 32 = 96（mobile 无重叠区，渐隐 0→32）。
+  useStaticEdgeMask(mainCategoryScrollRef, {
+    topFadeEnd: isMobile ? 32 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32,
+    bottomFade: 48,
+    enabled: navLevel === 'main',
+  });
+  useStaticEdgeMask(productGridScrollRef, {
+    topFadeEnd: 32,
+    bottomFade: 48,
+    enabled: navLevel === 'list' && listDisplayMode === 'grid',
+  });
   // 不再使用逐卡片 useCompiledGlassSurfaceEdgeMasks——毛玻璃卡片 + 逐卡片 mask 会触发
   // Chrome 合成层快照缓存，导致边缘鬼影/漂移/闪烁/阶梯残影。
   useCompiledGlassSurfaceEdgeMasks({
@@ -3298,21 +3308,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       <div className={`${productContentCanvasClass} flex-1 flex flex-col min-h-0 overflow-visible ${hideUnderlyingProductPage ? 'hidden' : ''}`}>
         {navLevel === 'main' && (
           <div className="relative h-full overflow-hidden">
-          {/* ScrollEdgeFades 与关系智库同套方案：mask 挂在静止外壳（maskRef）而非滚动容器
-              自身——滚动时遮罩层不逐帧重栅格化，杜绝左缘圆角区与侧栏玻璃叠加的阶梯残影；
-              卡片不再使用 framer layout / whileHover 位移（毛玻璃卡片 + transform 在
-              Chrome 会合成层快照 → 高光冻结/鬼影），入场仅保留 opacity 淡入 */}
-          <ScrollEdgeFades
-            scrollRef={mainCategoryScrollRef}
-            maskRef={mainCategoryMaskRef}
-            isDarkMode={isDarkMode}
-            variant="subtle"
-            topHeight={32}
-            topFadeStartOffset={isMobile ? 0 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET}
-            bottomHeight={48}
-          />
+          {/* 卡片网格：静止外壳承载滚动；卡片不使用 framer layout / whileHover 位移
+              （毛玻璃卡片 + transform 在 Chrome 会合成层快照 → 高光冻结/鬼影），入场仅保留 opacity 淡入。
+              边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器自身承接——真透明度渐隐、
+              不截断卡片 backdrop-filter（hover 毛玻璃与关系智库两级页面一致） */}
           <div
-            ref={mainCategoryMaskRef}
             className={isMobile ? 'h-full' : 'absolute -top-16 inset-x-0 bottom-0'}
           >
           <CompiledCollectionCardGrid
@@ -3571,17 +3571,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </div>
             ) : listDisplayMode === 'grid' ? (
               <div className="relative flex-1 min-h-0 overflow-visible">
-              {/* 与主分类网格同套方案：静止外壳承载 mask，卡片无 layout/hover 位移 */}
-              <ScrollEdgeFades
-                scrollRef={productGridScrollRef}
-                maskRef={productGridMaskRef}
-                isDarkMode={isDarkMode}
-                variant="subtle"
-                topHeight={32}
-                topFadeStartOffset={0}
-                bottomHeight={48}
-              />
-              <div ref={productGridMaskRef} className="h-full w-full">
+              {/* 静止外壳承载卡片滚动；边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器
+                  自身承接（真透明度渐隐，不截断卡片 backdrop-filter）；卡片无 layout/hover 位移 */}
+              <div className="h-full w-full">
               <CompiledCollectionCardGrid
                 profile="record"
                 paddingClassName="p-8"

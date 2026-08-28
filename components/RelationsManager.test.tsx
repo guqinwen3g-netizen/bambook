@@ -665,7 +665,7 @@ describe('RelationsManager title system', () => {
       source.indexOf('</form>')
     );
     expect(source).toContain("import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks'");
-    expect(source).toContain("import ScrollEdgeFades from './ui/ScrollEdgeFades'");
+    expect(source).toContain("import { useStaticEdgeMask } from './ui/useStaticEdgeMask'");
     expect(formSource).not.toContain('<ScrollEdgeFades');
     expect(source).not.toContain('const relationFormFadeBoundaryRef = useRef<HTMLDivElement | null>(null);');
     expect(source).toContain('scrollRef: relationFormScrollRef');
@@ -704,13 +704,16 @@ describe('RelationsManager title system', () => {
 
     expect(source).toContain('const relationListScrollRef = useRef<HTMLDivElement | null>(null)');
     expect(source).toContain('const relationTableScrollRef = useRef<HTMLDivElement | null>(null)');
-    // 组织网格淡出已切换为 ScrollEdgeFades（容器级 mask，与侧边栏同源），不再用逐卡片 mask hook
+    // 组织网格边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器自身：真透明度渐隐、
+    // 一次设置不监听滚动（不抖动）、不截断卡片 backdrop-filter（与大分类页 hover 毛玻璃一致）
     expect(source).not.toContain('scrollRef: relationListScrollRef');
-    expect(listSource).toContain('<ScrollEdgeFades');
-    expect(listSource).toContain('scrollRef={relationListScrollRef}');
-    expect(listSource).toContain('topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
-    expect(listSource).toContain('topHeight={32}');
-    expect(listSource).toContain('bottomHeight={48}');
+    expect(source).not.toContain('<ScrollEdgeFades');
+    expect(source).not.toContain('<StaticEdgeFade');
+    expect(source).not.toContain('relationListMaskRef');
+    expect(source).toContain('useStaticEdgeMask(relationListScrollRef, {');
+    expect(source).toContain('topFadeEnd: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32');
+    expect(source).toContain('bottomFade: 48');
+    expect(source).toContain("enabled: navLevel === 'organizations' && relationListDisplayMode === 'grid'");
     expect(source).toContain('scrollRef: relationTableScrollRef');
     expect(source).toContain("enabled: navLevel === 'organizations' && relationListDisplayMode === 'table' && !showAddModal");
     expect(source).toContain('topHeight: 56');
@@ -718,8 +721,6 @@ describe('RelationsManager title system', () => {
     expect(source).toContain("bottomFadeActivation: 'zone'");
     expect(listSource).not.toContain('renderMode="overlay"');
     expect(listSource).toContain('ref={relationListScrollRef}');
-    // mask 挂在静止外壳（maskRef）而非滚动容器自身：滚动时遮罩不逐帧重栅格化，杜绝侧栏圆角区阶梯残影
-    expect(listSource).toContain('maskRef={relationListMaskRef}');
     expect(source).toContain('scrollRef={relationTableScrollRef}');
     expect(listSource).not.toContain('{renderRelationListToolbar(toolbarInsetClass)}');
     // 液态蓝光已移除（历史遗留体系，panel 级光斑在侧栏收起后整卡泛蓝）：
@@ -1126,19 +1127,18 @@ describe('RelationsManager title system', () => {
     expect(source).toContain('const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS');
     expect(source).toContain('const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null)');
     expect(source).toContain('const RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET = 64;');
-    // 淡出方案已切换为 ScrollEdgeFades（侧边栏同源）：容器级 mask，不再用逐卡片 mask hook
+    // 边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器自身：真透明度渐隐（内容淡出而非
+    // 覆盖色带）、一次设置不监听滚动（不抖动）；不截断卡片 backdrop-filter（hover 毛玻璃一致）
     expect(source).not.toContain('scrollRef: relationCategoryScrollRef');
     expect(source).not.toContain('scrollRef: relationListScrollRef');
-    expect(categorySource).toContain('<ScrollEdgeFades');
-    expect(categorySource).toContain('scrollRef={relationCategoryScrollRef}');
-    expect(categorySource).toContain('topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
-    expect(categorySource).toContain('topHeight={32}');
-    expect(categorySource).toContain('bottomHeight={48}');
+    expect(source).not.toContain('relationCategoryMaskRef');
+    expect(source).toContain('useStaticEdgeMask(relationCategoryScrollRef, {');
+    expect(source).toContain('topFadeEnd: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32');
+    expect(source).toContain('bottomFade: 48');
+    expect(source).toContain("enabled: navLevel === 'category'");
     expect(categorySource).toContain('ref={relationCategoryScrollRef}');
-    // mask 挂在静止外壳（maskRef）而非滚动容器自身：滚动时遮罩不逐帧重栅格化，
-    // 避免与 main 圆角裁剪 + 侧栏 backdrop-filter 在左缘圆角区叠加产生阶梯残影
-    expect(categorySource).toContain('maskRef={relationCategoryMaskRef}');
-    expect(categorySource).toContain('ref={relationCategoryMaskRef}');
+    expect(categorySource).not.toContain('<ScrollEdgeFades');
+    expect(categorySource).not.toContain('<StaticEdgeFade');
     expect(categorySource).toContain('<motion.div');
     // 已移除布局动画（framer layout prop）与 hover 位移——避免毛玻璃卡片 + transform 触发
     // Chrome 合成层快照缓存导致的边缘鬼影/漂移/闪烁（注意：仅禁 motion layout prop，
@@ -1234,11 +1234,11 @@ describe('RelationsManager title system', () => {
     expect(organizationGridSource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_POSITION_CLASS');
     expect(organizationGridSource).toContain('${pageInsetExpandedClass}');
     expect(organizationGridSource).toContain('RELATIONS_CARD_GRID_CLASS');
-    expect(organizationGridSource).toContain('<ScrollEdgeFades');
-    // 组织网格同样使用静止外壳（maskRef）承载 mask，杜绝滚动逐帧重栅格化的阶梯残影；
-    // table 模式外壳降级为 display:contents 透明包裹
-    expect(organizationGridSource).toContain('maskRef={relationListMaskRef}');
-    expect(organizationGridSource).toContain('ref={relationListMaskRef}');
+    expect(organizationGridSource).not.toContain('<ScrollEdgeFades');
+    expect(organizationGridSource).not.toContain('<StaticEdgeFade');
+    // 组织网格边缘渐隐同样由 useStaticEdgeMask 挂滚动容器自身（仅 grid 模式启用，见组件顶部
+    // hook 断言），静止外壳不再挂 maskRef；table 模式外壳降级为 display:contents 透明包裹
+    expect(organizationGridSource).not.toContain('relationListMaskRef');
     expect(organizationGridSource).toContain('<motion.div');
     // 组织网格同样去掉了布局动画（framer layout prop），避免毛玻璃卡片 + transform 的合成层鬼影
     // （仅禁 motion layout prop，不影响 BAMBOOK_OS.layout.* 等合法 layout token 引用）
