@@ -10,8 +10,8 @@
  *   - GET    /:id                       — 档案详情（含 Relation + 认证）
  *   - PATCH  /:id                       — 更新档案（白名单字段）
  *   - DELETE /:id                       — 软删除档案
- *   - POST   /:id/blacklist             — 拉黑（{reason}，owner/admin/manager）
- *   - DELETE /:id/blacklist             — 解除拉黑（owner/admin/manager）
+ *   - POST   /:id/blacklist             — 拉黑（{reason}，suppliers:admin scope）
+ *   - DELETE /:id/blacklist             — 解除拉黑（suppliers:admin scope）
  *
  * 评估记录 FactoryEvaluation（append-only 真源，追加后事务内重算质量/交期缓存分）：
  *   - GET    /:id/evaluations           — 评分明细（?kind=inspection|delivery）
@@ -32,15 +32,15 @@
  *   - GET    /:id/overview              — 工厂 360°（档案 + 近期评分 + 认证 + 产能）
  *
  * 守卫口径与 email 模块一致：读走 JWT 或 API-Key，写必须 JWT（requireJwtForWrite）；
- * 黑名单属高风险操作，叠加 owner/admin/manager 角色守卫。
+ * 黑名单属高风险管理动作，叠加 requirePermission('suppliers:admin') scope 守卫
+ * （S3-γ：legacy owner/admin/manager 角色门收编为 scope 门；SM/ADMIN 持有，SuperAdmin 全通）。
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
-import { requireRole } from '../auth/middleware';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
-import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
 import { createFactoryService, FactoryProfileInput, FactoryEvaluationInput, FactoryCertificationInput } from './factoryService';
@@ -53,8 +53,6 @@ export interface SupplierRouterOptions {
   apiKeys: Set<string>;
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
 }
-
-const BLACKLIST_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
 
 export function createSupplierRouter(options: SupplierRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
@@ -274,9 +272,9 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  // ─── 黑名单（高风险：owner/admin/manager） ───
+  // ─── 黑名单（高风险管理动作：suppliers:admin scope，S3-γ 收编） ───
 
-  router.post('/:id/blacklist', requireWrite, requireRole(...BLACKLIST_ROLES), async (req: Request, res: Response) => {
+  router.post('/:id/blacklist', requireWrite, requirePermission('suppliers:admin'), async (req: Request, res: Response) => {
     try {
       const profile = await service.setBlacklist(req.params.id, String(req.body?.reason || ''), actorIdFromRequest(req));
       notify('blacklist', [profile.id]);
@@ -286,7 +284,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.delete('/:id/blacklist', requireWrite, requireRole(...BLACKLIST_ROLES), async (req: Request, res: Response) => {
+  router.delete('/:id/blacklist', requireWrite, requirePermission('suppliers:admin'), async (req: Request, res: Response) => {
     try {
       const profile = await service.clearBlacklist(req.params.id, actorIdFromRequest(req));
       notify('unblacklist', [profile.id]);

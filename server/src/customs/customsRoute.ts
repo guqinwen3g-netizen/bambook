@@ -61,6 +61,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 import {
   createCustomsService,
@@ -131,6 +132,9 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   // 写操作必须 JWT
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  // S3-γ：写端点在 JWT 之上叠加 customs:write scope 门（与 /api/v2/customs 守卫口径对齐；
+  // LOGISTICS 持有，SuperAdmin/owner 全通；读端点不动）
+  const requireCustomsWrite = requirePermission('customs:write');
 
   // ════════════════════════════════════════════════════════════
   // 1. CustomsDeclaration（报关单）
@@ -167,7 +171,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/declarations', requireWrite, async (req: Request, res: Response) => {
+  router.post('/declarations', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as CustomsDeclarationInput;
       if (!input.declarationNumber || !input.type) {
@@ -182,7 +186,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.put('/declarations/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/declarations/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as Partial<CustomsDeclarationInput>;
       const item = await service.updateDeclaration(req.params.id, input, actorOf(req));
@@ -194,7 +198,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.delete('/declarations/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/declarations/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const result = await service.deleteDeclaration(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'CustomsDeclaration', action: 'delete', ids: [result.id] });
@@ -205,7 +209,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/declarations/:id/transition', requireWrite, async (req: Request, res: Response) => {
+  router.post('/declarations/:id/transition', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { toStatus } = req.body as { toStatus: CustomsDeclarationStatus };
       if (!toStatus || !VALID_DECLARATION_STATUSES.includes(toStatus)) {
@@ -252,7 +256,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/hs-codes', requireWrite, async (req: Request, res: Response) => {
+  router.post('/hs-codes', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as HsCodeInput;
       if (!input.code || !input.description || !input.category) {
@@ -267,7 +271,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.put('/hs-codes/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/hs-codes/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as Partial<HsCodeInput>;
       const item = await service.updateHsCode(req.params.id, input, actorOf(req));
@@ -279,7 +283,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.delete('/hs-codes/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/hs-codes/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const result = await service.deleteHsCode(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'HsCode', action: 'delete', ids: [result.id] });
@@ -323,7 +327,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/letters-of-credit', requireWrite, async (req: Request, res: Response) => {
+  router.post('/letters-of-credit', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as LetterOfCreditInput;
       if (!input.lcNumber || !input.type || input.amount == null) {
@@ -338,7 +342,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.put('/letters-of-credit/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/letters-of-credit/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as Partial<LetterOfCreditInput>;
       const item = await service.updateLetterOfCredit(req.params.id, input, actorOf(req));
@@ -350,7 +354,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.delete('/letters-of-credit/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/letters-of-credit/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const result = await service.deleteLetterOfCredit(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'LetterOfCredit', action: 'delete', ids: [result.id] });
@@ -361,7 +365,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/letters-of-credit/:id/transition', requireWrite, async (req: Request, res: Response) => {
+  router.post('/letters-of-credit/:id/transition', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { toStatus, discrepancies } = req.body as { toStatus: LetterOfCreditStatus; discrepancies?: string };
       if (!toStatus || !VALID_LC_STATUSES.includes(toStatus)) {
@@ -422,7 +426,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/tax-refunds', requireWrite, async (req: Request, res: Response) => {
+  router.post('/tax-refunds', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as TaxRefundInput;
       if (!input.refundNumber) {
@@ -437,7 +441,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/tax-refunds/from-declaration/:declarationId', requireWrite, async (req: Request, res: Response) => {
+  router.post('/tax-refunds/from-declaration/:declarationId', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const item = await service.createTaxRefundFromDeclaration(req.params.declarationId, actorOf(req));
       onDataChange?.({ entity: 'TaxRefund', action: 'create', ids: [item.id] });
@@ -448,7 +452,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.put('/tax-refunds/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/tax-refunds/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as Partial<TaxRefundInput>;
       const item = await service.updateTaxRefund(req.params.id, input, actorOf(req));
@@ -460,7 +464,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.delete('/tax-refunds/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/tax-refunds/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const result = await service.deleteTaxRefund(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'TaxRefund', action: 'delete', ids: [result.id] });
@@ -471,7 +475,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/tax-refunds/:id/transition', requireWrite, async (req: Request, res: Response) => {
+  router.post('/tax-refunds/:id/transition', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { toStatus } = req.body as { toStatus: TaxRefundStatus };
       if (!toStatus || !VALID_TAX_REFUND_STATUSES.includes(toStatus)) {
@@ -486,7 +490,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/tax-refunds/:id/review', requireWrite, async (req: Request, res: Response) => {
+  router.post('/tax-refunds/:id/review', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as TaxRefundReviewInput;
       if (!input.decision || !['Approved', 'Rejected'].includes(input.decision)) {
@@ -555,7 +559,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
   });
 
   // Wave A1：运单 → 单据草稿批量生成（生成即登记 + v1 快照，同 shipmentId+type 幂等）
-  router.post('/trade-documents/generate-from-shipment', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trade-documents/generate-from-shipment', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { shipmentId, types } = req.body as { shipmentId?: string; types?: TradeDocumentType[] };
       if (!shipmentId || !Array.isArray(types) || types.length === 0) {
@@ -574,7 +578,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
 
   // 一键生成文件：服务端模板优先（CI 财务回链/注册表 PL 等），其余前端渲染 HTML 传入
   // → 服务端 Puppeteer 转 PDF 落盘 uploads/trade-documents/ → 回写 filePath/fileName
-  router.post('/trade-documents/:id/generate-file', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trade-documents/:id/generate-file', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { html, version } = req.body as { html?: string; version?: number };
       const result = await generateTradeDocumentFile(prisma, {
@@ -610,7 +614,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
 
   // POST /trade-documents/batch-download — 多选单据 ZIP 打包下载（B4 批量操作）：
   // 已归档文件直读；filePath 缺失的单据现场生成（幂等覆盖）保证打包完整。
-  router.post('/trade-documents/batch-download', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trade-documents/batch-download', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids.filter((v: unknown) => typeof v === 'string' && v) : [];
       if (ids.length === 0) return res.status(400).json({ error: 'ids 必填（至少一个单据）' });
@@ -730,7 +734,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/trade-documents', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trade-documents', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as TradeDocumentInput;
       if (!input.type) {
@@ -745,7 +749,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.put('/trade-documents/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/trade-documents/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as Partial<TradeDocumentInput>;
       const item = await service.updateTradeDocument(req.params.id, input, actorOf(req));
@@ -757,7 +761,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.delete('/trade-documents/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/trade-documents/:id', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const result = await service.deleteTradeDocument(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'TradeDocument', action: 'delete', ids: [result.id] });
@@ -768,7 +772,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/trade-documents/:id/transition', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trade-documents/:id/transition', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { toStatus } = req.body as { toStatus: TradeDocumentStatus };
       if (!toStatus || !VALID_DOC_STATUSES.includes(toStatus)) {
@@ -811,7 +815,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  router.post('/trade-documents/:id/versions', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trade-documents/:id/versions', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const item = await docTemplates.createVersion(req.params.id, req.body ?? {}, actorOf(req));
       onDataChange?.({ entity: 'TradeDocument', action: 'create_version', ids: [req.params.id] });

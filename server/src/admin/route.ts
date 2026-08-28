@@ -26,6 +26,29 @@ function deletionStamp(): bigint {
   return BigInt(Date.now());
 }
 
+/**
+ * async 路由统一错误兜底（P1 DoS 面修复）：
+ * Express 4 不捕获 async handler 的 rejected promise，Prisma 异常（如假 ID 触发 P2025）
+ * 会成为 unhandledRejection 直接打崩进程。包装后：
+ *   - P2025（记录不存在）→ 404 NOT_FOUND
+ *   - 其余异常 → 500 INTERNAL_ERROR（明细进日志，不外泄）
+ * 只补错误兜底，不改任何业务逻辑。
+ */
+function withRouteErrorGuard(handler: (req: Request, res: Response) => Promise<unknown>) {
+  return async (req: Request, res: Response) => {
+    try {
+      await handler(req, res);
+    } catch (err: any) {
+      logger.error('[admin] route error guarded', { path: req.path, error: err?.message || String(err), code: err?.code });
+      if (res.headersSent) return;
+      if (err?.code === 'P2025') {
+        return res.status(404).json({ ok: false, error: 'NOT_FOUND', message: '目标记录不存在或已被删除。' });
+      }
+      return res.status(500).json({ ok: false, error: 'INTERNAL_ERROR', message: '服务器内部错误，请稍后重试。' });
+    }
+  };
+}
+
 async function generateUserAccountId(prisma: PrismaClient, email: string, displayName: string): Promise<string> {
   const source = (email?.split('@')[0] || displayName || 'user').toLowerCase();
   const slug = source
@@ -80,7 +103,7 @@ export function createAdminRouter(options: AdminRouterOptions) {
   }
 
   // ---- Users ----
-  router.get('/users', async (req: Request, res: Response) => {
+  router.get('/users', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { status } = req.query as { status?: string };
     const where: any = status ? { status } : { OR: [{ deletedAt: null }, { status: 'disabled' }] };
     const usersRaw = await options.prisma.userAccount.findMany({
@@ -116,9 +139,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
     })) });
-  });
+  }));
 
-  router.post('/users', async (req: Request, res: Response) => {
+  router.post('/users', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { displayName, email, password, roles, departmentId } = req.body || {};
     if (!displayName || !email || !password) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'displayName, email, password are required.' });
@@ -177,9 +200,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: actor?.userId || 'system', action: existing ? 'reactivate_user' : 'create_user', targetType: 'UserAccount', targetId: user.id, ip: req.ip },
     });
     res.json({ ok: true, userId: user.id, reactivated: Boolean(existing) });
-  });
+  }));
 
-  router.patch('/users/:id', async (req: Request, res: Response) => {
+  router.patch('/users/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { displayName, email, status, departmentId } = req.body || {};
     if (departmentId !== undefined && !(await departmentExists(options.prisma, departmentId))) {
@@ -197,9 +220,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: actor?.userId || 'system', action: 'update_user', targetType: 'UserAccount', targetId: id, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
-  router.post('/users/:id/reset-password', async (req: Request, res: Response) => {
+  router.post('/users/:id/reset-password', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { newPassword } = req.body || {};
     if (!newPassword || newPassword.length < 6) {
@@ -212,9 +235,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: actor?.userId || 'system', action: 'reset_password', targetType: 'UserAccount', targetId: id, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
-  const disableUserAccount = async (req: Request, res: Response) => {
+  const disableUserAccount = withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const actor = (req as any).actor;
     if (actor?.userId === id) {
@@ -245,12 +268,12 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'disable_account', targetType: 'UserAccount', targetId: id, ip: req.ip },
     });
     res.json({ ok: true });
-  };
+  });
 
   router.post('/users/:id/disable-account', disableUserAccount);
   router.post('/users/:id/delete-account', disableUserAccount);
 
-  router.post('/users/:id/erase-personal-data', async (req: Request, res: Response) => {
+  router.post('/users/:id/erase-personal-data', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const actor = (req as any).actor;
     if (actor?.userId === id) {
@@ -293,9 +316,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'erase_personal_data', targetType: 'UserAccount', targetId: id, detail: { scope: 'personal-only' }, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
-  router.post('/users/:id/approve', async (req: Request, res: Response) => {
+  router.post('/users/:id/approve', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { roles, departmentId } = req.body || {};
     const target = await options.prisma.userAccount.findUnique({ where: { id } });
@@ -384,9 +407,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
     });
 
     res.json({ ok: true, emailStatus, emailError });
-  });
+  }));
 
-  router.post('/users/:id/reject', async (req: Request, res: Response) => {
+  router.post('/users/:id/reject', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { reason } = req.body || {};
     const target = await options.prisma.userAccount.findUnique({ where: { id } });
@@ -423,11 +446,16 @@ export function createAdminRouter(options: AdminRouterOptions) {
     });
 
     res.json({ ok: true });
-  });
+  }));
 
-  router.patch('/users/:id/roles', async (req: Request, res: Response) => {
+  router.patch('/users/:id/roles', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { roles, departmentId } = req.body || {};
+    // 存在性前置：对不存在用户返 200 会静默吞掉前端/调用方的 ID 错误（与 disable/approve/reject 同标准 404）
+    const target = await options.prisma.userAccount.findUnique({ where: { id } });
+    if (!target) {
+      return res.status(404).json({ ok: false, error: 'NOT_FOUND', message: '用户不存在。' });
+    }
     await options.prisma.userRole.deleteMany({ where: { userId: id } });
     if (Array.isArray(roles)) {
       for (const roleNameOrId of roles) {
@@ -443,27 +471,27 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: actor?.userId || 'system', action: 'update_roles', targetType: 'UserAccount', targetId: id, detail: { roles }, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
   // ---- Roles ----
-  router.get('/roles', async (_req: Request, res: Response) => {
+  router.get('/roles', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const roles = await options.prisma.role.findMany({ include: { permissions: { include: { permission: true } } } });
     res.json({ ok: true, roles: roles.map(r => ({
       id: r.id, name: r.name, description: r.description, isSystem: r.isSystem,
       permissions: r.permissions.map(p => p.permission.scope),
     })) });
-  });
+  }));
 
   // ---- Approvals ----
-  router.get('/approvals', async (_req: Request, res: Response) => {
+  router.get('/approvals', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const approvals = await options.prisma.approvalRequest.findMany({
       where: { status: 'pending' },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ ok: true, approvals });
-  });
+  }));
 
-  router.patch('/approvals/:id', async (req: Request, res: Response) => {
+  router.patch('/approvals/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, decisionNote } = req.body || {};
     if (!['approved', 'rejected'].includes(status)) {
@@ -478,19 +506,19 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: actor?.userId || 'system', action: status === 'approved' ? 'approve' : 'reject', targetType: 'ApprovalRequest', targetId: id, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
   // ---- Suggestions ----
-  router.get('/suggestions', async (_req: Request, res: Response) => {
+  router.get('/suggestions', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const suggestions = await options.prisma.agentSuggestion.findMany({
       where: { status: 'pending' },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
     res.json({ ok: true, suggestions });
-  });
+  }));
 
-  router.patch('/suggestions/:id', async (req: Request, res: Response) => {
+  router.patch('/suggestions/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, decidedBy } = req.body || {};
     if (!['accepted', 'rejected'].includes(status)) {
@@ -502,12 +530,12 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { status, decidedBy: actor?.userId || decidedBy, decidedAt: new Date() },
     });
     res.json({ ok: true });
-  });
+  }));
 
   // ---- Audit Logs ----
   // task ERP-P1: target/time filters + 参数校验 fail closed
   // 阶段 D / D6：where 构造抽取至 audit/entityQuery.ts（与 /api/v1/audit/entity 共享）
-  router.get('/audit-logs', async (req: Request, res: Response) => {
+  router.get('/audit-logs', withRouteErrorGuard(async (req: Request, res: Response) => {
     const built = buildAuditLogQuery(req.query as any);
     if (!built.ok) {
       return res.status(built.status).json({ ok: false, error: built.error, message: built.message });
@@ -523,10 +551,10 @@ export function createAdminRouter(options: AdminRouterOptions) {
       options.prisma.auditLog.count({ where: built.where }),
     ]);
     res.json({ ok: true, logs, total });
-  });
+  }));
 
   // ---- Knowledge ACL ----
-  router.get('/knowledge-acl', async (_req: Request, res: Response) => {
+  router.get('/knowledge-acl', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const [acls, documents, roles, departments] = await Promise.all([
       options.prisma.knowledgeAcl.findMany({
         include: { role: true, department: true, document: true },
@@ -553,9 +581,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       roles,
       departments,
     });
-  });
+  }));
 
-  router.post('/knowledge-acl', async (req: Request, res: Response) => {
+  router.post('/knowledge-acl', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { documentId, roleId, departmentId, scope, access } = req.body || {};
     if (!documentId || !scope) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'documentId and scope are required.' });
@@ -571,9 +599,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'create_knowledge_acl', targetType: 'KnowledgeAcl', targetId: id, detail: { documentId, roleId, departmentId, scope, access: finalAccess }, ip: req.ip },
     });
     res.json({ ok: true, id });
-  });
+  }));
 
-  router.patch('/knowledge-acl/:id', async (req: Request, res: Response) => {
+  router.patch('/knowledge-acl/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { roleId, departmentId, scope, access } = req.body || {};
     const data: any = {};
@@ -590,9 +618,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'update_knowledge_acl', targetType: 'KnowledgeAcl', targetId: id, detail: data, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
-  router.delete('/knowledge-acl/:id', async (req: Request, res: Response) => {
+  router.delete('/knowledge-acl/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     await options.prisma.knowledgeAcl.delete({ where: { id } });
     const actor = (req as any).actor;
@@ -600,15 +628,15 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'delete_knowledge_acl', targetType: 'KnowledgeAcl', targetId: id, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
   // ---- Role Permissions ----
-  router.get('/permissions', async (_req: Request, res: Response) => {
+  router.get('/permissions', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const permissions = await options.prisma.permission.findMany({ orderBy: { scope: 'asc' } });
     res.json({ ok: true, permissions });
-  });
+  }));
 
-  router.post('/permissions', async (req: Request, res: Response) => {
+  router.post('/permissions', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { scope, description } = req.body || {};
     if (!scope) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'scope is required.' });
@@ -620,9 +648,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
     const id = `perm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await options.prisma.permission.create({ data: { id, scope, description: description || null } });
     res.json({ ok: true, id });
-  });
+  }));
 
-  router.patch('/roles/:id/permissions', async (req: Request, res: Response) => {
+  router.patch('/roles/:id/permissions', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { addPermissions, removePermissions } = req.body || {};
     const role = await options.prisma.role.findUnique({ where: { id } });
@@ -654,10 +682,10 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'update_role_permissions', targetType: 'Role', targetId: id, detail: { addPermissions, removePermissions }, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
   // ---- Tool Permissions ----
-  router.get('/tool-permissions', async (_req: Request, res: Response) => {
+  router.get('/tool-permissions', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const [tools, roles] = await Promise.all([
       options.prisma.agentTool.findMany({
         where: { status: 'active' },
@@ -673,9 +701,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       })),
       roles,
     });
-  });
+  }));
 
-  router.post('/tool-permissions', async (req: Request, res: Response) => {
+  router.post('/tool-permissions', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { toolId, roleId, access, riskMode } = req.body || {};
     if (!toolId || !roleId) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'toolId and roleId are required.' });
@@ -695,9 +723,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'upsert_tool_permission', targetType: 'AgentToolPermission', targetId: id, detail: { toolId, roleId, access: finalAccess, riskMode: finalRiskMode }, ip: req.ip },
     });
     res.json({ ok: true, id });
-  });
+  }));
 
-  router.patch('/tool-permissions/:id', async (req: Request, res: Response) => {
+  router.patch('/tool-permissions/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { access, riskMode } = req.body || {};
     const data: any = {};
@@ -711,9 +739,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'update_tool_permission', targetType: 'AgentToolPermission', targetId: id, detail: data, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
-  router.delete('/tool-permissions/:id', async (req: Request, res: Response) => {
+  router.delete('/tool-permissions/:id', withRouteErrorGuard(async (req: Request, res: Response) => {
     const { id } = req.params;
     await options.prisma.agentToolPermission.delete({ where: { id } });
     const actor = (req as any).actor;
@@ -721,17 +749,17 @@ export function createAdminRouter(options: AdminRouterOptions) {
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'delete_tool_permission', targetType: 'AgentToolPermission', targetId: id, ip: req.ip },
     });
     res.json({ ok: true });
-  });
+  }));
 
   // ---- Knowledge Documents (for ACL dropdown) ----
-  router.get('/knowledge-documents', async (_req: Request, res: Response) => {
+  router.get('/knowledge-documents', withRouteErrorGuard(async (_req: Request, res: Response) => {
     const documents = await options.prisma.knowledgeDocument.findMany({
       where: { deletedAt: null },
       select: { id: true, title: true, sourceType: true, status: true },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ ok: true, documents });
-  });
+  }));
 
   return router;
 }

@@ -13,10 +13,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { requirePermission } from '../auth/permissionGuard';
-import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { renderHtmlToPdf } from '../templates/pdf';
@@ -173,7 +171,6 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   const guard = createModuleAuthGuard({ requireAuth, apiKeys });
   router.use(guard);
 
-  const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager', 'finance'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
   // W-C 批三-E：GET 读端点按资源挂 scope 门（_shared/rolePermissionMatrix 真源）。
   // QC 仅持 finance:read（不持 vouchers/invoices/vat/remit:read）→ 单据族读面被拒属预期收紧；
@@ -183,6 +180,15 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   const requireVatRead = requirePermission('vat:read');
   const requireRemitRead = requirePermission('remit:read');
   const requireFinanceRead = requirePermission('finance:read');
+  // S3 走查 ε 车道：写端点从 legacy HIGH_RISK_ROLES（owner/admin/manager/finance，SM 实锤可写
+  // 凭证/VAT/结汇）收编为资源 scope 门（rolePermissionMatrix 真源）。效果：FINANCE 全通；
+  // SM 无财务写 scope → 403；ADMIN 按文档 §6.6 业务只读 → 403（预期收紧）；owner/超管特判全通。
+  // 矩阵无 fx:write scope 且本路由无汇率写端点（汇率行情在 risk/systemConfig 域），无需 fx 门。
+  const requireInvoicesWrite = requirePermission('invoices:write');
+  const requireVouchersWrite = requirePermission('vouchers:write');
+  const requireInvoicesReconcile = requirePermission('invoices:reconcile');
+  const requireVatWrite = requirePermission('vat:write');
+  const requireRemitWrite = requirePermission('remit:write');
   const dunningService = createDunningService(prisma);
   // P0-2：催款分级状态机（提醒→催款→严催→法务准备；auto 定级 + manual 钉住合成）
   const dunningStageService = createDunningStageService(prisma);
@@ -218,7 +224,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance — create (high risk, approval upstream)
-  router.post('/', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/', requireInvoicesWrite, async (req: Request, res: Response) => {
     const result = await createInvoice({
       prisma,
       input: req.body as FinanceCreateInput,
@@ -281,7 +287,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/vouchers — create (high risk, approval upstream)
-  router.post('/vouchers', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/vouchers', requireVouchersWrite, async (req: Request, res: Response) => {
     // task ERP-P1-payment-voucher-mutation-shared-service-foundation: route 只调用 service
     const result = await createPaymentVoucher({
       prisma,
@@ -290,7 +296,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       ip: req.ip || null,
     });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { INVALID_STATUS: 400, INVALID_AMOUNT: 400, INVALID_VOUCHER_CATEGORY: 400, PAYMENT_REQUEST_REQUIRED: 403, CREATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { VALIDATION_ERROR: 400, INVALID_STATUS: 400, INVALID_AMOUNT: 400, INVALID_VOUCHER_CATEGORY: 400, PAYMENT_REQUEST_REQUIRED: 403, CREATE_FAILED: 500 };
       const error = result.error;
       res.status(statusCodeMap[error.code] || 500).json({ error });
       return;
@@ -301,7 +307,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // PATCH /api/v1/finance/vouchers/:id
-  router.patch('/vouchers/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/vouchers/:id', requireVouchersWrite, async (req: Request, res: Response) => {
     // task ERP-P1-payment-voucher-mutation-shared-service-foundation: route 只调用 service
     const result = await updatePaymentVoucher({
       prisma,
@@ -330,7 +336,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
 
   // task ERP-P1: DELETE /vouchers/:id — Voucher 软删（调 voidDeleteService，allocation 阻断）
   // POST /api/v1/finance/vouchers/:id/cancel — cancel (void) voucher
-  router.post('/vouchers/:id/cancel', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/vouchers/:id/cancel', requireVouchersWrite, async (req: Request, res: Response) => {
     const result = await cancelVoucher({
       prisma,
       voucherId: req.params.id,
@@ -345,7 +351,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
     res.json({ ok: true, voucher: result.data!.voucher });
   });
 
-  router.delete('/vouchers/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/vouchers/:id', requireVouchersWrite, async (req: Request, res: Response) => {
     try {
       const result = await deleteVoucher({
         prisma, voucherId: req.params.id, actorId: actorIdFromRequest(req),
@@ -378,7 +384,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/allocations — create（apply voucher to invoice）
-  router.post('/allocations', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/allocations', requireInvoicesReconcile, async (req: Request, res: Response) => {
     const result = await createAllocation({ prisma, input: req.body, actorId: actorIdFromRequest(req), ip: req.ip || null });
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = { MISSING_INVOICE: 400, MISSING_VOUCHER: 400, MISSING_AMOUNT: 400, INVALID_AMOUNT: 400, INVOICE_NOT_FOUND: 404, VOUCHER_NOT_FOUND: 404, NOT_FOUND: 404, CONFLICT: 409, CREATE_FAILED: 500 };
@@ -391,7 +397,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // PATCH /api/v1/finance/allocations/:id — update + status 重算
-  router.patch('/allocations/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/allocations/:id', requireInvoicesReconcile, async (req: Request, res: Response) => {
     const result = await updateAllocation({ prisma, allocationId: req.params.id, input: req.body, actorId: actorIdFromRequest(req), ip: req.ip || null });
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = { INVALID_AMOUNT: 400, NOT_FOUND: 404, CONFLICT: 409, UPDATE_FAILED: 500 };
@@ -403,7 +409,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // DELETE /api/v1/finance/allocations/:id — delete（撤销核销）+ status 反向重算
-  router.delete('/allocations/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/allocations/:id', requireInvoicesReconcile, async (req: Request, res: Response) => {
     const result = await deleteAllocation({ prisma, allocationId: req.params.id, actorId: actorIdFromRequest(req), ip: req.ip || null });
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, CONFLICT: 409, DELETE_FAILED: 500 };
@@ -468,7 +474,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/fx-settlements — create（核销校验 + cnyAmount 服务端计算）
-  router.post('/fx-settlements', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/fx-settlements', requireRemitWrite, async (req: Request, res: Response) => {
     const result = await createFxSettlement({
       prisma,
       input: req.body,
@@ -490,7 +496,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // DELETE /api/v1/finance/fx-settlements/:id — 软删（回滚核销余额）
-  router.delete('/fx-settlements/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/fx-settlements/:id', requireRemitWrite, async (req: Request, res: Response) => {
     const result = await deleteFxSettlement({
       prisma,
       settlementId: req.params.id,
@@ -537,7 +543,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/outward-remittances — create（余额校验 + cnyAmount 服务端计算）
-  router.post('/outward-remittances', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/outward-remittances', requireRemitWrite, async (req: Request, res: Response) => {
     const result = await createOutwardRemittance({
       prisma,
       input: req.body,
@@ -559,7 +565,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // DELETE /api/v1/finance/outward-remittances/:id — 软删（回滚未付余额）
-  router.delete('/outward-remittances/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/outward-remittances/:id', requireRemitWrite, async (req: Request, res: Response) => {
     const result = await deleteOutwardRemittance({
       prisma,
       remittanceId: req.params.id,
@@ -610,7 +616,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/vat-invoices — create（金额三栏校验 + 查重）
-  router.post('/vat-invoices', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/vat-invoices', requireVatWrite, async (req: Request, res: Response) => {
     const result = await createVatInvoice({
       prisma,
       input: req.body,
@@ -642,7 +648,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // PATCH /api/v1/finance/vat-invoices/:id — 票面修正（Declared/RedFlushed/Cancelled 不可改）
-  router.patch('/vat-invoices/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/vat-invoices/:id', requireVatWrite, async (req: Request, res: Response) => {
     const result = await updateVatInvoice({
       prisma,
       vatInvoiceId: req.params.id,
@@ -663,7 +669,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/vat-invoices/:id/transition — 状态机（认证/申报退税/红冲/作废）
-  router.post('/vat-invoices/:id/transition', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/vat-invoices/:id/transition', requireVatWrite, async (req: Request, res: Response) => {
     const result = await transitionVatInvoiceStatus({
       prisma,
       vatInvoiceId: req.params.id,
@@ -685,7 +691,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // DELETE /api/v1/finance/vat-invoices/:id — 软删（Declared 禁删，仅可红冲）
-  router.delete('/vat-invoices/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/vat-invoices/:id', requireVatWrite, async (req: Request, res: Response) => {
     const result = await deleteVatInvoice({
       prisma,
       vatInvoiceId: req.params.id,
@@ -702,7 +708,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // task ERP-P1: POST /:id/cancel — Invoice 作废（调 voidDeleteService）
-  router.post('/:id/cancel', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/:id/cancel', requireInvoicesWrite, async (req: Request, res: Response) => {
     try {
       const result = await cancelInvoice({
         prisma, invoiceId: req.params.id,
@@ -722,7 +728,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // task ERP-P1: DELETE /:id — Invoice 软删（调 voidDeleteService，allocation 阻断）
-  router.delete('/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/:id', requireInvoicesWrite, async (req: Request, res: Response) => {
     try {
       const result = await deleteInvoice({
         prisma, invoiceId: req.params.id, actorId: actorIdFromRequest(req),
@@ -755,7 +761,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/dunning — 登记催款记录（快照留痕）
-  router.post('/dunning', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/dunning', requireWrite, requireInvoicesWrite, async (req: Request, res: Response) => {
     const result = await dunningService.recordDunning((req.body ?? {}) as any);
     if (!result.ok) {
       return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
@@ -798,7 +804,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // POST /api/v1/finance/dunning/stages/manual — 人工升降级（留痕 routeAudit；stage=none 解除钉住）
-  router.post('/dunning/stages/manual', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/dunning/stages/manual', requireWrite, requireInvoicesWrite, async (req: Request, res: Response) => {
     try {
       const result = await dunningStageService.setStageManual({
         customerRelationId: req.body?.customerRelationId ?? null,
@@ -1042,7 +1048,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // PATCH /api/v1/finance/:id
-  router.patch('/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/:id', requireInvoicesWrite, async (req: Request, res: Response) => {
     const result = await updateInvoice({
       prisma,
       invoiceId: req.params.id,

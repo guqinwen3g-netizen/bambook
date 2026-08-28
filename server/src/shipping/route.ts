@@ -507,6 +507,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     });
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = {
+        VALIDATION_ERROR: 400,
         INVALID_STATUS: 400,
         INVALID_INITIAL_STATUS: 400,
         ORDER_NOT_FOUND: 404,

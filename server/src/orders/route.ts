@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../auth/middleware';
+import { requirePermission } from '../auth/permissionGuard';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
@@ -10,6 +11,7 @@ import { persistOrders, PersistResult } from '../import/persistOrders';
 import { ParsedOrder } from '../import/types';
 import { syncOrderEntityReferences } from '../entities/sync';
 import { getOrder, getOrderContext, queryOrders } from './query';
+import { buildOrderListScopeWhere } from './orderService';
 import { checkTolerance, getOrderToleranceStatus } from './toleranceService';
 import { logger } from '../lib/logger';
 import { nextBusinessNumber } from '../shared/businessNumberService';
@@ -50,10 +52,12 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
-  router.get('/', async (_req: Request, res: Response) => {
+  router.get('/', async (req: Request, res: Response) => {
     try {
+      // S3-γ：行级数据范围（对齐 v2 口径；无 actor 的 dev/API-Key 读走旧口径放行）
+      const scopeWhere = await buildOrderListScopeWhere(opts.prisma, (req as any).actor ?? null);
       const rows = await opts.prisma.order.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, ...scopeWhere },
         include: { lines: { orderBy: { lineNumber: 'asc' } } },
         orderBy: [{ importedAt: 'desc' }, { updatedAt: 'desc' }],
       });
@@ -124,7 +128,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     }
   });
 
-  router.post('/import', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/import', requireWrite, requirePermission('orders:write'), async (req: Request, res: Response) => {
     const body = req.body as { orders?: ParsedOrder[]; overwriteExisting?: boolean; mode?: 'overwrite-pdf-fields-only' | 'force-overwrite' } | undefined;
     const orders = Array.isArray(body?.orders) ? body!.orders : [];
     if (orders.length === 0) {
@@ -185,7 +189,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
    * `'manual'` in `fieldSources`, so a subsequent PDF re-import for the same
    * `poNumber` will not overwrite anything the user typed by hand.
    */
-  router.post('/', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/', requireWrite, requirePermission('orders:write'), async (req: Request, res: Response) => {
     const body = (req.body || {}) as Record<string, unknown> & { id?: string; poNumber?: string };
     const errors: string[] = [];
     if (!body.customer) errors.push('customer (客户) is required');
@@ -305,7 +309,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
    * value where there was none) or `'imported-then-edited'` (overrides a
    * value that came from PDF import).
    */
-  router.put('/:id', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.put('/:id', requireWrite, requirePermission('orders:write'), async (req: Request, res: Response) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ ok: false, error: { code: 'BAD_ID', message: 'order id required' } });
 
@@ -430,7 +434,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
 
   /** Validate and record a status transition, then update the order. */
   // task ERP-P1: 调 lifecycleService（事务+OrderStatusTransition+sync+audit）
-  router.post('/:id/status-transition', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/:id/status-transition', requireWrite, requirePermission('orders:write'), async (req: Request, res: Response) => {
     const id = req.params.id;
     const body = (req.body || {}) as { toStatus?: string; note?: string; operator?: string; lineId?: string };
     const toStatus = String(body.toStatus || '').trim();
@@ -488,7 +492,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
   });
 
   /** Batch status update for multiple orders. */
-  router.patch('/batch-status', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/batch-status', requireWrite, requirePermission('orders:write'), async (req: Request, res: Response) => {
     const body = (req.body || {}) as { ids?: string[]; toStatus?: string; note?: string; operator?: string };
     const ids = Array.isArray(body.ids) ? body.ids : [];
     const toStatus = String(body.toStatus || '').trim();

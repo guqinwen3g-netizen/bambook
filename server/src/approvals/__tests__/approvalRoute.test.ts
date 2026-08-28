@@ -265,3 +265,65 @@ describe('approvalRoute: POST /:id/decide 决策落库', () => {
     expect(res.status).toBe(500);
   });
 });
+
+describe('approvalRoute: POST /:id/decide 决议人归属校验（S3-δ · approvalDecisionService）', () => {
+  // DR-007 已指派单：reviewerId 为服务端路由落点（pay_gt5 上抬档场景 = 落点总领导）
+  const routedApproval = (reviewerId: string) => ({
+    ...pendingApproval,
+    reviewerId,
+    actionType: 'finance:payment_request',
+    payload: { requestNumber: 'PAYR-1', totalAmount: '100000', currency: 'CNY' },
+  });
+
+  it('SM 决议路由给总领导档的单（reviewerId=u_gm）→ 403 APPROVAL_NOT_ASSIGNED', async () => {
+    mockActor = { userId: 'u_sm', roles: ['manager'] };
+    const { app, approvalUpdate } = makeApp({ existing: routedApproval('u_gm') });
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'approved' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('APPROVAL_NOT_ASSIGNED');
+    expect(approvalUpdate).not.toHaveBeenCalled();
+  });
+
+  it('SM 决议本档位单（reviewerId=本人）→ 放行 200 并落库', async () => {
+    mockActor = { userId: 'u_sm', roles: ['manager'] };
+    const { app, approvalUpdate } = makeApp({ existing: routedApproval('u_sm') });
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'approved', decisionNote: '本团队小单，同意' });
+    expect(res.status).toBe(200);
+    expect(res.body.item.status).toBe('approved');
+    expect(approvalUpdate.mock.calls[0][0].data.reviewerId).toBe('u_sm');
+  });
+
+  it('指定 reviewer 的单被其他 manager 决议 → 403', async () => {
+    mockActor = { userId: 'u_reviewer', roles: ['manager'] };
+    const { app, approvalUpdate } = makeApp({ existing: routedApproval('u_other') });
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'rejected', decisionNote: '越权驳回尝试' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('APPROVAL_NOT_ASSIGNED');
+    expect(approvalUpdate).not.toHaveBeenCalled();
+  });
+
+  it('owner（BOSS 兜底）决议他人单 → 200（与内核 boss-bypass 同一角色口径）', async () => {
+    mockActor = { userId: 'u_boss', roles: ['owner'] };
+    const { app } = makeApp({ existing: routedApproval('u_gm') });
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'approved', decisionNote: 'BOSS 兜底决议' });
+    expect(res.status).toBe(200);
+    expect(res.body.item.status).toBe('approved');
+  });
+
+  it('legacy 未指派单（reviewerId=null）→ 不额外拦截，角色门禁放行 200', async () => {
+    mockActor = { userId: 'u_reviewer', roles: ['manager'] };
+    const { app } = makeApp({ existing: pendingApproval }); // reviewerId: null
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'approved' });
+    expect(res.status).toBe(200);
+  });
+});

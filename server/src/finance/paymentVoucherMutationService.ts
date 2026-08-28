@@ -27,6 +27,7 @@ export const VALID_VOUCHER_CATEGORIES = [
 export type VoucherCategory = typeof VALID_VOUCHER_CATEGORIES[number];
 
 export type PaymentVoucherMutationErrorCode =
+  | 'VALIDATION_ERROR'
   | 'INVALID_STATUS'
   | 'INVALID_AMOUNT'
   | 'INVALID_VOUCHER_CATEGORY'
@@ -181,6 +182,15 @@ function normalizeDecimalFields(data: Record<string, any>): { ok: true; data: Re
 }
 
 function normalizeCreateInput(input: PaymentVoucherMutationInput): { ok: true; data: Record<string, any> } | { ok: false; error: PaymentVoucherMutationError } {
+  // DTO 前置校验（S3 走查 ε 车道）：schema 必填且无服务默认的字段缺失 → VALIDATION_ERROR（route 400），
+  // 不再坠入事务撞 Prisma P2012 变 500（空体 POST 实锤）。voucherNumber 服务端自动生成、
+  // paymentDate 下方默认当天，均不在必填列。全部现存调用方（route / paymentRequestService /
+  // agent paymentVoucherMutationFlow draft 语义校验）已保证此四字段，校验为纯收紧零误伤。
+  const REQUIRED_CREATE_FIELDS = ['type', 'amount', 'currency', 'paymentMethod'] as const;
+  const missing = REQUIRED_CREATE_FIELDS.filter((f) => input?.[f] === undefined || input?.[f] === null || input?.[f] === '');
+  if (missing.length > 0) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: `missing required fields: ${missing.join(', ')}` } };
+  }
   const data = pickVoucherFields(input || {}, PAYMENT_VOUCHER_CREATE_FIELDS as any);
   let voucherStatus = 'unreconciled';
   if (input?.status != null) {

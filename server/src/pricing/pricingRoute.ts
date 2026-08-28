@@ -38,8 +38,11 @@
  * 服务端门禁（W-C 权限收口）：认证门 createModuleAuthGuard 之上叠加 scope 门——
  *   读类端点（GET + track-a/track-b 纯试算）→ requirePermission('pricing:read')；
  *   写端点 → requireJwtForWrite + requirePermission('pricing:write')（JWT-only，API-Key 拒）。
- * 佣金字段（commissionRate/commissionAmount）涉管理层+财务可见域（PRD 9.6），
- * 本路由不做字段级过滤——由服务端 pricing:read/pricing:write scope 门禁（不再依赖前端 modulePermissions）。
+ * 敏感字段遮罩（S3 走查阶段二修复）：pricing:read 仅放行端点；响应序列化后按 actor
+ *   的 sensitive:* scope 服务端遮罩（sensitiveMask.ts）——无 sensitive:cost 遮罩成本
+ *   字段（purchaseCost/netUsdCost/price 等 → null，成本明细行数组 → []）、无
+ *   sensitive:profit 遮罩毛利/毛利率/利润率、无 sensitive:commission 遮罩佣金率/佣金
+ *   金额。遮罩在服务端执行，前端遮罩不算数。
  */
 
 import { Router, Request, Response } from 'express';
@@ -53,6 +56,17 @@ import { createPricingService, PricingCalculationInput, TaxRefundRateInput, Trac
 import { createProfitSheetService } from './profitSheetService';
 import { createMaterialPriceService, MaterialPriceInput } from './materialPriceService';
 import { createCommissionService, CommissionRuleInput } from './commissionService';
+import {
+  pricingSensitiveVisibility,
+  maskProfitSheetRow,
+  maskFreightImpactResult,
+  maskCalculationRow,
+  maskTrackAResult,
+  maskTrackBResult,
+  maskCommissionRuleRow,
+  maskCommissionLookupHit,
+  maskMaterialPriceRow,
+} from './sensitiveMask';
 
 export interface PricingRouterOptions {
   prisma: PrismaClient;
@@ -150,7 +164,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.post('/track-a-preview', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await pricing.estimateTrackA(req.body as TrackAPreviewInput);
-      res.json(serializeValue(result));
+      res.json(maskTrackAResult(serializeValue(result), pricingSensitiveVisibility(req)));
     } catch (e: any) {
       handleError(res, e, 'TRACK_A_PREVIEW_FAILED');
     }
@@ -163,7 +177,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.post('/track-b-preview', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = pricing.calculateTrackB(req.body as TrackBInput);
-      res.json(serializeValue(result));
+      res.json(maskTrackBResult(serializeValue(result), pricingSensitiveVisibility(req)));
     } catch (e: any) {
       handleError(res, e, 'TRACK_B_PREVIEW_FAILED');
     }
@@ -178,7 +192,9 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         offset: req.query.offset ? Number(req.query.offset) : undefined,
       });
-      res.json(serializeValue(result));
+      const vis = pricingSensitiveVisibility(req);
+      const serialized = serializeValue(result);
+      res.json({ ...serialized, items: serialized.items.map((c: any) => maskCalculationRow(c, vis)) });
     } catch (e: any) {
       handleError(res, e, 'CALC_LIST_FAILED');
     }
@@ -188,7 +204,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     try {
       const row = await pricing.createCalculation(req.body as PricingCalculationInput, actorIdFromRequest(req));
       notify('create_pricing_calculation', [row.id]);
-      res.status(201).json(serializeValue({ ok: true, item: row }));
+      res.status(201).json({ ok: true, item: maskCalculationRow(serializeValue(row), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'CALC_CREATE_FAILED');
     }
@@ -197,8 +213,8 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.patch('/calculations/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await pricing.updateCalculation(req.params.id, req.body ?? {}, actorIdFromRequest(req));
-      notify('update_pricing_calculation', [row.id]);
-      res.json(serializeValue({ ok: true, item: row }));
+      notify('update_pricing_calculation', [req.params.id]);
+      res.json({ ok: true, item: maskCalculationRow(serializeValue(row), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'CALC_UPDATE_FAILED');
     }
@@ -224,7 +240,9 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         offset: req.query.offset ? Number(req.query.offset) : undefined,
       });
-      res.json(serializeValue(result));
+      const vis = pricingSensitiveVisibility(req);
+      const serialized = serializeValue(result);
+      res.json({ ...serialized, items: serialized.items.map((s: any) => maskProfitSheetRow(s, vis)) });
     } catch (e: any) {
       handleError(res, e, 'PROFIT_LIST_FAILED');
     }
@@ -234,7 +252,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     try {
       const sheet = await profitSheets.generateOrderProfitSheet(req.params.orderId, actorIdFromRequest(req));
       notify('generate_profit_sheet', [req.params.orderId]);
-      res.json(serializeValue({ ok: true, item: sheet }));
+      res.json({ ok: true, item: maskProfitSheetRow(serializeValue(sheet), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'PROFIT_GENERATE_FAILED');
     }
@@ -247,7 +265,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         res.status(404).json({ error: { code: 'PROFIT_GET_FAILED', message: '利润表不存在' } });
         return;
       }
-      res.json(serializeValue({ item: sheet }));
+      res.json({ item: maskProfitSheetRow(serializeValue(sheet), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'PROFIT_GET_FAILED');
     }
@@ -273,7 +291,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         multiplier: req.query.multiplier,
         orderId: req.query.orderId,
       });
-      res.json(serializeValue(result));
+      res.json(maskFreightImpactResult(serializeValue(result), pricingSensitiveVisibility(req)));
     } catch (e: any) {
       handleError(res, e, 'FREIGHT_IMPACT_FAILED');
     }
@@ -294,7 +312,9 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         offset: req.query.offset ? Number(req.query.offset) : undefined,
       });
-      res.json(serializeValue(result));
+      const vis = pricingSensitiveVisibility(req);
+      const serialized = serializeValue(result);
+      res.json({ ...serialized, items: serialized.items.map((p: any) => maskMaterialPriceRow(p, vis)) });
     } catch (e: any) {
       handleError(res, e, 'MP_LIST_FAILED');
     }
@@ -304,7 +324,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     try {
       const row = await materialPrices.createMaterialPrice(req.body as MaterialPriceInput, actorIdFromRequest(req));
       notify('create_material_price', [row.id]);
-      res.status(201).json(serializeValue({ ok: true, item: row }));
+      res.status(201).json({ ok: true, item: maskMaterialPriceRow(serializeValue(row), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'MP_CREATE_FAILED');
     }
@@ -319,7 +339,8 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         from: req.query.from as string | undefined,
         to: req.query.to as string | undefined,
       });
-      res.json(serializeValue({ items }));
+      const vis = pricingSensitiveVisibility(req);
+      res.json({ items: serializeValue(items).map((p: any) => maskMaterialPriceRow(p, vis)) });
     } catch (e: any) {
       handleError(res, e, 'MP_TREND_FAILED');
     }
@@ -334,7 +355,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
         return;
       }
       const item = await materialPrices.getLatestPrice({ materialType, materialCode });
-      res.json(serializeValue({ item }));
+      res.json({ item: item ? maskMaterialPriceRow(serializeValue(item), pricingSensitiveVisibility(req)) : item });
     } catch (e: any) {
       handleError(res, e, 'MP_LATEST_FAILED');
     }
@@ -343,8 +364,8 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.patch('/material-prices/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await materialPrices.updateMaterialPrice(req.params.id, req.body ?? {}, actorIdFromRequest(req));
-      notify('update_material_price', [row.id]);
-      res.json(serializeValue({ ok: true, item: row }));
+      notify('update_material_price', [req.params.id]);
+      res.json({ ok: true, item: maskMaterialPriceRow(serializeValue(row), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'MP_UPDATE_FAILED');
     }
@@ -367,7 +388,9 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.get('/commission-rules', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await commissions.listCommissionRules({ includeInactive: req.query.includeInactive === 'true' });
-      res.json(serializeValue(result));
+      const vis = pricingSensitiveVisibility(req);
+      const serialized = serializeValue(result);
+      res.json({ ...serialized, items: serialized.items.map((c: any) => maskCommissionRuleRow(c, vis)) });
     } catch (e: any) {
       handleError(res, e, 'CR_LIST_FAILED');
     }
@@ -377,7 +400,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     try {
       const row = await commissions.createCommissionRule(req.body as CommissionRuleInput, actorIdFromRequest(req));
       notify('create_commission_rule', [row.id]);
-      res.status(201).json(serializeValue({ ok: true, item: row }));
+      res.status(201).json({ ok: true, item: maskCommissionRuleRow(serializeValue(row), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'CR_CREATE_FAILED');
     }
@@ -387,7 +410,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.get('/commission-rules/lookup', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const hit = await commissions.lookupCommissionRate(req.query.intermediaryRelationId as string | undefined);
-      res.json(serializeValue({ hit }));
+      res.json({ hit: maskCommissionLookupHit(serializeValue(hit), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'CR_LOOKUP_FAILED');
     }
@@ -396,8 +419,8 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   router.patch('/commission-rules/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await commissions.updateCommissionRule(req.params.id, req.body ?? {}, actorIdFromRequest(req));
-      notify('update_commission_rule', [row.id]);
-      res.json(serializeValue({ ok: true, item: row }));
+      notify('update_commission_rule', [req.params.id]);
+      res.json({ ok: true, item: maskCommissionRuleRow(serializeValue(row), pricingSensitiveVisibility(req)) });
     } catch (e: any) {
       handleError(res, e, 'CR_UPDATE_FAILED');
     }

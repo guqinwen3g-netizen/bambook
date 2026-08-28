@@ -407,11 +407,13 @@ const SALES_BASE: RolePermissionMatrix = {
   'shipments:read': true,
   'shipments:write': true,
   'customs:read': true,
+  'customs:write': true, // 报关草稿（文档 §6.1；S3 γ 车道实锤矩阵漏授）
   'qc:read': true,
   'qc:write': true,
   'aftersales:read': true,
   'aftersales:write': true,
   'procurement:read': true,
+  'procurement:write': true, // PO 草稿发起（文档 §6.1；S3 走查发现矩阵漏授，业务员建 PO 被 403）
   // 财务（业务员只读自己的应收/应付情况，不能登账）
   'finance:read': true,
   'invoices:read': true,
@@ -666,6 +668,9 @@ const QC_BASE: RolePermissionMatrix = {
   // QC 域（可写）
   'qc:read': true,
   'qc:write': true,
+  // DR-029 双链样品评审（S3 走查 F-QC-1 实锤：GAP-R11 收编漏补，S1 主链 QC 评审节点死胡同）
+  'qc:fabric_chain:write': true,
+  'qc:garment_chain:write': true,
   'production:write': true, // 阶段登记/疵点录入
   'bom:read': true,
   'bom:write': true, // Draft 编辑

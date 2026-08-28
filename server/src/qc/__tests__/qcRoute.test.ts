@@ -5,6 +5,10 @@ import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
 const ownerToken = jwt.sign({ userId: 'u1', roles: ['owner'] }, SECRET);
+// S3-δ：scope 门禁测试身份——finance 角色无 qc:write（矩阵 FINANCE_BASE 仅 qc:read）；
+// QC 角色 legacy 映射 viewer，scope 经 JWT permissions 直查（与登录签发契约一致）
+const financeToken = jwt.sign({ userId: 'u_fin', roles: ['finance'] }, SECRET);
+const qcToken = jwt.sign({ userId: 'u_qc', roles: ['viewer'], permissions: ['qc:read', 'qc:write'] }, SECRET);
 const validApiKey = 'test-key';
 const apiKeys = new Set([validApiKey]);
 
@@ -439,5 +443,90 @@ describe('P0 · QC 工作台', () => {
     expect(wbAll.body.assigned.length).toBe(1);
     expect(wbAll.body.inProgress.length).toBe(1);
     expect(wbAll.body.completed.length).toBe(1);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// S3-δ · 驻地/验货任务写端点 qc:write scope 门禁
+//   修复前仅 requireWrite（JWT）单闸；修复后与 sign/test-requests 一致
+//   requireWrite + requirePermission('qc:write') 双闸
+// ════════════════════════════════════════════════════════════════
+
+describe('S3-δ · QC 写端点 qc:write scope 门禁', () => {
+  let prisma: any;
+  beforeEach(() => {
+    prisma = makeMockPrisma();
+    seedOrder(prisma, { id: 'ORD-1' });
+    seedUser(prisma, { id: 'QC-1' });
+  });
+
+  const finAuth = () => ({ Cookie: `bambook_token=${financeToken}` });
+  const qcAuth = () => ({ Cookie: `bambook_token=${qcToken}` });
+
+  it('未持 qc:write 角色（finance）写 locations 三端点 → 403 FORBIDDEN', async () => {
+    const app = makeApp(prisma);
+    prisma._stores.locations.push({ id: 'QCL__X', code: 'wenzhou', name: '温州驻场', region: null, focus: null, address: null, notes: null, deletedAt: null });
+
+    const create = await request(app).post('/api/v1/qc/locations').set(finAuth()).send({ code: 'suzhou', name: '苏州驻场' });
+    expect(create.status).toBe(403);
+    expect(create.body.error).toBe('FORBIDDEN');
+    expect(create.body.message).toContain('qc:write');
+
+    const update = await request(app).patch('/api/v1/qc/locations/QCL__X').set(finAuth()).send({ name: '改名' });
+    expect(update.status).toBe(403);
+
+    const del = await request(app).delete('/api/v1/qc/locations/QCL__X').set(finAuth());
+    expect(del.status).toBe(403);
+
+    // 读端点不受写 scope 影响（finance 持 qc:read，仅验证不被 403 拦截到写闸）
+    const list = await request(app).get('/api/v1/qc/locations').set(finAuth());
+    expect(list.status).toBe(200);
+  });
+
+  it('未持 qc:write 角色（finance）写 assignments 系列（建单/状态机） → 403', async () => {
+    const app = makeApp(prisma);
+    prisma._stores.assignments.push({
+      id: 'QCA__X', orderId: 'ORD-1', inspectionType: 'final', qcUserId: 'QC-1', locationId: null,
+      factoryRelationId: null, status: 'Assigned', dueDate: null, assignedAt: BigInt(Date.now()),
+      assignedById: 'u1', completedAt: null, reportId: null, notes: null, deletedAt: null,
+    });
+
+    const create = await request(app).post('/api/v1/qc/assignments').set(finAuth())
+      .send({ orderId: 'ORD-1', inspectionType: 'final', qcUserId: 'QC-1' });
+    expect(create.status).toBe(403);
+    expect(create.body.error).toBe('FORBIDDEN');
+
+    const start = await request(app).post('/api/v1/qc/assignments/QCA__X/start').set(finAuth());
+    expect(start.status).toBe(403);
+
+    const update = await request(app).patch('/api/v1/qc/assignments/QCA__X').set(finAuth()).send({ notes: 'x' });
+    expect(update.status).toBe(403);
+
+    const del = await request(app).delete('/api/v1/qc/assignments/QCA__X').set(finAuth());
+    expect(del.status).toBe(403);
+  });
+
+  it('QC 角色（permissions 含 qc:write）→ 过门禁到业务校验：合法建单 201 / 缺 name 400', async () => {
+    const app = makeApp(prisma);
+
+    const ok = await request(app).post('/api/v1/qc/locations').set(qcAuth()).send({ code: 'WenZhou', name: '温州驻场' });
+    expect(ok.status).toBe(201);
+    expect(ok.body.item.code).toBe('wenzhou');
+
+    // 过门禁后落到业务校验（缺 name → 400 而非 403）
+    const bad = await request(app).post('/api/v1/qc/locations').set(qcAuth()).send({ code: 'suzhou' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('QC_LOCATION_CREATE_FAILED');
+
+    // assignments 建单同样过闸到业务（201）
+    const created = await request(app).post('/api/v1/qc/assignments').set(qcAuth())
+      .send({ orderId: 'ORD-1', inspectionType: 'final', qcUserId: 'QC-1' });
+    expect(created.status).toBe(201);
+    expect(created.body.item.status).toBe('Assigned');
+
+    // 状态机端点过闸（start → 200）
+    const started = await request(app).post(`/api/v1/qc/assignments/${created.body.item.id}/start`).set(qcAuth());
+    expect(started.status).toBe(200);
+    expect(started.body.item.status).toBe('InProgress');
   });
 });

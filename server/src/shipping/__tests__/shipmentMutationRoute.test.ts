@@ -114,6 +114,16 @@ describe('shipping route → service: POST /', () => {
     expect(onDataChange).toHaveBeenCalledTimes(1);
   });
 
+  it('空体/缺 shippingMethod → 400 VALIDATION_ERROR（不再坠事务撞 P2012 变 500），未进 $transaction', async () => {
+    const { app, prisma, onDataChange } = makeApp();
+    const res = await request(app).post('/api/v1/shipping').set(authHeader()).send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toContain('shippingMethod');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
   it('非法 status → 400 INVALID_STATUS，未进 $transaction', async () => {
     const { app, prisma, onDataChange } = makeApp();
     const res = await request(app).post('/api/v1/shipping').set(authHeader()).send({

@@ -491,10 +491,11 @@ function CalculatorPanel() {
                   <div className="min-w-0">
                     <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                       终价 ${rec.finalUnitPrice.toFixed(4)}
-                      <span style={{ color: 'var(--text-tertiary)' }}> · 成本 ¥{rec.purchaseCostCny.toFixed(2)} · 退税 {rec.refundRate}% · 汇率 {rec.exchangeRate}</span>
+                      {/* 敏感遮罩 null 安全：sensitive:cost 未授权时服务端遮罩为 null（β 车道） */}
+                      <span style={{ color: 'var(--text-tertiary)' }}> · 成本 {rec.purchaseCostCny != null ? `¥${rec.purchaseCostCny.toFixed(2)}` : '—'} · 退税 {rec.refundRate}% · 汇率 {rec.exchangeRate}</span>
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                      利润率 {rec.profitMargin}%{rec.commissionRate ? ` · 佣金 ${rec.commissionRate}%` : ''}{rec.hsCode ? ` · HS ${rec.hsCode}` : ''}{rec.quantity ? ` · 数量 ${rec.quantity}` : ''} · {formatTs(rec.createdAt)}
+                      利润率 {rec.profitMargin != null ? `${rec.profitMargin}%` : '—'}{rec.commissionRate ? ` · 佣金 ${rec.commissionRate}%` : ''}{rec.hsCode ? ` · HS ${rec.hsCode}` : ''}{rec.quantity ? ` · 数量 ${rec.quantity}` : ''} · {formatTs(rec.createdAt)}
                     </p>
                     {(rec.orderId || rec.quotationId || rec.productAssetId) && (
                       <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>

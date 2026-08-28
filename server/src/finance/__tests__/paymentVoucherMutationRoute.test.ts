@@ -65,6 +65,29 @@ describe('paymentVoucherMutationService route POST /vouchers', () => {
     expect(onDataChange).toHaveBeenCalledTimes(1);
   });
 
+  it('空体/必填字段缺失 → 400 VALIDATION_ERROR（不再坠事务撞 P2012 变 500），不进 transaction/audit/onDataChange', async () => {
+    const { app, prisma, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).post('/api/v1/finance/vouchers').set(authHeader()).send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toContain('type');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  it('缺单一必填字段（paymentMethod）→ 400 VALIDATION_ERROR', async () => {
+    const { app, prisma, onDataChange } = makeApp();
+    const res = await request(app).post('/api/v1/finance/vouchers').set(authHeader()).send({
+      type: 'Receipt', amount: '10', currency: 'USD',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toContain('paymentMethod');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+
   it('非法 status → 400 INVALID_STATUS，不进 transaction/audit/onDataChange', async () => {
     const { app, prisma, auditCreate, onDataChange } = makeApp();
     const res = await request(app).post('/api/v1/finance/vouchers').set(authHeader()).send({

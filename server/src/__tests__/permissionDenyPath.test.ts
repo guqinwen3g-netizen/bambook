@@ -224,9 +224,9 @@ describe('Allow · 放行对照（合规角色通过门禁）', () => {
     expectPassGate(res, 'sales-manager POST /orders');
   });
 
-  it('admin（role-admin）DELETE /api/v1/finance/vouchers/:id（高危端点放行）→ 非 401/403', async () => {
+  it('admin（role-admin）DELETE /api/v1/finance/vouchers/:id → 403（S3 ε 车道：vouchers:write 仅 FINANCE 持有，§6.6 业务只读预期收紧）', async () => {
     const res = await request(financeApp()).delete('/api/v1/finance/vouchers/pv_x').set(auth(SYSTEM_ROLE_IDS.ADMIN));
-    expectPassGate(res, 'admin DELETE /finance/vouchers/:id');
+    expectStatus(res, 403, 'admin DELETE /finance/vouchers/:id（写族收编 scope 门后 admin 不再放行）');
   });
 
   it('admin（role-admin）DELETE /api/v1/orders/:id（高危端点放行）→ 非 401/403', async () => {

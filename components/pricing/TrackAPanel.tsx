@@ -335,7 +335,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
                   <span className="w-24 shrink-0 text-xs text-text-secondary">{line.label}</span>
                   <input
                     key={`${line.key}-${line.amountCny}`}
-                    defaultValue={String(line.amountCny)}
+                    defaultValue={line.amountCny != null ? String(line.amountCny) : ''}
                     onBlur={(e) => {
                       if (parseNum(e.target.value) !== null && Number(e.target.value) !== line.amountCny) {
                         handleLineCommit(line.key, e.target.value);

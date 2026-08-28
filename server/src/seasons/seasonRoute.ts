@@ -39,6 +39,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
@@ -64,6 +65,9 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  // S3-γ：写端点在 JWT 之上叠加 seasons:write scope 门（与 /api/v2/seasons 守卫口径对齐；
+  // SALES/销售主管持有，SuperAdmin/owner 全通；读端点不动）
+  const requireSeasonsWrite = requirePermission('seasons:write');
   const notify = (action: string, ids?: string[]) => onDataChange?.({ entity: 'seasons', action, ids });
 
   const handleError = (res: Response, e: any, code: string) => {
@@ -98,7 +102,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
   });
 
   // POST / — 新建季度
-  router.post('/', requireWrite, async (req: Request, res: Response) => {
+  router.post('/', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const season = await service.createSeason(req.body as SeasonInput, actorIdFromRequest(req));
       notify('create', [season.id]);
@@ -122,7 +126,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.post('/trends', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trends', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const tag = await service.createTrendTag(req.body as TrendTagInput, actorIdFromRequest(req));
       notify('create_trend', [tag.id]);
@@ -132,7 +136,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.patch('/trends/:tagId', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/trends/:tagId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const tag = await service.updateTrendTag(req.params.tagId, req.body, actorIdFromRequest(req));
       notify('update_trend', [tag.id]);
@@ -142,7 +146,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.delete('/trends/:tagId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/trends/:tagId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteTrendTag(req.params.tagId, actorIdFromRequest(req));
       notify('delete_trend', [req.params.tagId]);
@@ -154,7 +158,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
 
   // ─── 趋势 ↔ 面料关联 ───
 
-  router.post('/trends/:tagId/fabrics', requireWrite, async (req: Request, res: Response) => {
+  router.post('/trends/:tagId/fabrics', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const link = await service.linkFabric(req.params.tagId, String(req.body?.fabricId || ''), req.body?.note ?? null, actorIdFromRequest(req));
       notify('link_fabric', [link.id]);
@@ -164,7 +168,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.delete('/trends/:tagId/fabrics/:fabricId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/trends/:tagId/fabrics/:fabricId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       await service.unlinkFabric(req.params.tagId, req.params.fabricId, actorIdFromRequest(req));
       notify('unlink_fabric', [req.params.tagId]);
@@ -200,7 +204,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.post('/shows', requireWrite, async (req: Request, res: Response) => {
+  router.post('/shows', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const show = await service.createTradeShow(req.body as TradeShowInput, actorIdFromRequest(req));
       notify('create_show', [show.id]);
@@ -221,7 +225,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.patch('/shows/:showId', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/shows/:showId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const show = await service.updateTradeShow(req.params.showId, req.body, actorIdFromRequest(req));
       notify('update_show', [show.id]);
@@ -231,7 +235,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.delete('/shows/:showId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/shows/:showId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteTradeShow(req.params.showId, actorIdFromRequest(req));
       notify('delete_show', [req.params.showId]);
@@ -250,7 +254,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.post('/shows/:showId/leads', requireWrite, async (req: Request, res: Response) => {
+  router.post('/shows/:showId/leads', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const lead = await service.addLead(req.params.showId, req.body as LeadInput, actorIdFromRequest(req));
       notify('add_lead', [lead.id]);
@@ -262,7 +266,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
 
   // ─── 线索 TradeShowLead ───
 
-  router.patch('/leads/:leadId', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/leads/:leadId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const lead = await service.updateLead(req.params.leadId, req.body, actorIdFromRequest(req));
       notify('update_lead', [lead.id]);
@@ -272,7 +276,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.delete('/leads/:leadId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/leads/:leadId', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteLead(req.params.leadId, actorIdFromRequest(req));
       notify('delete_lead', [req.params.leadId]);
@@ -282,7 +286,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.post('/leads/:leadId/convert', requireWrite, async (req: Request, res: Response) => {
+  router.post('/leads/:leadId/convert', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const lead = await service.convertLead(req.params.leadId, String(req.body?.relationId || ''), actorIdFromRequest(req));
       notify('convert_lead', [lead.id]);
@@ -306,7 +310,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.patch('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/:id', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const season = await service.updateSeason(req.params.id, req.body, actorIdFromRequest(req));
       notify('update', [season.id]);
@@ -316,7 +320,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.delete('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/:id', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteSeason(req.params.id, actorIdFromRequest(req));
       notify('delete', [req.params.id]);
@@ -338,7 +342,7 @@ export function createSeasonRouter(options: SeasonRouterOptions): Router {
     }
   });
 
-  router.post('/:id/review', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/review', requireWrite, requireSeasonsWrite, async (req: Request, res: Response) => {
     try {
       const review = await service.generateSeasonReview(req.params.id, actorIdFromRequest(req));
       notify('generate_review', [req.params.id]);

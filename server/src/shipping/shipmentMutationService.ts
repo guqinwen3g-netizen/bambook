@@ -18,6 +18,7 @@ import { createOrderShipmentBatchService } from './orderShipmentBatchService';
 import type { ExceptionChecker } from '../exceptions/exceptionGate';
 
 export type ShipmentMutationErrorCode =
+  | 'VALIDATION_ERROR'
   | 'NOT_FOUND'
   | 'INVALID_STATUS'
   | 'INVALID_INITIAL_STATUS'
@@ -189,6 +190,18 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
   // status 合法枚举（fail closed，事务前）
   if (input?.status != null && !isValidShipmentStatus(String(input.status))) {
     return { ok: false, error: { code: 'INVALID_STATUS', message: `status must be one of: ${VALID_SHIPMENT_STATUSES.join(', ')}` } };
+  }
+  // DTO 前置校验（S3 走查 ε 车道）：空体/缺必填字段坠入事务撞 Prisma P2012 → 500（空体 POST 实锤），
+  // 提前为 VALIDATION_ERROR（route 400）。校验集合 = 全部现存调用方共同契约的交集：
+  // route（create 白名单含 shippingMethod）/ L2 事件联动（显式传 shippingMethod）/
+  // agent orderShipFlow（toolRuntime 前置强制 shipment.shippingMethod）三方均保证 shippingMethod。
+  // type 同为 schema 必填，但 agent draft 契约（OrderShipDraftInput.type 可选 + order.ship
+  // inputSchema 未要求）不保证该字段——在服务层强制会收紧跨域契约，超出本车道租约；
+  // 待 agent 域前置补齐 type 后，本校验集合可同标准扩入 type。
+  const REQUIRED_CREATE_FIELDS = ['shippingMethod'] as const;
+  const missingFields = REQUIRED_CREATE_FIELDS.filter((f) => input?.[f] === undefined || input?.[f] === null || input?.[f] === '');
+  if (missingFields.length > 0) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: `missing required fields: ${missingFields.join(', ')}` } };
   }
   // 创建时禁止直接创建终态运单（Delivered/Cancelled），允许 Draft/Booked/Loading/Shipped/Arrived/Cleared
   // 业务场景：运单可能在发货后才补录（Shipped），但不应直接创建已交付/已取消的终态记录

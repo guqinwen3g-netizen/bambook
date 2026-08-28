@@ -256,3 +256,75 @@ describe('admin user status management', () => {
     });
   });
 });
+
+describe('admin route error guard（P1 DoS 面：假 ID P2025 → 404，异常 → 500 不进程崩溃）', () => {
+  it('PATCH /users/:id 假 ID（Prisma P2025）→ 404 NOT_FOUND，请求有响应不崩溃', async () => {
+    const prisma = {
+      userAccount: {
+        update: vi.fn().mockRejectedValue(Object.assign(new Error('Record to update not found.'), { code: 'P2025' })),
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+
+    const res = await request(makeApp(prisma))
+      .patch('/admin/users/user-nope')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ displayName: 'Ghost' });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ ok: false, error: 'NOT_FOUND' });
+  });
+
+  it('PATCH /users/:id 非 P2025 异常 → 500 INTERNAL_ERROR（不当 unhandledRejection 打崩进程）', async () => {
+    const prisma = {
+      userAccount: {
+        update: vi.fn().mockRejectedValue(new Error('DB_CONN_LOST')),
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+
+    const res = await request(makeApp(prisma))
+      .patch('/admin/users/user-1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ displayName: 'X' });
+
+    expect(res.status).toBe(500);
+    expect(res.body).toMatchObject({ ok: false, error: 'INTERNAL_ERROR' });
+  });
+
+  it('PATCH /users/:id/roles 用户不存在 → 404 NOT_FOUND，不清空角色（此前静默 200）', async () => {
+    const prisma = {
+      userAccount: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), create: vi.fn() },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+
+    const res = await request(makeApp(prisma))
+      .patch('/admin/users/user-nope/roles')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ roles: ['role-sales'] });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ ok: false, error: 'NOT_FOUND' });
+    expect(prisma.userRole.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /users/:id/roles 用户存在 + roles:[] → 200 清空语义保留（deleteMany 后不再建）', async () => {
+    const prisma = {
+      userAccount: { findUnique: vi.fn().mockResolvedValue({ id: 'user-1', status: 'active' }) },
+      userRole: { deleteMany: vi.fn().mockResolvedValue({ count: 2 }), create: vi.fn() },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+
+    const res = await request(makeApp(prisma))
+      .patch('/admin/users/user-1/roles')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ roles: [] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true });
+    expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(prisma.userRole.create).not.toHaveBeenCalled();
+  });
+});

@@ -44,6 +44,7 @@
  *   - POST   /test-requests/corrective-actions/:caId/close — 整改闭环 {closeNote?}
  *
  * 守卫口径与 seasons/risk 模块一致：读走 JWT 或 API-Key，写必须 JWT（requireJwtForWrite）。
+ * 驻地/验货任务写端点与 sign/test-requests 一致：requireWrite + requirePermission('qc:write') 双闸。
  * 链写 scope（:write 后缀）由 requirePermission 强制 JWT user-session，API key 通道 401。
  */
 
@@ -129,7 +130,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.post('/locations', requireWrite, async (req: Request, res: Response) => {
+  router.post('/locations', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const loc = await service.createLocation(req.body as QCLocationInput, actorIdFromRequest(req));
       notify('create_location', [loc.id]);
@@ -139,7 +140,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.patch('/locations/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/locations/:id', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const loc = await service.updateLocation(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_location', [loc.id]);
@@ -149,7 +150,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.delete('/locations/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/locations/:id', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       await service.deleteLocation(req.params.id, actorIdFromRequest(req));
       notify('delete_location', [req.params.id]);
@@ -204,7 +205,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.post('/assignments', requireWrite, async (req: Request, res: Response) => {
+  router.post('/assignments', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const assignment = await service.createAssignment(req.body as QCAssignmentInput, actorIdFromRequest(req));
       notify('create_assignment', [assignment.id]);
@@ -214,7 +215,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.patch('/assignments/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/assignments/:id', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const assignment = await service.updateAssignment(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_assignment', [assignment.id]);
@@ -224,7 +225,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.delete('/assignments/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/assignments/:id', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       await service.deleteAssignment(req.params.id, actorIdFromRequest(req));
       notify('delete_assignment', [req.params.id]);
@@ -234,7 +235,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.post('/assignments/:id/start', requireWrite, async (req: Request, res: Response) => {
+  router.post('/assignments/:id/start', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const assignment = await service.startAssignment(req.params.id, actorIdFromRequest(req));
       notify('start_assignment', [assignment.id]);
@@ -244,7 +245,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.post('/assignments/:id/complete', requireWrite, async (req: Request, res: Response) => {
+  router.post('/assignments/:id/complete', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const assignment = await service.completeAssignment(
         req.params.id,
@@ -262,7 +263,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
     }
   });
 
-  router.post('/assignments/:id/cancel', requireWrite, async (req: Request, res: Response) => {
+  router.post('/assignments/:id/cancel', requireWrite, requirePermission('qc:write'), async (req: Request, res: Response) => {
     try {
       const assignment = await service.cancelAssignment(req.params.id, actorIdFromRequest(req));
       notify('cancel_assignment', [assignment.id]);

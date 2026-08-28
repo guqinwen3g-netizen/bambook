@@ -14,6 +14,8 @@
  *   - 仅 JWT（owner / admin / manager）；API-Key 一律 401
  *   - 驳回必须填 decisionNote（PRD 19.21「驳回必填意见」）
  *   - 申请人不可审批自己的单子（自审 403）
+ *   - 已指派 reviewerId 的单仅该审批人本人可决议（owner BOSS 兜底除外），
+ *     归属判定唯一真源 approvalDecisionService.evaluateDecideOwnership（403 APPROVAL_NOT_ASSIGNED）
  *   - 仅 pending 可决策，重复决策 409
  */
 
@@ -22,6 +24,7 @@ import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
 import { approvalEventBus } from '../agent/events';
+import { evaluateDecideOwnership } from './approvalDecisionService';
 
 // 业务审批可见/可决策角色：管理层（owner/admin）+ 部门主管（manager）
 const APPROVER_ROLES = ['owner', 'admin', 'manager'];
@@ -50,7 +53,7 @@ export function createApprovalRouter(options: ApprovalRouterOptions): Router {
   const { prisma, requireAuth, onDecided } = options;
 
   // ── 鉴权 + 角色门禁：仅 JWT 且具备审批角色 ──
-  const authenticate = (req: Request, res: Response): { userId: string } | null => {
+  const authenticate = (req: Request, res: Response): { userId: string; roles: string[] } | null => {
     const actor = extractActorFromRequest(req);
     if (!actor?.userId) {
       res.status(401).json({ error: 'authentication required（业务审批仅接受 JWT 登录）' });
@@ -60,7 +63,7 @@ export function createApprovalRouter(options: ApprovalRouterOptions): Router {
       res.status(403).json({ error: 'forbidden：仅管理层 / 部门主管可处理业务审批' });
       return null;
     }
-    return { userId: actor.userId };
+    return { userId: actor.userId, roles: actor.roles ?? [] };
   };
 
   // ── GET / — 待办 / 已办列表 ──
@@ -105,6 +108,12 @@ export function createApprovalRouter(options: ApprovalRouterOptions): Router {
       }
       if (existing.requesterId === auth.userId) {
         return res.status(403).json({ error: '申请人不可审批自己的单子（自审禁止）' });
+      }
+      // 决议人归属校验（service 层唯一真源）：已指派 reviewer 的单仅本人可决，
+      // owner BOSS 兜底除外；SM 不可决议路由给总领导档（如 pay_gt5 上抬）的单
+      const ownership = evaluateDecideOwnership(existing, auth);
+      if (!ownership.ok) {
+        return res.status(403).json({ error: ownership.message });
       }
 
       const now = new Date();

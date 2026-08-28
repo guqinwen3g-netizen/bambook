@@ -43,9 +43,10 @@
  *   GET    /:relationId/overview                — CRM 总览（聚合所有模型）
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 import { createCrmService, ContactInput, CreditLimitInput, FollowUpInput, OpportunityInput, CustomerTierInput } from './crmService';
 import { createBrandLineService } from './brandLineService';
@@ -112,6 +113,18 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     if (actor?.userId) return true;
     res.status(401).json({ error: 'authentication required' });
     return false;
+  };
+
+  /**
+   * S3-γ：CRM v1 读端点 scope 门——JWT 登录用户必须持 crm:read（对齐 crmRouteV2 读门）。
+   * 无 actor（API-Key / dev 模式）调用走旧口径放行，与 requireFollowUpReadScope 同一惯例
+   * （认证已由 authenticate 把关；moduleApiKeyHeader 契约：API-Key 读不得 401）。
+   */
+  const requireCrmRead = (req: Request, res: Response, next: NextFunction) => {
+    const actor = extractActorFromRequest(req);
+    if (!actor?.userId) return next();
+    (req as any).actor = actor;
+    return requirePermission('crm:read')(req, res, next);
   };
 
   const notify = (entity: string, action: string, ids?: string[]) => {
@@ -236,7 +249,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   // 3. 跟进记录 FollowUp
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/:relationId/follow-ups', async (req: Request, res: Response) => {
+  router.get('/:relationId/follow-ups', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     if (!(await requireFollowUpReadScope(req, res))) return; // DR-042 §5.3 派生可见
     try {
@@ -295,7 +308,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     }
   });
 
-  router.get('/follow-ups/overdue', async (req: Request, res: Response) => {
+  router.get('/follow-ups/overdue', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const daysAhead = req.query.daysAhead ? parseInt(req.query.daysAhead as string, 10) : 0;
@@ -310,7 +323,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   // 4. 商机 Opportunity
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/opportunities', async (req: Request, res: Response) => {
+  router.get('/opportunities', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const { relationId, stage, salesRepId } = req.query;
@@ -350,7 +363,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     }
   });
 
-  router.get('/opportunities/:id', async (req: Request, res: Response) => {
+  router.get('/opportunities/:id', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const opp = await service.getOpportunity(req.params.id);
@@ -410,7 +423,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     }
   });
 
-  router.get('/:relationId/customer-tier/history', async (req: Request, res: Response) => {
+  router.get('/:relationId/customer-tier/history', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const history = await service.listCustomerTierHistory(req.params.relationId);
@@ -447,7 +460,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   // 6. 品牌线 BrandLine（阶段 P3b，PRD 6.2）
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/:relationId/brand-lines', async (req: Request, res: Response) => {
+  router.get('/:relationId/brand-lines', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const includeInactive = req.query.includeInactive === '1' || req.query.includeInactive === 'true';
@@ -557,7 +570,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   // 总览 Overview
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/:relationId/overview', async (req: Request, res: Response) => {
+  router.get('/:relationId/overview', requireCrmRead, async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const overview = await service.getRelationCrmOverview(req.params.relationId);

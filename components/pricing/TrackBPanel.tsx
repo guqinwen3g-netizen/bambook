@@ -261,15 +261,16 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-surface-primary rounded-inset p-3">
             <p className="text-xs text-text-tertiary">退税后美元成本</p>
-            <p className="text-lg font-light text-text-primary">${preview.netUsdCost.toFixed(4)}</p>
+            {/* 敏感遮罩 null 安全（β 车道）：未授权时服务端遮罩为 null */}
+            <p className="text-lg font-light text-text-primary">{preview.netUsdCost != null ? `$${preview.netUsdCost.toFixed(4)}` : '—'}</p>
           </div>
           <div className="bg-surface-primary rounded-inset p-3">
             <p className="text-xs text-text-tertiary">利润额</p>
-            <p className="text-lg font-light text-text-primary">${preview.profitAmount.toFixed(4)}</p>
+            <p className="text-lg font-light text-text-primary">{preview.profitAmount != null ? `$${preview.profitAmount.toFixed(4)}` : '—'}</p>
           </div>
           <div className="bg-surface-primary rounded-inset p-3">
             <p className="text-xs text-text-tertiary">佣金额</p>
-            <p className="text-lg font-light text-text-primary">${preview.commissionAmount.toFixed(4)}</p>
+            <p className="text-lg font-light text-text-primary">{preview.commissionAmount != null ? `$${preview.commissionAmount.toFixed(4)}` : '—'}</p>
           </div>
           <div className="bg-surface-primary rounded-inset p-3 border border-border-action">
             <p className="text-xs text-text-tertiary">终价美元单价</p>

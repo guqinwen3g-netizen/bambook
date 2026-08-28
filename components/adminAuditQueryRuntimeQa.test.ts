@@ -21,7 +21,7 @@ const BUILD_FN = /export function buildAuditLogQuery[\s\S]*?\n\}/;
 // ═══ Part 1: route contract — query params ═══
 describe('runtime QA [route]: GET /audit-logs query params', () => {
   it('route 经共享 buildAuditLogQuery 构造查询（D6 抽取后接线契约）', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\)+;/);
     expect(m).not.toBeNull();
     expect(m![0]).toMatch(/buildAuditLogQuery\(req\.query/);
   });
@@ -85,11 +85,11 @@ describe('runtime QA [route]: where 构建 + return', () => {
     expect(m![0]).toMatch(/where\.createdAt\.lte = toDate/);
   });
   it('同一 where 用于 findMany + count（route 接线）', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\)+;/);
     expect(m![0]).toMatch(/findMany[\s\S]*count\(\{ where: built\.where \}\)/);
   });
   it('成功返回 { ok:true, logs, total }', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\)+;/);
     expect(m![0]).toMatch(/res\.json\(\{ ok: true, logs, total \}\)/);
   });
 });

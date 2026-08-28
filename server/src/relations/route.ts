@@ -5,6 +5,7 @@ import { expandRelation, getRelation, queryRelations } from './query';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { createRelation, updateRelation, deleteRelation } from './relationMutationService';
 import { requireRole } from '../auth/middleware';
+import { requirePermission } from '../auth/permissionGuard';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
@@ -88,7 +89,7 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
     }
   });
 
-  router.post('/', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req, res) => {
+  router.post('/', requireWrite, requirePermission('relations:write'), async (req, res) => {
     const result = await createRelation({
       prisma: opts.prisma,
       input: req.body || {},
@@ -104,7 +105,7 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
     return res.json({ ok: true, relation: serializeRelation(saved) });
   });
 
-  router.put('/:id', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req, res) => {
+  router.put('/:id', requireWrite, requirePermission('relations:write'), async (req, res) => {
     const result = await updateRelation({
       prisma: opts.prisma,
       relationId: req.params.id,
