@@ -8,8 +8,6 @@ import {
   PRODUCT_CARD_GRID_CLASS,
   PRODUCT_CARD_LAYOUT_TRANSITION,
   PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET,
-  PRODUCT_CARD_SPOTLIGHT_DARK_COLOR,
-  PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR,
   PRODUCT_CARD_SURFACE_CLASS,
   PRODUCT_DETAIL_BODY_SCROLL_CLASS,
   PRODUCT_DETAIL_HEADER_LAYOUT_CLASS,
@@ -80,7 +78,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"\n                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
-    expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2');
+    expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"\n              className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center gap-2`}');
     expect(productsSource).not.toContain('<ChevronLeft size={18} strokeWidth={1} className={isDarkMode ?');
   });
 
@@ -130,10 +128,15 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).toContain('min-h-[4.5rem]');
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).not.toContain('min-h-[72px]');
     expect(PRODUCT_CARD_LAYOUT_TRANSITION).toBe(BAMBOOK_OS.motion.layoutTransition);
-    expect(PRODUCT_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
-    expect(PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
-    // 卡片已脱离 SpotlightCard 体系：分类/档案卡片改用 motion.button，不再挂液态蓝光
-    expect(productsSource).toContain('<CompiledInteractiveCard');
+    // 卡片/工具栏/标题按钮已全面脱离 SpotlightCard 液态蓝光体系（老版淡蓝残留清零）：
+    // 不再引用 CompiledInteractiveCard、不再有 spotlightColor/liquidSpotlight/spotlight 常量
+    expect(productsSource).not.toContain('<CompiledInteractiveCard');
+    expect(productsSource).not.toContain('CompiledInteractiveCard,');
+    expect(productsSource).not.toContain('spotlightColor');
+    expect(productsSource).not.toContain('liquidSpotlight');
+    expect(productsSource).not.toContain('idleSpotlightOpacity');
+    expect(productsSource).not.toContain('PRODUCT_CARD_SPOTLIGHT');
+    expect(productsSource).not.toContain('PRODUCT_TOOLBAR_SPOTLIGHT');
     expect(productsSource).not.toContain('<CompiledMotionInteractiveCard');
     expect(productsSource).toContain('const productGlassPanelClass = `${OS_MATERIAL.framePanel} bambook-panel-glass bambook-outer-panel`;');
     expect(productsSource).toContain('const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;');

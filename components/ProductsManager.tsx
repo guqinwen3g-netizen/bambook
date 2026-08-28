@@ -56,7 +56,6 @@ import {
   CompiledCollectionCardGrid,
   CompiledEdgeFade,
   CompiledImageUploader,
-  CompiledInteractiveCard,
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
   CompiledModuleTitleBar,
@@ -507,10 +506,6 @@ export const PRODUCT_CARD_GRID_CLASS = COMPILED_COLLECTION_RECORD_CARD_GRID_CLAS
 export const PRODUCT_CARD_CLASS = 'p-6 h-[220px] rounded-card-lg';
 // 卡片表面与关系智库卡片真源对齐：bds-surface + 侧栏同源 hover 墨洗（触碰灰光）
 export const PRODUCT_CARD_SURFACE_CLASS = `bds-surface ${SIDEBAR_HOVER_CLASS}`;
-export const PRODUCT_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.cardDarkColor;
-export const PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
-export const PRODUCT_CARD_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.spotlight.panelDarkSize;
-export const PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.spotlight.panelLightSize;
 export const PRODUCT_CARD_LAYOUT_TRANSITION = BAMBOOK_OS.motion.layoutTransition;
 export const PRODUCT_SUB_INDEX_PANEL_CLASS = `${OS_MATERIAL.framePanel} rounded-card border overflow-hidden`;
 export const PRODUCT_SUB_INDEX_ROW_CLASS = 'min-h-[4.5rem] border-b last:border-b-0';
@@ -576,8 +571,6 @@ export const PRODUCT_TOOLBAR_CONTENT_CLASS = BAMBOOK_OS.controls.toolbar.content
 export const PRODUCT_TOOLBAR_AMBIENT_CLASS = BAMBOOK_OS.controls.toolbar.ambient;
 export const PRODUCT_TOOLBAR_SURFACE_CLASS = BAMBOOK_OS.controls.toolbar.surface;
 export const PRODUCT_TOOLBAR_SEARCH_CLASS = BAMBOOK_OS.controls.toolbar.search;
-export const PRODUCT_TOOLBAR_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.controls.toolbar.spotlightDarkSize;
-export const PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.controls.toolbar.spotlightLightSize;
 export const PRODUCT_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
 export const PRODUCT_FORM_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
 export const PRODUCT_FORM_LABEL_CLASS = BAMBOOK_OS.tone.text.formLabel;
@@ -2512,13 +2505,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
   const renderClassificationTabBar = (embedded = false) => {
     return (
-      <CompiledInteractiveCard
-        spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-        spotlightSize={isDarkMode ? PRODUCT_TOOLBAR_SPOTLIGHT_DARK_SIZE : PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE}
-        liquidSpotlight
-        liquidSpotlightTone={isDarkMode ? 'dark' : 'light'}
-        idleSpotlightOpacity={0}
-        activeSpotlightOpacity={1}
+      <div
         className={`${embedded ? 'w-full max-w-[620px]' : 'shrink-0 mx-8 mt-1'} ${PRODUCT_TOOLBAR_CLASS} ${productToolbarSurfaceClass}`}
       >
         <span className={PRODUCT_TOOLBAR_AMBIENT_CLASS} aria-hidden="true" />
@@ -2542,18 +2529,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           className="relative z-20 w-36 shrink-0"
         />
         </div>
-      </CompiledInteractiveCard>
+      </div>
     );
   };
 
   const renderProductListToolbar = (embedded = false) => (
-    <CompiledInteractiveCard
-      spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-      spotlightSize={isDarkMode ? PRODUCT_TOOLBAR_SPOTLIGHT_DARK_SIZE : PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE}
-      liquidSpotlight
-      liquidSpotlightTone={isDarkMode ? 'dark' : 'light'}
-      idleSpotlightOpacity={0}
-      activeSpotlightOpacity={1}
+    <div
       className={`${embedded ? 'w-full max-w-[620px]' : 'shrink-0 mx-8 mt-1'} ${PRODUCT_TOOLBAR_CLASS} ${productToolbarSurfaceClass}`}
     >
       <span className={PRODUCT_TOOLBAR_AMBIENT_CLASS} aria-hidden="true" />
@@ -2609,7 +2590,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         </button>
       </div>
       </div>
-    </CompiledInteractiveCard>
+    </div>
   );
 
   const renderFabricProfileFields = (product?: ProductAsset | null) => {
@@ -3165,13 +3146,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         breadcrumb={(
           <div className="flex items-center gap-1.5 min-w-0">
             {navLevel !== 'main' && (
-              <CompiledInteractiveCard
-                spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                spotlightSize={isDarkMode ? 180 : 140}
-                idleSpotlightOpacity={0}
-                activeSpotlightOpacity={1}
-                className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass}`}
-              >
               <button
                 onClick={() => {
                   if (navLevel === 'detail') {
@@ -3186,12 +3160,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   }
                 }}
                 data-ui-lab-wallpaper-contrast="primary"
-                className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center"
+                className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center`}
                 aria-label="返回上一级"
               >
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </button>
-              </CompiledInteractiveCard>
             )}
             {selectedMain && (
               <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
@@ -3254,52 +3227,32 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           )}
           {navLevel === 'list' && isPdmlRawView && (
             <>
-              <CompiledInteractiveCard
-                spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                spotlightSize={isDarkMode ? 180 : 140}
-                idleSpotlightOpacity={0}
-                activeSpotlightOpacity={1}
-                className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass}`}
+              <button
+                onClick={handleSyncPdmlRawFabrics}
+                disabled={pdmlRawSyncing || pdmlRawMapping}
+                data-ui-lab-wallpaper-contrast="primary"
+                className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center gap-2 disabled:opacity-55`}
               >
-                <button
-                  onClick={handleSyncPdmlRawFabrics}
-                  disabled={pdmlRawSyncing || pdmlRawMapping}
-                  data-ui-lab-wallpaper-contrast="primary"
-                  className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 disabled:opacity-55"
-                >
-                  <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawSyncing ? 'animate-spin' : ''} /> 同步庞大
-                </button>
-              </CompiledInteractiveCard>
-              <CompiledInteractiveCard
-                spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                spotlightSize={isDarkMode ? 180 : 140}
-                idleSpotlightOpacity={0}
-                activeSpotlightOpacity={1}
-                className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass}`}
+                <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawSyncing ? 'animate-spin' : ''} /> 同步庞大
+              </button>
+              <button
+                onClick={handleMapPdmlRawFabrics}
+                disabled={pdmlRawSyncing || pdmlRawMapping || pdmlRawTotal === 0}
+                data-ui-lab-wallpaper-contrast="primary"
+                className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center gap-2 disabled:opacity-55`}
               >
-                <button
-                  onClick={handleMapPdmlRawFabrics}
-                  disabled={pdmlRawSyncing || pdmlRawMapping || pdmlRawTotal === 0}
-                  data-ui-lab-wallpaper-contrast="primary"
-                  className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 disabled:opacity-55"
-                >
-                  <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawMapping ? 'animate-spin' : ''} /> 映射入档案
-                </button>
-              </CompiledInteractiveCard>
+                <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawMapping ? 'animate-spin' : ''} /> 映射入档案
+              </button>
             </>
           )}
           {navLevel === 'list' && !isPdmlRawView && (
-            <CompiledInteractiveCard
-              spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-              spotlightSize={isDarkMode ? 180 : 140}
-              idleSpotlightOpacity={0}
-              activeSpotlightOpacity={1}
-              className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass}`}
+            <button
+              onClick={() => setShowAddProdModal(true)}
+              data-ui-lab-wallpaper-contrast="primary"
+              className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center gap-2`}
             >
-              <button onClick={() => setShowAddProdModal(true)} data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2">
-                <Plus size={14} strokeWidth={1.5} /> 录入档案
-              </button>
-            </CompiledInteractiveCard>
+              <Plus size={14} strokeWidth={1.5} /> 录入档案
+            </button>
           )}
         </>
         )}
@@ -4405,23 +4358,15 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               <div className="h-full w-full overflow-hidden flex flex-col bg-transparent">
                 <div className={`${PRODUCT_TITLE_BAR_CLASS} flex`} style={PRODUCT_TITLE_SAFE_LEFT_STYLE}>
                   <div className={PRODUCT_TITLE_NAV_GROUP_CLASS}>
-                    <CompiledInteractiveCard
-                      spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                      spotlightSize={isDarkMode ? 180 : 140}
-                      idleSpotlightOpacity={0}
-                      activeSpotlightOpacity={1}
-                      className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass}`}
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddProdModal(false); setEditingProd(null); }}
+                      data-ui-lab-wallpaper-contrast="primary"
+                      className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center`}
+                      aria-label="返回数字档案"
                     >
-                      <button
-                        type="button"
-                        onClick={() => { setShowAddProdModal(false); setEditingProd(null); }}
-                        data-ui-lab-wallpaper-contrast="primary"
-                        className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center"
-                        aria-label="返回数字档案"
-                      >
-                        <ChevronLeft size={18} strokeWidth={1.5} />
-                      </button>
-                    </CompiledInteractiveCard>
+                      <ChevronLeft size={18} strokeWidth={1.5} />
+                    </button>
                     <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
                       <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}>
                         <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} text-[var(--text-primary)]`}>
@@ -4444,34 +4389,23 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         <Trash2 size={14} strokeWidth={1.5} /> 归档
                       </button>
                     )}
-                    <CompiledInteractiveCard
-                      spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                      spotlightSize={isDarkMode ? 180 : 140}
-                      idleSpotlightOpacity={0}
-                      activeSpotlightOpacity={1}
-                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass}`}
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddProdModal(false); setEditingProd(null); }}
+                      data-ui-lab-wallpaper-contrast="primary"
+                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center`}
                     >
-                      <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center">
-                        取消
-                      </button>
-                    </CompiledInteractiveCard>
-                    <CompiledInteractiveCard
-                      spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                      spotlightSize={isDarkMode ? 180 : 140}
-                      idleSpotlightOpacity={0}
-                      activeSpotlightOpacity={1}
-                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${compositionTotalIsComplete ? productActionButtonClass : 'bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)] border-transparent cursor-not-allowed'}`}
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      form="product-fullscreen-form"
+                      disabled={!compositionTotalIsComplete}
+                      data-ui-lab-wallpaper-contrast="primary"
+                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${compositionTotalIsComplete ? productActionButtonClass : 'bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)] border-transparent cursor-not-allowed'} flex items-center justify-center gap-2 disabled:cursor-not-allowed`}
                     >
-                      <button
-                        type="submit"
-                        form="product-fullscreen-form"
-                        disabled={!compositionTotalIsComplete}
-                        data-ui-lab-wallpaper-contrast="primary"
-                        className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 disabled:cursor-not-allowed"
-                      >
-                        <Save size={14} strokeWidth={1.5} /> 保存资料
-                      </button>
-                    </CompiledInteractiveCard>
+                      <Save size={14} strokeWidth={1.5} /> 保存资料
+                    </button>
                   </div>
                 </div>
                 <form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
@@ -5508,24 +5442,16 @@ export const ProductModuleSettingsWorkspace = ({
         source="PRODUCT_MODULE_SETTINGS_TITLE_*"
         leading={(
         <div className="flex h-full min-w-0 items-center gap-1.5">
-          <CompiledInteractiveCard
-            spotlightColor={isDarkMode ? BAMBOOK_OS.spotlight.cardDarkColor : BAMBOOK_OS.spotlight.cardLightColor}
-            spotlightSize={isDarkMode ? BAMBOOK_OS.controls.title.spotlightDarkSize : BAMBOOK_OS.controls.title.spotlightLightSize}
-            idleSpotlightOpacity={0}
-            activeSpotlightOpacity={1}
-            className={`${BAMBOOK_OS.controls.title.backButton} ${BAMBOOK_OS.controls.title.button}`}
+          <button
+            type="button"
+            data-ui-lab-module-settings-back
+            aria-label="返回数字档案"
+            data-ui-lab-wallpaper-contrast="primary"
+            className={`${BAMBOOK_OS.controls.title.backButton} ${BAMBOOK_OS.controls.title.button} flex items-center justify-center`}
+            onClick={onBack}
           >
-            <button
-              type="button"
-              data-ui-lab-module-settings-back
-              aria-label="返回数字档案"
-              data-ui-lab-wallpaper-contrast="primary"
-              className="relative z-10 flex h-full w-full items-center justify-center rounded-[inherit] text-inherit"
-              onClick={onBack}
-            >
-              <ChevronLeft size={18} strokeWidth={1.5} />
-            </button>
-          </CompiledInteractiveCard>
+            <ChevronLeft size={18} strokeWidth={1.5} />
+          </button>
           <div className={`${BAMBOOK_OS.controls.title.breadcrumb} text-[var(--text-tertiary)]`}>
             <button
               type="button"
