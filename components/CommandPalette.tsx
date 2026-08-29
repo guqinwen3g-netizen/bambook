@@ -21,6 +21,7 @@ import type { LucideIcon } from 'lucide-react';
 import { View, Relation, Order, ProductAsset, Invoice, Shipment, KnowledgeItem, Email } from '../types';
 import { getPrimaryNavigationModules } from './moduleRegistry';
 import { canAccessView, hasRole } from '../services/authService';
+import { primeCrossModuleNav } from '../services/crossModuleNav';
 import { RdlSurface } from './ui/RDLPrimitives';
 
 /** 面板结果项（扁平化，键盘导航用） */
@@ -32,6 +33,16 @@ type PaletteItem =
 type RecordDomain = '客户' | '订单' | '产品' | '发票' | '发货' | '知识' | '邮件';
 
 const DOMAIN_ORDER: RecordDomain[] = ['客户', '订单', '产品', '发票', '发货', '知识', '邮件'];
+/** 记录域 → 归属模块视图（权限过滤与记录跳转共用同一真源） */
+const DOMAIN_VIEW: Record<RecordDomain, View> = {
+  客户: View.Relations,
+  订单: View.Orders,
+  产品: View.Products,
+  发票: View.Invoices,
+  发货: View.Shipments,
+  知识: View.DataCenter,
+  邮件: View.Emails,
+};
 /** 每域最多展示条数（防大列表淹没面板） */
 const DOMAIN_LIMIT = 5;
 /** 空查询时最多展示的视图指令数 */
@@ -76,12 +87,19 @@ export interface PaletteData {
  * 数据记录搜索（纯函数，可测）：客户端过滤 7 类业务实体，
  * 软删记录排除，大小写不敏感，每域最多 DOMAIN_LIMIT 条，按 DOMAIN_ORDER 稳定排序。
  * 订单记录携带 order 引用供直开详情；空查询返回空（空查询只展示视图指令）。
+ * canAccess：域 → 视图权限闸门（与视图指令同口径 canAccessView），无权限的域整组不入场，
+ * 避免低权限角色借搜索快照窥见无权限模块的业务记录（数据泄露面）。
  */
-export function buildRecordGroups(query: string, data: PaletteData): Array<{ domain: RecordDomain; items: PaletteItem[] }> {
+export function buildRecordGroups(
+  query: string,
+  data: PaletteData,
+  canAccess: (view: View) => boolean = () => true,
+): Array<{ domain: RecordDomain; items: PaletteItem[] }> {
   const q = norm(query);
   if (!q) return [];
   const groups: Array<{ domain: RecordDomain; items: PaletteItem[] }> = [];
   const push = (domain: RecordDomain, items: PaletteItem[]) => {
+    if (!canAccess(DOMAIN_VIEW[domain])) return;
     if (items.length > 0) groups.push({ domain, items: items.slice(0, DOMAIN_LIMIT) });
   };
 
@@ -188,9 +206,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       }));
   }, [query]);
 
-  // 数据记录搜索（提取为纯函数 buildRecordGroups，见文件上方）
+  // 数据记录搜索（提取为纯函数 buildRecordGroups，见文件上方；按域映射 View 过权限闸门）
   const recordGroups = useMemo(
-    () => buildRecordGroups(query, { relations, orders, products, invoices, shipments, knowledge, emails }),
+    () => buildRecordGroups(query, { relations, orders, products, invoices, shipments, knowledge, emails }, canAccessView),
     [query, relations, orders, products, invoices, shipments, knowledge, emails],
   );
 
@@ -217,16 +235,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     } else if (item.kind === 'record' && item.domain === '订单' && item.order) {
       onOpenOrder(item.order);
     } else if (item.kind === 'record') {
-      const target: Record<RecordDomain, View> = {
-        客户: View.Relations,
-        订单: View.Orders,
-        产品: View.Products,
-        发票: View.Invoices,
-        发货: View.Shipments,
-        知识: View.DataCenter,
-        邮件: View.Emails,
-      };
-      onNavigate(target[item.domain]);
+      // 非订单记录：prime 聚焦上下文（目标页挂载时消费并直开详情），再切模块
+      const view = DOMAIN_VIEW[item.domain];
+      primeCrossModuleNav({ view, focusEntityId: item.id });
+      onNavigate(view);
     }
     onClose();
   };

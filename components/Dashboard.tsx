@@ -25,6 +25,9 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import UserAvatar from './ui/UserAvatar';
 import { getAuthState, subscribe } from '../services/authService';
+// canAccessView 单独成行：保留上方既有 import 字面量（Dashboard.test 源断言锚点）
+import { canAccessView } from '../services/authService';
+import { primeCrossModuleNav } from '../services/crossModuleNav';
 import {
     TrendingUp,
     TrendingDown,
@@ -626,17 +629,50 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         return () => clearTimeout(timer);
     }, [activeVelocity]);
 
-    // 2. Calculate Trend (Pipeline Value change vs previous period - Simulated for now based on recent orders)
-    const calculateTrend = () => {
-        // In a real DB we'd query last month's value. 
-        // Here we simulate a "growth" based on the ratio of 'Production' vs 'Pending' value
-        const productionVal = liveOrders.filter(o => o.status === 'Production').reduce((acc, o) => acc + o.quoteAmount, 0);
-        const pendingVal = liveOrders.filter(o => o.status === 'Pending').reduce((acc, o) => acc + o.quoteAmount, 0);
-        // Avoid division by zero
-        if (pendingVal === 0) return 0;
-        return ((productionVal - pendingVal) / pendingVal) * 100;
+    // 2. Pipeline Value 周环比（真实口径，与 Velocity 图表同一历法周定义）：
+    // 本周自周一至今的落单金额 vs 上周同期窗口（上周一 + 相同经过时长），
+    // 事件时间取 orderDate → PO/client 日期 → updatedAt（getOrderEventTimeMs）。
+    // 上周同期无基线时返回 0，渲染层 trendValue !== 0 守卫自动隐藏 trend。
+    const trendValue = useMemo(() => {
+        const now = Date.now();
+        const thisMonday = startOfWeekMonday(new Date());
+        const prevMonday = addDays(thisMonday, -7);
+        const t0 = thisMonday.getTime();
+        const p0 = prevMonday.getTime();
+        const p1 = p0 + (now - t0); // 上周同期截止点，口径对齐
+        let current = 0;
+        let previous = 0;
+        for (const o of liveOrders) {
+            const t = getOrderEventTimeMs(o);
+            if (t == null) continue;
+            const v = o.quoteAmount || 0;
+            if (t >= t0 && t <= now) current += v;
+            else if (t >= p0 && t <= p1) previous += v;
+        }
+        if (previous <= 0) return 0;
+        return ((current - previous) / previous) * 100;
+    }, [liveOrders]);
+
+    // 指标卡钻取：prime 跨模块导航上下文后切到对应模块（无权限模块不钻取，
+    // 避免 prime 残留上下文在下一次手动进入时误消费）。
+    const drillTo = (view: View) => {
+        if (!canAccessView(view)) return;
+        primeCrossModuleNav({ view });
+        onNavigate(view);
     };
-    const trendValue = calculateTrend();
+    const drillCardProps = (view: View) => ({
+        onClick: () => drillTo(view),
+        onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                drillTo(view);
+            }
+        },
+        role: 'button' as const,
+        tabIndex: 0,
+    });
+    // Critical 卡随轮播视图指向对应模块：产线阻塞→订单 / 物流延误→货运 / 未读收件→邮件
+    const criticalTargetView = criticalView === 'production' ? View.Orders : criticalView === 'logistics' ? View.Shipments : View.Emails;
 
     // 3. Dynamic Progress Bars Calculation
     // Base "Memory Capacity" for visual relativity (e.g. 100 nodes = 100%)
@@ -870,7 +906,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                             {/* LEFT PANEL: DATA METRICS */}
                             {/* Fixed Width Brick: 260px. Never shrinks, never grows. */}
                             <motion.div className={dashboardLeftClass} style={dashboardLeftStyle}>
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-2'}`}>
+                                <CompiledDashboardCard {...drillCardProps(View.Assistant)} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-2'} cursor-pointer`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Cognition</span>
                                     </div>
@@ -893,7 +929,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     </div>
                                 </CompiledDashboardCard>
 
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-1 col-span-2'}`}>
+                                <CompiledDashboardCard {...drillCardProps(View.Orders)} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-1 col-span-2'} cursor-pointer`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Production</span>
                                     </div>
@@ -934,7 +970,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     </div>
                                 </CompiledDashboardCard>
 
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-3'}`}>
+                                <CompiledDashboardCard {...drillCardProps(criticalTargetView)} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-3'} cursor-pointer`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Critical Analysis</span>
                                     </div>
@@ -1023,7 +1059,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                     data-ui-lab-wallpaper-contrast="muted"
                                                     className="font-light leading-relaxed text-[14px] tracking-wide text-os-adaptive-subtitle"
                                                 >
-                                                    <TypewriterText text={briefing || "All systems nominal. Global supply chain metrics optimizing within expected parameters."} />
+                                                    <TypewriterText text={briefing || '暂无简报'} />
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
@@ -1081,7 +1117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                             </CompiledDashboardCard>
 
 	                            {useExpandedDashboardLayout && (
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={dashboardPipelineCardClass}>
+                                <CompiledDashboardCard {...drillCardProps(View.Orders)} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`${dashboardPipelineCardClass} cursor-pointer`}>
                                 <AnimatePresence mode="wait">
                                     <motion.div
                                         key={pipelineView}

@@ -156,6 +156,18 @@ const StatusColorMap: Record<string, string> = {
     'Delivered': '#10b981',
 };
 
+/** 订单状态中文标签（tooltip / 图例共用） */
+const GLOBE_STATUS_LABEL_ZH: Record<string, string> = {
+    'Alert': '告警',
+    'Production': '生产中',
+    'Shipping': '出运中',
+    'Pending': '待处理',
+    'Delivered': '已交付',
+};
+
+/** 图例/筛选 chip 展示顺序（五色全量，不再静默隐藏 Pending/Delivered） */
+const GLOBE_STATUS_LEGEND_ORDER = ['Alert', 'Production', 'Shipping', 'Pending', 'Delivered'] as const;
+
 // --- Helpers ---
 const calcPosFromLatLonRad = (lat: number, lon: number, radius: number) => {
     const phi = (90 - lat) * (Math.PI / 180);
@@ -261,13 +273,39 @@ function useSphericalLayout(orders: Order[], radius: number, iterations = 42) {
 }
 
 // 摄像机控制器组件 (统一物理引擎版)
-function CameraController({ focusedOrder, layoutMap, isReady }: { focusedOrder: Order | null, layoutMap?: Map<string, { position: THREE.Vector3 }>, isReady: boolean }) {
+function CameraController({ focusedOrder, layoutMap, isReady, registerZoom }: {
+    focusedOrder: Order | null,
+    layoutMap?: Map<string, { position: THREE.Vector3 }>,
+    isReady: boolean,
+    /** 暴露受控缩放通道给 DOM 缩放按钮（与滚轮缩放同语义：直接 dolly，标记交互时间） */
+    registerZoom?: (fn: (dir: 1 | -1) => void) => void
+}) {
     const { camera, gl } = useThree();
     const controlsRef = React.useRef<any>(null);
     const isInteracting = React.useRef(false);
     const lastInteractionTime = React.useRef(Date.now());
     const hasIntroFinished = React.useRef(false);
     const introDelayTimer = React.useRef<NodeJS.Timeout | null>(null);
+
+    // 注册缩放通道：沿视线方向 dolly，距离夹在 OrbitControls 的 min/max 区间内
+    useEffect(() => {
+        if (!registerZoom) return;
+        registerZoom((dir) => {
+            const controls = controlsRef.current;
+            if (!controls) return;
+            const offset = camera.position.clone().sub(controls.target);
+            const nextLen = THREE.MathUtils.clamp(
+                offset.length() * (dir > 0 ? 1 / 1.35 : 1.35),
+                GLOBE_RADIUS + 1,
+                GLOBE_MAX_ORBIT_DISTANCE,
+            );
+            offset.setLength(nextLen);
+            camera.position.copy(controls.target).add(offset);
+            // 与手动交互同语义：暂停自动巡航的瞬间接管
+            lastInteractionTime.current = Date.now();
+            controls.update(0);
+        });
+    }, [registerZoom, camera]);
 
     // Initial positioning lock
     useEffect(() => {
@@ -469,14 +507,19 @@ function Atmosphere({ radius, color, segments }: { radius: number; color: string
 }
 
 // 3. Optimized Instanced Data Beams (Single Draw Call)
-function DataBeamInstances({ orders, radius, onFocus, focusedId }: {
+function DataBeamInstances({ orders, radius, onFocus, focusedId, onOpenOrder }: {
     orders: Order[],
     radius: number,
     onFocus: (o: Order) => void,
-    focusedId: string | null
+    focusedId: string | null,
+    onOpenOrder?: (orderId: string) => void
 }) {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const [hoveredOrder, setHoveredOrder] = useState<Order | null>(null);
+    // tooltip 悬停锁：光束 pointerout 后若指针进入 tooltip 卡片，保持悬停目标不消失，
+    // 否则用户永远无法点到 tooltip 内的「查看订单」按钮。
+    const [tooltipHover, setTooltipHover] = useState(false);
+    const lastHoveredOrderRef = useRef<Order | null>(null);
     // Track the currently-hovered instanceId in a ref so we can short-circuit
     // duplicate pointer events without paying React reconciliation cost.
     // R3F dispatches onPointerOver per-instance during raycast; when the cursor
@@ -608,6 +651,7 @@ function DataBeamInstances({ orders, radius, onFocus, focusedId }: {
         // Same instance as before — short-circuit before touching React state.
         if (hoveredIdRef.current === id) return;
         hoveredIdRef.current = id;
+        lastHoveredOrderRef.current = orders[id];
         setHoveredOrder(orders[id]);
     }, [orders]);
 
@@ -616,6 +660,13 @@ function DataBeamInstances({ orders, radius, onFocus, focusedId }: {
         hoveredIdRef.current = null;
         setHoveredOrder(null);
     }, []);
+
+    // 指针移出光束但进入 tooltip 卡片时，tooltip 保持显示（悬停锁）
+    const effectiveHoveredOrder = hoveredOrder ?? (tooltipHover ? lastHoveredOrderRef.current : null);
+    const tooltipHoverProps = {
+        onPointerEnter: () => setTooltipHover(true),
+        onPointerLeave: () => setTooltipHover(false),
+    };
 
     return (
         <>
@@ -628,18 +679,24 @@ function DataBeamInstances({ orders, radius, onFocus, focusedId }: {
             />
 
             {/* Tooltip Overlay */}
-            {hoveredOrder && (
-                <BeamTooltip order={hoveredOrder} isFocused={focusedId === hoveredOrder.id} radius={radius} />
+            {effectiveHoveredOrder && (
+                <BeamTooltip order={effectiveHoveredOrder} isFocused={focusedId === effectiveHoveredOrder.id} radius={radius} onOpenOrder={onOpenOrder} hoverProps={tooltipHoverProps} />
             )}
-            {focusedId && orders.find(o => o.id === focusedId) && !hoveredOrder && (
-                <BeamTooltip order={orders.find(o => o.id === focusedId)!} isFocused={true} radius={radius} />
+            {focusedId && orders.find(o => o.id === focusedId) && !effectiveHoveredOrder && (
+                <BeamTooltip order={orders.find(o => o.id === focusedId)!} isFocused={true} radius={radius} onOpenOrder={onOpenOrder} hoverProps={tooltipHoverProps} />
             )}
         </>
     );
 }
 
 // Positioning Helper for Tooltip
-function BeamTooltip({ order, isFocused, radius }: { order: Order, isFocused: boolean, radius: number }) {
+function BeamTooltip({ order, isFocused, radius, onOpenOrder, hoverProps }: {
+    order: Order,
+    isFocused: boolean,
+    radius: number,
+    onOpenOrder?: (orderId: string) => void,
+    hoverProps?: { onPointerEnter: () => void; onPointerLeave: () => void }
+}) {
     const location = resolveOrderGeo(order);
     // 无真实坐标的订单本不上图，tooltip 亦不渲染
     if (!location) return null;
@@ -654,27 +711,41 @@ function BeamTooltip({ order, isFocused, radius }: { order: Order, isFocused: bo
 
     return (
         <Html position={tipPos} center zIndexRange={[100, 0]}>
-            <div className={`
- border p-4 rounded-inset text-white min-w-[220px] transition-colors duration-300 pointer-events-none select-none
+            <div
+                {...hoverProps}
+                className={`
+ border p-4 rounded-inset text-white min-w-[220px] transition-colors duration-300 pointer-events-auto select-none
                 ${isFocused
                     ? 'bg-blue-950/90 border-blue-400/50 scale-110'
                     : 'bg-slate-950/90 border-white/20 scale-100'}
             `} style={{ boxShadow: 'var(--shadow-dropdown)' }}>
                 <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-light uppercase tracking-[0.2em] text-slate-400">{order.status}</div>
+                    <div className="text-[10px] font-light tracking-[0.2em] text-slate-400">{GLOBE_STATUS_LABEL_ZH[order.status] || order.status}</div>
                     <div className={`w-2 h-2 rounded-full ${isFocused ? 'animate-pulse' : ''}`} style={{ backgroundColor: color }}></div>
                 </div>
                 <div className="text-sm font-light truncate mb-3">{order.millName}</div>
                 <div className="grid grid-cols-2 gap-4 text-[10px] border-t border-white/10 pt-3">
-                    <div><div className="text-slate-500 mb-0.5">Quantity</div><div className="font-light">{order.quantity.toLocaleString()}</div></div>
-                    <div className="text-right"><div className="text-slate-500 mb-0.5">Value</div><div className="font-light text-[var(--os-vnext-brand-blue-soft)]">${(order.quoteAmount / 1000).toFixed(1)}k</div></div>
+                    <div><div className="text-slate-500 mb-0.5">数量</div><div className="font-light">{order.quantity.toLocaleString()}</div></div>
+                    <div className="text-right"><div className="text-slate-500 mb-0.5">金额</div><div className="font-light text-[var(--os-vnext-brand-blue-soft)]">${(order.quoteAmount / 1000).toFixed(1)}k</div></div>
                 </div>
+                {onOpenOrder && (
+                    <button
+                        type="button"
+                        className="mt-3 w-full rounded-control border border-white/20 px-3 py-1.5 text-[11px] font-light text-white transition-colors hover:bg-white/10"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenOrder(order.id);
+                        }}
+                    >
+                        查看订单
+                    </button>
+                )}
             </div>
         </Html>
     );
 }
 
-function CountryBordersLines({ radius, color }: { radius: number; color: string }) {
+function CountryBordersLines({ radius, color, onError }: { radius: number; color: string; onError?: () => void }) {
     const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
 
     useEffect(() => {
@@ -718,6 +789,8 @@ function CountryBordersLines({ radius, color }: { radius: number; color: string 
             .catch(err => {
                 if ((err as Error).name === 'AbortError') return;
                 console.error('[ProductionGlobe] country borders (lines)', err);
+                // 国界叠加层失败上抛：由外层渲染用户可见降级提示（原仅 console，国界静默消失）
+                onError?.();
             });
 
         return () => {
@@ -983,6 +1056,8 @@ export interface ProductionGlobeProps {
     /** default `auto`: lowers mesh & fill rate on tablets / low-memory devices */
     quality?: GlobeQualityMode;
     viewportCenter?: GlobeViewportCenter | null;
+    /** tooltip「查看订单」直达（App 侧 handleOpenOrderById） */
+    onOpenOrder?: (orderId: string) => void;
 }
 
 const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
@@ -992,15 +1067,37 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
     wallpaperUrl = '',
     initialDelay = 0,
     quality = 'auto',
-    viewportCenter = null
+    viewportCenter = null,
+    onOpenOrder
 }) => {
     const [focusedOrder, setFocusedOrder] = useState<Order | null>(null);
     const [isReady, setIsReady] = useState(initialDelay === 0);
+    // 图例即筛选：默认五状态全显（Pending/Delivered 不再静默缺席），点击 chip 切换显隐
+    const [hiddenStatuses, setHiddenStatuses] = useState<ReadonlySet<string>>(new Set());
+    // 国界叠加层加载失败的用户可见提示（可关闭）
+    const [bordersDegraded, setBordersDegraded] = useState(false);
     const docVisible = useDocumentVisible();
 
     const tier = useMemo(() => resolveGlobeQuality(quality), [quality]);
     const preset = TIER_PRESETS[tier];
     const edgePalette = useWallpaperGlobeEdgePalette(wallpaperUrl, isDarkMode);
+
+    // 缩放按钮通道：由 CameraController 注册实际 dolly 实现
+    const zoomFnRef = useRef<(dir: 1 | -1) => void>(() => {});
+    const registerZoom = useCallback((fn: (dir: 1 | -1) => void) => {
+        zoomFnRef.current = fn;
+    }, []);
+
+    const toggleStatus = useCallback((status: string) => {
+        setHiddenStatuses(prev => {
+            const next = new Set(prev);
+            if (next.has(status)) next.delete(status);
+            else next.add(status);
+            return next;
+        });
+    }, []);
+
+    const handleBordersError = useCallback(() => setBordersDegraded(true), []);
 
     // Initial Delay Timer
     useEffect(() => {
@@ -1010,11 +1107,27 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
         }
     }, [initialDelay]);
 
-    // Filter relevant orders（仅真实可定位订单上图：入库坐标或地名表命中）
+    // 上图口径：全部真实可定位订单（入库坐标或地名表命中），按图例筛选显隐。
+    // 历史白名单只显 Alert/Production/Shipping，导致 Pending/Delivered 订单静默消失。
     const activeOrders = useMemo(
-        () => orders.filter(order => ['Alert', 'Production', 'Shipping'].includes(order.status) && resolveOrderGeo(order) !== null),
-        [orders]
+        () => orders.filter(order => resolveOrderGeo(order) !== null && !hiddenStatuses.has(order.status)),
+        [orders, hiddenStatuses]
     );
+
+    // 各状态可定位订单计数（图例 chip 徽标）
+    const statusCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const o of orders) {
+            if (resolveOrderGeo(o) === null) continue;
+            counts[o.status] = (counts[o.status] || 0) + 1;
+        }
+        return counts;
+    }, [orders]);
+
+    // 聚焦订单被图例隐藏时解除聚焦，避免相机锁定在已不可见的光束上
+    useEffect(() => {
+        if (focusedOrder && hiddenStatuses.has(focusedOrder.status)) setFocusedOrder(null);
+    }, [focusedOrder, hiddenStatuses]);
 
     const layoutMap = useSphericalLayout(activeOrders, GLOBE_RADIUS, preset.layoutIterations);
 
@@ -1028,12 +1141,13 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
                     color={edgePalette.globeLand}
                     rimColor={edgePalette.globeLandRim}
                 />
-                <CountryBordersLines radius={GLOBE_RADIUS * 1.0005} color={edgePalette.globeBorder} />
+                <CountryBordersLines radius={GLOBE_RADIUS * 1.0005} color={edgePalette.globeBorder} onError={handleBordersError} />
                 <DataBeamInstances
                     orders={activeOrders}
                     radius={GLOBE_RADIUS}
                     onFocus={setFocusedOrder}
                     focusedId={focusedOrder?.id || null}
+                    onOpenOrder={onOpenOrder}
                 />
             </React.Suspense>
         </group>
@@ -1080,6 +1194,7 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
                     focusedOrder={focusedOrder}
                     layoutMap={layoutMap}
                     isReady={isReady}
+                    registerZoom={registerZoom}
                 />
 
                 {preset.floatEnabled ? (
@@ -1094,6 +1209,68 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
                     sceneContent
                 )}
             </Canvas>
+
+            {/* 国界叠加层降级提示（可关闭；国界数据加载失败时不再静默消失） */}
+            {bordersDegraded && (
+                <div
+                    role="status"
+                    className="absolute left-1/2 top-4 z-[6] flex -translate-x-1/2 items-center gap-3 rounded-control border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-2 text-xs font-light text-[var(--text-secondary)]"
+                >
+                    国界数据加载失败，已省略国界叠加层
+                    <button
+                        type="button"
+                        aria-label="关闭提示"
+                        onClick={() => setBordersDegraded(false)}
+                        className="shrink-0 hover:opacity-70"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
+            {/* 状态图例（点击即筛选，chip 置灰表示该状态已隐藏） */}
+            <div className="absolute left-5 bottom-5 z-[5] flex flex-col gap-1.5 rounded-inset border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-3 py-2.5">
+                {GLOBE_STATUS_LEGEND_ORDER.map(status => {
+                    const hidden = hiddenStatuses.has(status);
+                    return (
+                        <button
+                            key={status}
+                            type="button"
+                            onClick={() => toggleStatus(status)}
+                            aria-pressed={!hidden}
+                            title={hidden ? '点击显示该状态' : '点击隐藏该状态'}
+                            className={`flex items-center gap-2 text-left text-[11px] font-light text-[var(--text-secondary)] transition-opacity ${hidden ? 'opacity-40' : 'opacity-100'}`}
+                        >
+                            <span
+                                className="h-2 w-2 shrink-0 rounded-full"
+                                style={{ backgroundColor: StatusColorMap[status] }}
+                            />
+                            <span>{GLOBE_STATUS_LABEL_ZH[status]}</span>
+                            <span className="tabular-nums text-[var(--text-tertiary)]">{statusCounts[status] || 0}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* 缩放控件（与滚轮缩放同语义的受控 dolly） */}
+            <div className="absolute right-5 bottom-5 z-[5] flex flex-col gap-1.5">
+                <button
+                    type="button"
+                    aria-label="放大"
+                    onClick={() => zoomFnRef.current(1)}
+                    className="flex h-9 w-9 items-center justify-center rounded-control border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] text-base font-light text-[var(--text-secondary)] transition-colors hover:bg-[var(--recessed-bg-hover)]"
+                >
+                    +
+                </button>
+                <button
+                    type="button"
+                    aria-label="缩小"
+                    onClick={() => zoomFnRef.current(-1)}
+                    className="flex h-9 w-9 items-center justify-center rounded-control border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] text-base font-light text-[var(--text-secondary)] transition-colors hover:bg-[var(--recessed-bg-hover)]"
+                >
+                    −
+                </button>
+            </div>
         </div>
     );
 };

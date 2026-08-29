@@ -107,6 +107,28 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
 
   React.useEffect(() => subscribe((next) => setAuthUser(next.user)), []);
 
+  // 账户菜单关闭契约（对照通知中心抽屉）：Esc + 外点关闭。
+  // 外点判定豁免触发钮（data-sidebar-account-bar）与菜单本体（data-sidebar-account-menu），
+  // 触发钮自身的 onClick toggle 已处理"再点一次关闭"。
+  React.useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAccountMenuOpen(false);
+    };
+    const onPointerDown = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (!el) return;
+      if (el.closest('[data-sidebar-account-menu]') || el.closest('[data-sidebar-account-bar]')) return;
+      setAccountMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onPointerDown);
+    };
+  }, [accountMenuOpen]);
+
   const triggerViewChange = (view: View) => {
     onViewChange(view);
   };

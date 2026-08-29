@@ -51,6 +51,15 @@ const A4DocumentPreviewModal: React.FC<A4DocumentPreviewModalProps> = ({
     return () => ro.disconnect();
   }, [loading]);
 
+  // Esc 关闭：与遮罩点击同语义（加载中不响应，避免误关进行中的预览生成）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loading, onClose]);
+
   return (
     <div className="bds-modal-mask" onClick={() => !loading && onClose()}>
       <div

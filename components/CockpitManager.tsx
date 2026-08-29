@@ -496,7 +496,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               <CapsuleDateInput value={from} onChange={setFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={to} onChange={setTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
-              <button type="button" onClick={load} className="bds-btn bds-btn-secondary">查询</button>
+              <button type="button" onClick={load} disabled={loading} className="bds-btn bds-btn-secondary">
+                {loading && <Loader2 size={14} className="animate-spin" />}
+                查询
+              </button>
             </div>
             {data && (
               <div className={cx('ml-auto text-[10px] font-light tabular-nums', textFaint)}>
@@ -513,6 +516,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
             <div className="flex flex-1 flex-col items-center justify-center gap-2">
               <AlertCircle size={18} strokeWidth={1.25} className="text-[var(--danger-text)]" />
               <div className={cx('text-xs font-light', textSecondary)}>{error}</div>
+              <button type="button" onClick={load} className="bds-btn bds-btn-secondary">重试</button>
             </div>
           ) : (
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overscroll-contain xl:grid-cols-2">

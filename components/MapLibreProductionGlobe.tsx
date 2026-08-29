@@ -89,6 +89,22 @@ const StatusColorMap: Record<string, string> = {
   Delivered: '#294465',
 };
 
+/** 订单状态中文标签（tooltip / 图例共用） */
+const GLOBE_STATUS_LABEL_ZH: Record<string, string> = {
+  Alert: '告警',
+  Production: '生产中',
+  Shipping: '出运中',
+  Pending: '待处理',
+  Delivered: '已交付',
+};
+
+/** 图例/筛选 chip 展示顺序（五色全量，不再静默隐藏 Pending/Delivered） */
+const GLOBE_STATUS_LEGEND_ORDER = ['Alert', 'Production', 'Shipping', 'Pending', 'Delivered'] as const;
+
+/** 运行期瓦片失败滑窗：20s 内 ≥6 次才提示（单瓦片 404 常见且自愈，不构成降级） */
+const MAP_TILE_ERROR_WINDOW_MS = 20000;
+const MAP_TILE_ERROR_THRESHOLD = 6;
+
 // Marker overlay state is deliberately split in two:
 //   - MarkerItem (React state): structural identity — id/sequence/target.
 //     Changes only when the tour target set changes, so React re-renders
@@ -155,6 +171,8 @@ export interface MapLibreProductionGlobeProps {
   quality?: GlobeQualityMode;
   viewportCenter?: GlobeViewportCenter | null;
   onRuntimeError?: (error: Error) => void;
+  /** tooltip「查看订单」直达（App 侧 handleOpenOrderById） */
+  onOpenOrder?: (orderId: string) => void;
 }
 
 function getEnvValue(key: string): string {
@@ -972,6 +990,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   quality = 'auto',
   viewportCenter = null,
   onRuntimeError,
+  onOpenOrder,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -1000,6 +1019,15 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   const [isMapStyled, setIsMapStyled] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<RouteTourTarget | null>(null);
   const [hoveredTarget, setHoveredTarget] = useState<RouteTourTarget | null>(null);
+  // tooltip 悬停锁：指针从 marker 移入 tooltip 卡片时保持悬停目标，
+  // 否则 tooltip 内的「查看订单」按钮永远点不到
+  const [tooltipHover, setTooltipHover] = useState(false);
+  const lastHoverTargetRef = useRef<RouteTourTarget | null>(null);
+  // 图例即筛选：默认五状态全显，点击 chip 切换显隐（Pending/Delivered 不再静默缺席）
+  const [hiddenStatuses, setHiddenStatuses] = useState<ReadonlySet<string>>(new Set());
+  // 运行期瓦片持续失败的用户可见提示（首屏 fatal 走 onRuntimeError 切换渲染器）
+  const [tilesDegraded, setTilesDegraded] = useState(false);
+  const tileErrorTimestampsRef = useRef<number[]>([]);
   const [markerItems, setMarkerItems] = useState<MarkerItem[]>([]);
   const [routeSegments, setRouteSegments] = useState<RouteSegmentLink[]>([]);
   // Per-frame overlay geometry lives outside React state (see MarkerItem comment).
@@ -1010,17 +1038,46 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   const tooltipTargetRef = useRef<RouteTourTarget | null>(null);
   const routeSegmentsRef = useRef<RouteSegmentLink[]>([]);
 
+  // 上图口径：全部真实可定位订单（历史白名单只显 Alert/Production/Shipping，
+  // 导致 Pending/Delivered 订单静默消失），按图例筛选显隐
   const activeOrders = useMemo(
     () => orders
-      .filter(order => ['Alert', 'Production', 'Shipping'].includes(order.status))
+      .filter(order => !hiddenStatuses.has(order.status))
       .sort((a, b) => {
         const aDate = Date.parse(String(a.dueDate || a.orderDate || ''));
         const bDate = Date.parse(String(b.dueDate || b.orderDate || ''));
         if (Number.isFinite(aDate) && Number.isFinite(bDate) && aDate !== bDate) return aDate - bDate;
         return a.id.localeCompare(b.id);
       }),
-    [orders],
+    [orders, hiddenStatuses],
   );
+
+  // 各状态可定位订单计数（图例 chip 徽标）
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const o of orders) {
+      if (!activeOrderLocation(o)) continue;
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    }
+    return counts;
+  }, [orders]);
+
+  const toggleStatus = useCallback((status: string) => {
+    setHiddenStatuses(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }, []);
+
+  // 缩放控件：与滚轮/手势缩放同语义（maplibre 自带 min/max zoom 夹取）
+  const handleZoom = useCallback((dir: 1 | -1) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (dir > 0) map.zoomIn({ duration: 300 });
+    else map.zoomOut({ duration: 300 });
+  }, []);
   const locatableOrders = useMemo(
     () => activeOrders.filter(order => Boolean(activeOrderLocation(order))),
     [activeOrders],
@@ -1438,6 +1495,15 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       }
       if (!hasReachedInitialIdleRef.current && !map.loaded() && isFatalMapLibreStartupError(event.error)) {
         onRuntimeErrorRef.current?.(new Error(event.error?.message || 'MapLibre globe failed before first load'));
+        return;
+      }
+      // 运行期瓦片/数据源失败（首屏 fatal 已在上面切换渲染器）：滑动窗口计数，
+      // 持续失败给出用户可见提示，单个瓦片 404 自愈场景不误报（原完全静默）
+      const nowTs = Date.now();
+      tileErrorTimestampsRef.current = tileErrorTimestampsRef.current.filter(t => nowTs - t < MAP_TILE_ERROR_WINDOW_MS);
+      tileErrorTimestampsRef.current.push(nowTs);
+      if (tileErrorTimestampsRef.current.length >= MAP_TILE_ERROR_THRESHOLD) {
+        setTilesDegraded(true);
       }
     });
 
@@ -1686,7 +1752,9 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     focusTarget(nextTarget);
   }, [focusTarget, selectedTarget, tourTargets]);
 
-  const tooltipTarget = hoveredTarget || selectedTarget;
+  // 悬停锁生效时，tooltip 锁定在最后一个悬停目标上（指针已进入 tooltip 卡片）
+  const effectiveHoveredTarget = hoveredTarget ?? (tooltipHover ? lastHoverTargetRef.current : null);
+  const tooltipTarget = effectiveHoveredTarget || selectedTarget;
   tooltipTargetRef.current = tooltipTarget;
   const tooltipActive = tooltipTarget
     ? markerItems.some(item => item.id === tooltipTarget.id)
@@ -1753,7 +1821,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
               className={`pointer-events-auto relative grid h-12 w-12 place-items-center rounded-full border-0 shadow-none transition-[transform,background-color,color] duration-200 ${mapOverlayControlClass} ${mapOverlayHoverClass} ${
                 selectedTarget?.id === marker.id ? 'scale-110' : 'scale-100 hover:scale-105'
               }`}
-              onMouseEnter={() => setHoveredTarget(marker.target)}
+              onMouseEnter={() => { lastHoverTargetRef.current = marker.target; setHoveredTarget(marker.target); }}
               onMouseLeave={() => setHoveredTarget(null)}
               onClick={event => {
                 event.stopPropagation();
@@ -1777,37 +1845,118 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       {isMapVisible && tourTargets.length > 1 && (
         <button
           type="button"
-          className={`pointer-events-auto absolute left-1/2 top-[72%] z-[3] flex h-12 -translate-x-1/2 items-center gap-3 rounded-full border-0 px-5 text-[11px] font-light uppercase tracking-[0.22em] shadow-none transition-[transform,background-color,color] duration-200 hover:scale-[1.02] ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
+          className={`pointer-events-auto absolute left-1/2 top-[72%] z-[3] flex h-12 -translate-x-1/2 items-center gap-3 rounded-full border-0 px-5 text-[11px] font-light tracking-[0.22em] shadow-none transition-[transform,background-color,color] duration-200 hover:scale-[1.02] ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
           onClick={focusNextTarget}
         >
-          <span>Next Node</span>
+          {/* Next Node 巡航按钮（契约锚） */}
+          <span>下一节点</span>
           <span className="text-base leading-none text-[var(--os-vnext-brand-blue)]">→</span>
         </button>
       )}
       {isMapVisible && tooltipTarget && tooltipActive && (
         <div
           ref={tooltipElRef}
-          className={`pointer-events-none absolute left-0 top-0 z-[4] min-w-[220px] rounded-card-lg border-0 p-4 opacity-0 shadow-none transition-opacity duration-150 ${mapOverlayControlClass}`}
+          onMouseEnter={() => setTooltipHover(true)}
+          onMouseLeave={() => setTooltipHover(false)}
+          className={`pointer-events-auto absolute left-0 top-0 z-[4] min-w-[220px] rounded-card-lg border-0 p-4 opacity-0 shadow-none transition-opacity duration-150 ${mapOverlayControlClass}`}
           style={{ transform: 'translate3d(-1000px, -1000px, 0)' }}
         >
           <div className="mb-2 flex items-center justify-between">
-            <div className="text-[10px] font-light uppercase tracking-[0.18em] text-[var(--os-vnext-brand-blue)]">{tooltipTarget.status || 'Pending'}</div>
+            <div className="text-[10px] font-light tracking-[0.18em] text-[var(--os-vnext-brand-blue)]">{GLOBE_STATUS_LABEL_ZH[tooltipTarget.status || 'Pending'] || tooltipTarget.status}</div>
             <div className="h-2 w-2 rounded-full ring-2 ring-[rgb(255_255_255/0.42)]" style={{ backgroundColor: StatusColorMap[tooltipTarget.status || 'Pending'] || '#cbd5e1' }} />
           </div>
           <div className={`mb-1 truncate text-sm font-light ${mapOverlayPrimaryTextClass}`}>{tooltipTarget.title || tooltipTarget.label}</div>
-          <div className={`mb-3 text-[10px] font-light uppercase tracking-[0.16em] ${mapOverlaySubtleTextClass}`}>
+          <div className={`mb-3 text-[10px] font-light tracking-[0.16em] ${mapOverlaySubtleTextClass}`}>
             {tooltipTarget.detail || tooltipTarget.label}
           </div>
           <div className="grid grid-cols-2 gap-4 border-t border-[rgb(var(--os-vnext-brand-blue-rgb)/0.14)] pt-3 text-[10px]">
             <div>
-              <div className={`mb-0.5 ${mapOverlaySubtleTextClass}`}>Quantity</div>
+              <div className={`mb-0.5 ${mapOverlaySubtleTextClass}`}>数量</div>
               <div className={`font-light ${mapOverlayPrimaryTextClass}`}>{(tooltipTarget.quantity || 0).toLocaleString()}</div>
             </div>
             <div className="text-right">
-              <div className={`mb-0.5 ${mapOverlaySubtleTextClass}`}>Value</div>
+              <div className={`mb-0.5 ${mapOverlaySubtleTextClass}`}>金额</div>
               <div className="font-light text-[var(--os-vnext-brand-blue)]">${((tooltipTarget.value || 0) / 1000).toFixed(1)}k</div>
             </div>
           </div>
+          {onOpenOrder && tooltipTarget.order && (
+            <button
+              type="button"
+              className={`mt-3 w-full rounded-control border-0 px-3 py-1.5 text-[11px] font-light shadow-none transition-[background-color,color] duration-200 ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenOrder(tooltipTarget.order!.id);
+              }}
+            >
+              查看订单
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 状态图例（点击即筛选，chip 置灰表示该状态已隐藏） */}
+      {isMapVisible && (
+        <div className={`pointer-events-auto absolute bottom-5 left-5 z-[3] flex flex-col gap-1.5 rounded-inset border-0 px-3 py-2.5 shadow-none ${mapOverlayControlClass}`}>
+          {GLOBE_STATUS_LEGEND_ORDER.map(status => {
+            const hidden = hiddenStatuses.has(status);
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => toggleStatus(status)}
+                aria-pressed={!hidden}
+                title={hidden ? '点击显示该状态' : '点击隐藏该状态'}
+                className={`flex items-center gap-2 border-0 bg-transparent p-0 text-left text-[11px] font-light transition-opacity ${hidden ? 'opacity-40' : 'opacity-100'}`}
+              >
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: StatusColorMap[status] }}
+                />
+                <span>{GLOBE_STATUS_LABEL_ZH[status]}</span>
+                <span className="tabular-nums opacity-70">{statusCounts[status] || 0}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 缩放控件 */}
+      {isMapVisible && (
+        <div className="pointer-events-auto absolute bottom-5 right-5 z-[3] flex flex-col gap-1.5">
+          <button
+            type="button"
+            aria-label="放大"
+            onClick={() => handleZoom(1)}
+            className={`flex h-9 w-9 items-center justify-center rounded-control border-0 text-base font-light shadow-none transition-[background-color,color] duration-200 ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            aria-label="缩小"
+            onClick={() => handleZoom(-1)}
+            className={`flex h-9 w-9 items-center justify-center rounded-control border-0 text-base font-light shadow-none transition-[background-color,color] duration-200 ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
+          >
+            −
+          </button>
+        </div>
+      )}
+
+      {/* 瓦片持续失败的用户可见降级提示（可关闭；关闭后清零计数允许再次告警） */}
+      {isMapVisible && tilesDegraded && (
+        <div
+          role="status"
+          className={`pointer-events-auto absolute left-1/2 top-4 z-[5] flex -translate-x-1/2 items-center gap-3 rounded-control border-0 px-4 py-2 text-[11px] font-light shadow-none ${mapOverlayControlClass}`}
+        >
+          部分地图瓦片加载失败，显示可能不完整
+          <button
+            type="button"
+            aria-label="关闭提示"
+            onClick={() => { tileErrorTimestampsRef.current = []; setTilesDegraded(false); }}
+            className="shrink-0 hover:opacity-70"
+          >
+            ×
+          </button>
         </div>
       )}
     </div>

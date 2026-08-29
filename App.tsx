@@ -163,6 +163,7 @@ import ProductsManager, {
 } from './components/ProductsManager';
 import { BAMBOOK_OS } from './components/ui/bambookOsTokens';
 import { OS_MATERIAL } from './components/ui/osMaterial';
+import { bdsToast } from './components/ui/bdsToast';
 import DevelopmentManager from './components/DevelopmentManager';
 import FinanceManager, { type FinanceTabId, primeFinanceInvoiceFocus } from './components/FinanceManager';
 import ReportCenter from './components/ReportCenter';
@@ -331,6 +332,8 @@ const App: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(() => !uiState.hasVisited && !shouldUseDevPreviewContinuity());
   const [mapLibreGlobeUnavailable, setMapLibreGlobeUnavailable] = useState(false);
+  // 降级提示条的用户关闭态（降级事实仍保留在 mapLibreGlobeUnavailable）
+  const [globeFallbackNoticeDismissed, setGlobeFallbackNoticeDismissed] = useState(false);
   const [globeViewportCenter, setGlobeViewportCenter] = useState<GlobeViewportCenter | null>(null);
   const [assistantRuntimeSnapshot, setAssistantRuntimeSnapshot] = useState<AssistantRuntimeSnapshot>(() => assistantRuntimeStore.getSnapshot());
   const [agentPreviewActivity, setAgentPreviewActivity] = useState<AgentOsActivitySnapshot>({
@@ -1192,7 +1195,12 @@ const App: React.FC = () => {
   // hash 无消费者，点击通知不产生任何导航。
   const handleNotificationOpenLink = (link: string) => {
     const target = parseNotificationLink(link);
-    if (!target) return;
+    if (!target) {
+      // 解析失败不再静默：toast 告知 + 兜底回工作台（原实现直接 return，点击无任何反馈）
+      bdsToast.warning('通知链接无法识别，已返回工作台');
+      handleViewChange(View.Dashboard);
+      return;
+    }
     if (target.view === View.Orders && target.id) {
       void handleOpenOrderById(target.id);
       return;
@@ -1276,11 +1284,15 @@ const App: React.FC = () => {
   // 顶层 viewport mask 容易和页面自己的真实滚动容器 mask 叠加，形成数字档案底部大模糊。
   // OS 规范：边缘消失效果归属具体滚动容器，不再由 App 全局兜底。
   // Auth gate: show Login or Register page if not authenticated
+  // Splash 首访品牌动画挂在 auth gate 之前（两个早退分支同样渲染）：
+  // 首访用户大概率未认证，3.8s 动画恰好遮蔽会话检查与登录页首绘；
+  // 不挂真实 boot 完成信号——boot 依赖网络时长不可预测，弱网下 splash 会卡死首屏节奏。
   if (authState.isLoading) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-300 dark:bg-none dark:bg-app-dark">
-        <div className="text-xs font-light tracking-[0.22em] uppercase text-slate-400 dark:text-slate-500">
-          Checking session...
+      <div className="w-full h-screen flex items-center justify-center bg-app-light dark:bg-app-dark">
+        <SplashScreen isVisible={isLoading} isDarkMode={isDarkMode} />
+        <div className="text-xs font-light tracking-[0.22em] text-[var(--text-tertiary)]">
+          正在检查会话…
         </div>
       </div>
     );
@@ -1289,25 +1301,31 @@ const App: React.FC = () => {
   if (!authState.isLoading && !authState.isAuthenticated) {
     if (authView === 'register') {
       return (
-        <Register
-          isDarkMode={isDarkMode}
-          onBackToLogin={() => setAuthView('login')}
-          onRegistered={() => setAuthView('login')}
-        />
+        <>
+          <SplashScreen isVisible={isLoading} isDarkMode={isDarkMode} />
+          <Register
+            isDarkMode={isDarkMode}
+            onBackToLogin={() => setAuthView('login')}
+            onRegistered={() => setAuthView('login')}
+          />
+        </>
       );
     }
     return (
-      <Login
-        isDarkMode={isDarkMode}
-        onLogin={(user) => {
-          if (user) {
-            storageService.saveUIState({ currentView: View.Dashboard });
-            setCurrentView(View.Dashboard);
-            setAuthState({ user, isLoading: false, isAuthenticated: true });
-          }
-        }}
-        onGoRegister={() => setAuthView('register')}
-      />
+      <>
+        <SplashScreen isVisible={isLoading} isDarkMode={isDarkMode} />
+        <Login
+          isDarkMode={isDarkMode}
+          onLogin={(user) => {
+            if (user) {
+              storageService.saveUIState({ currentView: View.Dashboard });
+              setCurrentView(View.Dashboard);
+              setAuthState({ user, isLoading: false, isAuthenticated: true });
+            }
+          }}
+          onGoRegister={() => setAuthView('register')}
+        />
+      </>
     );
   }
 
@@ -1416,6 +1434,7 @@ const App: React.FC = () => {
                 quality={globeParams.quality}
                 viewportCenter={globeViewportCenter}
                 onRuntimeError={() => setMapLibreGlobeUnavailable(true)}
+                onOpenOrder={handleOpenOrderById}
               />
             ) : (
               <ProductionGlobe
@@ -1426,9 +1445,28 @@ const App: React.FC = () => {
                 initialDelay={0}
                 quality={globeParams.quality}
                 viewportCenter={globeViewportCenter}
+                onOpenOrder={handleOpenOrderById}
               />
             )}
           </Suspense>
+          {/* 渲染引擎降级用户可见提示（原静默切换 three，用户无感知） */}
+          {mapLibreGlobeUnavailable && !globeFallbackNoticeDismissed && (
+            <div
+              role="status"
+              className="absolute left-1/2 top-4 z-[6] flex -translate-x-1/2 items-center gap-3 rounded-control border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-2 text-xs font-light text-[var(--text-secondary)]"
+            >
+              <AlertTriangle size={14} strokeWidth={1.5} className="shrink-0" />
+              3D 地图加载失败，已切换为备用渲染引擎
+              <button
+                type="button"
+                aria-label="关闭降级提示"
+                onClick={() => setGlobeFallbackNoticeDismissed(true)}
+                className="shrink-0 hover:opacity-70"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
