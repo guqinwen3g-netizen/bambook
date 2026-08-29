@@ -148,6 +148,22 @@ const CHECK_RESULT_VARIANT: Record<ComplianceCheckResult, BadgeVariant> = {
 const FX_CURRENCIES = ['USD', 'EUR', 'HKD', 'GBP', 'JPY'];
 const CHECK_TARGET_TYPES = ['CustomsDeclaration', 'Order', 'ProductAsset'];
 
+/** 预警列表分页页大小（服务端上限 200，R3 offset 分页） */
+const ALERTS_PAGE_SIZE = 200;
+
+/** R4：列表加载错误横幅（bds-alert + 重试；消除 catch 仅 console.error 导致的「失败伪装成暂无数据」） */
+function LoadErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="bds-alert danger flex items-center gap-2 shrink-0">
+      <span className="flex-1">{message}</span>
+      <button type="button" onClick={onRetry} className="bds-btn bds-btn-secondary">
+        <RefreshCw className="w-3.5 h-3.5" />
+        重试
+      </button>
+    </div>
+  );
+}
+
 function formatTs(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
   const d = new Date(value);
@@ -265,36 +281,66 @@ function AlertsPanel() {
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // R4：加载失败进 error state（横幅 + 重试），不再 console.error 后伪装成「暂无数据」
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'' | RiskAlertType>('');
   const [levelFilter, setLevelFilter] = useState<'' | RiskAlertLevel>('');
   const [statusFilter, setStatusFilter] = useState<'' | RiskAlertStatus>('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadOverview = useCallback(async () => {
+    setLoadError(null);
     try {
       setOverview(await apiService.getRiskOverview());
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] loadRiskOverview failed', e);
+      setLoadError(`风险总览加载失败：${e?.message || e}`);
     }
   }, []);
 
+  // R3：offset 分页首页（原 limit:200 硬截断；后端 listAlerts 支持 offset + total）
   const loadAlerts = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await apiService.listRiskAlerts({
         type: typeFilter || undefined,
         level: levelFilter || undefined,
         status: statusFilter || undefined,
-        limit: 200,
+        limit: ALERTS_PAGE_SIZE,
+        offset: 0,
       });
       setAlerts(result.items);
       setTotal(result.total);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] listRiskAlerts failed', e);
+      setLoadError(`预警列表加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
     }
   }, [typeFilter, levelFilter, statusFilter]);
+
+  const loadMoreAlerts = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const result = await apiService.listRiskAlerts({
+        type: typeFilter || undefined,
+        level: levelFilter || undefined,
+        status: statusFilter || undefined,
+        limit: ALERTS_PAGE_SIZE,
+        offset: alerts.length,
+      });
+      setAlerts((prev) => [...prev, ...result.items]);
+      setTotal(result.total);
+    } catch (e: any) {
+      console.error('[RisksManager] listRiskAlerts loadMore failed', e);
+      bdsToast.danger(`加载更多预警失败：${e?.message || e}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [typeFilter, levelFilter, statusFilter, alerts.length, loadingMore]);
 
   useEffect(() => {
     loadOverview();
@@ -327,6 +373,8 @@ function AlertsPanel() {
 
   return (
     <div className="h-full flex flex-col min-h-0 gap-4">
+      {/* R4：加载失败横幅（重试 = 重新拉取总览 + 列表） */}
+      {loadError && <LoadErrorBanner message={loadError} onRetry={refreshAll} />}
       {/* 总览统计条 */}
       <div className="bds-card shrink-0 flex items-center gap-3 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
         <span className="text-xs shrink-0" style={{ color: 'var(--text-tertiary)' }}>未结预警</span>
@@ -402,10 +450,13 @@ function AlertsPanel() {
               <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
             </div>
           ) : alerts.length === 0 ? (
+            // R4：加载失败时由上方横幅承载，不再显示「暂无」伪装
+            loadError ? null : (
             <div className="bds-empty">
               <div className="glyph"><BellRing size={24} /></div>
               <div className="title">暂无匹配的风险预警</div>
             </div>
+            )
           ) : (
             alerts.map((alert) => (
               <div key={alert.id} className="px-4 py-3" style={{ borderBottom: 'var(--border-subtle)' }}>
@@ -455,8 +506,14 @@ function AlertsPanel() {
             ))
           )}
         </div>
-        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
-          共 {total} 条预警
+        <div className="px-4 py-2 text-[11px] flex items-center justify-between gap-2" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+          <span>共 {total} 条预警 · 已加载 {alerts.length} 条</span>
+          {alerts.length < total && (
+            <button type="button" onClick={loadMoreAlerts} disabled={loadingMore} className={actionBtnCls}>
+              {loadingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              加载更多（剩余 {total - alerts.length} 条）
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -471,6 +528,8 @@ function FxPanel() {
   const [locks, setLocks] = useState<FxRateLock[]>([]);
   const [loadingRates, setLoadingRates] = useState(true);
   const [loadingLocks, setLoadingLocks] = useState(true);
+  // R4：加载失败进 error state（横幅 + 重试），不再 console.error 后伪装成「暂无数据」
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState('');
 
   // 录入汇率表单
@@ -504,19 +563,23 @@ function FxPanel() {
   }, []);
 
   const loadLatest = useCallback(async () => {
+    setLoadError(null);
     try {
       setLatest(await apiService.getLatestFxRates());
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] getLatestFxRates failed', e);
+      setLoadError(`最新汇率加载失败：${e?.message || e}`);
     }
   }, []);
 
   const loadRates = useCallback(async () => {
     setLoadingRates(true);
+    setLoadError(null);
     try {
       setRates(await apiService.listExchangeRates({ currency: currencyFilter || undefined, limit: 100 }));
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] listExchangeRates failed', e);
+      setLoadError(`汇率历史加载失败：${e?.message || e}`);
     } finally {
       setLoadingRates(false);
     }
@@ -524,10 +587,12 @@ function FxPanel() {
 
   const loadLocks = useCallback(async () => {
     setLoadingLocks(true);
+    setLoadError(null);
     try {
       setLocks(await apiService.listFxLocks());
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] listFxLocks failed', e);
+      setLoadError(`汇率锁定加载失败：${e?.message || e}`);
     } finally {
       setLoadingLocks(false);
     }
@@ -617,6 +682,8 @@ function FxPanel() {
 
   return (
     <div className="h-full overflow-y-auto space-y-4 pr-1">
+      {/* R4：加载失败横幅（重试 = 重新拉取最新汇率 + 历史 + 锁定） */}
+      {loadError && <LoadErrorBanner message={loadError} onRetry={refreshAll} />}
       {/* 最新汇率 */}
       <SectionCard
         title="最新汇率（兑 CNY）"
@@ -764,11 +831,13 @@ function FxPanel() {
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : locks.length === 0 ? (
+          loadError ? null : (
           <div className="bds-empty">
             <div className="glyph"><Lock size={24} /></div>
             <div className="title">暂无汇率锁定</div>
             <div className="desc">大额订单建议在报价阶段锁定汇率</div>
           </div>
+          )
         ) : (
           <div className="rounded-inset overflow-hidden bds-inset">
             <table className="bds-table">
@@ -816,6 +885,8 @@ function CreditPanel() {
   const [relations, setRelations] = useState<Relation[]>([]);
   const [ratings, setRatings] = useState<CreditRating[]>([]);
   const [loading, setLoading] = useState(true);
+  // R4：加载失败进 error state（横幅 + 重试），不再 console.error 后伪装成「暂无数据」
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [relationFilter, setRelationFilter] = useState('');
   const [evaluateRelationId, setEvaluateRelationId] = useState('');
   const [evaluating, setEvaluating] = useState(false);
@@ -838,13 +909,15 @@ function CreditPanel() {
 
   const loadRatings = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       // 未选客户：取每客户最新一条评级；选中客户：取该客户完整评估历史
       setRatings(await apiService.listCreditRatings(
         relationFilter ? { relationId: relationFilter } : { latestOnly: true },
       ));
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] listCreditRatings failed', e);
+      setLoadError(`信用评级加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -894,6 +967,8 @@ function CreditPanel() {
 
   return (
     <div className="h-full overflow-y-auto space-y-4 pr-1">
+      {/* R4：加载失败横幅（重试 = 重新拉取评级） */}
+      {loadError && <LoadErrorBanner message={loadError} onRetry={loadRatings} />}
       {/* 操作条 */}
       <div className="bds-card flex items-center gap-2 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
         <select
@@ -947,11 +1022,13 @@ function CreditPanel() {
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : ratings.length === 0 ? (
+          loadError ? null : (
           <div className="bds-empty">
             <div className="glyph"><Gauge size={24} /></div>
             <div className="title">暂无信用评级</div>
             <div className="desc">选择客户后点击「评估该客户」生成首条评级</div>
           </div>
+          )
         ) : (
           <table className="bds-table">
             <thead>
@@ -996,6 +1073,8 @@ function CreditPanel() {
 function CompliancePanel() {
   const [checks, setChecks] = useState<ComplianceCheck[]>([]);
   const [loading, setLoading] = useState(true);
+  // R4：加载失败进 error state（横幅 + 重试），不再 console.error 后伪装成「暂无数据」
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'' | ComplianceCheckType>('');
   const [resultFilter, setResultFilter] = useState<'' | ComplianceCheckResult>('');
 
@@ -1031,13 +1110,15 @@ function CompliancePanel() {
 
   const loadChecks = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       setChecks(await apiService.listComplianceChecks({
         type: typeFilter || undefined,
         result: resultFilter || undefined,
       }));
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] listComplianceChecks failed', e);
+      setLoadError(`合规检查记录加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -1108,6 +1189,8 @@ function CompliancePanel() {
 
   return (
     <div className="h-full overflow-y-auto space-y-4 pr-1">
+      {/* R4：加载失败横幅（重试 = 重新拉取检查记录） */}
+      {loadError && <LoadErrorBanner message={loadError} onRetry={loadChecks} />}
       {/* 检查触发 */}
       <div className="grid grid-cols-3 gap-4">
         <SectionCard title="运行 HS Code 检查">
@@ -1216,11 +1299,13 @@ function CompliancePanel() {
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : checks.length === 0 ? (
+          loadError ? null : (
           <div className="bds-empty">
             <div className="glyph"><ClipboardCheck size={24} /></div>
             <div className="title">暂无合规检查记录</div>
             <div className="desc">可在上方触发自动检查或人工登记</div>
           </div>
+          )
         ) : (
           <table className="bds-table">
             <thead>
@@ -1252,6 +1337,12 @@ function CompliancePanel() {
               ))}
             </tbody>
           </table>
+        )}
+        {/* R3 诚实化：数据源当前仅支持服务端默认窗口（50 条），达窗口上限时披露截断并引导筛选 */}
+        {!loading && !loadError && checks.length >= 50 && (
+          <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+            当前为服务端默认最近 50 条窗口，更早记录请用上方类型/结果筛选缩小范围
+          </div>
         )}
       </div>
     </div>
@@ -1400,15 +1491,19 @@ function QualityPanel() {
   const [groupBy, setGroupBy] = useState<'factory' | 'quarter'>('factory');
   const [trends, setTrends] = useState<DefectTrendItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // R4：加载失败进 error state（横幅 + 重试），不再 console.error 后伪装成「暂无数据」
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<number | null>(null);
 
   const loadTrends = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       setTrends(await apiService.getDefectTrends(groupBy));
-    } catch (e) {
+    } catch (e: any) {
       console.error('[RisksManager] getDefectTrends failed', e);
+      setLoadError(`疵点趋势加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -1436,6 +1531,8 @@ function QualityPanel() {
 
   return (
     <div className="h-full flex flex-col min-h-0 gap-4">
+      {/* R4：加载失败横幅（重试 = 重新拉取趋势） */}
+      {loadError && <LoadErrorBanner message={loadError} onRetry={loadTrends} />}
       {/* 操作条 */}
       <div className="bds-card shrink-0 flex items-center gap-2 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
         <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>分组</span>
@@ -1475,11 +1572,13 @@ function QualityPanel() {
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : trends.length === 0 ? (
+          loadError ? null : (
           <div className="bds-empty flex-1 justify-center">
             <div className="glyph"><ShieldCheck size={24} /></div>
             <div className="title">暂无疵点趋势数据</div>
             <div className="desc">验货报告积累后自动聚合</div>
           </div>
+          )
         ) : (
           <div className="flex-1 overflow-y-auto">
             <table className="bds-table">

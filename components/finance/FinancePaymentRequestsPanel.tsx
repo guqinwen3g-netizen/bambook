@@ -90,9 +90,12 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
 
   // ── 列表 ──
   const [items, setItems] = useState<PaymentRequest[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // 服务端搜索词（防抖后生效；R3：搜索下推后端，客户端不再只过滤已加载窗口）
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | PaymentRequestStatus>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | PaymentCategory>('all');
 
@@ -113,17 +116,29 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
   const [actionBusy, setActionBusy] = useState<'approved' | 'rejected' | 'cancel' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // 搜索防抖：300ms 内连续输入合并为一次服务端查询
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(searchTerm.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setItems(await paymentRequestService.listPaymentRequests(undefined, endpoint));
+      // R3：limit 500（服务端上限）+ 消费 total 透明披露截断；search 下推服务端
+      const result = await paymentRequestService.listPaymentRequests(
+        { limit: 500, search: appliedSearch || undefined },
+        endpoint,
+      );
+      setItems(result.items);
+      setTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
-  }, [endpoint]);
+  }, [endpoint, appliedSearch]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
@@ -147,20 +162,13 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
     else setDetail(null);
   }, [selectedId, loadDetail]);
 
+  // 搜索已下推服务端（appliedSearch 参与查询）；状态/性质过滤在已加载窗口内客户端过滤
   const filtered = useMemo(() => {
     let result = items;
     if (statusFilter !== 'all') result = result.filter(i => i.status === statusFilter);
     if (categoryFilter !== 'all') result = result.filter(i => i.paymentCategory === categoryFilter);
-    if (searchTerm.trim()) {
-      const q = searchTerm.trim().toLowerCase();
-      result = result.filter(i =>
-        i.requestNumber?.toLowerCase().includes(q) ||
-        i.supplierName?.toLowerCase().includes(q) ||
-        i.remark?.toLowerCase().includes(q),
-      );
-    }
     return result;
-  }, [items, statusFilter, categoryFilter, searchTerm]);
+  }, [items, statusFilter, categoryFilter]);
 
   // ── 创建提交（审批人由服务端 DR-007 解析，前端不传 reviewerId） ──
   const handleCreate = async () => {
@@ -485,6 +493,16 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 <div className="glyph"><ClipboardList size={24} strokeWidth={1.25} /></div>
                 <div className="title">暂无匹配付款申请</div>
               </div>
+            )}
+          </div>
+          {/* R3 诚实化：total = 服务端全量计数；截断/筛选命中透明披露，不再把窗口误当全量 */}
+          <div
+            className={cx('flex shrink-0 items-center justify-between gap-2 px-4 pt-2 text-[11px] font-light', textSecondary)}
+            style={{ borderTop: 'var(--border-subtle)' }}
+          >
+            <span className="tabular-nums">共 {total} 条付款申请{total > items.length ? ` · 当前加载前 ${items.length} 条，可用搜索缩小范围` : ''}</span>
+            {(statusFilter !== 'all' || categoryFilter !== 'all') && (
+              <span className="shrink-0 tabular-nums">当前筛选命中 {filtered.length} 条</span>
             )}
           </div>
         </div>

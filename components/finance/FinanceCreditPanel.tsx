@@ -121,6 +121,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
   const [status, setStatus] = useState<CreditStatus | null>(null);
   const [history, setHistory] = useState<CreditHistoryItem[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -190,6 +191,21 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
       setError(null);
     }
   }, [customerId, loadCredit]);
+
+  // R3：信用历史 offset 累加加载更多（原 limit:100 硬截断，超出部分不可见；后端 creditRoute 已支持 offset/total）
+  const loadMoreHistory = useCallback(async () => {
+    if (!customerId || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
+    try {
+      const h = await creditService.getCreditHistory(customerId, { limit: 100, offset: history.length }, endpoint);
+      setHistory(prev => [...prev, ...h.items]);
+      setHistoryTotal(h.total);
+    } catch (e: any) {
+      bdsToast.danger(`信用历史加载失败：${e?.message || e}`);
+    } finally {
+      setHistoryLoadingMore(false);
+    }
+  }, [customerId, history.length, historyLoadingMore, endpoint]);
 
   const openAction = (kind: 'freeze' | 'thaw') => {
     setAction(kind);
@@ -523,6 +539,15 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          {/* R3：offset 累加加载更多（原 limit:100 硬截断，超出历史不可见） */}
+          {history.length < historyTotal && (
+            <div className="mt-2 flex justify-center">
+              <button type="button" onClick={loadMoreHistory} disabled={historyLoadingMore} className="bds-btn bds-btn-secondary">
+                {historyLoadingMore && <Loader2 size={14} className="animate-spin" />}
+                加载更多（剩余 {historyTotal - history.length} 条）
+              </button>
             </div>
           )}
         </div>

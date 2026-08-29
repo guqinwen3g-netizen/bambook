@@ -161,6 +161,42 @@ describe('GET /api/v1/payment-requests 列表', () => {
     expect(prFindMany.mock.calls[0][0].where.status).toBe('Pending');
     expect(prFindMany.mock.calls[0][0].where.paymentCategory).toBe('business_cost');
   });
+
+  it('search → where.OR 三字段（requestNumber/supplierName/remark）contains insensitive，count 同 where', async () => {
+    const { app, prFindMany, prisma } = makeApp();
+    const res = await request(app).get('/api/v1/payment-requests?search=供应商A');
+    expect(res.status).toBe(200);
+    const where = prFindMany.mock.calls[0][0].where;
+    expect(where.OR).toHaveLength(3);
+    expect(where.OR[0].requestNumber).toEqual({ contains: '供应商A', mode: 'insensitive' });
+    expect(where.OR[1].supplierName).toEqual({ contains: '供应商A', mode: 'insensitive' });
+    expect(where.OR[2].remark).toEqual({ contains: '供应商A', mode: 'insensitive' });
+    expect(prisma.paymentRequest.count).toHaveBeenCalledWith({ where });
+  });
+
+  it('search 空白串 → 不附加 OR 条件', async () => {
+    const { app, prFindMany } = makeApp();
+    const res = await request(app).get('/api/v1/payment-requests?search=%20%20');
+    expect(res.status).toBe(200);
+    expect(prFindMany.mock.calls[0][0].where.OR).toBeUndefined();
+  });
+
+  it('响应携带 total（服务端全量计数，供前端截断披露）', async () => {
+    const { app, prisma } = makeApp();
+    prisma.paymentRequest.count.mockResolvedValue(7);
+    const res = await request(app).get('/api/v1/payment-requests');
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(7);
+    expect(res.body.items).toHaveLength(1);
+  });
+
+  it('limit 透传且封顶 500', async () => {
+    const { app, prFindMany } = makeApp();
+    await request(app).get('/api/v1/payment-requests?limit=5');
+    expect(prFindMany.mock.calls[0][0].take).toBe(5);
+    await request(app).get('/api/v1/payment-requests?limit=9999');
+    expect(prFindMany.mock.calls[1][0].take).toBe(500);
+  });
 });
 
 describe('GET /api/v1/payment-requests/:id 详情', () => {

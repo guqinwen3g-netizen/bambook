@@ -455,7 +455,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     let alive = true;
     setPayableRequestsLoading(true);
     paymentRequestService.listPaymentRequests({ status: 'Approved' })
-      .then(list => { if (alive) setPayableRequests(list.filter(r => !r.paymentVoucherId)); })
+      .then(({ items: list }) => { if (alive) setPayableRequests(list.filter(r => !r.paymentVoucherId)); })
       .catch(() => { if (alive) setPayableRequests([]); })
       .finally(() => { if (alive) setPayableRequestsLoading(false); });
     return () => { alive = false; };
@@ -1684,6 +1684,31 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     );
   };
 
+  // ── R4 快照空态诚实化（发票/收付款 tab 走 App 快照 props，无 loading/error 信号； ──
+  //    快照失败由 App 全局横幅覆盖，本组件不改 App.tsx）──
+  // 「首轮快照已落地」判定：挂载即非空（本地缓存回填）立即落地；挂载后数组引用首次变更
+  // 即落地（App applyDataHubSnapshot 每轮同步恒产出新数组引用，空结果亦如此）；
+  // 兜底定时器在窗口内未观测到落地时转「暂无」（宁可早报暂无，不无限谎称加载中）。
+  const SNAPSHOT_SETTLE_MS = 4000;
+  const snapshotInitRef = useRef<{ invoices: InvoiceEntity[]; vouchers: VoucherEntity[] } | null>(null);
+  const [snapshotSettled, setSnapshotSettled] = useState(() => invoices.length > 0 || vouchers.length > 0);
+  if (snapshotInitRef.current === null) snapshotInitRef.current = { invoices, vouchers };
+  useEffect(() => {
+    if (snapshotSettled) return;
+    const init = snapshotInitRef.current;
+    if (
+      invoices.length > 0 || vouchers.length > 0 ||
+      (init !== null && (init.invoices !== invoices || init.vouchers !== vouchers))
+    ) {
+      setSnapshotSettled(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setSnapshotSettled(true), SNAPSHOT_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [invoices, vouchers, snapshotSettled]);
+  /** 快照 tab（发票/收付款）首轮同步未落地 = 加载中；落地后空列表才可诚实地显示「暂无」 */
+  const snapshotListLoading = (activeTab === 'invoices' || activeTab === 'vouchers') && !snapshotSettled;
+
   // ── Side panel detail rendering ───
   const activeSearchPlaceholder =
     activeTab === 'invoices' ? '发票号 / 伙伴' : activeTab === 'vatInvoices' ? '发票号码 / 购销方' : '凭证号 / 伙伴';
@@ -1691,20 +1716,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const renderEmptyState = () => (
     <div className="bds-empty">
       <div className="glyph">
-        {activeTab === 'invoices'
-          ? <FileText size={24} strokeWidth={1.25} />
-          : activeTab === 'vatInvoices'
-            ? <Receipt size={24} strokeWidth={1.25} />
-            : <CreditCard size={24} strokeWidth={1.25} />}
+        {snapshotListLoading || (vatLoading && activeTab === 'vatInvoices')
+          ? <Loader2 size={24} strokeWidth={1.25} className="animate-spin" />
+          : activeTab === 'invoices'
+            ? <FileText size={24} strokeWidth={1.25} />
+            : activeTab === 'vatInvoices'
+              ? <Receipt size={24} strokeWidth={1.25} />
+              : <CreditCard size={24} strokeWidth={1.25} />}
       </div>
       <div className="title">
         {vatLoading && activeTab === 'vatInvoices'
           ? '加载中…'
-          : activeTab === 'invoices'
-            ? '暂无匹配发票'
-            : activeTab === 'vatInvoices'
-              ? '暂无匹配增值税发票'
-              : '暂无匹配凭证'}
+          : snapshotListLoading
+            ? '加载中…（正在同步数据中心快照）'
+            : activeTab === 'invoices'
+              ? '暂无匹配发票'
+              : activeTab === 'vatInvoices'
+                ? '暂无匹配增值税发票'
+                : '暂无匹配凭证'}
       </div>
     </div>
   );
@@ -2458,7 +2487,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       ? '额度 / 冻结门禁 / 历史时间线'
                       : activeTab === 'collections'
                         ? '催款分级看板 · 催款函 · 月末结转'
-                        : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
+                        : activeTab === 'vatInvoices'
+                          ? `共 ${activeList.length} 张增值税票`
+                          : (
+                            <>
+                              {`共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : '张凭证'}`}
+                              {/* R3 诚实化：发票/收付款列表 = App 同步快照（非本组件直查），计数旁标注来源与快照总量 */}
+                              <span className="ml-1" style={{ color: 'var(--text-quaternary)' }}>
+                                （App 同步快照 {activeTab === 'invoices' ? invoices.length : vouchers.length} 条 · 随数据中心刷新）
+                              </span>
+                            </>
+                          )}
             </div>
           </div>
 

@@ -59,6 +59,9 @@ type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-led
 /** YYYY-MM-DD（与 server internalTrade DATE_RE 一致） */
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** 内部供料单分页页大小（服务端上限 500，R3 offset 分页） */
+const TRANSFERS_PAGE_SIZE = 200;
+
 // ── G9 深链通道：报表中心等外部入口请求定位到指定子视图 ──
 // 与 exceptionService openExceptionEntry 同一 CustomEvent 惯例；模块级待消费意图保证
 // 「先跳转后挂载」时初始 tab 仍能命中（面板挂载即在 useState 初始值中消费）。
@@ -167,6 +170,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
 
   // ── 内部供料单（DR-033）──
   const [transfers, setTransfers] = useState<InternalTransferListItem[] | null>(null);
+  const [transfersTotal, setTransfersTotal] = useState(0);
+  const [transfersLoadingMore, setTransfersLoadingMore] = useState(false);
   const [transferStatus, setTransferStatus] = useState<InternalTransferStatus | ''>('');
   const [expandedTransferId, setExpandedTransferId] = useState<string | null>(null);
 
@@ -305,21 +310,41 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     }
   }, [conFrom, conTo, endpoint]);
 
+  // R3：消费服务端 total + offset 分页（原 limit:200 硬截断、截断不可见）
+  const TRANSFERS_PAGE_SIZE = 200;
   const loadTransfers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const result = await internalTradeService.listInternalTransfers(
-        { status: transferStatus || undefined, limit: 200 },
+        { status: transferStatus || undefined, limit: TRANSFERS_PAGE_SIZE, offset: 0 },
         endpoint,
       );
       setTransfers(result.items);
+      setTransfersTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
   }, [transferStatus, endpoint]);
+
+  const loadMoreTransfers = useCallback(async () => {
+    if (transfersLoadingMore || !transfers) return;
+    setTransfersLoadingMore(true);
+    try {
+      const result = await internalTradeService.listInternalTransfers(
+        { status: transferStatus || undefined, limit: TRANSFERS_PAGE_SIZE, offset: transfers.length },
+        endpoint,
+      );
+      setTransfers(prev => [...(prev ?? []), ...result.items]);
+      setTransfersTotal(result.total);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setTransfersLoadingMore(false);
+    }
+  }, [transferStatus, endpoint, transfers, transfersLoadingMore]);
 
   // 初次进入各 tab 时加载
   useEffect(() => {
@@ -1166,6 +1191,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               </div>
             );
           })}
+        </div>
+        {/* R3：total 披露 + offset 加载更多（原 limit:200 硬截断无感知） */}
+        <div className={cx('flex shrink-0 items-center justify-between gap-2 border-t px-4 py-2 text-[11px] font-light', divider, textSecondary)}>
+          <span className="tabular-nums">共 {transfersTotal} 单 · 已加载 {transfers.length} 单</span>
+          {transfers.length < transfersTotal && (
+            <RdlPill type="button" onClick={loadMoreTransfers} disabled={transfersLoadingMore} className="min-h-8 px-3 text-[11px]">
+              {transfersLoadingMore ? <Loader2 size={14} className="animate-spin" /> : null}
+              加载更多（剩余 {transfersTotal - transfers.length} 单）
+            </RdlPill>
+          )}
         </div>
       </RdlSurface>
     );

@@ -114,6 +114,8 @@ export interface PaymentRequestListParams {
   status?: PaymentRequestStatus;
   paymentCategory?: PaymentCategory;
   applicantId?: string;
+  /** 服务端模糊搜索：申请编号 / 收款方 / 事由（contains，大小写不敏感） */
+  search?: string;
   limit?: number;
 }
 
@@ -134,19 +136,27 @@ function requestUrl(path: string, endpoint?: string): string {
 }
 
 export const paymentRequestService = {
-  /** 列表（status / paymentCategory / applicantId 过滤，按创建时间倒序） */
-  async listPaymentRequests(params?: PaymentRequestListParams, endpoint?: string): Promise<PaymentRequest[]> {
+  /**
+   * 列表（status / paymentCategory / applicantId / search 过滤，按创建时间倒序）。
+   * 返回 items + total：total 为服务端全量计数，items 受 limit 截断（默认 100，上限 500），
+   * 消费方须以 total 透明披露截断（R3 诚实化）。
+   */
+  async listPaymentRequests(params?: PaymentRequestListParams, endpoint?: string): Promise<{ items: PaymentRequest[]; total: number }> {
     const url = requestUrl('', endpoint);
     const query = new URLSearchParams();
     if (params?.status) query.set('status', params.status);
     if (params?.paymentCategory) query.set('paymentCategory', params.paymentCategory);
     if (params?.applicantId) query.set('applicantId', params.applicantId);
+    if (params?.search?.trim()) query.set('search', params.search.trim());
     if (params?.limit) query.set('limit', String(params.limit));
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
     const res = await fetch(fullUrl, { headers: apiService.getAuthHeaders() });
     if (!res.ok) await readError(res, 'listPaymentRequests failed');
     const data = await res.json();
-    return Array.isArray(data.items) ? data.items : [];
+    const items: PaymentRequest[] = Array.isArray(data.items) ? data.items : [];
+    // total 兜底为 items 长度：兼容尚未返回 total 的旧后端（截断披露退化为不披露，不伪造数字）
+    const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
+    return { items, total };
   },
 
   /** 详情（附 approvalRequest / paymentVoucher 关联快照） */

@@ -6,7 +6,7 @@
  *
  * 端点：
  *   POST /              — 创建付款申请（scope finance:payment_request:create；创建即 Pending + 生成审批单）
- *   GET  /              — 列表（按 status / paymentCategory / applicantId 过滤）
+ *   GET  /              — 列表（按 status / paymentCategory / applicantId / search 过滤，附 total）
  *   GET  /:id           — 详情（附 approvalRequest / paymentVoucher 关联快照）
  *   POST /:id/issue-voucher — 生成付款凭证（scope finance:payment_request:create；DR-017 幂等）
  *   POST /:id/cancel    — 申请人作废（仅 Draft/Pending，仅本人）
@@ -103,7 +103,7 @@ export function createPaymentRequestRouter(options: PaymentRequestRouterOptions)
   });
 
   // ══════════════════════════════════════════════════════════════════
-  // GET / — 列表（status / paymentCategory / applicantId 过滤）
+  // GET / — 列表（status / paymentCategory / applicantId / search 过滤；附 total 供截断透明披露）
   // ══════════════════════════════════════════════════════════════════
   router.get('/', async (req: Request, res: Response) => {
     const auth = authenticate(req, res);
@@ -113,12 +113,28 @@ export function createPaymentRequestRouter(options: PaymentRequestRouterOptions)
       if (req.query.status) where.status = String(req.query.status);
       if (req.query.paymentCategory) where.paymentCategory = String(req.query.paymentCategory);
       if (req.query.applicantId) where.applicantId = String(req.query.applicantId);
-      const items = await prisma.paymentRequest.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: Math.min(Number(req.query.limit ?? 100), 500),
-      });
-      return res.json({ items });
+      // search：申请编号 / 收款方 / 事由 三字段模糊匹配（与 finance route 同一 contains+insensitive 惯例）
+      if (req.query.search) {
+        const q = String(req.query.search).trim();
+        if (q) {
+          const qInsensitive = { contains: q, mode: 'insensitive' as const };
+          where.OR = [
+            { requestNumber: qInsensitive },
+            { supplierName: qInsensitive },
+            { remark: qInsensitive },
+          ];
+        }
+      }
+      const take = Math.min(Number(req.query.limit ?? 100), 500);
+      const [items, total] = await Promise.all([
+        prisma.paymentRequest.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take,
+        }),
+        prisma.paymentRequest.count({ where }),
+      ]);
+      return res.json({ items, total });
     } catch (e: any) {
       logger.error('[PaymentRequestRoute] GET / failed', { error: e?.message });
       return res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message || '查询付款申请列表失败' });
