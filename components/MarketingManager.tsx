@@ -23,6 +23,7 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
+  AlertCircle,
   X,
   Upload,
   Archive,
@@ -223,6 +224,8 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
 function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [items, setItems] = useState<LookbookCatalog[]>([]);
   const [loading, setLoading] = useState(true);
+  // R4 三态补全：列表加载失败置 error 态渲染横幅 + 重试，不再仅 console.error 吞错
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'' | LookbookStatus>('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LookbookCatalog | null>(null);
@@ -237,10 +240,12 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       setItems(await apiService.listLookbooks(statusFilter ? { status: statusFilter } : undefined));
     } catch (e) {
       console.error('[MarketingManager] listLookbooks failed', e);
+      setLoadError(`画册列表加载失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -308,9 +313,17 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
           <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
+        ) : loadError ? (
+          /* R4：加载失败明示 + 重试，不把失败伪装成「暂无画册」 */
+          <div className="bds-alert danger">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{loadError}</span>
+            <button onClick={load} className="bds-btn bds-btn-secondary shrink-0">重试</button>
+          </div>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无画册，点击「新建画册」开始" />
         ) : (
+          <>
           <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-3">标题</span>
@@ -391,6 +404,14 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
               </div>
             ))}
           </div>
+          {/* R3 截断诚实化：服务端 lookbookService 默认 take 50（上限 200），apiService.listLookbooks
+              丢弃响应里的 total（apiService.ts 归 Lane-A 独占）——触顶即提示，不把截断伪装成全量 */}
+          {items.length >= 50 && (
+            <p className="text-xs text-center mt-2" style={{ color: 'var(--text-tertiary)' }}>
+              仅显示前 50 条画册（已达单次加载上限），更早的画册请按状态筛选定位
+            </p>
+          )}
+          </>
         )}
       </div>
 
@@ -436,18 +457,26 @@ function LookbookForm({
   onClose,
 }: {
   editing: LookbookCatalog | null;
-  onSave: (input: { title: string; description?: string | null }) => void;
+  onSave: (input: { title: string; description?: string | null }) => Promise<void>;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(editing?.title || '');
   const [description, setDescription] = useState(editing?.description || '');
+  // R5：保存防重（对齐下方条目编辑器 saving 模式）——提交中禁用，杜绝连点重复建册
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving) return;
     if (!title.trim()) {
       bdsToast.warning('画册标题必填');
       return;
     }
-    onSave({ title: title.trim(), description: description.trim() || null });
+    setSaving(true);
+    try {
+      await onSave({ title: title.trim(), description: description.trim() || null });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -462,8 +491,10 @@ function LookbookForm({
         <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
         <button
           onClick={handleSubmit}
+          disabled={saving}
           className="bds-btn bds-btn-primary"
         >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           保存
         </button>
       </div>
@@ -662,14 +693,18 @@ function FabricRecommendPanel() {
   const [latest, setLatest] = useState<FabricRecommendation | null>(null);
   const [history, setHistory] = useState<FabricRecommendation[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  // R4 三态补全：推荐历史加载失败置 error 态渲染横幅 + 重试
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
+    setHistoryError(null);
     try {
       setHistory(await apiService.listFabricRecommendations());
     } catch (e) {
       console.error('[MarketingManager] listFabricRecommendations failed', e);
+      setHistoryError(`推荐历史加载失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setHistoryLoading(false);
     }
@@ -831,9 +866,17 @@ function FabricRecommendPanel() {
           <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
+        ) : historyError ? (
+          /* R4：加载失败明示 + 重试，不把失败伪装成「暂无推荐记录」 */
+          <div className="bds-alert danger">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{historyError}</span>
+            <button onClick={loadHistory} className="bds-btn bds-btn-secondary shrink-0">重试</button>
+          </div>
         ) : history.length === 0 ? (
           <EmptyHint text="暂无推荐记录" />
         ) : (
+          <>
           <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-6">推荐条件</span>
@@ -863,6 +906,14 @@ function FabricRecommendPanel() {
               </div>
             ))}
           </div>
+          {/* R3 截断诚实化：服务端 listRecommendations 默认 take 50（上限 200），apiService 丢弃 total——
+              触顶即提示，不把截断伪装成全量 */}
+          {history.length >= 50 && (
+            <p className="text-xs text-center mt-2" style={{ color: 'var(--text-tertiary)' }}>
+              仅显示最近 50 条推荐记录（已达单次加载上限），更早的记录暂未加载
+            </p>
+          )}
+          </>
         )}
       </div>
     </div>

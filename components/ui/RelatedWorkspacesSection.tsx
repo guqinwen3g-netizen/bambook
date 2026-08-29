@@ -92,6 +92,10 @@ export const RelatedWorkspacesSection: React.FC<RelatedWorkspacesSectionProps> =
 }) => {
   const [summary, setSummary] = useState<RelatedSummary | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // R4 三态补全：getRelatedSummary 失败不再静默吞掉（原 catch(()=>setLoaded(true)) 把失败伪装成
+  // 「暂无关联业务记录」）——置 error 态并给重试入口；retryKey 自增驱动 effect 重跑
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   const isProduct = sourceType === 'product';
   const anchorId = isProduct ? (productId ?? '') : (relationId ?? '');
@@ -102,16 +106,18 @@ export const RelatedWorkspacesSection: React.FC<RelatedWorkspacesSectionProps> =
   useEffect(() => {
     if (!anchorId) {
       setLoaded(true);
+      setLoadError(false);
       setSummary(null);
       return;
     }
     let cancelled = false;
     setLoaded(false);
+    setLoadError(false);
     entityLinksService.getRelatedSummary({ type: apiType, id: anchorId })
       .then((s) => { if (!cancelled) { setSummary(s); setLoaded(true); } })
-      .catch(() => { if (!cancelled) setLoaded(true); });
+      .catch(() => { if (!cancelled) { setLoadError(true); setLoaded(true); } });
     return () => { cancelled = true; };
-  }, [anchorId, apiType]);
+  }, [anchorId, apiType, retryKey]);
 
   const handleClick = (entry: WorkspaceEntry) => {
     if (!onNavigate) return;
@@ -150,6 +156,19 @@ export const RelatedWorkspacesSection: React.FC<RelatedWorkspacesSectionProps> =
 
       {!loaded ? (
         <p className={`text-xs ${quietText} py-1`}>加载中…</p>
+      ) : loadError ? (
+        /* R4：加载失败明示 + 重试，不把失败伪装成空数据 */
+        <div className="flex items-center gap-2 py-1">
+          <p className={`text-xs ${quietText}`}>关联业务加载失败</p>
+          <button
+            type="button"
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="flex items-center gap-1 text-xs font-light text-link hover:underline"
+          >
+            <RotateCcw size={12} strokeWidth={1.5} />
+            重试
+          </button>
+        </div>
       ) : !anchorId || !summary || entries.every(e => !Number(summary[e.key])) ? (
         <p className={`text-xs ${quietText} py-1`}>暂无关联业务记录</p>
       ) : (

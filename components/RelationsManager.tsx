@@ -1426,6 +1426,16 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 </CompiledTableShell>
             )}
 
+            {/* R3 截断诚实化：apiService.listRelations 硬顶 limit=500 且丢弃服务端 total/hasMore
+                （apiService.ts 归 Lane-A 独占，本车道不碰；服务端 /v2/relations 已支持 offset 分页，
+                待 apiService 透出 offset/total 后可改真分页）。档案数组触顶即存在未加载档案——
+                明示截断而非把 500 条伪装成全量 */}
+            {relations.length >= 500 && (
+              <div className="col-span-full py-3 text-center text-xs text-[var(--text-tertiary)]">
+                仅显示前 500 条档案（已达单次加载上限），其余档案暂未加载，请联系管理员处理
+              </div>
+            )}
+
             {/* Empty state：区分「搜索无结果」与「分类本就为空」——前者提示调整关键词，后者引导创建 */}
             {currentOrganizations.length === 0 && (
               <div className={`col-span-full py-20 flex flex-col items-center justify-center text-[var(--text-tertiary)]`}>

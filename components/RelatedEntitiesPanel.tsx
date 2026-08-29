@@ -67,6 +67,9 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
   const [data, setData] = useState<NeighborsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // R3 截断诚实化：服务端 neighbors 每类硬顶 limit（total 语义=返回行数而非全量总数，
+  // 故用「触顶」判定可能存在未返回的关联），触顶时底部明示，不伪装全量
+  const [truncated, setTruncated] = useState(false);
 
   const additionalTypesKey = (additionalTypes ?? []).join('|');
 
@@ -75,6 +78,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setTruncated(false);
     const typeCodes = [type, ...(additionalTypes ?? [])];
     Promise.all(
       typeCodes.map((t) => entityLinksService.getNeighbors({ type: t, id, limit })),
@@ -91,6 +95,8 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
           }
         }
         setData({ ok: true, type, id, total, neighbors: merged });
+        // 任一 type code 触顶 limit ⇒ 服务端可能还有未返回的关联
+        setTruncated(responses.some((res) => (res.total ?? 0) >= limit));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -181,6 +187,12 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
             );
           })}
         </div>
+      )}
+
+      {!loading && !error && truncated && (
+        <p className={`mt-2.5 text-[11px] font-light ${mutedCls}`}>
+          关联数量已达单次查询上限（每类 {limit} 条），可能存在未显示的关联，请从对应业务模块查看完整列表
+        </p>
       )}
     </SidePanelContainer>
   );

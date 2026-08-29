@@ -169,6 +169,11 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(navRelationId);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // R4 三态补全：列表/CRM 数据加载失败不再仅 console.error——置 error 态渲染 bds-alert + 重试
+  const [relationsError, setRelationsError] = useState<string | null>(null);
+  // 切换客户时旧客户数据残留 → crmLoading 期间以加载态顶替内容区
+  const [crmLoading, setCrmLoading] = useState(false);
+  const [crmError, setCrmError] = useState<string | null>(null);
 
   // 数据状态
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -194,6 +199,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
   //    保证「关系档案 → 商机」跳转后下拉里能选中目标客户而非空态死路。
   const loadRelations = useCallback(async () => {
     setLoading(true);
+    setRelationsError(null);
     try {
       let list = await apiService.listRelations(undefined, { bizScope: 'mine' });
       if (navRelationId && !list.some((r) => r.id === navRelationId)) {
@@ -209,8 +215,9 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       if (!selectedRelationId && filtered.length > 0) {
         setSelectedRelationId(filtered[0].id);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[CrmManager] loadRelations failed', e);
+      setRelationsError(`客户列表加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -223,6 +230,8 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
   // ── 加载当前客户 CRM 数据 ──
   const loadCrmData = useCallback(async () => {
     if (!selectedRelationId) return;
+    setCrmLoading(true);
+    setCrmError(null);
     try {
       const [opps, fus, ovdu, cts, acl, clh, at, th] = await Promise.all([
         apiService.listOpportunities({ relationId: selectedRelationId }),
@@ -243,8 +252,11 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       setCreditHistory(clh);
       setActiveTier(at);
       setTierHistory(th);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[CrmManager] loadCrmData failed', e);
+      setCrmError(`客户 CRM 数据加载失败：${e?.message || e}`);
+    } finally {
+      setCrmLoading(false);
     }
   }, [selectedRelationId]);
 
@@ -278,6 +290,10 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
   };
 
   const handleTransitionOpportunity = async (id: string, toStage: OpportunityStage) => {
+    // R5：「已流失」为终态（STAGE_TRANSITION_TARGETS[ClosedLost] 为空，不可再流转）→ 危险确认
+    if (toStage === 'ClosedLost') {
+      if (!(await bdsConfirm({ title: '确认标记流失', body: '确认将该商机流转至「已流失」？流失为终态，不可再流转。', danger: true }))) return;
+    }
     try {
       await apiService.transitionOpportunity(id, toStage);
       await loadCrmData();
@@ -353,6 +369,11 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
   };
 
   const handleUpdateCreditStatus = async (id: string, status: string) => {
+    // R5：冻结/撤销直接影响新订单信用校验（信用门禁 W-A 已接线）→ 危险确认
+    if (status === 'Frozen' || status === 'Revoked') {
+      const label = status === 'Frozen' ? '冻结' : '撤销';
+      if (!(await bdsConfirm({ title: `确认${label}信用额度`, body: `确认${label}该客户的信用额度？${label}后立即影响新订单的信用校验。`, danger: true }))) return;
+    }
     try {
       await apiService.updateCreditLimitStatus(id, status);
       await loadCrmData();
@@ -429,6 +450,17 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
         </button>
       </div>
 
+      {/* R4：客户列表加载失败横幅（不吞错、可重试） */}
+      {relationsError && (
+        <div className="px-7 pb-3">
+          <div className="bds-alert danger">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{relationsError}</span>
+            <button onClick={loadRelations} className="bds-btn bds-btn-secondary shrink-0">重试</button>
+          </div>
+        </div>
+      )}
+
       {/* Tab 栏（BDS Tabs 下划线式） */}
       <div className="px-7 pb-3">
         <div className="bds-tabs">
@@ -456,9 +488,17 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
             <div className="glyph"><Users size={24} /></div>
             <div className="title">请先选择一个客户</div>
           </div>
-        ) : loading ? (
+        ) : loading || crmLoading ? (
+          /* crmLoading：切换客户后以加载态顶替内容区，避免旧客户数据残留被误读 */
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+          </div>
+        ) : crmError ? (
+          /* R4：CRM 数据加载失败——明示错误 + 重试，不把失败伪装成空数据 */
+          <div className="bds-alert danger">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{crmError}</span>
+            <button onClick={loadCrmData} className="bds-btn bds-btn-secondary shrink-0">重试</button>
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -916,6 +956,14 @@ function FollowUpsTab({
           );
         })}
       </div>
+
+      {/* R3 截断诚实化：listFollowUps 请求上限 50 条，触顶即可能存在未加载的更早记录——
+          明示截断而非伪装全量（商机管线服务端无 take 上限、全量返回，无需提示） */}
+      {followUps.length >= 50 && (
+        <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+          仅显示最近 {followUps.length} 条跟进记录（已达单次加载上限），更早的记录暂未加载
+        </p>
+      )}
     </div>
   );
 }
@@ -1298,7 +1346,7 @@ function OpportunityForm({
   onClose,
 }: {
   opportunity: Opportunity | null;
-  onSave: (input: OpportunityInput, id?: string) => void;
+  onSave: (input: OpportunityInput, id?: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(opportunity?.title ?? '');
@@ -1310,23 +1358,31 @@ function OpportunityForm({
   const [salesRepName, setSalesRepName] = useState(opportunity?.salesRepName ?? '');
   const [description, setDescription] = useState(opportunity?.description ?? '');
   const [notes, setNotes] = useState(opportunity?.notes ?? '');
+  // R5：保存防重——提交中禁用按钮，杜绝连点产生重复单据
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) return;
     if (!title.trim() || !amount) {
       bdsToast.warning('请填写商机标题和金额');
       return;
     }
-    onSave({
-      title: title.trim(),
-      amount: parseFloat(amount),
-      currency,
-      stage,
-      expectedCloseDate: expectedCloseDate || undefined,
-      source: source || undefined,
-      salesRepName: salesRepName || undefined,
-      description: description || undefined,
-      notes: notes || undefined,
-    }, opportunity?.id);
+    setSubmitting(true);
+    try {
+      await onSave({
+        title: title.trim(),
+        amount: parseFloat(amount),
+        currency,
+        stage,
+        expectedCloseDate: expectedCloseDate || undefined,
+        source: source || undefined,
+        salesRepName: salesRepName || undefined,
+        description: description || undefined,
+        notes: notes || undefined,
+      }, opportunity?.id);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -1372,7 +1428,10 @@ function OpportunityForm({
       </Field>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
+        <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+          {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          保存
+        </button>
       </div>
     </ModalShell>
   );
@@ -1388,7 +1447,7 @@ function FollowUpForm({
   followUp: FollowUpRecord | null;
   contacts: Contact[];
   opportunities: Opportunity[];
-  onSave: (input: FollowUpInput, id?: string) => void;
+  onSave: (input: FollowUpInput, id?: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [type, setType] = useState(followUp?.type ?? 'Call');
@@ -1400,23 +1459,31 @@ function FollowUpForm({
   const [opportunityId, setOpportunityId] = useState(followUp?.opportunityId ?? '');
   const [salesRepName, setSalesRepName] = useState(followUp?.salesRepName ?? '');
   const [notes, setNotes] = useState(followUp?.notes ?? '');
+  // R5：保存防重
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) return;
     if (!content.trim()) {
       bdsToast.warning('请填写跟进内容');
       return;
     }
-    onSave({
-      type,
-      content: content.trim(),
-      followUpAt,
-      contactId: contactId || undefined,
-      nextFollowUpAt: nextFollowUpAt || undefined,
-      nextFollowUpTopic: nextFollowUpTopic || undefined,
-      opportunityId: opportunityId || undefined,
-      salesRepName: salesRepName || undefined,
-      notes: notes || undefined,
-    }, followUp?.id);
+    setSubmitting(true);
+    try {
+      await onSave({
+        type,
+        content: content.trim(),
+        followUpAt,
+        contactId: contactId || undefined,
+        nextFollowUpAt: nextFollowUpAt || undefined,
+        nextFollowUpTopic: nextFollowUpTopic || undefined,
+        opportunityId: opportunityId || undefined,
+        salesRepName: salesRepName || undefined,
+        notes: notes || undefined,
+      }, followUp?.id);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -1464,7 +1531,10 @@ function FollowUpForm({
       </Field>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
+        <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+          {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          保存
+        </button>
       </div>
     </ModalShell>
   );
@@ -1474,7 +1544,7 @@ function CreditLimitForm({
   onSave,
   onClose,
 }: {
-  onSave: (input: CreditLimitInput) => void;
+  onSave: (input: CreditLimitInput) => Promise<void>;
   onClose: () => void;
 }) {
   const [totalLimit, setTotalLimit] = useState('');
@@ -1483,20 +1553,28 @@ function CreditLimitForm({
   const [validTo, setValidTo] = useState('');
   const [approvedBy, setApprovedBy] = useState('');
   const [notes, setNotes] = useState('');
+  // R5：保存防重
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) return;
     if (!totalLimit) {
       bdsToast.warning('请填写信用额度');
       return;
     }
-    onSave({
-      totalLimit: parseFloat(totalLimit),
-      currency,
-      validFrom,
-      validTo: validTo || undefined,
-      approvedBy: approvedBy || undefined,
-      notes: notes || undefined,
-    });
+    setSubmitting(true);
+    try {
+      await onSave({
+        totalLimit: parseFloat(totalLimit),
+        currency,
+        validFrom,
+        validTo: validTo || undefined,
+        approvedBy: approvedBy || undefined,
+        notes: notes || undefined,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -1527,7 +1605,10 @@ function CreditLimitForm({
       </Field>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
+        <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+          {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          保存
+        </button>
       </div>
     </ModalShell>
   );
@@ -1537,7 +1618,7 @@ function CustomerTierForm({
   onSave,
   onClose,
 }: {
-  onSave: (input: CustomerTierInput) => void;
+  onSave: (input: CustomerTierInput) => Promise<void>;
   onClose: () => void;
 }) {
   const [level, setLevel] = useState<CustomerTierLevel>('Silver');
@@ -1549,19 +1630,27 @@ function CustomerTierForm({
   const [validUntil, setValidUntil] = useState('');
   const [evaluatedBy, setEvaluatedBy] = useState('');
   const [notes, setNotes] = useState('');
+  // R5：保存防重
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    onSave({
-      level,
-      criteria: criteria || undefined,
-      discountRate: discountRate ? parseFloat(discountRate) : undefined,
-      paymentTermsDays: paymentTermsDays ? parseInt(paymentTermsDays, 10) : undefined,
-      creditPriority,
-      evaluatedAt,
-      validUntil: validUntil || undefined,
-      evaluatedBy: evaluatedBy || undefined,
-      notes: notes || undefined,
-    });
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSave({
+        level,
+        criteria: criteria || undefined,
+        discountRate: discountRate ? parseFloat(discountRate) : undefined,
+        paymentTermsDays: paymentTermsDays ? parseInt(paymentTermsDays, 10) : undefined,
+        creditPriority,
+        evaluatedAt,
+        validUntil: validUntil || undefined,
+        evaluatedBy: evaluatedBy || undefined,
+        notes: notes || undefined,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -1607,7 +1696,10 @@ function CustomerTierForm({
       </Field>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
+        <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+          {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          保存
+        </button>
       </div>
     </ModalShell>
   );
