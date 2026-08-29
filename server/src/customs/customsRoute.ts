@@ -691,11 +691,13 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
 
   // ══════════════════════════════════════════════════════════════
   // B3 组合文档（多对一数据聚合：多运单合并 PL / 多报告合并 IR 汇总）
-  // 即时性汇总产物——不登记 TradeDocument，预览/生成流式输出
+  // 批次 H3 起 MERGED_PL/CONTRACT 装配默认幂等登记 TradeDocument 台账（写库，
+  // 登记失败 warn 不阻断输出）→ 两端点按同文件写端点口径挂 requireWrite + scope 写门；
+  // MERGED_IR 不登记仍走同一端点级门禁（口径一致，不按 kind 分裂门禁）
   // ══════════════════════════════════════════════════════════════
 
   // POST /trade-documents/composite/preview.html — 组合文档 A4 预览（与生成 PDF 同源渲染）
-  router.post('/trade-documents/composite/preview.html', async (req: Request, res: Response) => {
+  router.post('/trade-documents/composite/preview.html', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { kind, sourceIds } = req.body ?? {};
       if (!isCompositeDocKind(kind)) return res.status(400).json({ error: `非法组合文档类型: ${kind}` });
@@ -711,8 +713,8 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  // POST /trade-documents/composite/generate.pdf — 组合文档生成 PDF（流式下载，不落盘归档）
-  router.post('/trade-documents/composite/generate.pdf', async (req: Request, res: Response) => {
+  // POST /trade-documents/composite/generate.pdf — 组合文档生成 PDF（流式下载，PDF 不落盘归档；台账登记见上）
+  router.post('/trade-documents/composite/generate.pdf', requireWrite, requireCustomsWrite, async (req: Request, res: Response) => {
     try {
       const { kind, sourceIds } = req.body ?? {};
       if (!isCompositeDocKind(kind)) return res.status(400).json({ error: `非法组合文档类型: ${kind}` });
