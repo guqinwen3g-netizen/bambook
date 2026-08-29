@@ -67,6 +67,8 @@ const WAREHOUSE_TYPES: Array<{ id: WarehouseType; label: string }> = [
 
 const ITEM_CATEGORIES = ['Fabric', 'Trimmings', 'Accessories', 'Garment', 'Other'];
 const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
+// R3：库存物料分页大小（后端 inventoryRoute 支持 limit/offset，上限 500）
+const ITEMS_PAGE_SIZE = 200;
 
 // BDS v2.1：semantic 与 bds-badge 语义变体同名（neutral/info/success/danger/warning），直接映射
 const MOVEMENT_TYPES: Array<{ id: StockMovementType; label: string; icon: React.ReactNode; semantic: StatusSemantic }> = [
@@ -120,6 +122,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
   );
   const [sampleFilterProductAssetId, setSampleFilterProductAssetId] = useState<string | null>(navProductFilter);
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [itemsTotal, setItemsTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,8 +189,13 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     } catch { /* 静默 */ }
   }, [itemForm.warehouseId]);
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
+  // R3：offset 分页（0=重置首屏，>0=加载更多追加）；total 真实后端计数驱动"加载更多"
+  const fetchItems = useCallback(async (offset = 0) => {
+    if (offset === 0) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
     try {
       const result = await apiService.listInventoryItems({
@@ -194,18 +203,21 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
         category: categoryFilter || undefined,
         search: searchQuery || undefined,
         lowStockOnly,
-        limit: 200,
+        limit: ITEMS_PAGE_SIZE,
+        offset,
       });
       // 计算 availableQuantity
       const itemsWithAvail = result.items.map(it => ({
         ...it,
         availableQuantity: Number(it.quantity) - Number(it.lockedQuantity),
       }));
-      setItems(itemsWithAvail);
+      setItems(prev => (offset === 0 ? itemsWithAvail : [...prev, ...itemsWithAvail]));
+      setItemsTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [warehouseFilter, categoryFilter, searchQuery, lowStockOnly]);
 
@@ -408,7 +420,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索物料..." className="bds-input sm pl-9" />
                   </div>
-                  <button onClick={fetchItems} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                  <button onClick={() => fetchItems()} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
@@ -587,6 +599,23 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                       </motion.div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* R3：分页状态 + 加载更多（后端 total 真实计数，limit=200/页） */}
+              {!loading && items.length > 0 && (
+                <div className="flex items-center justify-center gap-3 pt-3 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                  <span>已加载 {items.length} / 共 {itemsTotal} 条</span>
+                  {items.length < itemsTotal && (
+                    <button
+                      onClick={() => fetchItems(items.length)}
+                      disabled={loadingMore}
+                      className="bds-btn bds-btn-ghost"
+                    >
+                      {loadingMore ? <Loader2 size={14} className="animate-spin" /> : null}
+                      <span>{loadingMore ? '加载中...' : '加载更多'}</span>
+                    </button>
+                  )}
                 </div>
               )}
 

@@ -30,6 +30,7 @@ import {
   MapPin,
   BarChart3,
   ArrowRight,
+  AlertCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -162,6 +163,20 @@ function formatDateTime(value: string | null | undefined): string {
   return d.toLocaleString('zh-CN', { hour12: false });
 }
 
+// ─── 加载失败横幅（bds-alert + 重试）：五路 load 入口共用，断网/500 不再误显"暂无数据"空态 ───
+function LoadErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="bds-alert danger m-3" role="alert">
+      <AlertCircle className="w-4 h-4 shrink-0" />
+      <span className="flex-1 min-w-0">{message}</span>
+      <button onClick={onRetry} className="bds-btn bds-btn-ghost shrink-0 ml-auto">
+        <RefreshCw className="w-3.5 h-3.5" />
+        重试
+      </button>
+    </div>
+  );
+}
+
 // ==================== 组件 Props ====================
 
 interface SeasonsManagerProps {
@@ -243,6 +258,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | SeasonStatus>('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -250,10 +266,12 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
   const [detail, setDetail] = useState<Season | null>(null);
   const [review, setReview] = useState<SeasonReview | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [generatingReview, setGeneratingReview] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
+  const [savingSeason, setSavingSeason] = useState(false);
 
   // PageHeader 主操作注册：新建季度
   useEffect(() => {
@@ -263,6 +281,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
   // ── 加载季度列表 ──
   const loadSeasons = useCallback(async () => {
     setLoading(true);
+    setListError(null);
     try {
       const result = await apiService.listSeasons({
         status: statusFilter || undefined,
@@ -273,8 +292,9 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
       if (!selectedId && result.items.length > 0) {
         setSelectedId(result.items[0].id);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SeasonsManager] loadSeasons failed', e);
+      setListError(e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -290,18 +310,26 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
     if (!selectedId) {
       setDetail(null);
       setReview(null);
+      setDetailError(null);
       return;
     }
     setDetailLoading(true);
+    setDetailError(null);
     try {
       const [item, reviewData] = await Promise.all([
         apiService.getSeason(selectedId),
         apiService.getSeasonReview(selectedId),
       ]);
+      // apiService.getSeason 服务层 catch→null 静默降级：组件层把 null 详情判为加载失败，
+      // 否则断网/500 会落入"无数据"假象（review 为 null 是合法业务态，不判）
+      if (!item) throw new Error('详情数据不可用（网络或服务异常）');
       setDetail(item);
       setReview(reviewData);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SeasonsManager] loadSeasonDetail failed', e);
+      setDetail(null);
+      setReview(null);
+      setDetailError(e?.message || String(e));
     } finally {
       setDetailLoading(false);
     }
@@ -317,6 +345,8 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
 
   // ── 操作 ──
   const handleSave = async (input: SeasonInput | SeasonPatch, id?: string) => {
+    if (savingSeason) return;
+    setSavingSeason(true);
     try {
       if (id) {
         await apiService.updateSeason(id, input as SeasonPatch);
@@ -328,6 +358,8 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
       await refreshAll();
     } catch (e: any) {
       bdsToast.danger(`保存季度失败：${e?.message || e}`);
+    } finally {
+      setSavingSeason(false);
     }
   };
 
@@ -404,6 +436,8 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
             </div>
+          ) : listError ? (
+            <LoadErrorBanner message={`加载季度列表失败：${listError}`} onRetry={loadSeasons} />
           ) : seasons.length === 0 ? (
             <div className="bds-empty">
               <div className="glyph"><CalendarRange className="w-6 h-6" /></div>
@@ -440,7 +474,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
           )}
         </div>
         <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
-          共 {total} 个季度
+          共 {total} 个季度{!listError && total > seasons.length ? `（仅加载前 ${seasons.length} 条，请用搜索/筛选缩小范围）` : ''}
         </div>
       </div>
 
@@ -454,6 +488,12 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
         ) : detailLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+          </div>
+        ) : detailError ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-full max-w-md">
+              <LoadErrorBanner message={`加载季度详情失败：${detailError}`} onRetry={loadDetail} />
+            </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
@@ -633,6 +673,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
         {showForm && (
           <SeasonForm
             season={editingSeason}
+            saving={savingSeason}
             onSave={handleSave}
             onClose={() => { setShowForm(false); setEditingSeason(null); }}
           />
@@ -648,12 +689,14 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [tags, setTags] = useState<TrendTag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tagsError, setTagsError] = useState<string | null>(null);
   const [seasonFilter, setSeasonFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState<'' | TrendTagType>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingTag, setEditingTag] = useState<TrendTag | null>(null);
+  const [savingTag, setSavingTag] = useState(false);
 
   // PageHeader 主操作注册：新建标签
   useEffect(() => {
@@ -676,14 +719,16 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
 
   const loadTags = useCallback(async () => {
     setLoading(true);
+    setTagsError(null);
     try {
       const items = await apiService.listTrendTags({
         seasonId: seasonFilter || undefined,
         type: typeFilter || undefined,
       });
       setTags(items);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SeasonsManager] loadTrendTags failed', e);
+      setTagsError(e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -694,6 +739,8 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
   }, [loadTags]);
 
   const handleSave = async (input: TrendTagInput, tagId?: string) => {
+    if (savingTag) return;
+    setSavingTag(true);
     try {
       if (tagId) {
         await apiService.updateTrendTag(tagId, input);
@@ -705,6 +752,8 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
       await loadTags();
     } catch (e: any) {
       bdsToast.danger(`保存趋势标签失败：${e?.message || e}`);
+    } finally {
+      setSavingTag(false);
     }
   };
 
@@ -778,6 +827,8 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
+        ) : tagsError ? (
+          <LoadErrorBanner message={`加载趋势标签失败：${tagsError}`} onRetry={loadTags} />
         ) : tags.length === 0 ? (
           <div className="bds-empty">
             <div className="glyph"><TrendingUp className="w-6 h-6" /></div>
@@ -885,6 +936,7 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
           <TrendTagForm
             tag={editingTag}
             seasons={seasons}
+            saving={savingTag}
             onSave={handleSave}
             onClose={() => { setShowForm(false); setEditingTag(null); }}
           />
@@ -993,6 +1045,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [shows, setShows] = useState<TradeShow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showsError, setShowsError] = useState<string | null>(null);
   const [seasonFilter, setSeasonFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | TradeShowStatus>('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1000,12 +1053,16 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
   const [detail, setDetail] = useState<TradeShow | null>(null);
   const [roi, setRoi] = useState<TradeShowROI | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingShow, setEditingShow] = useState<TradeShow | null>(null);
+  const [savingShow, setSavingShow] = useState(false);
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [editingLead, setEditingLead] = useState<TradeShowLead | null>(null);
+  const [savingLead, setSavingLead] = useState(false);
   const [convertingLead, setConvertingLead] = useState<TradeShowLead | null>(null);
+  const [converting, setConverting] = useState(false);
 
   // PageHeader 主操作注册：新建展会
   useEffect(() => {
@@ -1029,6 +1086,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
   // ── 加载展会列表 ──
   const loadShows = useCallback(async () => {
     setLoading(true);
+    setShowsError(null);
     try {
       const items = await apiService.listTradeShows({
         seasonId: seasonFilter || undefined,
@@ -1038,8 +1096,9 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       if (!selectedId && items.length > 0) {
         setSelectedId(items[0].id);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SeasonsManager] loadTradeShows failed', e);
+      setShowsError(e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -1054,15 +1113,22 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
     if (!selectedId) {
       setDetail(null);
       setRoi(null);
+      setDetailError(null);
       return;
     }
     setDetailLoading(true);
+    setDetailError(null);
     try {
       const data = await apiService.getTradeShow(selectedId);
-      setDetail(data?.item ?? null);
-      setRoi(data?.roi ?? null);
-    } catch (e) {
+      // apiService.getTradeShow 服务层 catch→null 静默降级：组件层把 null 判为加载失败
+      if (!data) throw new Error('详情数据不可用（网络或服务异常）');
+      setDetail(data.item ?? null);
+      setRoi(data.roi ?? null);
+    } catch (e: any) {
       console.error('[SeasonsManager] loadTradeShowDetail failed', e);
+      setDetail(null);
+      setRoi(null);
+      setDetailError(e?.message || String(e));
     } finally {
       setDetailLoading(false);
     }
@@ -1078,6 +1144,8 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
 
   // ── 展会操作 ──
   const handleSaveShow = async (input: TradeShowInput, showId?: string, status?: TradeShowStatus) => {
+    if (savingShow) return;
+    setSavingShow(true);
     try {
       if (showId) {
         await apiService.updateTradeShow(showId, { ...input, status });
@@ -1089,6 +1157,8 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       await refreshAll();
     } catch (e: any) {
       bdsToast.danger(`保存展会失败：${e?.message || e}`);
+    } finally {
+      setSavingShow(false);
     }
   };
 
@@ -1106,6 +1176,8 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
   // ── 线索操作 ──
   const handleSaveLead = async (input: TradeShowLeadInput, leadId?: string, status?: TradeShowLeadStatus) => {
     if (!selectedId) return;
+    if (savingLead) return;
+    setSavingLead(true);
     try {
       if (leadId) {
         await apiService.updateTradeShowLead(leadId, { ...input, status });
@@ -1117,6 +1189,8 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       await loadDetail();
     } catch (e: any) {
       bdsToast.danger(`保存线索失败：${e?.message || e}`);
+    } finally {
+      setSavingLead(false);
     }
   };
 
@@ -1141,12 +1215,16 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
 
   const handleConvertLead = async (relationId: string) => {
     if (!convertingLead) return;
+    if (converting) return;
+    setConverting(true);
     try {
       await apiService.convertTradeShowLead(convertingLead.id, relationId);
       setConvertingLead(null);
       await loadDetail();
     } catch (e: any) {
       bdsToast.danger(`线索转化失败：${e?.message || e}`);
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -1200,6 +1278,8 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
             </div>
+          ) : showsError ? (
+            <LoadErrorBanner message={`加载展会列表失败：${showsError}`} onRetry={loadShows} />
           ) : shows.length === 0 ? (
             <div className="bds-empty">
               <div className="glyph"><Store className="w-6 h-6" /></div>
@@ -1256,6 +1336,12 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
         ) : detailLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+          </div>
+        ) : detailError ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-full max-w-md">
+              <LoadErrorBanner message={`加载展会详情失败：${detailError}`} onRetry={loadDetail} />
+            </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
@@ -1442,6 +1528,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
           <TradeShowForm
             show={editingShow}
             seasons={seasons}
+            saving={savingShow}
             onSave={handleSaveShow}
             onClose={() => { setShowForm(false); setEditingShow(null); }}
           />
@@ -1449,6 +1536,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
         {showLeadForm && (
           <LeadForm
             lead={editingLead}
+            saving={savingLead}
             onSave={handleSaveLead}
             onClose={() => { setShowLeadForm(false); setEditingLead(null); }}
           />
@@ -1456,6 +1544,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
         {convertingLead && (
           <ConvertLeadForm
             lead={convertingLead}
+            converting={converting}
             onSave={handleConvertLead}
             onClose={() => setConvertingLead(null)}
           />
@@ -1511,10 +1600,12 @@ const inputClass = "bds-input";
 
 function SeasonForm({
   season,
+  saving,
   onSave,
   onClose,
 }: {
   season: Season | null;
+  saving: boolean;
   onSave: (input: SeasonInput | SeasonPatch, id?: string) => void;
   onClose: () => void;
 }) {
@@ -1662,14 +1753,16 @@ function SeasonForm({
       </div>
 
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
+          disabled={saving}
           className="bds-btn bds-btn-primary"
         >
-          保存
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>
@@ -1681,11 +1774,13 @@ function SeasonForm({
 function TrendTagForm({
   tag,
   seasons,
+  saving,
   onSave,
   onClose,
 }: {
   tag: TrendTag | null;
   seasons: Season[];
+  saving: boolean;
   onSave: (input: TrendTagInput, tagId?: string) => void;
   onClose: () => void;
 }) {
@@ -1774,14 +1869,16 @@ function TrendTagForm({
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
+          disabled={saving}
           className="bds-btn bds-btn-primary"
         >
-          保存
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>
@@ -1793,11 +1890,13 @@ function TrendTagForm({
 function TradeShowForm({
   show,
   seasons,
+  saving,
   onSave,
   onClose,
 }: {
   show: TradeShow | null;
   seasons: Season[];
+  saving: boolean;
   onSave: (input: TradeShowInput, showId?: string, status?: TradeShowStatus) => void;
   onClose: () => void;
 }) {
@@ -1889,14 +1988,16 @@ function TradeShowForm({
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
+          disabled={saving}
           className="bds-btn bds-btn-primary"
         >
-          保存
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>
@@ -1907,10 +2008,12 @@ function TradeShowForm({
 
 function LeadForm({
   lead,
+  saving,
   onSave,
   onClose,
 }: {
   lead: TradeShowLead | null;
+  saving: boolean;
   onSave: (input: TradeShowLeadInput, leadId?: string, status?: TradeShowLeadStatus) => void;
   onClose: () => void;
 }) {
@@ -1983,14 +2086,16 @@ function LeadForm({
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
+          disabled={saving}
           className="bds-btn bds-btn-primary"
         >
-          保存
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>
@@ -2001,10 +2106,12 @@ function LeadForm({
 
 function ConvertLeadForm({
   lead,
+  converting,
   onSave,
   onClose,
 }: {
   lead: TradeShowLead;
+  converting: boolean;
   onSave: (relationId: string) => void;
   onClose: () => void;
 }) {
@@ -2061,14 +2168,16 @@ function ConvertLeadForm({
         )}
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={converting} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
+          disabled={converting}
           className="bds-btn bds-btn-primary"
         >
-          确认转化
+          {converting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+          {converting ? '转化中...' : '确认转化'}
         </button>
       </div>
     </ModalShell>

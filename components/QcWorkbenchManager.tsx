@@ -176,6 +176,22 @@ function isOverdue(a: QCAssignment): boolean {
   return a.dueDate < todayLocal();
 }
 
+// ─── 加载失败卡（错误徽标 + 错误消息 + 重试按钮）───
+// 模式同本文件 ChainReportsList 的错误分支；三 Panel（assignments/locations/businessLines）共用，
+// 断网/500 时不再落"暂无"空态误导。
+function LoadErrorCard({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="bds-card flat text-center" style={{ padding: 'var(--space-6) var(--space-4)' }}>
+      <span className="bds-badge sm danger">加载失败</span>
+      <div className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{message}</div>
+      <button onClick={onRetry} className="bds-btn bds-btn-ghost mt-2">
+        <RefreshCw size={14} />
+        <span>重试</span>
+      </button>
+    </div>
+  );
+}
+
 // ==================== 共享表单原语 ====================
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -293,12 +309,14 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
 function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
   const [workbench, setWorkbench] = useState<QcWorkbenchData>({ assigned: [], inProgress: [], completed: [] });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [qcUserFilter, setQcUserFilter] = useState('');
   const [users, setUsers] = useState<UserAccountOption[]>([]);
   const [usersLoadFailed, setUsersLoadFailed] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [completingAssignment, setCompletingAssignment] = useState<QCAssignment | null>(null);
 
   // ── B2 运营域单据：验货报告文档预览/生成（服务端模板真源，与单据中心归档同源） ──
@@ -343,10 +361,12 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
   // ── 加载工作台（服务端按状态聚合） ──
   const loadWorkbench = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       setWorkbench(await apiService.getQcWorkbench(qcUserFilter || undefined));
-    } catch (e) {
+    } catch (e: any) {
       console.error('[QcWorkbenchManager] getQcWorkbench failed', e);
+      setLoadError(e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -422,12 +442,16 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
   };
 
   const handleCreate = async (input: QCAssignmentInput) => {
+    if (creating) return;
+    setCreating(true);
     try {
       await apiService.createQcAssignment(input);
       setShowForm(false);
       await loadWorkbench();
     } catch (e: any) {
       bdsToast.danger(`新建验货任务失败：${e?.message || e}`);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -523,6 +547,12 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+        </div>
+      ) : loadError ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-md">
+            <LoadErrorCard message={`加载验货任务失败：${loadError}`} onRetry={loadWorkbench} />
+          </div>
         </div>
       ) : totalCount === 0 ? (
         <div className="bds-empty flex-1 justify-center">
@@ -643,6 +673,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
             users={users}
             usersLoadFailed={usersLoadFailed}
             initialOrderId={primedOrderId}
+            saving={creating}
             onSave={handleCreate}
             onClose={() => { setShowForm(false); setPrimedOrderId(null); }}
           />
@@ -689,12 +720,14 @@ function AssignmentForm({
   users,
   usersLoadFailed,
   initialOrderId,
+  saving,
   onSave,
   onClose,
 }: {
   users: UserAccountOption[];
   usersLoadFailed: boolean;
   initialOrderId?: string | null;
+  saving: boolean;
   onSave: (input: QCAssignmentInput) => void;
   onClose: () => void;
 }) {
@@ -870,11 +903,12 @@ function AssignmentForm({
         <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">
-          保存
+        <button onClick={handleSubmit} disabled={saving} className="bds-btn bds-btn-primary">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>
@@ -1154,8 +1188,10 @@ function CompleteAssignmentForm({
 function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
   const [locations, setLocations] = useState<QCLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingLocation, setEditingLocation] = useState<QCLocation | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // 主操作上收 PageHeader：注册「新建驻地」触发器（Panel 卸载即注销）
   useEffect(() => {
@@ -1165,10 +1201,12 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
 
   const loadLocations = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       setLocations(await apiService.listQcLocations());
-    } catch (e) {
+    } catch (e: any) {
       console.error('[QcWorkbenchManager] listQcLocations failed', e);
+      setLoadError(e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -1179,6 +1217,8 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
   }, [loadLocations]);
 
   const handleSave = async (input: QCLocationInput, id?: string) => {
+    if (saving) return;
+    setSaving(true);
     try {
       if (id) {
         const { code: _code, ...patch } = input;
@@ -1191,6 +1231,8 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
       await loadLocations();
     } catch (e: any) {
       bdsToast.danger(`保存驻地失败：${e?.message || e}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1225,6 +1267,10 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+          </div>
+        ) : loadError ? (
+          <div className="max-w-md mx-auto">
+            <LoadErrorCard message={`加载驻地失败：${loadError}`} onRetry={loadLocations} />
           </div>
         ) : locations.length === 0 ? (
           <div className="bds-empty">
@@ -1283,6 +1329,7 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
         {showForm && (
           <LocationForm
             location={editingLocation}
+            saving={saving}
             onSave={handleSave}
             onClose={() => { setShowForm(false); setEditingLocation(null); }}
           />
@@ -1296,10 +1343,12 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
 
 function LocationForm({
   location,
+  saving,
   onSave,
   onClose,
 }: {
   location: QCLocation | null;
+  saving: boolean;
   onSave: (input: QCLocationInput, id?: string) => void;
   onClose: () => void;
 }) {
@@ -1367,11 +1416,12 @@ function LocationForm({
         <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">
-          保存
+        <button onClick={handleSubmit} disabled={saving} className="bds-btn bds-btn-primary">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>
@@ -1383,8 +1433,10 @@ function LocationForm({
 function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
   const [lines, setLines] = useState<BusinessLine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingLine, setEditingLine] = useState<BusinessLine | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // 主操作上收 PageHeader：注册「新建业务线」触发器（Panel 卸载即注销）
   useEffect(() => {
@@ -1395,10 +1447,12 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
 
   const loadLines = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       setLines(await apiService.listBusinessLines());
-    } catch (e) {
+    } catch (e: any) {
       console.error('[QcWorkbenchManager] listBusinessLines failed', e);
+      setLoadError(e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -1409,6 +1463,8 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
   }, [loadLines]);
 
   const handleSave = async (input: BusinessLineInput | BusinessLinePatch, id?: string) => {
+    if (saving) return;
+    setSaving(true);
     try {
       if (id) {
         await apiService.updateBusinessLine(id, input as BusinessLinePatch);
@@ -1420,6 +1476,8 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
       await loadLines();
     } catch (e: any) {
       bdsToast.danger(`保存业务线失败：${e?.message || e}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1465,6 +1523,12 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+        </div>
+      ) : loadError ? (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="w-full max-w-md">
+            <LoadErrorCard message={`加载业务线失败：${loadError}`} onRetry={loadLines} />
+          </div>
         </div>
       ) : lines.length === 0 ? (
         <div className="bds-empty flex-1 justify-center">
@@ -1545,6 +1609,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
         {showForm && (
           <BusinessLineForm
             line={editingLine}
+            saving={saving}
             onSave={handleSave}
             onClose={() => { setShowForm(false); setEditingLine(null); }}
           />
@@ -1558,10 +1623,12 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
 
 function BusinessLineForm({
   line,
+  saving,
   onSave,
   onClose,
 }: {
   line: BusinessLine | null;
+  saving: boolean;
   onSave: (input: BusinessLineInput | BusinessLinePatch, id?: string) => void;
   onClose: () => void;
 }) {
@@ -1656,11 +1723,12 @@ function BusinessLineForm({
         <textarea className="bds-input bds-textarea" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">
-          保存
+        <button onClick={handleSubmit} disabled={saving} className="bds-btn bds-btn-primary">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+          {saving ? '保存中...' : '保存'}
         </button>
       </div>
     </ModalShell>

@@ -63,8 +63,13 @@ import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
+
+// R3：MES 各 Tab 渲染上限（apiService MES list 签名无 limit/offset 参数、后端 mesRoute
+// 无分页返回全量 total=items.length——组件层截断诚实化：全量取回但仅渲染前 N 条并显式提示）
+const MES_LIST_RENDER_LIMIT = 200;
 
 const WS_TYPES: Array<{ id: WorkStationType; label: string }> = [
   { id: 'Sewing', label: '缝纫' },
@@ -404,32 +409,42 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     finally { setActionLoading(null); }
   };
 
-  // ── 通用删除 ──
+  // ── 通用删除（R5：全部先经 bdsConfirm danger 确认，防误删） ──
   const deletePlan = async (id: string) => {
+    const plan = plans.find(p => p.id === id);
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除排产单「${plan?.planNumber || id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:plan:${id}`);
     try { await apiService.deleteProductionPlan(id); await fetchPlans(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
   const deleteWs = async (id: string) => {
+    const ws = workStations.find(w => w.id === id);
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除工位「${ws?.name || ws?.code || id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:ws:${id}`);
     try { await apiService.deleteWorkStation(id); await fetchWorkStations(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
   const deleteRule = async (id: string) => {
+    const rule = pieceRateRules.find(r => r.id === id);
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除计件规则「${rule ? `${rule.code} ${rule.name}` : id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:rule:${id}`);
     try { await apiService.deletePieceRateRule(id); await fetchPieceRateRules(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
   const deleteRecord = async (id: string) => {
+    const rec = pieceRateRecords.find(r => r.id === id);
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除计件记录（${rec?.employeeName || rec?.employeeId || '未知员工'} · ${rec?.workDate || '—'}）？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:record:${id}`);
     try { await apiService.deletePieceRateRecord(id); await fetchPieceRateRecords(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
   const deleteOso = async (id: string) => {
+    const oso = outsourcingOrders.find(o => o.id === id);
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除外协订单「${oso?.orderNumber || id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:oso:${id}`);
     try { await apiService.deleteOutsourcingOrder(id); await fetchOutsourcing(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
@@ -549,8 +564,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               ) : plans.length === 0 ? (
                 <EmptyState icon={<CalendarClock size={24} />} text="暂无排产单" />
               ) : (
+                <>
                 <div className="space-y-2">
-                  {plans.map((plan, i) => {
+                  {plans.slice(0, MES_LIST_RENDER_LIMIT).map((plan, i) => {
                     const semantic = statusSemanticOf(PLAN_STATUSES, plan.status);
                     const progress = Number(plan.plannedQuantity) > 0
                       ? Math.min(100, Math.round((Number(plan.actualQuantity) / Number(plan.plannedQuantity)) * 100))
@@ -623,6 +639,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     );
                   })}
                 </div>
+                <TruncationHint total={plans.length} />
+                </>
               )}
 
               {showPlanForm && (
@@ -680,8 +698,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {workStations.length === 0 ? (
                 <EmptyState icon={<Cog size={24} />} text="暂无工位" />
               ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {workStations.map((ws, i) => (
+                  {workStations.slice(0, MES_LIST_RENDER_LIMIT).map((ws, i) => (
                     <motion.div key={ws.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} className="bds-card">
                       <div className="flex items-start justify-between">
                         <div className="min-w-0">
@@ -708,6 +727,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     </motion.div>
                   ))}
                 </div>
+                <TruncationHint total={workStations.length} />
+                </>
               )}
 
               {showWsForm && (
@@ -755,8 +776,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {visibleOutsourcing.length === 0 ? (
                 <EmptyState icon={<Send size={24} />} text={navRelationFilter ? '该供应商暂无外协订单' : '暂无外协订单'} />
               ) : (
+                <>
                 <div className="space-y-2">
-                  {visibleOutsourcing.map((oso, i) => {
+                  {visibleOutsourcing.slice(0, MES_LIST_RENDER_LIMIT).map((oso, i) => {
                     const semantic = statusSemanticOf(OUTSOURCING_STATUSES, oso.status);
                     return (
                       <motion.div key={oso.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -824,6 +846,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     );
                   })}
                 </div>
+                <TruncationHint total={visibleOutsourcing.length} />
+                </>
               )}
 
               {showOsoForm && (
@@ -873,8 +897,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {workHours.length === 0 ? (
                 <EmptyState icon={<Clock size={24} />} text="暂无工时记录" />
               ) : (
+                <>
                 <div className="space-y-2">
-                  {workHours.map((wh, i) => (
+                  {workHours.slice(0, MES_LIST_RENDER_LIMIT).map((wh, i) => (
                     <motion.div key={wh.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }} className="bds-card flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
                       <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />
                       <div className="flex-1 min-w-0">
@@ -891,6 +916,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     </motion.div>
                   ))}
                 </div>
+                <TruncationHint total={workHours.length} />
+                </>
               )}
 
               {showWhForm && (
@@ -933,8 +960,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {pieceRateRules.length === 0 ? (
                 <EmptyState icon={<Award size={24} />} text="暂无计件规则" />
               ) : (
+                <>
                 <div className="space-y-2">
-                  {pieceRateRules.map((rule, i) => (
+                  {pieceRateRules.slice(0, MES_LIST_RENDER_LIMIT).map((rule, i) => (
                     <motion.div key={rule.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }} className="bds-card flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
                       <Award size={14} style={{ color: 'var(--text-tertiary)' }} />
                       <div className="flex-1 min-w-0">
@@ -957,6 +985,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     </motion.div>
                   ))}
                 </div>
+                <TruncationHint total={pieceRateRules.length} />
+                </>
               )}
 
               {showRuleForm && (
@@ -1000,8 +1030,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {pieceRateRecords.length === 0 ? (
                 <EmptyState icon={<Award size={24} />} text="暂无计件记录" />
               ) : (
+                <>
                 <div className="space-y-2">
-                  {pieceRateRecords.map((rec, i) => {
+                  {pieceRateRecords.slice(0, MES_LIST_RENDER_LIMIT).map((rec, i) => {
                     const semantic = statusSemanticOf(PIECE_RATE_STATUSES, rec.status);
                     return (
                       <motion.div key={rec.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }} className="bds-card flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
@@ -1036,6 +1067,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     );
                   })}
                 </div>
+                <TruncationHint total={pieceRateRecords.length} />
+                </>
               )}
 
               {showRecordForm && (
@@ -1077,6 +1110,14 @@ const EmptyState: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, t
     <div className="title">{text}</div>
   </div>
 );
+
+// R3：超出渲染上限时的显式截断提示（total = 后端返回全量条数）
+const TruncationHint: React.FC<{ total: number }> = ({ total }) =>
+  total > MES_LIST_RENDER_LIMIT ? (
+    <div className="text-center text-[11px] py-2" style={{ color: 'var(--text-tertiary)' }}>
+      共 {total} 条，仅显示前 {MES_LIST_RENDER_LIMIT} 条
+    </div>
+  ) : null;
 
 const ActionButton: React.FC<{
   onClick: () => void;

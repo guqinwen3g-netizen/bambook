@@ -241,17 +241,38 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
   const navFocusEntityId = navCtx?.focusEntityId ?? null;
 
   // 手动刷新（从后端拉取最新数据，不阻塞渲染）
+  // R3 统一 limit=200：App 快照经 dataHubService 无参拉取 → 后端默认 limit=50（route.ts）；
+  // apiService.listDevelopmentCases 当前签名仅 endpoint（Lane-A 补参中）、developmentService 只回数组，
+  // total 需原始响应，故组件层直取 fetch（同 handleReview 模式），拉齐 200 并读取 total 做截断提示。
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const loadCases = useCallback(async () => {
+    const base = apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl('/v1/development?limit=200', base);
+    const res = await fetch(url, { headers: apiService.getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = typeof data?.error === 'string' ? data.error : data?.error?.message;
+      throw new Error(msg || `HTTP ${res.status}`);
+    }
+    // 结构异常（如本地 fallback 只读模式）时保留 App 快照现状，不清空
+    if (!Array.isArray(data.cases)) throw new Error('响应缺少 cases 列表');
+    setCases(data.cases);
+    setTotalCount(typeof data.total === 'number' ? data.total : null);
+  }, [setCases]);
+
   const handleRefresh = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const data = await developmentService.listDevelopmentCases(undefined, { limit: 200 });
-      setCases(data);
-    } catch (err) {
-      console.error('[DevelopmentManager] refresh failed:', err);
+      await loadCases();
+    } catch (err: any) {
+      bdsToast.danger(`刷新开发单失败：${err?.message || err}`);
     } finally {
       setIsRefreshing(false);
     }
-  }, [setCases]);
+  }, [loadCases]);
+
+  // 挂载即拉齐 limit=200（覆盖 App 快照默认 50 截断；失败走 bdsToast）
+  useEffect(() => { void handleRefresh(); }, [handleRefresh]);
 
   // ── D4 关系智库档案（新建/编辑表单客户/供应商下拉数据源，与订单/财务各面板同通道）──
   const [relations, setRelations] = useState<Relation[]>([]);
@@ -594,6 +615,15 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </option>
               ))}
             </select>
+            {/* R3：total 显示 + 截断提示（后端 limit 上限 200，超出提示用筛选缩小范围） */}
+            {totalCount != null && (
+              <span
+                className="bds-badge sm neutral shrink-0"
+                title={totalCount > cases.length ? '单次最多加载 200 条，请用搜索/筛选缩小范围' : '开发单总数'}
+              >
+                共 {totalCount} 单{totalCount > cases.length ? ` · 已加载前 ${cases.length} 条` : ''}
+              </span>
+            )}
             {/* DR-057 v2.1 寄样成本统计：当前筛选范围邮寄费合计（币种随各开发单客户合同） */}
             {(() => {
               const total = filteredCases.reduce((sum, c) => sum + (Number(c.sampleShippingFee) || 0), 0);

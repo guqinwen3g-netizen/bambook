@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ToggleSwitch from './ui/ToggleSwitch';
 import CapsuleDateInput from './ui/CapsuleDateInput';
@@ -95,6 +95,8 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 初始加载失败专用态：断网/500 时显式提示 + 重试，不再静默吞错落空白面板
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // ── 统一规范真源（orderUiSpec）：玻璃面板 + inset 子区块，与详情页所有面板同构 ──
   const spec = createOrderUiSpec(isDarkMode);
@@ -112,14 +114,19 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   const inspection = inspections.find(i => (i.inspectionType ?? 'final') === inspType) ?? null;
 
   const fetchPipeline = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const data = await productionService.getPipeline(orderId);
       setStages(data.stages);
       setChecklist(data.checklist);
       setInspections(data.inspections && data.inspections.length > 0 ? data.inspections : (data.inspection ? [data.inspection] : []));
       setOutsourcing(data.outsourcing ?? []);
-    } catch { /* ignore */ }
-    setLoading(false);
+    } catch (e: any) {
+      setLoadError(e?.message || '网络或服务异常');
+    } finally {
+      setLoading(false);
+    }
   }, [orderId]);
 
   useEffect(() => { fetchPipeline(); }, [fetchPipeline]);
@@ -207,7 +214,23 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
         </div>
       )}
 
-      {/* 10-stage progress */}
+      {loadError && (
+        <div className={cx('mb-3', spec.bannerDanger)} role="alert">
+          <AlertCircle size={14} />
+          <span className="flex-1 min-w-0">加载生产管线失败：{loadError}</span>
+          <button
+            onClick={fetchPipeline}
+            disabled={loading}
+            className={cx(spec.btnBase, spec.btnGhost, 'ml-auto shrink-0')}
+          >
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            重试
+          </button>
+        </div>
+      )}
+
+      {/* 初始加载失败且无数据时不再渲染下方空白分区（避免误导为"无数据"） */}
+      {!(loadError && stages.length === 0) && (
       <div className="flex flex-col gap-3.5">
       <div className={cx('rounded-inset border p-4', surfaceClass)}>
         <div className="space-y-1.5">
@@ -544,6 +567,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
         </div>
       )}
       </div>
+      )}
     </SidePanelContainer>
   );
 };
