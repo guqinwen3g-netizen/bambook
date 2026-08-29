@@ -8,7 +8,7 @@ import {
   Check, X, Paperclip,
   RefreshCcw, Settings, Lock,
   Inbox, Send, FileText, AlertCircle,
-  MoreHorizontal, CornerUpLeft, Reply, Forward, Plus, Edit, ChevronDown,
+  MoreHorizontal, CornerUpLeft, Reply, Forward, Plus, ChevronDown,
   Clock, CheckCircle2, ShieldAlert, ShieldCheck, Filter, List,
   ReplyAll, MoreVertical, PanelLeftClose, PanelLeft, PenLine,
   Tags, CalendarPlus, Search
@@ -42,7 +42,6 @@ interface EmailProps {
   orders: Order[];
   onAddKnowledge: (item: KnowledgeItem) => void;
   isDarkMode?: boolean;
-  isMobile?: boolean;
 }
 
 const getInitials = (sender: string) => {
@@ -73,9 +72,7 @@ const formatFullTime = (dateStr: string | Date) => {
 
 const emailApiUrl = (path: string) => `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
 
-const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orders, onAddKnowledge, isDarkMode = false, isMobile = false }) => {
-  // Mobile Navigation State
-  const [mobileView, setMobileView] = useState<'list' | 'detail' | 'compose'>('list');
+const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orders, onAddKnowledge, isDarkMode = false }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentBox, setCurrentBox] = useState('INBOX');
   // Lightweight State: Separate body from list
@@ -840,7 +837,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     if (String(email.id).startsWith('EML__')) {
       setSelectedEmailBody(email.body || '(无正文)');
       setSelectedEmailAttachments(email.attachments || []);
-      if (isMobile) setMobileView('detail');
       return;
     }
 
@@ -907,10 +903,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     } catch (e: any) {
       console.error(`Failed to load detail for ${uid}:`, e);
       setSelectedEmailBody(`内容加载失败：${e.message || 'Unknown error'}`);
-    }
-
-    if (isMobile) {
-      setMobileView('detail');
     }
   };
 
@@ -1654,25 +1646,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       </aside>
 
       {/* 2. Email List (Middle Pane) */}
-      <div className={`flex flex-col border-r shrink-0 z-10 box-content transition-colors duration-300 pointer-events-auto bg-transparent border-[var(--border-c-default)] ${isMobile ? 'w-full absolute inset-0' : 'w-[340px] 3xl:w-[390px] relative'}`}>
-        {/* Mobile Header for Folder Selection */}
-        {isMobile && (
-          <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-c-default)] bds-surface">
-            <h2 className="text-lg font-light text-[var(--text-primary)]">{currentBox}</h2>
-            <div className="flex gap-2">
-              <button onClick={() => setIsComposing(true)} className="bds-btn bds-btn-ghost bds-btn-icon">
-                <Edit size={18} strokeWidth={1} />
-              </button>
-              <button onClick={() => handleSync(currentBox)} className={`bds-btn bds-btn-ghost bds-btn-icon ${isSyncing ? 'animate-spin' : ''}`}>
-                <RefreshCcw size={18} strokeWidth={1} />
-              </button>
-            </div>
-          </div>
-        )}
-
+      <div className="flex flex-col border-r shrink-0 z-10 box-content transition-colors duration-300 pointer-events-auto bg-transparent border-[var(--border-c-default)] w-[340px] 3xl:w-[390px] relative">
         {/* Desktop Header for List */}
-        {!isMobile && (
-          <div data-os-adaptive-container="1" className="h-14 border-b flex items-center justify-between px-5 shrink-0 bg-transparent border-[var(--border-c-default)]">
+        <div data-os-adaptive-container="1" className="h-14 border-b flex items-center justify-between px-5 shrink-0 bg-transparent border-[var(--border-c-default)]">
             <div data-ui-lab-wallpaper-contrast="primary" className="flex items-center gap-2 font-light text-sm text-[var(--text-secondary)]">
               <ChevronDown size={14} strokeWidth={1} className="text-[var(--text-quaternary)]" />
               <span>{currentBox === 'INBOX' ? 'Inbox' : currentBox === 'STARRED' ? 'Flagged' : currentBox === 'IMPORTANT' ? 'Important' : currentBox === 'UNREAD' ? 'Unread Messages' : currentBox === 'Sent Messages' ? 'Sent' : currentBox === 'Outbox' ? 'Outbox' : currentBox}</span>
@@ -1731,12 +1707,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 className={`hover:text-[var(--accent-text)] cursor-pointer transition-colors ${isSyncing ? 'animate-spin' : ''}`}
               />
             </div>
-          </div>
-        )}
+        </div>
 
         {/* Desktop Search Bar */}
-        {!isMobile && (
-          <div className="px-5 py-3 bg-transparent border-b border-[var(--border-c-default)]">
+        <div className="px-5 py-3 bg-transparent border-b border-[var(--border-c-default)]">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
@@ -1747,8 +1721,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-          </div>
-        )}
+        </div>
 
         <EmailList
           emails={displayEmails}
@@ -1764,22 +1737,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       </div>
 
       {/* 3. Reading Pane (Right Pane) */}
-      <div className={`
-          flex-col overflow-hidden min-w-0 pointer-events-auto transition-colors duration-300 bg-transparent
-          ${isMobile
-          ? `fixed inset-0 z-[60] bg-background ${mobileView === 'detail' ? 'translate-x-0' : 'translate-x-full'}`
-          : 'flex-1 relative z-0 flex'}
-      `}>
-        {/* Mobile Detail Header */}
-        {isMobile && (
-          <div className="h-14 px-4 flex items-center gap-3 border-b shrink-0 border-[var(--border-c-default)] bds-surface">
-            <button onClick={() => setMobileView('list')} className="p-2 -ml-2 text-[var(--text-secondary)]">
-              <ChevronDown size={24} strokeWidth={1} className="rotate-90" />
-            </button>
-            <span className="font-light text-[var(--text-primary)]">Message</span>
-          </div>
-        )}
-
+      <div className="flex-col overflow-hidden min-w-0 pointer-events-auto transition-colors duration-300 bg-transparent flex-1 relative z-0 flex">
         {selectedEmail ? (
           <>
             {/* Header Actions */}

@@ -78,7 +78,6 @@ export const COMPILED_MODULE_TITLE_BUTTON_CLASS = BAMBOOK_OS.controls.actionCont
 
 export const COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,316px)] justify-center gap-6 content-start';
 export const COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,300px)] justify-center gap-6 content-start';
-export const COMPILED_COLLECTION_MOBILE_CARD_GRID_CLASS = 'grid grid-cols-2 gap-3 content-start';
 
 export const COMPILED_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel';
 export const COMPILED_FORM_MAP_PANEL_CLASS = 'p-4 bambook-relations-form-map-panel';
@@ -138,7 +137,6 @@ export const CompiledModuleTitleBar = ({
 
 export type CompiledCollectionCardGridProps = {
   profile: 'category' | 'record';
-  isMobile?: boolean;
   overlapTitleBar?: boolean;
   viewportClassName?: string;
   paddingClassName?: string;
@@ -150,7 +148,6 @@ export type CompiledCollectionCardGridProps = {
 
 export const CompiledCollectionCardGrid = React.forwardRef<HTMLDivElement, CompiledCollectionCardGridProps>(({
   profile,
-  isMobile = false,
   overlapTitleBar = false,
   viewportClassName,
   paddingClassName,
@@ -159,16 +156,12 @@ export const CompiledCollectionCardGrid = React.forwardRef<HTMLDivElement, Compi
   layout = false,
   transition,
 }, ref) => {
-  const gridClass = isMobile
-    ? COMPILED_COLLECTION_MOBILE_CARD_GRID_CLASS
-    : profile === 'category'
-      ? COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS
-      : COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS;
-  const defaultViewportClass = isMobile
-    ? 'h-full overflow-y-scroll'
-    : overlapTitleBar
-      ? 'absolute -top-16 inset-x-0 bottom-0 overflow-y-scroll'
-      : 'h-full overflow-y-scroll';
+  const gridClass = profile === 'category'
+    ? COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS
+    : COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS;
+  const defaultViewportClass = overlapTitleBar
+    ? 'absolute -top-16 inset-x-0 bottom-0 overflow-y-scroll'
+    : 'h-full overflow-y-scroll';
   const viewportClass = viewportClassName || defaultViewportClass;
 
   return (

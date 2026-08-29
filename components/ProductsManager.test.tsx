@@ -83,11 +83,11 @@ describe('ProductsManager Bambook OS tokens', () => {
   });
 
   it('keeps OS title bars full-width while constraining product content canvases', () => {
-    expect(productsSource).toContain("const productContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;");
+    expect(productsSource).toContain("const productContentCanvasClass = BAMBOOK_OS.layout.desktopPageCanvasClass;");
     expect(productsSource).toContain('style={PRODUCT_TITLE_SAFE_LEFT_STYLE}');
     expect(productsSource).toContain('className="w-full h-full flex flex-col bg-transparent overflow-visible"');
     expect(productsSource).toContain('${productContentCanvasClass} flex-1 flex flex-col min-h-0 overflow-visible');
-    expect(productsSource).toContain("isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass");
+    expect(productsSource).toContain("shellBaseClassName={`${BAMBOOK_OS.layout.desktopTablePanelShellCompactClass} flex-1 min-h-0 flex flex-col`}");
     expect(productsSource).toContain('className={BAMBOOK_OS.layout.desktopTablePanelShellClass}');
     expect(productsSource).toContain('form="product-fullscreen-form"');
     expect(productsSource).toContain('<form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">');
@@ -164,7 +164,7 @@ describe('ProductsManager Bambook OS tokens', () => {
       productsSource.indexOf('CompiledTableShell', recordCardStart)
     );
 
-    expect(mainCardSource).toContain("'p-6 h-[220px] rounded-card-lg'");
+    expect(mainCardSource).toContain('p-6 h-[220px] rounded-card-lg');
     expect(mainCardSource).toContain('text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]');
     expect(mainCardSource).toContain('<cat.icon size={24} strokeWidth={1} />');
     expect(mainCardSource).not.toContain('text-[var(--os-vnext-brand-blue)]');
@@ -251,7 +251,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('CompiledEdgeFade');
     expect(productsSource).toContain('renderMode="content-mask"');
     expect(productsSource).toContain('BAMBOOK_OS.layout.panelShadowViewportClass');
-    expect(productsSource).toContain("paddingClassName={isMobile ? 'px-3 pt-5 pb-28' : 'px-5 pt-[104px] pb-5'}");
+    expect(productsSource).toContain('paddingClassName="px-5 pt-[104px] pb-5"');
     expect(productsSource).toContain('paddingClassName="p-8"');
     expect(productsSource).toContain('className="relative flex-1 min-h-0 overflow-visible"');
     expect(productsSource).toContain('scrollClassName={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}');
@@ -270,7 +270,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).not.toContain('productGridMaskRef');
     expect(productsSource).toContain("import { useStaticEdgeMask } from './ui/useStaticEdgeMask'");
     expect(productsSource).toContain('useStaticEdgeMask(mainCategoryScrollRef, {');
-    expect(productsSource).toContain('topFadeEnd: isMobile ? 32 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32');
+    expect(productsSource).toContain('topFadeEnd: PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32');
     expect(productsSource).toContain('bottomFade: 48');
     expect(productsSource).toContain("enabled: navLevel === 'main'");
     expect(productsSource).toContain('useStaticEdgeMask(productGridScrollRef, {');

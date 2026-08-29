@@ -250,7 +250,8 @@ describe('runtime QA [OrderManager 集成]', () => {
   it('Capsule 豁免徽章覆盖列表行与详情头部', () => {
     const matches = ORDER_MGR_SRC.match(/<CapsuleExemptionBadge order=/g);
     expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(3);
+    // DR-049 移动端退役后落点为 2：桌面表格行 + 详情头部（原移动卡片视图已删除）
+    expect(matches!.length).toBeGreaterThanOrEqual(2);
   });
   it('分区图标登记入 ORDER_SECTION_ICONS（全域图标唯一来源）', () => {
     expect(UI_SPEC_SRC).toMatch(/changes: FileEdit/);

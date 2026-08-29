@@ -66,8 +66,6 @@ export default defineConfig(({ mode }) => {
         ? {
             ignored: [
               '**/pwa/**',
-              '**/public/sw.js',
-              '**/public/manifest.webmanifest',
               '**/public/pwa-icon.svg',
             ],
           }

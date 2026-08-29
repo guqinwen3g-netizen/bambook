@@ -52,7 +52,6 @@ import {
   COMPILED_MODULE_TITLE_SAFE_LEFT_STYLE,
   COMPILED_MODULE_TITLE_SEPARATOR_CLASS,
   COMPILED_MODULE_TITLE_TEXT_BUTTON_CLASS,
-  CompiledBottomSheet,
   CompiledCollectionCardGrid,
   CompiledEdgeFade,
   CompiledImageUploader,
@@ -78,7 +77,6 @@ export interface ProductsManagerProps {
   onUpdateCategories?: (items: ProductSubCategory[], modified?: ProductSubCategory) => void;
   cloudEndpoint?: string;
   isDarkMode?: boolean;
-  isMobile?: boolean;
   /** 跨模块导航：产品档案「关联业务」入口页面切换 */
   onNavigate?: (view: View) => void;
   moduleSettings?: {
@@ -887,7 +885,7 @@ const LinkedSampleRoomSection: React.FC<{
   );
 };
 
-const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings, onNavigate }) => {
+const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, moduleSettings, onNavigate }) => {
   const blueprint = useMemo(() => compileProductsPage(), []);
   const [navLevel, setNavLevel] = useState<NavLevel>('main');
   const [sideSearchTerm, setSideSearchTerm] = useState('');
@@ -919,9 +917,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   // 分类/档案卡片网格的边缘渐隐由 useStaticEdgeMask 承接：固定 mask 直接挂滚动容器自身，
   // 一次设置、不监听滚动（不抖动）；真透明度渐隐（内容淡出而非覆盖色带）；
   // 滚动容器合成路径末端应用，不截断卡片 backdrop-filter（两级页面 hover 毛玻璃一致）。
-  // 顶部渐隐终点 = 标题栏重叠区 64 + 渐隐 32 = 96（mobile 无重叠区，渐隐 0→32）。
+  // 顶部渐隐终点 = 标题栏重叠区 64 + 渐隐 32 = 96。
   useStaticEdgeMask(mainCategoryScrollRef, {
-    topFadeEnd: isMobile ? 32 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32,
+    topFadeEnd: PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET + 32,
     bottomFade: 48,
     enabled: navLevel === 'main',
   });
@@ -950,7 +948,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
   const [showAddProdModal, setShowAddProdModal] = useState(false);
   const [editingProd, setEditingProd] = useState<ProductAsset | null>(null);
-  const fullscreenProductFormOpen = !isMobile && (showAddProdModal || !!editingProd);
+  const fullscreenProductFormOpen = showAddProdModal || !!editingProd;
 
   useCompiledGlassSurfaceEdgeMasks({
     scrollRef: productFormScrollRef,
@@ -974,7 +972,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [pendingImages, setPendingImages] = useState<File[]>([]);
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
   const [deleteProdId, setDeleteProdId] = useState<string | null>(null);
-  const [showOptionsSheet, setShowOptionsSheet] = useState<ProductAsset | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProductAsset | null>(null);
   // 跨模块导航 focusEntityId 直达：从样品间/开发单等入口跳转过来时，
   // 用 focusEntityId = productAssetId 精准打开档案详情。
@@ -3126,7 +3123,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const pdmlRawValue = (row: PdmlRawFabric, key: string) => String(row.rawData?.[key] ?? '').trim();
 
   const hideUnderlyingProductPage = fullscreenProductFormOpen;
-  const productContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;
+  const productContentCanvasClass = BAMBOOK_OS.layout.desktopPageCanvasClass;
 
   return (
     <div
@@ -3266,13 +3263,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器自身承接——真透明度渐隐、
               不截断卡片 backdrop-filter（hover 毛玻璃与关系智库两级页面一致） */}
           <div
-            className={isMobile ? 'h-full' : 'absolute -top-16 inset-x-0 bottom-0'}
+            className="absolute -top-16 inset-x-0 bottom-0"
           >
           <CompiledCollectionCardGrid
             profile="category"
-            isMobile={isMobile}
             viewportClassName="h-full w-full overflow-y-scroll"
-            paddingClassName={isMobile ? 'px-3 pt-5 pb-28' : 'px-5 pt-[104px] pb-5'}
+            paddingClassName="px-5 pt-[104px] pb-5"
             ref={mainCategoryScrollRef}
           >
             {mainCategories.map((cat, idx) => (
@@ -3286,16 +3282,16 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.18, delay: idx * 0.04 }}
-                className={`group relative isolate overflow-hidden ${isMobile ? 'p-4 h-[190px] rounded-inset' : 'p-6 h-[220px] rounded-card-lg'} flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
+                className={`group relative isolate overflow-hidden p-6 h-[220px] rounded-card-lg flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
               >
-                <div className={`relative z-10 -ml-1 -mt-1 ${isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10'} items-center justify-center transition-colors duration-300 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]`}>
+                <div className={`relative z-10 -ml-1 -mt-1 mb-4 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]`}>
                   <cat.icon size={24} strokeWidth={1} />
                 </div>
 
-                <h3 className={`relative z-10 ${isMobile ? 'text-sm' : 'text-base'} font-light tracking-tight text-[var(--text-primary)]`}>
+                <h3 className={`relative z-10 text-base font-light tracking-tight text-[var(--text-primary)]`}>
                   {cat.label}
                 </h3>
-                <p className={`relative z-10 ${isMobile ? 'text-[10px] line-clamp-2' : 'text-[12px] line-clamp-3'} mt-2 font-light leading-relaxed text-[var(--text-tertiary)]`}>
+                <p className={`relative z-10 text-[12px] line-clamp-3 mt-2 font-light leading-relaxed text-[var(--text-tertiary)]`}>
                   {cat.desc}
                 </p>
 
@@ -3317,7 +3313,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           <CompiledTableShell
             isDarkMode={isDarkMode}
             scrollRef={subIndexScrollRef}
-            shellBaseClassName={`${isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass} flex-1 min-h-0 flex flex-col`}
+            shellBaseClassName={`${BAMBOOK_OS.layout.desktopTablePanelShellCompactClass} flex-1 min-h-0 flex flex-col`}
             panelClassName={`${productGlassPanelClass} overflow-hidden flex h-full min-h-0 flex-col`}
             scrollClassName={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}
             edgeFade={{
@@ -3408,7 +3404,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 event.stopPropagation();
                                 setEditingSub(editableCategory);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-colors duration-200 ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-colors duration-200 ${productActionButtonClass} opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`}
                               aria-label={`编辑${group.name}`}
                             >
                               <Edit2 size={14} strokeWidth={1.5} />
@@ -3419,7 +3415,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 event.stopPropagation();
                                 setDeleteSubId(editableCategory.id);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-colors duration-200 ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-colors duration-200 ${productActionButtonClass} opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`}
                               aria-label={`删除${group.name}`}
                             >
                               <Trash2 size={14} strokeWidth={1.5} />
@@ -3659,7 +3655,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         )}
       
         {navLevel === 'detail' && selectedProduct && (
-        <div className={`h-full w-full min-h-0 flex overflow-visible relative ${isMobile ? 'pb-24' : 'bambook-main-panel-bottom-inset'}`}>
+        <div className={`h-full w-full min-h-0 flex overflow-visible relative bambook-main-panel-bottom-inset`}>
           {/* 左侧产品列表面板 */}
           <div className={`${BAMBOOK_OS.layout.relationsDetailListShellClass} hidden md:block`}>
             <CompiledSurfacePanel
@@ -4179,114 +4175,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       )}
       </div>
 
-      {/* Mobile Options Sheet */}
-      {isMobile && (
-        <CompiledBottomSheet
-          isOpen={!!showOptionsSheet}
-          onClose={() => setShowOptionsSheet(null)}
-          title={showOptionsSheet?.name || 'Item Options'}
-          height="auto"
-          isDarkMode={isDarkMode}
-        >
-          <div className="space-y-4 py-4">
-            <button
-              onClick={() => { if (showOptionsSheet) { setEditingProd(showOptionsSheet); setShowOptionsSheet(null); } }}
-              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${'bg-[var(--recessed-bg)] text-[var(--text-secondary)]'}`}
-            >
-              <Edit2 size={18} /> 编辑产品信息
-            </button>
-            <button
-              onClick={() => { if (showOptionsSheet) { setDeleteProdId(showOptionsSheet.id); setShowOptionsSheet(null); } }}
-              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${'text-[var(--text-secondary)] bg-[var(--recessed-bg)]'}`}
-            >
-              <Trash2 size={18} /> 归档此产品
-            </button>
-          </div>
-        </CompiledBottomSheet>
-      )}
-
-      
-
-      {/* MODALS / SHEETS */}
-      {isMobile ? (
-        <>
-          {/* Mobile: Add Sub Category Sheet */}
-          <CompiledBottomSheet isOpen={showAddSubModal || !!editingSub} onClose={() => { setshowAddSubModal(false); setEditingSub(null); }} title={editingSub ? '编辑类目' : '分类管理'} height="auto" isDarkMode={isDarkMode}>
-            <form onSubmit={editingSub ? handleEditSub : handleAddSub} className="space-y-6 pt-4 pb-12">
-              <div className="space-y-4">
-                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类名称</label>
-                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
-              </div>
-              <div className="space-y-4">
-                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类说明</label>
-                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-control outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
-              </div>
-              <button type="submit" className={`bds-btn bds-btn-primary lg w-full`}>{editingSub ? '保存' : '确认'}</button>
-            </form>
-          </CompiledBottomSheet>
-
-          {/* Mobile: Add Product Sheet */}
-          <CompiledBottomSheet isOpen={showAddProdModal || !!editingProd} onClose={() => { setShowAddProdModal(false); setEditingProd(null); }} title={editingProd ? '修正档案' : '录入 SKU'} height="full" isDarkMode={isDarkMode}>
-            <form onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="space-y-6 pt-2 pb-24">
-              {/* C11：编辑走已落库直传；新建走本地暂存（保存后统一上传） */}
-              {editingProd ? (
-                <div className="space-y-3">
-                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">产品图片</label>
-                  <CompiledImageUploader
-                    productId={editingProd.id}
-                    images={editingImages}
-                    cloudEndpoint={cloudEndpoint}
-                    isDarkMode={isDarkMode}
-                    onChange={setEditingImages}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">产品图片</label>
-                  <PendingImageUploader files={pendingImages} onChange={setPendingImages} />
-                </div>
-              )}
-              <div className="space-y-3">
-                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">档案款名 (Name)</label>
-                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
-              </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">SKU</label>
-                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Season</label>
-                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Cost ($)</label>
-                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
-                </div>
-	              </div>
-	              {renderFabricProfileFields(editingProd)}
-	              {renderGarmentProfileFields(editingProd)}
-	              {renderTrimmingProfileFields(editingProd)}
-	              <div className="space-y-3">
-                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Status</label>
-                <input type="hidden" name="status" value={productStatusValue} />
-                <CompiledSelectControl
-                  value={productStatusValue}
-                  onChange={setProductStatusValue}
-                  isDarkMode={isDarkMode}
-                  options={productStatusOptions}
-                  surface="form"
-                  menuPortal
-                  className="relative z-30 w-full"
-                  source="CompiledProductsPage.mobile-status-select"
-                />
-              </div>
-              <button type="submit" className={`bds-btn bds-btn-primary lg w-full mt-4`}>{editingProd ? '保存修正' : '确认录入'}</button>
-            </form>
-          </CompiledBottomSheet>
-        </>
-      ) : (
-        <>
+      {/* MODALS */}
           {(showAddSubModal || editingSub) && (
             <motion.div
               className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-[var(--mask-bg)]`}
@@ -4709,8 +4598,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </div>
             </div>
           )}
-        </>
-      )}
 
       {(deleteSubId || deleteProdId) && (
         <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">

@@ -14,8 +14,6 @@ import {
   RELATIONS_CARD_COLUMN_GAP,
   RELATIONS_CARD_COLUMN_WIDTH,
   RELATIONS_CARD_GRID_CLASS,
-  RELATIONS_MOBILE_CATEGORY_CARD_CLASS,
-  RELATIONS_MOBILE_CATEGORY_GRID_CLASS,
   RELATIONS_FORM_TITLE_BAR_CLASS,
   RELATIONS_FORM_TITLE_CRUMB_CLASS,
   RELATIONS_FORM_TITLE_HEADING_CLASS,
@@ -1076,9 +1074,7 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_CARD_GRID_CLASS).not.toContain('auto-fit,minmax');
     expect(RELATIONS_CARD_GRID_CLASS).not.toContain('300px');
     expect(RELATIONS_CARD_GRID_CLASS).not.toContain('320px');
-    expect(RELATIONS_MOBILE_CATEGORY_GRID_CLASS).toBe('grid grid-cols-2 gap-3 content-start');
-    expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('h-[190px]');
-    expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('p-4');
+    expect(source).not.toContain('RELATIONS_MOBILE_CATEGORY');
     expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('bds-surface');
     expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(SIDEBAR_HOVER_CLASS);
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(OS_MATERIAL.raisedCard);
@@ -1121,10 +1117,9 @@ describe('RelationsManager title system', () => {
     expect(categorySource).toContain('relationCategoryViewportClass');
     expect(sharedCardSource).toContain('relationCategoryCardClass');
     expect(sharedCardSource).toContain('relationCategoryIconClass');
-    expect(source).toContain('const relationCategoryGridClass = isMobile ? RELATIONS_MOBILE_CATEGORY_GRID_CLASS : RELATIONS_CATEGORY_CARD_GRID_CLASS');
-    expect(source).toContain("const relationCategoryViewportClass = isMobile ? 'px-7 pt-[92px] pb-28'");
-    expect(source).toContain('`${pageInsetExpandedClass} pt-[104px] pb-12`');
-    expect(source).toContain('const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS');
+    expect(source).toContain('const relationCategoryGridClass = RELATIONS_CATEGORY_CARD_GRID_CLASS');
+    expect(source).toContain('const relationCategoryViewportClass = `${pageInsetExpandedClass} pt-[104px] pb-12`;');
+    expect(source).toContain("const relationCategoryCardClass = 'p-6 h-[220px] rounded-card-lg';");
     expect(source).toContain('const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null)');
     expect(source).toContain('const RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET = 64;');
     // 边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器自身：真透明度渐隐（内容淡出而非
@@ -1168,7 +1163,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('group-hover:opacity-100');
     expect(sharedCardSource).not.toContain('SIDEBAR_PRESS_DARK_CLASS');
     expect(sharedCardSource).not.toContain('SIDEBAR_PRESS_LIGHT_CLASS');
-    expect(source).toContain("const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS : 'p-6 h-[220px] rounded-card-lg'");
+    expect(source).toContain("const relationCategoryCardClass = 'p-6 h-[220px] rounded-card-lg'");
     expect(sharedCardSource).toContain('${relationCategoryCardClass} transition-colors duration-200');
     expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SURFACE_DARK_CLASS');
     expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SURFACE_LIGHT_CLASS');
@@ -1433,9 +1428,9 @@ describe('RelationsManager title system', () => {
   it('keeps relation title bars full-width while constraining the relation content canvas', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain("const relationsContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;");
-    expect(source).toContain("const relationsMainBottomEdgeClass = isMobile ? 'bottom-0' : BAMBOOK_OS.layout.desktopMainPanelBottomEdgeClass;");
-    expect(source).toContain("const relationsTableBottomEdgeClass = isMobile ? 'bottom-0' : BAMBOOK_OS.layout.desktopTablePanelBottomEdgeClass;");
+    expect(source).toContain("const relationsContentCanvasClass = BAMBOOK_OS.layout.desktopPageCanvasClass;");
+    expect(source).toContain("const relationsMainBottomEdgeClass = BAMBOOK_OS.layout.desktopMainPanelBottomEdgeClass;");
+    expect(source).toContain("const relationsTableBottomEdgeClass = BAMBOOK_OS.layout.desktopTablePanelBottomEdgeClass;");
     expect(source).toContain("const relationsFormBottomEdgeClass = 'bottom-0';");
     expect(BAMBOOK_OS.layout.desktopMainPanelBottomEdgeClass).toBe('bambook-main-panel-bottom-edge');
     expect(BAMBOOK_OS.layout.desktopTablePanelBottomEdgeClass).toBe('bambook-table-panel-bottom-edge');

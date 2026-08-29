@@ -12,7 +12,7 @@ describe('Electron window controls', () => {
     expect(mainSource).toContain('minHeight: BAMBOOK_OS_WINDOW_MIN_HEIGHT');
     expect(css).toContain('--desktop-min-width: 1080px');
     expect(css).toContain('--desktop-min-height: 760px');
-    expect(css).toContain('body:not(.bambook-device-phone)');
+    expect(css).not.toContain('bambook-device-phone');
     expect(css).toContain('min-width: var(--desktop-min-width)');
     expect(css).toContain('min-height: var(--desktop-min-height)');
     expect(css).toContain('height: max(100vh, var(--desktop-min-height))');

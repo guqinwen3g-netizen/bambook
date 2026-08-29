@@ -28,18 +28,18 @@ PG_SCAN_PATHS=(components)
 [ -d src ] && PG_SCAN_PATHS+=(src)
 
 # ── 基线（2026-08-06 根背景色 token 化后收拢，只减不增）──
-BASELINE_ROUNDED=1        # 2026-08-16 批 1 收拢 3→1：Sidebar/Settings 2 处改语义类；
-                          # 余 1 处为 pwa/mobile/MobileWebNavigation.tsx rounded-[20px]（移动端冻结区，搁置不动）
+BASELINE_ROUNDED=0        # 2026-08-16 批 1 收拢 3→1：Sidebar/Settings 2 处改语义类；
+                          # 2026-08-29 批次 R-M（DR-049 移动端退役）删除 pwa/mobile 后清零（MobileWebNavigation rounded-[20px] 随文件删除）
 BASELINE_HEX_TAILWIND=9   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
                           # 2026-08-28 扩展 *.ts 后基线上调 0→9：bambookOsTokens.ts 硬编码 hex（dark:bg-[#0a0f1d]/hover:text-[#0A2746] 等 9 处）
 BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除）
 # ── BDS v2.2 新增守卫基线（2026-08-16 批 2 建立，只减不增）──
 # v2.2 同心层级刻度收编后，裸 Tailwind 圆角刻度类（rounded-xs/sm/md/lg/xl/2xl/3xl）
 # 与 font-medium/semibold/bold 写法（全局 Light 300 纪律，机制已坍缩 300 但写法必须统一
-# 为 font-light）均属违例；现存基线全部为 pwa/mobile 移动端冻结区存量（搁置不动）。
-BASELINE_BARE_RADIUS=8    # pwa/mobile 裸圆角档：MobileWebNavigation 3 + MobileWebApp 1
-                          # 2026-08-28 扩展 *.ts 后基线上调 4→8：bambookOsTokens.ts 裸 Tailwind 圆角刻度（rounded-2xl 等 4 处）
-BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + MobileWebApp 1
+# 为 font-light）均属违例。
+BASELINE_BARE_RADIUS=4    # 2026-08-29 批次 R-M（DR-049）8→4：pwa/mobile 删除（MobileWebNavigation 3 + MobileWebApp 1 随文件清除）
+                          # 余 4 处为 bambookOsTokens.ts 裸 Tailwind 圆角刻度（rounded-2xl 等）
+BASELINE_FONT_WEIGHT=0    # 2026-08-29 批次 R-M（DR-049）3→0：MobileWebNavigation 2 + MobileWebApp 1 随 pwa/mobile 删除清零
 # ── BDS v2 主题耦合基线（2026-08-13 建立，只减不增）──
 # v2 纪律：新组件对主题机制透明（无 isDarkMode 三元），
 # 暗色优先由 tokens.css [data-theme] 覆盖承载；
@@ -91,7 +91,8 @@ BASELINE_TEXT_WHITE=11         # 批E 伴随项：accent 填充上 text-white �
                                # W-PG-P2 Relations 主刀：删除确认弹窗 accent 按钮 text-white → text-[var(--on-accent)]；
                                # 同步实测校准 33→28（期间批G/批H 收编未回写警告级基线，只减不增原则下按实测值入库）
 # 批F（2026-08-17）：font-black 唯一残留 ProductionGlobe.tsx:654（DOM 覆盖层）已改 font-light；
-# 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)，基线维持 3（pwa 存量）
+# 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)；
+# 2026-08-29 批次 R-M（DR-049）pwa/mobile 删除后基线归零。
 
 # ── W-PG 页面规格化断言基线（2026-08-17 W-PG-P0 建立，只减不增）──
 # 依据 docs/design-system/page-skeleton-spec.md §8（总控审定）+ 纪律文档 §10.3。

@@ -8,8 +8,7 @@ import '@fontsource/urbanist/600.css';
 import '@fontsource/urbanist/700.css';
 import './index.css';
 import './styles/flat-experimental.css';
-import { detectDeviceMode } from './pwa/deviceMode';
-import { installPageZoomGuard, installPhoneZoomGuard } from './pwa/pageZoomGuard';
+import { installPageZoomGuard } from './pwa/pageZoomGuard';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -17,12 +16,6 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined);
-  });
-}
 
 async function boot() {
   const params = new URLSearchParams(window.location.search);
@@ -38,20 +31,12 @@ async function boot() {
   }
 
 
-  const mode = detectDeviceMode();
-  document.documentElement.classList.toggle('bambook-device-phone', mode === 'phone');
-  document.body.classList.toggle('bambook-device-phone', mode === 'phone');
   try {
     installPageZoomGuard();
-    if (mode === 'phone') {
-      installPhoneZoomGuard();
-    }
   } catch (err) {
     console.error('[boot] zoom guard install failed:', err);
   }
-  const module = mode === 'phone'
-    ? await import('./pwa/mobile/MobileWebApp')
-    : await import('./App');
+  const module = await import('./App');
   const RootApp = module.default;
 
   root.render(

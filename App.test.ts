@@ -114,8 +114,6 @@ describe('App light background tone', () => {
     expect(viteConfig).toContain("process.env.BAMBOOK_UI_LAB_DEV === '1'");
     expect(viteConfig).toContain('watch: isUiLabDev');
     expect(viteConfig).toContain("'**/pwa/**'");
-    expect(viteConfig).toContain("'**/public/sw.js'");
-    expect(viteConfig).toContain("'**/public/manifest.webmanifest'");
     expect(viteConfig).toContain("'**/public/pwa-icon.svg'");
   });
 

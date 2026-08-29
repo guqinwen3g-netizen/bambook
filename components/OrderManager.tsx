@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { Order, KnowledgeItem, ResolutionStrategy, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition, View } from '../types';
 import { apiService } from '../services/apiService';
 import {
-  Plus, ArrowRight, MoreHorizontal,
-  Building2, X, AlertCircle,
+  Plus, ArrowRight,
+  X, AlertCircle,
   Trash2, Edit2, Save, Package,
   AlertTriangle,
   Globe, List,
@@ -21,7 +21,6 @@ import { OrderProcessChainPanel } from './mes/OrderProcessChainPanel';
 import { OrderShipmentBatchPanel } from './orders/OrderShipmentBatchPanel';
 import { TechPackPanel } from './orders/TechPackPanel';
 import { TcChainPanel } from './suppliers/TcChainPanel';
-import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
 import { saveParsedOrders, updateOrderFields } from '../services/importService';
@@ -127,7 +126,6 @@ interface OrderManagerProps {
   selectedOrder: Order | null;
   onSelectOrder: (order: Order | null) => void;
   isDarkMode?: boolean;
-  isMobile?: boolean;
   orderType: OrderViewType; // 区分订单类型（含 'all'）
   onOrderTypeChange?: (type: OrderViewType) => void; // Tab 切换回调
   /** Relations list — drives the Customer / Mill / Consignee / Bill-to comboboxes. */
@@ -332,7 +330,7 @@ const ORDER_ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
   Alert: ['Pending', 'Confirmed', 'Production', 'Shipping'],
 };
 
-const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, isMobile = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
+const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
   // Local state removed, using props
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTracePanel, setShowTracePanel] = useState(false);
@@ -341,7 +339,6 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const [editForm, setEditForm] = useState<Order | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [strategies, setStrategies] = useState<ResolutionStrategy[]>([]);
-  const [showOptionsSheet, setShowOptionsSheet] = useState<Order | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [selectedLineItem, setSelectedLineItem] = useState<OrderLineItem | null>(null);
@@ -1076,7 +1073,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     }
   };
 
-  const desktopFullscreenOpen = !isMobile && (showAddModal || !!selectedOrder);
+  const desktopFullscreenOpen = showAddModal || !!selectedOrder;
   const effectiveViewMode = allowGlobeView ? viewMode : 'list';
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支，暗色由 tokens.css [data-theme]/.dark 统一覆盖 ──
   // 表格行三档文字（密集阅读场景，token 墨色）
@@ -1172,21 +1169,19 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <List size={16} strokeWidth={1.5} />
               </button>
             </div>
-            {!isMobile && (
-              <button
-                type="button"
-                onClick={() => { onSelectOrder(null); setShowImportWizard(true); }}
-                className="bds-btn bds-btn-secondary"
-              >
-                <Upload size={16} strokeWidth={1.5} /> 导入
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => { onSelectOrder(null); setShowImportWizard(true); }}
+              className="bds-btn bds-btn-secondary"
+            >
+              <Upload size={16} strokeWidth={1.5} /> 导入
+            </button>
             <button
               type="button"
               onClick={() => { onSelectOrder(null); setNewOrder({ ...getDefaultNewOrder(), type: currentDbType || 'Fabric' }); setShowAddModal(true); }}
               className="bds-btn bds-btn-primary"
             >
-              <Plus size={16} strokeWidth={1.5} /> {!isMobile && '录入订单'}
+              <Plus size={16} strokeWidth={1.5} /> 录入订单
             </button>
             {selectedOrder?.id && (
               <button
@@ -1194,7 +1189,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 onClick={() => setShowTracePanel(true)}
                 className="bds-btn bds-btn-secondary"
               >
-                <GitBranch size={16} strokeWidth={1.5} /> {!isMobile && '溯源'}
+                <GitBranch size={16} strokeWidth={1.5} /> 溯源
               </button>
             )}
             {selectedOrder?.id && (
@@ -1205,7 +1200,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   className="bds-btn bds-btn-secondary"
                   title="订单确认书 A4 预览（与生成 PDF 同源排版）"
                 >
-                  <Eye size={16} strokeWidth={1.5} /> {!isMobile && '确认书'}
+                  <Eye size={16} strokeWidth={1.5} /> 确认书
                 </button>
                 <button
                   type="button"
@@ -1215,7 +1210,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   title="生成订单确认书 PDF 并归档单据中心"
                 >
                   {ocGenerating ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <FileText size={16} strokeWidth={1.5} />}
-                  {!isMobile && '生成 PDF'}
+                  生成 PDF
                 </button>
               </>
             )}
@@ -1228,7 +1223,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               title="订单台账 Excel 导出（当前筛选全量）"
             >
               {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              {!isMobile && '导出台账'}
+              导出台账
             </button>
           </>
         )}
@@ -1278,7 +1273,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 className="bds-input pl-9"
               />
             </div>
-            <div className={`min-w-0 flex-[1_1_auto] ${isMobile ? 'overflow-x-auto no-scrollbar' : ''}`}>
+            <div className="min-w-0 flex-[1_1_auto]">
               <div className="bds-segment w-fit">
                 {renderOrderTypeSwitcher()}
               </div>
@@ -1337,77 +1332,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           </div>
         ) : (
           <div className="h-full flex flex-col pointer-events-auto">
-            <div className={`flex-1 min-h-0 ${isMobile ? 'overflow-y-scroll p-4 pb-20 safe-bottom' : 'overflow-visible'}`}>
-              {isMobile ? (
-                // Mobile Card View (Enhanced Design)
-                <div className="space-y-4">
-                  {filteredOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      onClick={() => handleOrderClick(order)}
-                      className={`relative p-5 bambook-card-glass overflow-hidden transition-colors duration-200 touch-active ${selectedOrder?.id === order.id ? 'ring-2 ring-[var(--accent)]' : ''}`}
-                    >
-                      {/* Quick Action Trigger */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowOptionsSheet(order); }}
-                        className={`absolute top-4 right-4 p-2 rounded-full z-10 transition-colors ${TXT_FAINT} hover:bg-[var(--hover-darken)]`}
-                      >
-                        <MoreHorizontal size={20} strokeWidth={1.25} />
-                      </button>
-
-                      {/* Card Header: Order ID & Status */}
-                      <div className="flex justify-between items-start mb-4 pr-8">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="w-2 h-2 rounded-full" style={ORDER_TYPE_DOT_STYLE[order.type]}></div>
-                            <span className="bds-badge sm" style={ORDER_TYPE_BADGE_STYLE[order.type]}>
-                              {DB_TYPE_ZH[order.type] || order.type}
-                            </span>
-                            {order.businessLine === 'capsule' && (
-                              <span className="bds-badge sm neutral">Capsule</span>
-                            )}
-                            <CapsuleExemptionBadge order={order} />
-                          </div>
-                          <span className={`text-lg font-light font-mono tracking-tight ${TXT_TITLE}`}>{order.id}</span>
-                        </div>
-                        <span className={`bds-badge sm uppercase ${STATUS_BADGE_VARIANT[order.status] ?? 'neutral'}`}>
-                          {order.status}
-                        </span>
-                      </div>
-
-                      {/* Card Body: Factory & Value */}
-                      <div className="flex justify-between items-end mb-4">
-                        <div>
-                          <div className={`text-[10px] font-light mb-1 ${TXT_FAINT}`}>FACTORY</div>
-                          <div className={`text-sm font-light flex items-center gap-1.5 ${TXT_SECONDARY}`}>
-                            <Building2 size={14} /> {order.millName}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-[10px] font-light mb-1 ${TXT_FAINT}`}>VALUE</div>
-                          <div className={`text-xl font-light ${TXT_TITLE}`}>
-                            ${order.quoteAmount.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card Footer: Progress Bar（BDS 进度条族；小元素 fill 允许彩色发光） */}
-                      <div className="space-y-1.5">
-                        <div className={`flex justify-between text-[9px] font-light uppercase tracking-widest ${TXT_FAINT}`}>
-                          <span>Progress</span>
-                          <span>{order.status === 'Delivered' ? '100%' : order.status === 'Shipping' ? '85%' : order.status === 'Production' ? '60%' : order.status === 'Confirmed' ? '25%' : order.status === 'Alert' ? '异常' : '10%'}</span>
-                        </div>
-                        <div className={`bds-progress ${order.status === 'Alert' ? 'warning' : order.status === 'Delivered' ? 'success' : ''}`}>
-                          <div
-                            className="fill"
-                            style={{ width: order.status === 'Alert' ? '30%' : order.status === 'Delivered' ? '100%' : order.status === 'Shipping' ? '85%' : order.status === 'Production' ? '60%' : order.status === 'Confirmed' ? '25%' : '10%' }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
+            <div className="flex-1 min-h-0 overflow-visible">
                 <>
                 {/* 预警横幅同槽 px-7：原全宽出血，与表格左右边界错位（同属 bar 超槽家族） */}
                 <div className="shrink-0 px-7">
@@ -1564,19 +1489,6 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 </div>
                 </div>
                 </>
-              )}
-              {isMobile && filteredOrders.length === 0 && (
-                <div className={`p-20 text-center flex flex-col items-center justify-center gap-4 ${TXT_MUTED}`}>
-                  <Package size={24} strokeWidth={1.25} className={TXT_FAINT} />
-                  {capsuleActive ? (
-                    <p className="text-sm font-light tracking-wide">暂无 Capsule 订单</p>
-                  ) : (
-                    <p className="text-sm font-light tracking-wide">
-                      {orderType === 'all' ? '暂无订单' : orderType === 'fabric' ? '暂无面料订单' : orderType === 'garment' ? '暂无成衣订单' : '暂无其他类型订单'}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -2215,102 +2127,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         </motion.div>
       )}
 
-      {/* Mobile Options Sheet */}
-      {isMobile && (
-        <BottomSheet
-          isOpen={!!showOptionsSheet}
-          onClose={() => setShowOptionsSheet(null)}
-          title="订单操作"
-          height="auto"
-          isDarkMode={isDarkMode}
-        >
-          <div className="space-y-2 py-2">
-            <button
-              onClick={() => {
-                if (showOptionsSheet) {
-                  onSelectOrder(showOptionsSheet);
-                  setIsEditing(true);
-                  setEditForm({ ...showOptionsSheet });
-                  setEditLineForm(showOptionsSheet?.lines?.[0] ? { ...showOptionsSheet.lines[0] } as Partial<OrderLineItem> : null);
-                  setShowOptionsSheet(null);
-                }
-              }}
-              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light bg-[var(--recessed-bg)] ${TXT_SECONDARY}`}
-            >
-              <div className={`p-2 rounded-control bg-[var(--hover-darken)] ${TXT_MUTED}`}><Edit2 size={18} /></div>
-              编辑详情
-            </button>
-            <div className="p-4 rounded-inset space-y-4 bg-[var(--recessed-bg)]">
-              <div className={`text-[10px] font-light uppercase tracking-widest ${TXT_FAINT}`}>快速状态变更</div>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                {['Confirmed', 'Production', 'Shipping', 'Delivered'].map(st => (
-                  <button
-                    key={st}
-                    onClick={async () => {
-                      if (showOptionsSheet) {
-                        try {
-                          const updated = await apiService.transitionOrderStatus(showOptionsSheet.id, st, 'mobile-user');
-                          const nextOrders = orders.map(o => o.id === updated.id ? updated : o);
-                          setOrders(nextOrders, updated);
-                        } catch (e: any) {
-                          bdsToast.danger(e?.message || '状态变更失败');
-                        }
-                        setShowOptionsSheet(null);
-                      }
-                    }}
-                    className={`bds-badge cursor-pointer !px-4 !py-2 uppercase ${STATUS_BADGE_VARIANT[st] ?? 'neutral'}`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                if (showOptionsSheet) {
-                  onSelectOrder(showOptionsSheet);
-                  setShowDeleteConfirm(true);
-                  setShowOptionsSheet(null);
-                }
-              }}
-              className="w-full p-4 rounded-inset flex items-center gap-4 text-left font-light bg-[var(--danger-tint)] text-[var(--danger-text)]"
-            >
-              <div className="p-2 rounded-control bg-[var(--danger-tint-hover)] text-[var(--danger-text)]"><Trash2 size={18} /></div>
-              归档订单
-            </button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* Add Order Sheet (Mobile) & Modal (Desktop) */}
-      {isMobile ? (
-        <BottomSheet
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          title="录入新生产任务"
-          height="full"
-          isDarkMode={isDarkMode}
-        >
-          <div className="space-y-6 pb-20">
-            {fieldsForManualForm(manualTypeKey).map(({ cluster, fields }) => (
-              <OrderClusterBlock
-                key={cluster.id}
-                cluster={cluster}
-                fields={fields}
-                order={newOrder}
-                isDarkMode={isDarkMode}
-                density="compact"
-                relations={relations}
-                onCreateRelation={onCreateRelation}
-                onRelationSelected={handleNewRelationSelected}
-                onChange={(patch) => setNewOrder((prev) => applyAmountLinkage(prev, patch) as Partial<Order>)}
-              />
-            ))}
-            <button onClick={handleAddOrder} className="bds-btn bds-btn-primary lg w-full mt-4 uppercase tracking-widest">确认创建</button>
-          </div>
-        </BottomSheet>
-      ) : (
-        showAddModal && (
+      {/* Add Order Modal */}
+      {showAddModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -2405,7 +2223,6 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               </div>
             </div>
           </motion.div>
-        )
       )}
 
       {showDeleteConfirm && (

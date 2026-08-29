@@ -44,7 +44,6 @@ interface RelationsManagerProps {
   relations: Relation[];
   onUpdate: (relations: Relation[], modified?: Relation) => void;
   isDarkMode?: boolean;
-  isMobile?: boolean;
   /** 侧边栏是否收起：用于在 Electron 下避开窗口控制键热区 */
   sidebarCollapsed?: boolean;
   /** 数据中心 API 入口，用于删除等写入操作直连后端 */
@@ -229,8 +228,6 @@ export const RELATIONS_CARD_COLUMN_WIDTH = BAMBOOK_OS.layout.relationsCardColumn
 export const RELATIONS_CARD_COLUMN_GAP = BAMBOOK_OS.layout.relationsCardColumnGap;
 export const RELATIONS_CATEGORY_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,316px)] justify-center gap-6 content-start';
 export const RELATIONS_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,316px)] justify-center gap-6 content-start';
-export const RELATIONS_MOBILE_CATEGORY_GRID_CLASS = 'grid grid-cols-2 gap-3 content-start';
-export const RELATIONS_MOBILE_CATEGORY_CARD_CLASS = 'p-4 h-[190px] rounded-inset';
 export const RELATIONS_TOOLBAR_OFFSET_CLASS = 'mt-1';
 export const RELATIONS_TOOLBAR_CLASS = `${BAMBOOK_OS.controls.toolbar.base} max-w-[560px]`;
 export const RELATIONS_TOOLBAR_CONTENT_CLASS = BAMBOOK_OS.controls.toolbar.content;
@@ -366,7 +363,7 @@ export const RelationsTitleSpotlightButton: React.FC<RelationsTitleSpotlightButt
   </SpotlightCard>
 );
 
-const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate, isDarkMode = false, isMobile = false, sidebarCollapsed = false, cloudEndpoint, onNavigate }) => {
+const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate, isDarkMode = false, sidebarCollapsed = false, cloudEndpoint, onNavigate }) => {
   const [previewState] = useState(readRelationsPreviewState);
   // Navigation State
   const [navLevel, setNavLevel] = useState<RelationNavLevel>(() => previewState.navLevel || 'category');
@@ -1020,9 +1017,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     ? (relationFormCategoryConfig.finance ? organizationFormSections : organizationFormSections.filter(s => s.id !== 'finance'))
     : contactFormSections);
   const fullscreenFormOpen = showAddModal;
-  const relationsContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;
-  const relationsMainBottomEdgeClass = isMobile ? 'bottom-0' : BAMBOOK_OS.layout.desktopMainPanelBottomEdgeClass;
-  const relationsTableBottomEdgeClass = isMobile ? 'bottom-0' : BAMBOOK_OS.layout.desktopTablePanelBottomEdgeClass;
+  const relationsContentCanvasClass = BAMBOOK_OS.layout.desktopPageCanvasClass;
+  const relationsMainBottomEdgeClass = BAMBOOK_OS.layout.desktopMainPanelBottomEdgeClass;
+  const relationsTableBottomEdgeClass = BAMBOOK_OS.layout.desktopTablePanelBottomEdgeClass;
   const relationsFormBottomEdgeClass = 'bottom-0';
   const pageInsetClass = sidebarCollapsed ? RELATIONS_PAGE_X_COLLAPSED_CLASS : RELATIONS_PAGE_X_NORMAL_CLASS;
   const scrollContainerExpandedClass = 'left-[-16px] right-[-16px] md:left-[-32px] md:right-[-32px]';
@@ -1051,12 +1048,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const relationTableCellMutedClass = RELATIONS_TABLE_CELL_MUTED_CLASS;
   const relationTableEditActionClass = RELATIONS_TABLE_EDIT_ACTION_CLASS;
   const relationTableEmptyActionClass = RELATIONS_TABLE_EMPTY_ACTION_CLASS;
-  const relationCategoryGridClass = isMobile ? RELATIONS_MOBILE_CATEGORY_GRID_CLASS : RELATIONS_CATEGORY_CARD_GRID_CLASS;
-  const relationCategoryViewportClass = isMobile ? 'px-7 pt-[92px] pb-28' : `${pageInsetExpandedClass} pt-[104px] pb-12`;
-  const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS : 'p-6 h-[220px] rounded-card-lg';
-  const relationCategoryIconClass = isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10';
-  const relationCategoryTitleClass = isMobile ? 'text-sm leading-snug' : 'text-base';
-  const relationCategoryDescriptionClass = isMobile ? 'text-[11px] mt-1.5 leading-snug line-clamp-3' : 'text-[12px] mt-2 leading-relaxed';
+  const relationCategoryGridClass = RELATIONS_CATEGORY_CARD_GRID_CLASS;
+  const relationCategoryViewportClass = `${pageInsetExpandedClass} pt-[104px] pb-12`;
+  const relationCategoryCardClass = 'p-6 h-[220px] rounded-card-lg';
+  const relationCategoryIconClass = 'mb-4 flex h-10 w-10';
+  const relationCategoryTitleClass = 'text-base';
+  const relationCategoryDescriptionClass = 'text-[12px] mt-2 leading-relaxed';
   const renderRelationCard = ({
     cardKey,
     index,
@@ -1105,7 +1102,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         {description}
       </p>
 
-      <div className={`relative z-10 mt-auto ${isMobile ? 'pt-3' : 'pt-4'} border-t w-full flex justify-between items-center ${relationsPanelDividerClass}`}>
+      <div className={`relative z-10 mt-auto pt-4 border-t w-full flex justify-between items-center ${relationsPanelDividerClass}`}>
         <span className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>
           {footerLabel}
         </span>
