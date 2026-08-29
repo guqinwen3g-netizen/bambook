@@ -14,17 +14,21 @@
  *
  * 鉴权：统一 createModuleAuthGuard（JWT 或 API-Key）；写操作必须 JWT（requireJwtForWrite，API-Key 不足）
  *       ＋ requirePermission('quotations:write') scope 授权门（W-C 批三-E 族B 收口；
- *       持有面 = SALES/SALES_MANAGER＋SuperAdmin 特判，见 _shared/rolePermissionMatrix）
+ *       持有面 = SALES/SALES_MANAGER＋SuperAdmin 特判，见 _shared/rolePermissionMatrix）；
+ *       读操作挂 quotations:read scope 门（R678 收口，S3-γ CRM 同惯例：JWT 登录用户必须持 scope；
+ *       无 actor 的 API-Key/dev 通道走旧口径放行——认证已由 moduleGuard 把关，
+ *       moduleApiKeyHeader 契约：API-Key 读不得 401）
  * 审计：所有 mutation 写入 AuditLog（字段级审计）
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { requirePermission } from '../auth/permissionGuard';
+import { extractActorFromRequest } from '../auth/middleware';
 import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { createQuotationService, CreateQuotationInput, UpdateQuotationInput } from './quotationService';
@@ -59,6 +63,17 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
   const requireQuotationWrite = requirePermission('quotations:write');
 
+  // ── R678 读端点 scope 门（S3-γ CRM 同惯例）：JWT 登录用户必须持 quotations:read；
+  //    无 actor（API-Key / dev 模式）调用走旧口径放行——认证已由 moduleGuard 把关，
+  //    moduleApiKeyHeader 契约：API-Key 读不得 401 ──
+  const requireQuotationReadScope = requirePermission('quotations:read');
+  const requireQuotationRead = (req: Request, res: Response, next: NextFunction) => {
+    const actor = (req as any).actor ?? extractActorFromRequest(req);
+    if (!actor?.userId) return next();
+    (req as any).actor = actor;
+    return requireQuotationReadScope(req, res, next);
+  };
+
   // ── REQ2-12 报价行图片上传（DR-053：multer 落盘 quotations/，URL 由前端随行 imageUrl 提交） ──
   const lineImageUpload = multer({
     storage: multer.diskStorage({
@@ -89,7 +104,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── GET / — 列表（format=xlsx → 全量台账 Excel 导出） ──
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', requireQuotationRead, async (req: Request, res: Response) => {
     try {
       const { status, customerRelationId, dateFrom, dateTo, search, limit, offset } = req.query;
       const exportAll = req.query.format === 'xlsx';
@@ -133,7 +148,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
 
   // ── REQ2-19（DR-060-②）：GET /price-profile?relationId= — 客户砍价画像 ──
   // 字面路由：必须在参数路由 GET /:id 之前注册（否则被当作 id 吞掉）
-  router.get('/price-profile', async (req: Request, res: Response) => {
+  router.get('/price-profile', requireQuotationRead, async (req: Request, res: Response) => {
     try {
       const relationId = typeof req.query.relationId === 'string' ? req.query.relationId : '';
       if (!relationId) {
@@ -148,7 +163,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── GET /:id — 详情 ──
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', requireQuotationRead, async (req: Request, res: Response) => {
     try {
       const quotation = await service.getQuotation(req.params.id);
       if (!quotation) {
@@ -163,7 +178,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
 
   // ── GET /:id/preview.html — 报价单服务端模板预览（B7：实时装配渲染，与生成 PDF
   //    同源排版——所见即所得，无需先登记文档；前端 buildQuotationPrintHtml 同构退役） ──
-  router.get('/:id/preview.html', async (req: Request, res: Response) => {
+  router.get('/:id/preview.html', requireQuotationRead, async (req: Request, res: Response) => {
     try {
       const data = await loadQuotationDocData(prisma, req.params.id);
       if (!data) return res.status(404).json({ error: '报价单不存在' });
@@ -389,7 +404,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── REQ2-19（DR-060-②）：GET /:id/versions — 版本历史（append-only 正序） ──
-  router.get('/:id/versions', async (req: Request, res: Response) => {
+  router.get('/:id/versions', requireQuotationRead, async (req: Request, res: Response) => {
     try {
       const versions = await service.listQuotationVersions(req.params.id);
       res.json({ versions });

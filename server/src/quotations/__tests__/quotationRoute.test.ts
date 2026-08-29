@@ -269,7 +269,6 @@ describe('quotationRoute: auth-guard 契约（requireAuth=true）', () => {
       .set('X-Bambook-API-Key', 'ak-test');
     expect(res.status).toBe(200);
   });
-
   it('API-Key 写操作 → 401（API key insufficient）', async () => {
     const { app } = makeApp({ requireAuth: true, apiKeys: new Set(['ak-test']) });
     const res = await request(app)
@@ -289,6 +288,65 @@ describe('quotationRoute: auth-guard 契约（requireAuth=true）', () => {
       .send(validInput);
     expect(res.status).toBe(201);
     expect(onDataChange).toHaveBeenCalled();
+  });
+});
+
+// R678：读端点 quotations:read scope 门（S3-γ CRM 同惯例——JWT 用户必须持 scope；
+// viewer legacy 角色映射空角色集 → 无 quotations:read → 403；API-Key 通道不受影响）
+describe('quotationRoute: 读端点 quotations:read scope 门（requireAuth=true）', () => {
+  const viewerToken = jwt.sign({ userId: 'u_viewer', roles: ['viewer'] }, JWT_SECRET);
+
+  it('JWT 无 quotations:read → GET / 403 INSUFFICIENT_SCOPE', async () => {
+    const { app } = makeApp({ requireAuth: true });
+    const res = await request(app)
+      .get('/api/v1/quotations')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('FORBIDDEN');
+    expect(res.body.message).toMatch(/quotations:read/);
+  });
+
+  it('JWT 持 quotations:read（sales）→ GET / 200', async () => {
+    const { app } = makeApp({ requireAuth: true });
+    const res = await request(app)
+      .get('/api/v1/quotations')
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('JWT 无 quotations:read → GET /:id 403', async () => {
+    const { app } = makeApp({
+      requireAuth: true,
+      existing: { id: 'QT_1', quotationNumber: 'QT-001', status: 'Draft', deletedAt: null, lines: [] },
+    });
+    const res = await request(app)
+      .get('/api/v1/quotations/QT_1')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('JWT 无 quotations:read → GET /price-profile 403', async () => {
+    const { app } = makeApp({ requireAuth: true });
+    const res = await request(app)
+      .get('/api/v1/quotations/price-profile?relationId=REL_1')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('JWT 无 quotations:read → GET /:id/versions 403', async () => {
+    const { app } = makeApp({ requireAuth: true });
+    const res = await request(app)
+      .get('/api/v1/quotations/QT_1/versions')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('JWT 无 quotations:read → GET /:id/preview.html 403', async () => {
+    const { app } = makeApp({ requireAuth: true });
+    const res = await request(app)
+      .get('/api/v1/quotations/QT_1/preview.html')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(res.status).toBe(403);
   });
 });
 

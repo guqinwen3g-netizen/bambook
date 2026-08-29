@@ -67,9 +67,11 @@ export interface TrackAPanelProps {
   onMedianUsdChange?: (medianUsd: number | null, unit?: 'PC' | 'M') => void;
   /** 有效输入变化时回传，供父组件收集 Track A 输入用于 applyTrackPricing */
   onInputsChange?: (input: TrackAInput | null) => void;
+  /** R678-⑤：数据质量徽章走 statusSemanticClass（white/slate 双套），需要真实主题——缺省会被当浅色 */
+  isDarkMode?: boolean;
 }
 
-export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelProps) {
+export function TrackAPanel({ onMedianUsdChange, onInputsChange, isDarkMode }: TrackAPanelProps) {
   const [category, setCategory] = useState<TrackACategory>('garment');
   // 成衣输入
   const [fabricCode, setFabricCode] = useState('');
@@ -207,6 +209,8 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
       setEditedLines(null); // 重算完成，result.lines 已含 adjusted 行
     } catch (e) {
       console.error('[TrackAPanel] line recalc failed', e);
+      // R678-⑧：失焦重算失败原先仅 console.error 静默 → toast 提示（editedLines 保留，用户可再次失焦重试）
+      bdsToast.danger(`重算失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPreviewing(false);
     }
@@ -318,7 +322,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
           估算
         </button>
         {result && (
-          <span className={`px-2 py-0.5 text-xs rounded-control ${statusSemanticClass(TRACKA_QUALITY_SEMANTIC[result.dataQuality])}`}>
+          <span className={`px-2 py-0.5 text-xs rounded-control ${statusSemanticClass(TRACKA_QUALITY_SEMANTIC[result.dataQuality], isDarkMode)}`}>
             {TRACKA_QUALITY_LABELS[result.dataQuality]}
           </span>
         )}
@@ -337,8 +341,15 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
                     key={`${line.key}-${line.amountCny}`}
                     defaultValue={line.amountCny != null ? String(line.amountCny) : ''}
                     onBlur={(e) => {
-                      if (parseNum(e.target.value) !== null && Number(e.target.value) !== line.amountCny) {
-                        handleLineCommit(line.key, e.target.value);
+                      // R678-⑧：非数字/负数输入原先静默丢弃 → 明确 toast（空值=未修改，不打扰）
+                      const raw = e.target.value;
+                      const n = parseNum(raw);
+                      if (n === null || n < 0) {
+                        if (raw.trim() !== '') bdsToast.warning('请输入有效数字（≥0），本次修改未生效');
+                        return;
+                      }
+                      if (n !== line.amountCny) {
+                        void handleLineCommit(line.key, raw);
                       }
                     }}
                     className="flex-1 min-w-0 bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1 border border-border-subtle outline-none focus:border-border-action"

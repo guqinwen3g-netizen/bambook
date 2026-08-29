@@ -195,8 +195,9 @@ interface PricingManagerProps {
 
 // ==================== 主组件 ====================
 
-// ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
-// isDarkMode 仅保留在 props 签名与解构中兼容调用方，组件内不再使用
+// ── BDS v2.1：本组件主体对主题透明 — 暗色由 tokens.css [data-theme] 统一覆盖 ──
+// 例外（R678-⑤）：TrackAPanel 数据质量徽章 / DeviationBadge 走 statusSemanticClass（white/slate 双套），
+// 需要真实 isDarkMode，由主组件透传给 CalculatorPanel
 export default function PricingManager({ isDarkMode, initialTab }: PricingManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>(initialTab ?? 'calculator');
   useEffect(() => {
@@ -273,7 +274,67 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
 
 // ==================== 定价计算器 Panel ====================
 
-function CalculatorPanel() {
+// R678-⑩：定价记录归属关联候选统一分页上限（订单/报价/产品），超出在下拉下方明示截断
+const ASSOC_PAGE_SIZE = 200;
+
+/**
+ * R678-⑩ 可搜索关联下拉（J1 定价记录归属）：原生 select 无法检索且 limit 200 静默截断
+ * → 输入过滤 combobox（QuotationManager 面料建议同款 bds-pop/opt 模式），截断时明示。
+ */
+function AssocCombobox({ items, value, onChange, placeholder, truncated }: {
+  items: Array<{ id: string; label: string }>;
+  value: string;
+  onChange: (id: string) => void;
+  placeholder: string;
+  truncated: boolean;
+}) {
+  // query=null 表示未进入检索态（展示已选项 label）；聚焦后进入检索态
+  const [query, setQuery] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const selected = items.find((i) => i.id === value);
+  const filtered = useMemo(() => {
+    const q = (query ?? '').trim().toLowerCase();
+    const base = q ? items.filter((i) => i.label.toLowerCase().includes(q) || i.id.toLowerCase().includes(q)) : items;
+    return base.slice(0, 10);
+  }, [items, query]);
+  const close = () => { setOpen(false); setQuery(null); };
+  return (
+    <div className="relative">
+      <input
+        className={inputClass}
+        value={query ?? selected?.label ?? ''}
+        placeholder={placeholder}
+        onFocus={() => { setQuery(''); setOpen(true); }}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onBlur={() => { setTimeout(close, 150); }}
+      />
+      {open && (
+        <div className="bds-pop" style={{ left: 0, right: 0, top: 'calc(100% + 4px)' }}>
+          {value && (
+            <div className="opt" onClick={() => { onChange(''); close(); }}>
+              <span className="sub">不关联</span>
+            </div>
+          )}
+          {filtered.map((i) => (
+            <div key={i.id} className="opt" onClick={() => { onChange(i.id); close(); }}>
+              <span className="sub">{i.label}</span>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="opt"><span className="sub">无匹配项</span></div>
+          )}
+        </div>
+      )}
+      {truncated && (
+        <p className="text-[10px] mt-1" style={{ color: 'var(--text-quaternary)' }}>
+          候选较多，仅加载最近 {ASSOC_PAGE_SIZE} 条；可输入关键字检索已加载范围
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CalculatorPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   // 轨道 B 附加字段（保存定价记录用；试算本体在共享 TrackBPanel 内）
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
@@ -294,14 +355,18 @@ function CalculatorPanel() {
 
   const [records, setRecords] = useState<PricingCalculation[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
+  // R678-⑥：断网/失败原先仅 console.error 静默 → error state + bds-alert + 重试
+  const [recordsError, setRecordsError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadRecords = useCallback(async () => {
     setRecordsLoading(true);
+    setRecordsError(null);
     try {
       setRecords(await apiService.listPricingCalculations());
     } catch (e) {
       console.error('[PricingManager] listPricingCalculations failed', e);
+      setRecordsError(e instanceof Error ? e.message : String(e));
     } finally {
       setRecordsLoading(false);
     }
@@ -311,31 +376,45 @@ function CalculatorPanel() {
     loadRecords();
   }, [loadRecords]);
 
-  // 关联候选列表（失败不阻塞主流程，仅下拉为空）
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const list = await apiService.listOrders();
-        if (!cancelled) setOrders(list.filter((o) => !o.deletedAt));
-      } catch (e) {
-        console.error('[PricingManager] listOrders failed', e);
-      }
-      try {
-        const { items } = await apiService.listQuotations({ limit: 200 });
-        if (!cancelled) setQuotations(items);
-      } catch (e) {
-        console.error('[PricingManager] listQuotations failed', e);
-      }
-      try {
-        const assets = await apiService.listProductAssets(undefined, { limit: 200 });
-        if (!cancelled) setProducts(assets.filter((a) => !a.deletedAt));
-      } catch (e) {
-        console.error('[PricingManager] listProductAssets failed', e);
-      }
-    })();
-    return () => { cancelled = true; };
+  // 关联候选列表（R678-⑥：失败 error state + 重试，原先静默仅下拉为空；
+  // R678-⑩：订单/报价/产品统一 cap 200 + total 精确截断标记，下拉改可搜索 combobox）
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
+  const [ordersTruncated, setOrdersTruncated] = useState(false);
+  const [quotationsTruncated, setQuotationsTruncated] = useState(false);
+  const [productsTruncated, setProductsTruncated] = useState(false);
+  const loadAssocCandidates = useCallback(async () => {
+    setCandidatesError(null);
+    const failures: string[] = [];
+    try {
+      const page = await apiService.listOrdersPage(undefined, { limit: ASSOC_PAGE_SIZE });
+      setOrders(page.items.filter((o) => !o.deletedAt));
+      setOrdersTruncated(page.total > page.items.length);
+    } catch (e) {
+      console.error('[PricingManager] listOrders failed', e);
+      failures.push('订单');
+    }
+    try {
+      const { items, total } = await apiService.listQuotations({ limit: ASSOC_PAGE_SIZE });
+      setQuotations(items);
+      setQuotationsTruncated(total > items.length);
+    } catch (e) {
+      console.error('[PricingManager] listQuotations failed', e);
+      failures.push('报价单');
+    }
+    try {
+      const assets = await apiService.listProductAssets(undefined, { limit: ASSOC_PAGE_SIZE });
+      setProducts(assets.filter((a) => !a.deletedAt));
+      setProductsTruncated(assets.length >= ASSOC_PAGE_SIZE);
+    } catch (e) {
+      console.error('[PricingManager] listProductAssets failed', e);
+      failures.push('产品');
+    }
+    if (failures.length > 0) setCandidatesError(`关联候选加载失败（${failures.join(' / ')}），可点击重试`);
   }, []);
+
+  useEffect(() => {
+    void loadAssocCandidates();
+  }, [loadAssocCandidates]);
 
   const orderLabel = useCallback((id: string) => {
     const o = orders.find((x) => x.id === id);
@@ -349,6 +428,20 @@ function CalculatorPanel() {
     const p = products.find((x) => x.id === id);
     return p ? `${p.name} · ${p.sku}` : id;
   }, [products]);
+
+  // R678-⑩：combobox 候选项（订单标签补 poNumber 可读性，原 orderLabel 裸 id 不动——记录归属展示沿用）
+  const orderItems = useMemo(
+    () => orders.map((o) => ({ id: o.id, label: `${o.poNumber || o.id} · ${o.customer || '—'}` })),
+    [orders],
+  );
+  const quotationItems = useMemo(
+    () => quotations.map((q) => ({ id: q.id, label: quotationLabel(q.id) })),
+    [quotations, quotationLabel],
+  );
+  const productItems = useMemo(
+    () => products.map((p) => ({ id: p.id, label: productLabel(p.id) })),
+    [products, productLabel],
+  );
 
   const handleSave = async () => {
     if (!trackBInputs) {
@@ -415,7 +508,7 @@ function CalculatorPanel() {
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       {/* 左：双轨试算（轨道 A 估算 + 轨道 B 退税定价 + 偏差校验） */}
       <div className="space-y-5">
-        <TrackAPanel onMedianUsdChange={(usd, unit) => setTrackAMedian(usd !== null && unit ? { usd, unit } : null)} />
+        <TrackAPanel isDarkMode={isDarkMode} onMedianUsdChange={(usd, unit) => setTrackAMedian(usd !== null && unit ? { usd, unit } : null)} />
         <TrackBPanel
           onResultChange={setTrackBResult}
           onInputsChange={setTrackBInputs}
@@ -430,29 +523,24 @@ function CalculatorPanel() {
             </button>
           }
         >
+          {/* R678-⑥：关联候选加载失败提示 + 重试（原先静默仅下拉为空） */}
+          {candidatesError && (
+            <div className="bds-alert danger mb-3">
+              <span className="flex-1 min-w-0">{candidatesError}</span>
+              <button type="button" onClick={() => void loadAssocCandidates()} className="bds-btn bds-btn-secondary shrink-0">
+                重试
+              </button>
+            </div>
+          )}
+          {/* R678-⑩：三个关联下拉改可搜索 combobox（候选 cap 200，截断明示） */}
           <Field label="关联订单（可选）">
-            <select className="bds-select" value={orderId} onChange={(e) => setOrderId(e.target.value)}>
-              <option value="">不关联</option>
-              {orders.map((o) => (
-                <option key={o.id} value={o.id}>{orderLabel(o.id)}</option>
-              ))}
-            </select>
+            <AssocCombobox items={orderItems} value={orderId} onChange={setOrderId} placeholder="搜索 PO 号 / 客户" truncated={ordersTruncated} />
           </Field>
           <Field label="关联报价单（可选）">
-            <select className="bds-select" value={quotationId} onChange={(e) => setQuotationId(e.target.value)}>
-              <option value="">不关联</option>
-              {quotations.map((q) => (
-                <option key={q.id} value={q.id}>{quotationLabel(q.id)}</option>
-              ))}
-            </select>
+            <AssocCombobox items={quotationItems} value={quotationId} onChange={setQuotationId} placeholder="搜索报价号 / 客户" truncated={quotationsTruncated} />
           </Field>
           <Field label="关联产品（可选）">
-            <select className="bds-select" value={productAssetId} onChange={(e) => setProductAssetId(e.target.value)}>
-              <option value="">不关联</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>{productLabel(p.id)}</option>
-              ))}
-            </select>
+            <AssocCombobox items={productItems} value={productAssetId} onChange={setProductAssetId} placeholder="搜索品名 / SKU" truncated={productsTruncated} />
           </Field>
           <Field label="数量（可选）">
             <input className={inputClass} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="如 800" inputMode="decimal" />
@@ -465,6 +553,7 @@ function CalculatorPanel() {
           finalUsd={trackBResult?.finalUnitPrice ?? null}
           medianUsd={trackAMedian?.usd ?? null}
           medianUnit={trackAMedian?.unit}
+          isDarkMode={isDarkMode}
         />
       </div>
 
@@ -477,12 +566,21 @@ function CalculatorPanel() {
             刷新
           </button>
         </div>
+        {/* R678-⑥：定价记录加载失败提示 + 重试（原先断网仅 console.error 静默） */}
+        {recordsError && (
+          <div className="bds-alert danger mb-3">
+            <span className="flex-1 min-w-0">定价记录加载失败：{recordsError}</span>
+            <button type="button" onClick={() => void loadRecords()} className="bds-btn bds-btn-secondary shrink-0">
+              重试
+            </button>
+          </div>
+        )}
         {recordsLoading ? (
           <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : records.length === 0 ? (
-          <EmptyHint text="暂无定价记录" />
+          recordsError ? null : <EmptyHint text="暂无定价记录" />
         ) : (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {records.map((rec) => (
@@ -541,6 +639,8 @@ function CalculatorPanel() {
 function ProfitSheetsPanel() {
   const [sheets, setSheets] = useState<OrderProfitSheet[]>([]);
   const [loading, setLoading] = useState(true);
+  // R678-⑥：利润表加载失败 error state + 重试（原先仅 console.error 静默）
+  const [sheetsError, setSheetsError] = useState<string | null>(null);
   const [current, setCurrent] = useState<OrderProfitSheet | null>(null);
   const [generating, setGenerating] = useState(false);
 
@@ -550,10 +650,12 @@ function ProfitSheetsPanel() {
 
   const loadSheets = useCallback(async () => {
     setLoading(true);
+    setSheetsError(null);
     try {
       setSheets(await apiService.listProfitSheets());
     } catch (e) {
       console.error('[PricingManager] listProfitSheets failed', e);
+      setSheetsError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -673,12 +775,20 @@ function ProfitSheetsPanel() {
               刷新
             </button>
           </div>
+          {sheetsError && (
+            <div className="bds-alert danger mb-3">
+              <span className="flex-1 min-w-0">利润表加载失败：{sheetsError}</span>
+              <button type="button" onClick={() => void loadSheets()} className="bds-btn bds-btn-secondary shrink-0">
+                重试
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center py-8" style={{ color: 'var(--text-quaternary)' }}>
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
           ) : sheets.length === 0 ? (
-            <EmptyHint text="暂无利润表" />
+            sheetsError ? null : <EmptyHint text="暂无利润表" />
           ) : (
             <div className="space-y-2 max-h-[40vh] overflow-y-auto">
               {sheets.map((s) => (

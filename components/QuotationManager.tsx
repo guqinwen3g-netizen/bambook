@@ -39,6 +39,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import { checkFabricExclusivity, type FabricExclusivityViolation } from '../services/fabricExclusivityClient';
 import BottomSheet from './ui/BottomSheet';
 import { bdsConfirm } from './ui/BdsDialog';
@@ -202,8 +203,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [loadingMore, setLoadingMore] = useState(false);
   // 阶段 IA-3：转单成功订单 id（成功横幅 + 「查看订单」直达）
   const [convertedOrderId, setConvertedOrderId] = useState<string | null>(null);
+  // R678-①：PI 生成成功提示独立 state——PI 编号不是订单 id，与转单横幅分离（修假跳转：
+  // 历史上复用 convertedOrderId 装「PI 已生成：INV-xxx」文本，「查看订单」按钮拿它当 orderId 跳）
+  const [piGeneratedMsg, setPiGeneratedMsg] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | QuotationStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // R678-③：列表搜索防抖目标值——fetchQuotations 只跟随 debouncedSearch，逐键输入不直接打后端
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
@@ -298,13 +304,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   }, []);
 
   // ── 拉取数据 ──
+  // R678-③：搜索输入 300ms 防抖（同报价行面料搜索 fabricSearchTimers 模式），停键后才打后端
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery]);
+
   const fetchQuotations = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listQuotations({
         status: statusFilter === 'all' ? undefined : statusFilter,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         limit: 100,
         offset,
       });
@@ -316,22 +330,22 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, debouncedSearch]);
 
-  /** 报价台账 Excel 导出（当前筛选条件全量） */
+  /** 报价台账 Excel 导出（当前筛选条件全量；搜索词取防抖后口径，与可见列表一致） */
   const handleExportXlsx = useCallback(async () => {
     setExportingXlsx(true);
     try {
       await apiService.exportQuotationsXlsx({
         ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-        ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
       });
     } catch (e: any) {
       setError(`台账导出失败：${e?.message || e}`);
     } finally {
       setExportingXlsx(false);
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, debouncedSearch]);
 
   useEffect(() => { fetchQuotations(); }, [fetchQuotations]);
 
@@ -421,8 +435,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     }
     setActionLoading(`${id}_${action}`);
     setConvertedOrderId(null);
+    setPiGeneratedMsg(null);
     try {
-      if (action === 'send') await apiService.sendQuotation(id);
+      // R678-⑦：send/reject/delete/revise 原先成功无反馈 → 统一 bdsToast.success
+      if (action === 'send') {
+        await apiService.sendQuotation(id);
+        bdsToast.success('报价单已发送客户。');
+      }
       else if (action === 'accept') {
         const result = await apiService.acceptQuotation(id);
         // L9 联动：接受后系统自动转为订单草稿，提示用户
@@ -432,9 +451,18 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           bdsToast.success('已接受报价。可点击「转为订单」手动转为正式订单。');
         }
       }
-      else if (action === 'reject') await apiService.rejectQuotation(id);
-      else if (action === 'delete') await apiService.deleteQuotation(id);
-      else if (action === 'revise') await apiService.reviseQuotation(id, '砍价修订');
+      else if (action === 'reject') {
+        await apiService.rejectQuotation(id);
+        bdsToast.success('已标记客户拒绝。');
+      }
+      else if (action === 'delete') {
+        await apiService.deleteQuotation(id);
+        bdsToast.success('报价单已删除。');
+      }
+      else if (action === 'revise') {
+        await apiService.reviseQuotation(id, '砍价修订');
+        bdsToast.success('已快照当前版本并回到草稿，可编辑改价后重新发送。');
+      }
       await fetchQuotations();
     } catch (e: any) {
       setError(`操作失败：${e?.message || e}`);
@@ -513,11 +541,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     try {
       const invoice = await financeV2Service.generatePi(id, {});
       setError(null);
-      // 提示成功（不跳转，用户可在发票模块查看 PI）
       setConvertedOrderId(null);
       await fetchQuotations();
-      // 用 convertedOrderId state 复用为 PI 编号展示
-      setConvertedOrderId(`PI 已生成：${invoice.invoiceNumber}`);
+      // R678-①：PI 编号走独立 piGeneratedMsg（纯提示横幅，不提供「查看订单」跳转——
+      // 历史上复用 convertedOrderId 导致横幅渲染「已转为订单 PI 已生成：…」且按钮拿 PI 文本当 orderId 假跳转）
+      setPiGeneratedMsg(`PI 已生成：${invoice.invoiceNumber}，可在发票模块查看`);
     } catch (e: any) {
       setError(`生成 PI 失败：${e?.message || e}`);
     } finally {
@@ -601,6 +629,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     setShowCreateForm(true);
   }, []);
 
+  // ── R678-④：表单内容重置（创建成功与「返回列表」取消共用——此前取消仅清编辑态，
+  //    form/formLines/双轨/专属面料预检残留，下次打开新建表单带着上次内容） ──
+  const resetCreateForm = useCallback(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setForm({
+      quotationNumber: '', currency: 'USD', customerRelationId: '', customerName: '',
+      issueDate: today, validUntil: defaultValidUntil(today),
+      deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
+      salesperson: '', inquiryRef: '', notes: '',
+    });
+    setFormLines([createEmptyLine()]);
+    setFormError(null);
+    setFabricViolations({});
+    setTrackAMedian(null);
+    setTrackBResult(null);
+  }, []);
+
   // ── 创建报价单 ──
   const handleCreate = useCallback(async () => {
     setFormError(null);
@@ -659,18 +704,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         return;
       }
       setShowCreateForm(false);
-      // 重置表单（validUntil 重新取报价日 +30 天默认值）
-      const today = new Date().toISOString().split('T')[0];
-      setForm({
-        quotationNumber: '', currency: 'USD', customerRelationId: '', customerName: '',
-        issueDate: today, validUntil: defaultValidUntil(today),
-        deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
-        salesperson: '', inquiryRef: '', notes: '',
-      });
-      setFormLines([createEmptyLine()]);
-      setFabricViolations({});
-      setTrackAMedian(null);
-      setTrackBResult(null);
+      // 重置表单（validUntil 重新取报价日 +30 天默认值；R678-④ 收敛为共享 resetCreateForm）
+      resetCreateForm();
       setMoqWarnings(null);
       setMoqDraftId(null);
       setEditingQuotationId(null);
@@ -680,7 +715,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     } finally {
       setActionLoading(null);
     }
-  }, [form, formLines, trackAMedian, trackBResult, moqDraftId, editingQuotationId, fetchQuotations]);
+  }, [form, formLines, trackAMedian, trackBResult, moqDraftId, editingQuotationId, fetchQuotations, resetCreateForm]);
 
   // ── P1-3 行面料即时预检：fabricCode 宽键（sku/厂号/品色号/客供品号并集解析，端点固定
   // clientCodeGlobalFallback=false），与后端 quotation create/rebuild 触发面一致；
@@ -840,6 +875,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
+  // R678-R6：写操作按钮（发送/删除/转为订单）按 quotations:write scope 隐藏，无权限角色只读
+  const canWriteQuotation = hasPermission('quotations:write');
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -871,7 +908,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 {/* 创建/编辑表单（C14：草稿「编辑」复用本表单，提交走 updateQuotation） */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>{editingQuotationId ? '编辑报价单' : '新建报价单'}</h2>
-                  <button onClick={() => { setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null); setEditingQuotationId(null); }} className="bds-btn bds-btn-secondary">
+                  <button onClick={() => { setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null); setEditingQuotationId(null); resetCreateForm(); }} className="bds-btn bds-btn-secondary">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
@@ -953,7 +990,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     </button>
                     {showDualTrack && (
                       <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                        <TrackAPanel onMedianUsdChange={(usd, unit) => setTrackAMedian(usd !== null && unit ? { usd, unit } : null)} />
+                        <TrackAPanel isDarkMode={isDarkMode} onMedianUsdChange={(usd, unit) => setTrackAMedian(usd !== null && unit ? { usd, unit } : null)} />
                         <div className="space-y-3">
                           <TrackBPanel onResultChange={setTrackBResult} />
                           <DeviationBadge
@@ -1179,7 +1216,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   </div>
                 )}
 
-                {/* 阶段 IA-3：转单成功横幅 —— 「查看订单」直达跳转 */}
+                {/* R678-①：PI 生成成功横幅（独立 state 纯提示——PI 编号不是订单 id，不提供「查看订单」跳转） */}
+                {piGeneratedMsg && (
+                  <div className="bds-alert success mb-3">
+                    <CheckCircle2 size={16} />
+                    <span className="flex-1 min-w-0 truncate">{piGeneratedMsg}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPiGeneratedMsg(null)}
+                      className="flex items-center shrink-0 hover:opacity-70"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* 阶段 IA-3：转单成功横幅 —— 「查看订单」直达跳转（convertedOrderId 只装真实订单 id） */}
                 {convertedOrderId && (
                   <div className="bds-alert success mb-3">
                     <CheckCircle2 size={16} />
@@ -1377,10 +1430,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <Calculator size={14} />
                                         <span>应用定价</span>
                                       </button>
-                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-secondary">
-                                        {actionLoading === `${qt.id}_send` ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                                        <span>发送报价</span>
-                                      </button>
+                                      {canWriteQuotation && (
+                                        <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-secondary">
+                                          {actionLoading === `${qt.id}_send` ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                          <span>发送报价</span>
+                                        </button>
+                                      )}
                                       {/* 双轨红标门禁提示（PRD 8.6）：偏差 >30% 需审批通过后服务端才放行发送 */}
                                       {qt.priceDeviationLevel === 'block' && (
                                         <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--danger-text)' }}>
@@ -1388,10 +1443,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                           偏差超 30%，需审批通过后发送
                                         </span>
                                       )}
-                                      <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className="bds-btn bds-btn-danger">
-                                        {actionLoading === `${qt.id}_delete` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                                        <span>删除</span>
-                                      </button>
+                                      {canWriteQuotation && (
+                                        <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className="bds-btn bds-btn-danger">
+                                          {actionLoading === `${qt.id}_delete` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                          <span>删除</span>
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   {qt.status === 'Sent' && (
@@ -1413,7 +1470,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   )}
                                   {(qt.status === 'Accepted' || qt.status === 'Rejected' || qt.status === 'Expired') && (
                                     <>
-                                      {qt.status === 'Accepted' && !qt.convertedOrderId && (
+                                      {canWriteQuotation && qt.status === 'Accepted' && !qt.convertedOrderId && (
                                         <button
                                           onClick={() => openConvertModal(qt)}
                                           disabled={actionLoading === `${qt.id}_convert`}
@@ -1532,7 +1589,6 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         isOpen={showImportWizard}
         onClose={() => setShowImportWizard(false)}
         onImported={() => { setShowImportWizard(false); fetchQuotations(); }}
-        isDarkMode={isDarkMode}
       />
 
       {/* V2 双轨定价 modal：对已保存报价单应用 Track A/B → 写入快照 + 偏差分级 */}
@@ -1554,6 +1610,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <TrackAPanel
+                isDarkMode={isDarkMode}
                 onInputsChange={setPricingTrackA}
                 onMedianUsdChange={() => {}}
               />

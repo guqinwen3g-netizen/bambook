@@ -34,7 +34,6 @@ interface Props {
   onClose: () => void;
   /** commit 且有行落库后回调（父级刷新列表） */
   onImported: () => void;
-  isDarkMode: boolean;
 }
 
 type Step = 1 | 2 | 3;
@@ -145,7 +144,7 @@ function sheetToRows(sheet: XLSX.WorkSheet): HistoricalQuotationImportRow[] {
   return rows;
 }
 
-const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, isDarkMode }) => {
+const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported }) => {
   const [step, setStep] = useState<Step>(1);
   const [fileName, setFileName] = useState<string | null>(null);
   const [rows, setRows] = useState<HistoricalQuotationImportRow[]>([]);
@@ -172,11 +171,12 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // busy（校验/落库在途）时禁关，避免用户误以为已取消而结果仍落库
+      if (e.key === 'Escape' && !busy) onClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, busy]);
 
   const downloadTemplate = () => {
     const sheet = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, TEMPLATE_EXAMPLE]);
@@ -313,11 +313,11 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 
           {/* Step indicator */}
           <div className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50`}>
-            <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={14} />} isDarkMode={isDarkMode} />
-            <Connector active={step >= 2} isDarkMode={isDarkMode} />
-            <StepDot n={2} label="校验预览" active={step >= 2} current={step === 2} icon={<ScanLine size={14} />} isDarkMode={isDarkMode} />
-            <Connector active={step >= 3} isDarkMode={isDarkMode} />
-            <StepDot n={3} label="导入报告" active={step >= 3} current={step === 3} icon={<ShieldCheck size={14} />} isDarkMode={isDarkMode} />
+            <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={14} />} />
+            <Connector active={step >= 2} />
+            <StepDot n={2} label="校验预览" active={step >= 2} current={step === 2} icon={<ScanLine size={14} />} />
+            <Connector active={step >= 3} />
+            <StepDot n={3} label="导入报告" active={step >= 3} current={step === 3} icon={<ShieldCheck size={14} />} />
           </div>
 
           {/* Body */}
@@ -382,10 +382,10 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
             {step === 2 && preview && (
               <div className="space-y-4">
                 <div className="grid grid-cols-4 gap-3">
-                  <SummaryCard label="总行数" value={preview.total} isDarkMode={isDarkMode} />
-                  <SummaryCard label="合法行" value={preview.valid} isDarkMode={isDarkMode} />
-                  <SummaryCard label="将跳过（已存在/重复）" value={preview.skipped} isDarkMode={isDarkMode} />
-                  <SummaryCard label="错误行" value={preview.errors.length} isDarkMode={isDarkMode} />
+                  <SummaryCard label="总行数" value={preview.total} />
+                  <SummaryCard label="合法行" value={preview.valid} />
+                  <SummaryCard label="将跳过（已存在/重复）" value={preview.skipped} />
+                  <SummaryCard label="错误行" value={preview.errors.length} />
                 </div>
 
                 {preview.errors.length > 0 && (
@@ -458,10 +458,10 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
             {step === 3 && report && (
               <div className="space-y-4">
                 <div className="grid grid-cols-4 gap-3">
-                  <SummaryCard label="总行数" value={report.total} isDarkMode={isDarkMode} />
-                  <SummaryCard label="成功导入" value={report.created} isDarkMode={isDarkMode} accent />
-                  <SummaryCard label="已跳过（幂等）" value={report.skipped} isDarkMode={isDarkMode} />
-                  <SummaryCard label="失败行" value={report.errors.length} isDarkMode={isDarkMode} />
+                  <SummaryCard label="总行数" value={report.total} />
+                  <SummaryCard label="成功导入" value={report.created} accent />
+                  <SummaryCard label="已跳过（幂等）" value={report.skipped} />
+                  <SummaryCard label="失败行" value={report.errors.length} />
                 </div>
                 {report.errors.length > 0 && (
                   <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
@@ -529,7 +529,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
   );
 };
 
-const SummaryCard: React.FC<{ label: string; value: number; isDarkMode: boolean; accent?: boolean }> = ({ label, value, isDarkMode, accent }) => (
+const SummaryCard: React.FC<{ label: string; value: number; accent?: boolean }> = ({ label, value, accent }) => (
   <div className={`rounded-inset border px-4 py-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)]/60`}>
     <div className={`text-xl font-light tabular-nums ${accent ? 'text-[var(--os-vnext-brand-blue)]' : 'text-[var(--text-primary)]'}`}>{value}</div>
     <div className={`text-[11px] mt-0.5 ${'text-[var(--text-tertiary)]'}`}>{label}</div>
@@ -542,8 +542,7 @@ const StepDot: React.FC<{
   active: boolean;
   current: boolean;
   icon: React.ReactNode;
-  isDarkMode: boolean;
-}> = ({ n, label, active, current, icon, isDarkMode }) => (
+}> = ({ n, label, active, current, icon }) => (
   <div className="flex items-center gap-2">
     <div
       className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-light transition-colors duration-200 ${
@@ -562,7 +561,7 @@ const StepDot: React.FC<{
   </div>
 );
 
-const Connector: React.FC<{ active: boolean; isDarkMode: boolean }> = ({ active, isDarkMode }) => (
+const Connector: React.FC<{ active: boolean }> = ({ active }) => (
   <div className={`flex-1 h-px transition-colors ${active ? 'bg-[var(--os-vnext-brand-blue)]/60' : 'bg-[var(--recessed-bg-strong)]'}`} />
 );
 
