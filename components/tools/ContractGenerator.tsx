@@ -17,8 +17,10 @@ import {
   Trash2,
   Search,
   Settings2,
+  X,
 } from 'lucide-react';
 import { Order, Relation } from '../../types';
+import { apiService } from '../../services/apiService';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
@@ -100,6 +102,8 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  // R678：最近一次服务端登记的合同号（成功提示展示，台账可追溯）
+  const [lastRegisteredDocNo, setLastRegisteredDocNo] = useState('');
 
   // 关系选项
   const relationOptions = useMemo(() => {
@@ -182,7 +186,6 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     setErrorMessage('');
 
     try {
-      const docNo = contractNo || `SC-${Date.now().toString(36).toUpperCase()}`;
       const today = formatDate(signDate);
       const isSales = contractType === 'sales';
       const titleCn = isSales ? '销售合同' : '采购合同';
@@ -192,6 +195,25 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       const sellerCn = seller?.chineseName || getExporterProfile().nameEn;
       const buyerName = buyer?.englishName || buyer?.chineseName || selectedOrder?.customer || '';
       const buyerCn = buyer?.chineseName || selectedOrder?.customer || '';
+
+      // R678：合同号真源——登记单据中心台账（POST /v1/customs/trade-documents）。
+      // 留空 → 服务端自动取号（作废不回收）；手输 → 台账唯一性校验（重号即冲突报错，不静默覆盖）。
+      // 注：Contract 域类型由业务模块带 sourceRef 就地生成（手动创建被后端拒绝），本工具登记为
+      // Other 类型 + notes 标注合同性质，打印号=台账号可追溯；登记失败即中止（fail-closed，不发假号）。
+      const registered = await apiService.createTradeDocument({
+        type: 'Other',
+        documentNumber: contractNo.trim() || undefined,
+        orderId: selectedOrderId || undefined,
+        relationId: buyerId || sellerId || undefined,
+        issueDate: signDate || undefined,
+        consignor: sellerName,
+        consignee: buyerName || undefined,
+        totalAmount: totals.totalAmount > 0 ? totals.totalAmount : undefined,
+        currency,
+        notes: `${titleCn}（合同生成器登记）`,
+      });
+      const docNo = registered.documentNumber;
+      setLastRegisteredDocNo(docNo);
 
       const rowsHtml = validLines.map((l, i) => {
         const qty = parseFloat(l.quantity) || 0;
@@ -363,6 +385,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
     setDeliveryTerms(DELIVERY_TERMS_OPTIONS[0]);
     setGenerationStatus('idle');
     setErrorMessage('');
+    setLastRegisteredDocNo('');
   };
 
   // 主题样式
@@ -421,7 +444,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                   type="text"
                   value={contractNo}
                   onChange={(e) => setContractNo(e.target.value)}
-                  placeholder="留空自动生成"
+                  placeholder="留空由服务端取号（登记单据台账）"
                   className={fieldClass}
                 />
               </div>
@@ -503,6 +526,22 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                       <span className="ml-2 opacity-60">{o.customer}</span>
                     </button>
                   ))}
+                </div>
+              )}
+              {/* R678：已选订单 chip 回显（原选中后无任何视觉反馈，✕ 清除恢复未选态） */}
+              {selectedOrder && (
+                <div className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-inset text-xs bg-[var(--os-vnext-brand-blue)]/10 text-[var(--text-primary)]`}>
+                  <span className="font-mono">{selectedOrder.poNumber}</span>
+                  <span className="opacity-60">{selectedOrder.customer}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOrderId('')}
+                    title="清除关联订单"
+                    aria-label="清除关联订单"
+                    className="p-0.5 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)] transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )}
             </div>
@@ -641,7 +680,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                 className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('success', isDarkMode)}`}
               >
                 <CheckCircle2 size={16} className={statusSemanticText('success', isDarkMode)} />
-                <span className="text-sm">合同已生成，请在打印对话框中选择"保存为 PDF"</span>
+                <span className="text-sm">合同 {lastRegisteredDocNo} 已登记台账并生成，请在打印对话框中选择"保存为 PDF"</span>
               </motion.div>
             )}
             {generationStatus === 'error' && (

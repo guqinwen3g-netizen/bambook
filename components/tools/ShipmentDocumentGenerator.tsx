@@ -7,7 +7,7 @@
  *        → printFullHtmlDocument 输出 PDF
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText,
@@ -62,12 +62,16 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
   const [selectedDocs, setSelectedDocs] = useState<Record<ExportDocKind, boolean>>({ CI: true, PL: true, CO: true, BL: true, AWB: false, FORMA: false, INS: false, BC: false });
   const [generating, setGenerating] = useState(false);
 
-  // ── 运单列表 ──
-  const fetchShipments = useCallback(async () => {
+  // ── 运单列表（R678：服务端分页/搜索——原无参 listShipments 默认 50 上限，超量运单静默不可见） ──
+  const fetchShipments = useCallback(async (keyword: string = '') => {
     setLoadingList(true);
     setError(null);
     try {
-      const items = await apiService.listShipments();
+      const kw = keyword.trim();
+      const items = await apiService.listShipments(undefined, {
+        limit: 200,
+        ...(kw ? { search: kw } : {}),
+      });
       setShipments(items.filter(s => !s.deletedAt));
     } catch (e: any) {
       setError(String(e?.message || e || '加载运单失败'));
@@ -78,15 +82,11 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
 
   useEffect(() => { fetchShipments(); }, [fetchShipments]);
 
-  const filteredShipments = useMemo(() => {
-    const kw = searchQuery.trim().toLowerCase();
-    if (!kw) return shipments;
-    return shipments.filter(s =>
-      s.shipmentNumber?.toLowerCase().includes(kw) ||
-      s.customerName?.toLowerCase().includes(kw) ||
-      s.portOfDischarge?.toLowerCase().includes(kw)
-    );
-  }, [shipments, searchQuery]);
+  // 搜索防抖 300ms 走服务端 ?search=（运单号/客户/承运方，与货运管理同口径）
+  useEffect(() => {
+    const timer = setTimeout(() => { void fetchShipments(searchQuery); }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, fetchShipments]);
 
   // ── 选中运单 → 拉取制单数据 ──
   const handleSelectShipment = useCallback(async (id: string) => {
@@ -115,6 +115,8 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
     if (!docSet || !selectedId) return;
     setGenerating(true);
     setError(null);
+    // R678：多单据逐份生成——错误聚合数组逐条收集（原单 setError 互相覆盖，只见最后一错）
+    const failures: string[] = [];
     try {
       const kinds = (Object.keys(selectedDocs) as ExportDocKind[]).filter(k => selectedDocs[k]);
       for (let i = 0; i < kinds.length; i++) {
@@ -126,8 +128,11 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
             printFullHtmlDocument(html, `${kind} - ${docSet.shipment.shipmentNumber}`);
           }, i * 350);
         } catch (e: any) {
-          setError(`单据 ${kind} 生成失败：${e?.message || e}`);
+          failures.push(`${kind}：${e?.message || e}`);
         }
+      }
+      if (failures.length > 0) {
+        setError(`部分单据生成失败（${failures.length}/${kinds.length}）——${failures.join('；')}`);
       }
     } finally {
       setGenerating(false);
@@ -150,7 +155,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
         <div className="flex items-center gap-2 mb-3">
           <Ship size={14} className="text-[var(--os-vnext-brand-blue)]" />
           <h3 className={`text-xs font-light uppercase tracking-wider ${textSecondary}`}>选择运单 Select Shipment</h3>
-          <button onClick={fetchShipments} className={`ml-auto p-1 rounded-control transition-colors ${textSecondary} ${hoverRow}`} title="刷新">
+          <button onClick={() => void fetchShipments(searchQuery)} className={`ml-auto p-1 rounded-control transition-colors ${textSecondary} ${hoverRow}`} title="刷新">
             <RefreshCw size={14} className={loadingList ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -161,7 +166,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索运单号 / 客户 / 目的港..."
+            placeholder="搜索运单号 / 客户 / 承运方（服务端搜索）..."
             className={`${fieldClass} pl-9`}
           />
         </div>
@@ -171,10 +176,10 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
             <div className={`flex items-center justify-center py-6 ${textSecondary}`}>
               <Loader2 size={16} className="animate-spin mr-2" /><span className="text-xs">加载运单...</span>
             </div>
-          ) : filteredShipments.length === 0 ? (
+          ) : shipments.length === 0 ? (
             <div className={`text-center py-6 text-xs ${textSecondary}`}>无匹配运单</div>
           ) : (
-            filteredShipments.map(s => (
+            shipments.map(s => (
               <button
                 key={s.id}
                 onClick={() => handleSelectShipment(s.id)}

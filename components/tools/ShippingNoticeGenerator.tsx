@@ -208,15 +208,20 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
     setErrorMessage('');
 
     try {
+      // R678：运输方式进 payload——后端 /api/shipping-notice/generate 已消费 options.shippingMethod
+      // （server/src/index.ts，缺省回退 DEFAULT_SHIPPING_METHOD），此前三态按钮选择被静默丢弃。
+      // 经中间变量透传：apiService.generateShippingNotice 的 options 类型加宽归服务层车道，本车道不越界改文件。
+      const payloadOptions = {
+        destinationPort: options.destinationPort,
+        shipmentDate: options.shipmentDate,
+        paymentTerms: options.paymentTerms,
+        shippingMethod: options.shippingMethod,
+        forwarder: options.forwarder,
+        remarks: options.remarks,
+      };
       const result = await apiService.generateShippingNotice({
         poNumbers: selectedPOs.map(po => po.po_number),
-        options: {
-          destinationPort: options.destinationPort,
-          shipmentDate: options.shipmentDate,
-          paymentTerms: options.paymentTerms,
-          forwarder: options.forwarder,
-          remarks: options.remarks,
-        }
+        options: payloadOptions,
       });
 
       if (!result.success) {

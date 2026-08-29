@@ -109,8 +109,10 @@ type ShipmentCreateInput = {
   attachments?: any;
 };
 
+// R6：shippingMethod 入白名单（拍板：运输方式订舱前后均合理可改；shipmentNumber/type 为身份字段仍禁止
+// PATCH，前端编辑态对应禁用/不下发，杜绝「可编辑但静默丢弃」）
 const SHIPMENT_PATCH_FIELDS: (keyof ShipmentCreateInput)[] = [
-  'status', 'bookingDate', 'etd', 'atd', 'eta', 'ata',
+  'status', 'shippingMethod', 'bookingDate', 'etd', 'atd', 'eta', 'ata',
   'vesselOrFlight', 'voyageNumber',
   'portOfLoading', 'portOfDischarge',
   'containerNumber', 'sealNumber', 'trackingNumber', 'carrierTrackingUrl', 'totalPackages',

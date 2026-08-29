@@ -38,6 +38,7 @@ import {
 import { apiService } from '../services/apiService';
 import { invoiceService } from '../services/invoiceService';
 import { qcService, QcInspectionReport } from '../services/qcService';
+import { hasPermission } from '../services/authService';
 import {
   DocumentVersionRecord,
   GenerateTradeDocumentsResult,
@@ -502,6 +503,10 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   const cardClass = `rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)] ${BAMBOOK_OS.material.glassColor}`;
   const fieldClass = 'bds-input w-full';
 
+  // R6：写操作门禁——后端写端点均挂 customs:write scope（requireCustomsWrite，含 batch-download），
+  // 无权限不渲染写按钮（防 403 假动作）；预览/打印/打包清单为只读保留
+  const canWriteCustoms = hasPermission('customs:write');
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <PageHeader
@@ -511,30 +516,37 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
         isDarkMode={isDarkMode}
         actions={(
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setGenerateShipmentId(''); setShowGenerate(true); }}
-              className="bds-btn bds-btn-outline"
-            >
-              <FileOutput size={14} /><span>从运单生成</span>
-            </button>
-            <button
-              onClick={() => setShowComposite(true)}
-              className="bds-btn bds-btn-outline"
-            >
-              <Layers size={14} /><span>组合生成</span>
-            </button>
+            {/* R6：写入口 customs:write 门禁（从运单生成/组合生成均落台账写库；新增单据为手动登记） */}
+            {canWriteCustoms && (
+              <>
+                <button
+                  onClick={() => { setGenerateShipmentId(''); setShowGenerate(true); }}
+                  className="bds-btn bds-btn-outline"
+                >
+                  <FileOutput size={14} /><span>从运单生成</span>
+                </button>
+                <button
+                  onClick={() => setShowComposite(true)}
+                  className="bds-btn bds-btn-outline"
+                >
+                  <Layers size={14} /><span>组合生成</span>
+                </button>
+              </>
+            )}
             <button
               onClick={() => setShowPack(true)}
               className="bds-btn bds-btn-outline"
             >
               <PackageOpen size={14} /><span>订单打包</span>
             </button>
-            <button
-              onClick={() => { setEditingDoc(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus size={14} /><span>新增单据</span>
-            </button>
+            {canWriteCustoms && (
+              <button
+                onClick={() => { setEditingDoc(null); setShowForm(true); }}
+                className="bds-btn bds-btn-primary"
+              >
+                <Plus size={14} /><span>新增单据</span>
+              </button>
+            )}
           </div>
         )}
       />
@@ -591,22 +603,27 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
               {selectedIds.size > 0 && (
                 <>
                   <span className="text-xs text-[var(--text-tertiary)]">已选 {selectedIds.size} 份</span>
-                  <button
-                    onClick={() => void handleBatchGenerate()}
-                    disabled={batchLoading !== null}
-                    className="bds-btn bds-btn-secondary"
-                  >
-                    {batchLoading === 'generate' ? <Loader2 size={14} className="animate-spin" /> : <FileOutput size={14} />}
-                    <span>批量生成文件</span>
-                  </button>
-                  <button
-                    onClick={() => void handleBatchZip()}
-                    disabled={batchLoading !== null}
-                    className="bds-btn bds-btn-secondary"
-                  >
-                    {batchLoading === 'zip' ? <Loader2 size={14} className="animate-spin" /> : <PackageOpen size={14} />}
-                    <span>ZIP 打包下载</span>
-                  </button>
+                  {/* R6：批量生成/打包下载均为后端写端点（generate-file/batch-download 挂 customs:write） */}
+                  {canWriteCustoms && (
+                    <>
+                      <button
+                        onClick={() => void handleBatchGenerate()}
+                        disabled={batchLoading !== null}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        {batchLoading === 'generate' ? <Loader2 size={14} className="animate-spin" /> : <FileOutput size={14} />}
+                        <span>批量生成文件</span>
+                      </button>
+                      <button
+                        onClick={() => void handleBatchZip()}
+                        disabled={batchLoading !== null}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        {batchLoading === 'zip' ? <Loader2 size={14} className="animate-spin" /> : <PackageOpen size={14} />}
+                        <span>ZIP 打包下载</span>
+                      </button>
+                    </>
+                  )}
                   <button onClick={() => setSelectedIds(new Set())} className="bds-btn bds-btn-ghost">
                     <X size={14} /><span>清除</span>
                   </button>
@@ -705,7 +722,8 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                       )}
                     </div>
 
-                    {/* 操作行 */}
+                    {/* 操作行（R6：状态流转/编辑/删除为写操作，customs:write 无权限不渲染） */}
+                    {canWriteCustoms && (
                     <div className="flex items-center gap-2 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
                       {transitions.map(to => {
                         const variant =
@@ -742,6 +760,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                         </button>
                       )}
                     </div>
+                    )}
 
                     {/* 展开详情：字段 + 版本时间线 + 预览 */}
                     {isExpanded && (
@@ -785,14 +804,17 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                                           <button onClick={() => void printVersion(doc, v)} className="bds-btn bds-btn-outline">
                                             <Printer size={14} />打印/PDF
                                           </button>
-                                          <button
-                                            onClick={() => void handleGenerateFile(doc, v)}
-                                            disabled={!!actionLoading}
-                                            className="bds-btn bds-btn-primary"
-                                            title="按本版本快照渲染 → 生成 PDF 文件归档至本单据（CI 带财务回链时用财务发票真源模板）"
-                                          >
-                                            <FileOutput size={14} />{actionLoading === doc.id ? '生成中...' : '生成文件'}
-                                          </button>
+                                          {/* R6：生成文件落盘归档为写操作（generate-file 挂 customs:write） */}
+                                          {canWriteCustoms && (
+                                            <button
+                                              onClick={() => void handleGenerateFile(doc, v)}
+                                              disabled={!!actionLoading}
+                                              className="bds-btn bds-btn-primary"
+                                              title="按本版本快照渲染 → 生成 PDF 文件归档至本单据（CI 带财务回链时用财务发票真源模板）"
+                                            >
+                                              <FileOutput size={14} />{actionLoading === doc.id ? '生成中...' : '生成文件'}
+                                            </button>
+                                          )}
                                         </div>
                                       )}
                                     </div>

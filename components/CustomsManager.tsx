@@ -64,6 +64,7 @@ import {
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
+import { hasPermission } from '../services/authService';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
@@ -83,6 +84,13 @@ const TOOL_TAB_IDS: ReadonlySet<TabId> = new Set(['tradeDocuments', 'docGenerato
 
 /** R3 分页：四类单据列表每页条数（offset 追加加载，徽章显服务端 total） */
 const LIST_PAGE_SIZE = 200;
+
+/** R678：跨模块导航 relation 筛选落得动的 tab（HS 编码库为全局参考数据，无 relation 维度不参与） */
+const NAV_FILTER_TAB_LABEL: Partial<Record<TabId, string>> = {
+  declarations: '报关单',
+  lettersOfCredit: '信用证',
+  taxRefunds: '出口退税',
+};
 
 const CUSTOMS_TYPES: Array<{ id: CustomsType; label: string }> = [
   { id: 'Export', label: '出口' },
@@ -194,7 +202,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   }, [initialTab]);
 
   // 跨模块导航筛选（关系智库档案「关联业务 → 报关/退税/信用证」入口）：
-  // 挂载时消费一次——tab 预填 + relation 筛选；✕ 清除回全量
+  // 挂载时消费一次——tab 预填 + relation 筛选（fetch 参数接 relationId，服务端过滤）；✕ 清除回全量
   const navContext = useState(() => consumeCrossModuleNav())[0];
   const [navRelationFilter, setNavRelationFilter] = useState(() => navContext?.filter ?? null);
   useEffect(() => {
@@ -203,8 +211,6 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const navMatches = (item: { relationId?: string | null }) =>
-    !navRelationFilter || item.relationId === navRelationFilter.relationId;
   const [declarations, setDeclarations] = useState<CustomsDeclaration[]>([]);
   const [hsCodes, setHsCodes] = useState<HsCode[]>([]);
   const [lettersOfCredit, setLettersOfCredit] = useState<LetterOfCredit[]>([]);
@@ -218,6 +224,12 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // R678：搜索防抖——逐键触发服务端请求（fetch* 依赖 searchQuery）改为 300ms 防抖后的 debouncedSearch
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -244,13 +256,16 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const [formError, setFormError] = useState<string | null>(null);
 
   // ── 拉取数据（R3：offset>0 为「加载更多」追加页，否则为首屏替换） ──
+  // R678：relation 筛选接服务端（declarations/letters-of-credit/tax-refunds 均支持 relationId 过滤；
+  // HS 编码库为全局参考数据无 relation 维度，不下发）；搜索词用 debouncedSearch（300ms 防抖）
   const fetchDeclarations = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listCustomsDeclarations({
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
+        relationId: navRelationFilter?.relationId || undefined,
         limit: LIST_PAGE_SIZE,
         offset,
       });
@@ -262,13 +277,13 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchQuery, statusFilter]);
+  }, [debouncedSearch, statusFilter, navRelationFilter]);
 
   const fetchHsCodes = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
-      const result = await apiService.listHsCodes({ search: searchQuery || undefined, limit: LIST_PAGE_SIZE, offset });
+      const result = await apiService.listHsCodes({ search: debouncedSearch || undefined, limit: LIST_PAGE_SIZE, offset });
       setHsCodes(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
       setHsTotal(result.total);
     } catch (e: any) {
@@ -277,15 +292,16 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchQuery]);
+  }, [debouncedSearch]);
 
   const fetchLettersOfCredit = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listLettersOfCredit({
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
+        relationId: navRelationFilter?.relationId || undefined,
         limit: LIST_PAGE_SIZE,
         offset,
       });
@@ -297,15 +313,16 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchQuery, statusFilter]);
+  }, [debouncedSearch, statusFilter, navRelationFilter]);
 
   const fetchTaxRefunds = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listTaxRefunds({
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
+        relationId: navRelationFilter?.relationId || undefined,
         limit: LIST_PAGE_SIZE,
         offset,
       });
@@ -317,7 +334,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchQuery, statusFilter]);
+  }, [debouncedSearch, statusFilter, navRelationFilter]);
 
   useEffect(() => {
     if (TOOL_TAB_IDS.has(activeTab)) { setLoading(false); return; }
@@ -326,6 +343,12 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
     if (activeTab === 'lettersOfCredit') fetchLettersOfCredit();
     if (activeTab === 'taxRefunds') fetchTaxRefunds();
   }, [activeTab, fetchDeclarations, fetchHsCodes, fetchLettersOfCredit, fetchTaxRefunds]);
+
+  // R6：写操作门禁——后端写端点均挂 customs:write scope（requireCustomsWrite），无权限不渲染写按钮（防 403 假动作）
+  const canWriteCustoms = hasPermission('customs:write');
+
+  // 搜索框 Enter：跳过防抖立即应用当前输入
+  const applySearchNow = useCallback(() => setDebouncedSearch(searchQuery.trim()), [searchQuery]);
 
   // ── 辅助 ──
   const formatNum = (n: string | number | null | undefined, digits = 2) => {
@@ -530,7 +553,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
         contextLabel="Customs Desk"
         isDarkMode={isDarkMode}
         actions={
-          TOOL_TAB_IDS.has(activeTab) ? undefined : (
+          TOOL_TAB_IDS.has(activeTab) || !canWriteCustoms ? undefined : (
             <button
               onClick={() => { setEditingHsCode(null); setShowForm(true); }}
               className="bds-btn bds-btn-primary"
@@ -546,7 +569,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
           {/* Tab 导航（BDS Tabs 下划线式） */}
           <div className="bds-tabs mb-4">
             {tabs.map(t => (
-              <button key={t.id} onClick={() => { setActiveTab(t.id); setSearchQuery(''); setStatusFilter(''); }} className={`bds-tab flex items-center gap-1.5 ${activeTab === t.id ? 'active' : ''}`}>
+              <button key={t.id} onClick={() => { setActiveTab(t.id); setSearchQuery(''); setDebouncedSearch(''); setStatusFilter(''); }} className={`bds-tab flex items-center gap-1.5 ${activeTab === t.id ? 'active' : ''}`}>
                 {t.icon}<span>{t.label}</span>
                 {t.count != null && t.count > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--recessed-bg)', color: 'var(--text-tertiary)' }}>{t.count}</span>
@@ -554,6 +577,17 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               </button>
             ))}
           </div>
+
+          {/* R678：跨模块导航 relation 筛选提示条（✕ 清除回全量；仅 relation 维度落得动的 tab 显示） */}
+          {!TOOL_TAB_IDS.has(activeTab) && navRelationFilter && NAV_FILTER_TAB_LABEL[activeTab] && (
+            <div className="mb-3">
+              <NavRelationFilterChip
+                filter={navRelationFilter}
+                label={NAV_FILTER_TAB_LABEL[activeTab]!}
+                onClear={() => setNavRelationFilter(null)}
+              />
+            </div>
+          )}
 
           {/* 工具栏（制单工具 tab 为本地面板，无列表工具栏） */}
           {!TOOL_TAB_IDS.has(activeTab) && (
@@ -566,7 +600,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索编号 / 名称 / 客户..."
                 className="bds-input sm pl-9"
-                onKeyDown={(e) => { if (e.key === 'Enter') { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter') applySearchNow(); }}
               />
             </div>
             {activeTab !== 'hsCodes' && (
@@ -667,7 +701,8 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                   </div>
                                 </div>
                               )}
-                              {/* 状态转换按钮 */}
+                              {/* 状态转换按钮（R6：写操作 customs:write 门禁，无权限整组隐藏） */}
+                              {canWriteCustoms && (
                               <div className="flex items-center gap-2 mt-3 flex-wrap">
                                 {decl.status === 'Draft' && (
                                   <button onClick={() => handleTransitionDeclaration(decl.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">提交申报</button>
@@ -700,6 +735,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                   </button>
                                 )}
                               </div>
+                              )}
                               {/* 跨模块关联视图（EntityLink 图谱）— 清关出运/关联订单/报关客户/退税 */}
                               {decl.relationId && (
                                 <RelatedWorkspacesSection
@@ -758,6 +794,8 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 </span>
                               </td>
                               <td className="num">
+                                {/* R6：写操作 customs:write 门禁（编辑/停用均无权限不渲染） */}
+                                {canWriteCustoms && (
                                 <div className="flex items-center justify-end gap-1">
                                   {/* G5：HS 编码可编辑（退税率/描述等就地修改，无需停用重建） */}
                                   <button onClick={() => { setEditingHsCode(hc); setShowForm(true); }} disabled={!!actionLoading} className="bds-btn bds-btn-secondary bds-btn-icon" title="编辑">
@@ -769,6 +807,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                     </button>
                                   )}
                                 </div>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -824,11 +863,12 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-3 flex-wrap">
-                            {lc.status === 'Issued' && <button onClick={() => handleTransitionLc(lc.id, 'Presented')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">交单</button>}
-                            {lc.status === 'Presented' && <button onClick={() => handleTransitionLc(lc.id, 'Accepted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">承兑</button>}
-                            {lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">结算</button>}
+                            {/* R6：写操作 customs:write 门禁（流转/不符点/删除无权限不渲染；节点时间轴为只读保留） */}
+                            {canWriteCustoms && lc.status === 'Issued' && <button onClick={() => handleTransitionLc(lc.id, 'Presented')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">交单</button>}
+                            {canWriteCustoms && lc.status === 'Presented' && <button onClick={() => handleTransitionLc(lc.id, 'Accepted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">承兑</button>}
+                            {canWriteCustoms && lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">结算</button>}
                             {/* G2：录入不符点（Presented → Discrepant，展开内联输入） */}
-                            {lc.status === 'Presented' && (
+                            {canWriteCustoms && lc.status === 'Presented' && (
                               <button
                                 onClick={() => { setLcDiscrepancyId(lcDiscrepancyId === lc.id ? null : lc.id); setLcDiscrepancyText(lc.discrepancies ?? ''); }}
                                 disabled={!!actionLoading}
@@ -837,14 +877,14 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 录入不符点
                               </button>
                             )}
-                            {(lc.status === 'Issued' || lc.status === 'Presented' || lc.status === 'Accepted') && <button onClick={() => handleTransitionLc(lc.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>}
+                            {canWriteCustoms && (lc.status === 'Issued' || lc.status === 'Presented' || lc.status === 'Accepted') && <button onClick={() => handleTransitionLc(lc.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>}
                             <button onClick={() => handleToggleLcTimeline(lc.id)} className="bds-btn bds-btn-secondary">
                               <History size={14} strokeWidth={1.75} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
                             </button>
-                            {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => setDeleteTarget({ tab: 'lettersOfCredit', id: lc.id, label: lc.lcNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
+                            {canWriteCustoms && (lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => setDeleteTarget({ tab: 'lettersOfCredit', id: lc.id, label: lc.lcNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                           </div>
                           {/* G2：不符点内联录入（确认后流转 Discrepant 并落节点留痕） */}
-                          {lcDiscrepancyId === lc.id && (
+                          {canWriteCustoms && lcDiscrepancyId === lc.id && (
                             <div className="flex items-center gap-2 mt-2">
                               <input
                                 className="bds-input sm flex-1"
@@ -957,17 +997,18 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             </div>
                           </div>
                           <div className="flex items-center gap-2 mt-3 flex-wrap">
-                            {tr.status === 'Draft' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">提交申报</button>}
-                            {tr.status === 'Submitted' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Reviewing')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">送审</button>}
-                            {tr.status === 'Reviewing' && (
+                            {/* R6：写操作 customs:write 门禁（流转/审核/删除无权限不渲染；专票勾稽为只读保留） */}
+                            {canWriteCustoms && tr.status === 'Draft' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">提交申报</button>}
+                            {canWriteCustoms && tr.status === 'Submitted' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Reviewing')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">送审</button>}
+                            {canWriteCustoms && tr.status === 'Reviewing' && (
                               <>
                                 <button onClick={() => handleReviewTaxRefund(tr.id, 'Approved')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">批准</button>
                                 <button onClick={() => handleReviewTaxRefund(tr.id, 'Rejected')} disabled={!!actionLoading} className="bds-btn bds-btn-danger">拒绝</button>
                               </>
                             )}
-                            {tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">确认到账</button>}
-                            {tr.status === 'Rejected' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Draft')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">退回草稿</button>}
-                            {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => setDeleteTarget({ tab: 'taxRefunds', id: tr.id, label: tr.refundNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
+                            {canWriteCustoms && tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">确认到账</button>}
+                            {canWriteCustoms && tr.status === 'Rejected' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Draft')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">退回草稿</button>}
+                            {canWriteCustoms && (tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => setDeleteTarget({ tab: 'taxRefunds', id: tr.id, label: tr.refundNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                             <button onClick={() => handleToggleTrVat(tr.id)} className="bds-btn bds-btn-secondary">
                               <Receipt size={14} strokeWidth={1.75} />{trVatId === tr.id ? '收起专票勾稽' : '专票勾稽'}
                             </button>

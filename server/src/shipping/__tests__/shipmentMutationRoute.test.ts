@@ -226,6 +226,19 @@ describe('shipping route → service: PATCH /:id', () => {
     expect(res.body.error.code).toBe('INVALID_STATUS');
     expect(onDataChange).not.toHaveBeenCalled();
   });
+
+  // R6：白名单契约——shippingMethod 入列生效；shipmentNumber/type 身份字段静默丢弃防呆
+  it('白名单：shippingMethod 可改生效；shipmentNumber/type 被丢弃不进 update', async () => {
+    const { app, shipmentUpdate, onDataChange } = makeApp();
+    const res = await request(app).patch('/api/v1/shipping/SHP-1').set(authHeader())
+      .send({ shippingMethod: 'Air', shipmentNumber: 'HACK-9', type: 'Import' });
+    expect(res.status).toBe(200);
+    expect(onDataChange).toHaveBeenCalledTimes(1);
+    const updateData = shipmentUpdate.mock.calls[0][0].data;
+    expect(updateData.shippingMethod).toBe('Air');
+    expect(updateData.shipmentNumber).toBeUndefined();
+    expect(updateData.type).toBeUndefined();
+  });
 });
 
 describe('shipping route → service: DELETE /:id', () => {

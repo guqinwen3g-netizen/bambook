@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import CustomerSearchInput from '../ui/CustomerSearchInput';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import { bdsConfirm } from '../ui/BdsDialog';
 import { BusinessProfile, ProductAsset, Relation } from '../../types';
 import { apiService } from '../../services/apiService';
 import {
@@ -210,6 +211,8 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
   const [previewHtml, setPreviewHtml] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  // R678：成功提示按动作具体化（原泛化「操作成功！」无法区分 预览/保存/导出/载入）
+  const [statusMessage, setStatusMessage] = useState('');
   const [savedInvoices, setSavedInvoices] = useState<SavedFabricSampleInvoice[]>([]);
   const [activePage, setActivePage] = useState<'editor' | 'history'>('editor');
   const [selectedPreviewAsset, setSelectedPreviewAsset] = useState<AdjustableInvoiceAsset | null>(null);
@@ -753,6 +756,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     setGenerationStatus('idle');
     try {
       generatePreview();
+      setStatusMessage('预览已生成');
       setGenerationStatus('success');
     } catch (error) {
       console.error('发票生成失败:', error);
@@ -785,6 +789,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     const next = [saved, ...savedInvoices.filter(item => item.invoiceNumber !== saved.invoiceNumber)].slice(0, 100);
     setSavedInvoices(next);
     persistSavedInvoiceHistory(next);
+    setStatusMessage(`发票 ${saved.invoiceNumber || '（未编号）'} 已保存到历史记录`);
     setGenerationStatus('success');
   };
 
@@ -800,12 +805,20 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     setSelectedCustomer(undefined);
     const html = generateFabricSampleInvoiceHtml({ ...invoice, template: restoredTemplate });
     setPreviewHtml(html);
+    setStatusMessage(`已载入历史发票 ${invoice.invoiceNumber || '（未编号）'}，可继续编辑或导出`);
     setGenerationStatus('success');
     setActivePage('editor');
   };
 
-  const handleDeleteSavedInvoice = (id: string) => {
-    const next = savedInvoices.filter(invoice => invoice.id !== id);
+  // R678：删除历史发票加确认（原点击即删不可恢复）
+  const handleDeleteSavedInvoice = async (invoice: SavedFabricSampleInvoice) => {
+    if (!(await bdsConfirm({
+      title: '删除历史发票',
+      body: `确认删除历史发票 ${invoice.invoiceNumber || '（未编号）'}？删除后不可恢复。`,
+      confirmText: '删除',
+      danger: true,
+    }))) return;
+    const next = savedInvoices.filter(item => item.id !== invoice.id);
     setSavedInvoices(next);
     persistSavedInvoiceHistory(next);
   };
@@ -829,8 +842,10 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     try {
       if (window.bambookInvoice?.savePdf) {
         await window.bambookInvoice.savePdf(html, filename);
+        setStatusMessage(`PDF 已保存：${filename}.pdf`);
       } else {
         downloadFile(html, `${filename}.html`, 'text/html;charset=utf-8');
+        setStatusMessage(`PDF 桥不可用，已改为下载 HTML：${filename}.html`);
       }
       setGenerationStatus('success');
     } catch (error) {
@@ -898,9 +913,9 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteSavedInvoice(invoice.id)}
+                    onClick={() => void handleDeleteSavedInvoice(invoice)}
                     className={`p-2 rounded-control transition-colors shrink-0 ${
-                      'text-[var(--text-tertiary)] hover:text-rose-500 hover:bg-rose-400/10'
+                      'text-[var(--text-tertiary)] hover:text-[var(--danger-text)] hover:bg-[var(--danger-tint)]'
                     }`}
                     title="删除历史发票"
                   >
@@ -1264,7 +1279,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                         className={`p-1.5 rounded-control transition-colors duration-200 ${
                           items.length === 1
                             ? 'opacity-30 cursor-not-allowed'
-                            : 'text-[var(--text-tertiary)] hover:text-rose-500 hover:bg-rose-400/10'
+                            : 'text-[var(--text-tertiary)] hover:text-[var(--danger-text)] hover:bg-[var(--danger-tint)]'
                         }`}
                       >
                         <Trash2 size={14} />
@@ -1431,12 +1446,12 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex items-center gap-2 p-3 rounded-inset text-sm ${
                   generationStatus === 'success'
-                    ? 'bg-emerald-500/10 text-emerald-500'
-                    : 'bg-rose-500/10 text-rose-500'
+                    ? 'bg-[var(--success-tint)] text-[var(--success-text)]'
+                    : 'bg-[var(--danger-tint)] text-[var(--danger-text)]'
                 }`}
               >
                 {generationStatus === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                <span>{generationStatus === 'success' ? '操作成功！' : '保存失败，请重试'}</span>
+                <span>{generationStatus === 'success' ? statusMessage : '操作失败，请重试'}</span>
               </motion.div>
             )}
           </div>

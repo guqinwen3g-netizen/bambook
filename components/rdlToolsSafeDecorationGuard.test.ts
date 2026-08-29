@@ -26,12 +26,18 @@ describe('RDL tools safe decoration [已清理]', () => {
   });
 });
 
-// ═══ Part 2: 业务语义色未被误清（冻结项保留）═══
+// ═══ Part 2: 业务语义色未被误清（语义保留，载体已收编 token）═══
 describe('RDL tools safe decoration [业务语义保留]', () => {
-  it('Fabric status banner/destructive 保留 (emerald/rose)', () => {
-    expect(FABRIC).toContain('bg-emerald-500/10');
-    expect(FABRIC).toContain('bg-rose-500/10');
-    expect(FABRIC).toContain('hover:text-rose-500');
+  // R678：原断言冻结保留 raw emerald/rose 裸语义色；R678 批次按设计纪律将其收编为
+  // var(--success/*--danger) token，本断言翻转为「token 在位 + 裸色禁回退」，守卫语义不变
+  it('Fabric status banner/destructive 语义保留（token 载体，raw emerald/rose 禁回退）', () => {
+    expect(FABRIC).toContain('bg-[var(--success-tint)]');
+    expect(FABRIC).toContain('text-[var(--success-text)]');
+    expect(FABRIC).toContain('bg-[var(--danger-tint)]');
+    expect(FABRIC).toContain('hover:text-[var(--danger-text)]');
+    expect(FABRIC).not.toContain('bg-emerald-500/10');
+    expect(FABRIC).not.toContain('bg-rose-500/10');
+    expect(FABRIC).not.toContain('hover:text-rose-500');
   });
   it('Shipping destructive 语义保留（经 rdlBusinessStatusTokens 中性 token）', () => {
     expect(SHIPPING).toContain("statusSemanticText('destructive'");

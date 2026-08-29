@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box, Download, Split, Layers } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { bdsConfirm } from './ui/BdsDialog';
+import { bdsToast } from './ui/bdsToast';
 import { hasRole } from '../services/authService';
 import { OrderShipmentBatchPanel } from './orders/OrderShipmentBatchPanel';
 import {
@@ -238,6 +239,8 @@ interface ShipmentFormFieldConfig {
   required?: boolean;
   placeholder?: string;
   fullSpan?: boolean;
+  /** R6：编辑态禁用（身份字段创建后不可改；后端 PATCH 白名单亦不收，防止「可编辑但静默丢弃」） */
+  disabledInEdit?: boolean;
 }
 
 const SHIPMENT_FORM_SECTIONS: Array<{ id: string; title: string; desc: string; fields: ShipmentFormFieldConfig[] }> = [
@@ -246,7 +249,7 @@ const SHIPMENT_FORM_SECTIONS: Array<{ id: string; title: string; desc: string; f
     title: '基本信息',
     desc: '运单号、状态、运输方式',
     fields: [
-      { name: 'shipmentNumber', label: '运单号', type: 'text', required: true, placeholder: 'SHIP-2026-001' },
+      { name: 'shipmentNumber', label: '运单号', type: 'text', required: true, placeholder: 'SHIP-2026-001', disabledInEdit: true },
       // F3：options 为占位，渲染时按状态机动态替换为「当前态 + 合法下一步」（见 renderShipmentField）
       { name: 'status', label: '状态', type: 'select', required: true, options: [] },
       { name: 'shippingMethod', label: '运输方式', type: 'text' },
@@ -634,15 +637,20 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     try {
       const payload = buildPayload();
       if (editingShipment) {
+        // R6：编辑态不下发身份字段（后端 PATCH 白名单不收 shipmentNumber/type，带上即假动作）
+        delete payload.shipmentNumber;
+        delete payload.type;
         const persisted = await shipmentService.updateShipment(editingShipment.id, payload);
         setShipments(prev => prev.map(s => (s.id === persisted.id ? persisted : s)));
         setServerList(prev => (prev ? prev.map(s => (s.id === persisted.id ? persisted : s)) : prev));
+        bdsToast.success(`运单 ${persisted.shipmentNumber} 已保存`);
       } else {
         const persisted = await shipmentService.createShipment(payload);
         setShipments(prev => [persisted, ...prev]);
         setServerList(prev => (prev ? [persisted, ...prev] : prev));
         setServerTotal(prev => (prev != null ? prev + 1 : prev));
         setSelectedId(persisted.id);
+        bdsToast.success(`运单 ${persisted.shipmentNumber} 已创建`);
       }
       setShowFormModal(false);
       setEditingShipment(null);
@@ -664,6 +672,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       setServerList(prev => (prev ? prev.filter(s => s.id !== shipment.id) : prev));
       setServerTotal(prev => (prev != null && prev > 0 ? prev - 1 : prev));
       if (selectedId === shipment.id) setSelectedId(null);
+      bdsToast.success(`运单 ${shipment.shipmentNumber} 已删除`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -687,6 +696,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     try {
       await shipmentService.pullLinesFromOrder(selectedShipment.id);
       setPackingRefreshKey(k => k + 1);
+      bdsToast.success(`已从订单 ${selectedShipment.orderId?.slice(-8) ?? ''} 带出装运行`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -707,15 +717,19 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   const renderShipmentField = (field: ShipmentFormFieldConfig) => {
     // F3：状态字段选项随编辑对象动态计算（新建/编辑合法集合不同）
     const options = field.name === 'status' ? statusFieldOptions : field.options;
+    // R6：身份字段（运单号）编辑态禁用——后端 PATCH 白名单不收，可编辑即假动作
+    const fieldDisabled = !!(editingShipment && field.disabledInEdit);
     return (
     <div key={field.name} className={cx('flex flex-col', field.fullSpan && 'md:col-span-2')}>
       <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">
         {field.label}{field.required && <span className="ml-0.5 text-[var(--text-quaternary)]">*</span>}
+        {fieldDisabled && <span className="ml-1 text-[10px] text-[var(--text-quaternary)]">（创建后不可修改）</span>}
       </label>
       {field.type === 'select' ? (
         <select
           className="bds-select"
           value={formDraft[field.name]}
+          disabled={fieldDisabled}
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
         >
           {!field.required && (
@@ -731,6 +745,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
           rows={3}
           placeholder={field.placeholder}
+          disabled={fieldDisabled}
           className="bds-input bds-textarea"
         />
       ) : (
@@ -739,6 +754,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           value={formDraft[field.name]}
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
           placeholder={field.placeholder}
+          disabled={fieldDisabled}
           className="bds-input"
         />
       )}
@@ -1357,6 +1373,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           onSaved={() => {
             setShowPackingEditor(false);
             setPackingRefreshKey(k => k + 1);
+            bdsToast.success('装箱明细已保存');
           }}
         />
       )}

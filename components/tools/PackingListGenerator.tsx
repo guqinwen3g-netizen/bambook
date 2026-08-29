@@ -17,6 +17,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Order, Relation } from '../../types';
+import { apiService } from '../../services/apiService';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
 import { getExporterProfile } from './exportDocs/exporterProfile';
@@ -77,6 +78,8 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  // R678：最近一次服务端登记的单据号（成功提示展示，台账可追溯）
+  const [lastRegisteredDocNo, setLastRegisteredDocNo] = useState('');
 
   // 客户/供应商选项
   const relationOptions = useMemo(() => {
@@ -157,11 +160,25 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
     setErrorMessage('');
 
     try {
-      const docNo = `PL-${Date.now().toString(36).toUpperCase()}`;
       const today = formatDate(new Date());
 
       const buyerName = selectedRelation?.englishName || selectedRelation?.chineseName || selectedRelation?.name || selectedOrder?.customer || '';
       const buyerAddress = selectedRelation?.shippingAddress || selectedRelation?.officialAddress || '';
+
+      // R678：单号服务端取号——登记单据中心台账（POST /v1/customs/trade-documents，留空自动取号
+      // PL-YYYY-NNNN + v1 版本快照 + 审计），打印号=台账号可追溯；登记失败即中止（fail-closed，不发假号）
+      const registered = await apiService.createTradeDocument({
+        type: 'PackingList',
+        orderId: selectedOrderId || undefined,
+        relationId: selectedRelationId || undefined,
+        issueDate: today,
+        consignor: shipper || getExporterProfile().nameEn,
+        consignee: buyerName || undefined,
+        portOfDischarge: destinationPort || undefined,
+        notes: '装箱单生成器登记',
+      });
+      const docNo = registered.documentNumber;
+      setLastRegisteredDocNo(docNo);
 
       const rowsHtml = validLines.map((l, i) => `
         <tr>
@@ -286,6 +303,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
     setInvoiceNumber('');
     setGenerationStatus('idle');
     setErrorMessage('');
+    setLastRegisteredDocNo('');
   };
 
   // 主题样式
@@ -544,7 +562,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                 className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('success', isDarkMode)}`}
               >
                 <CheckCircle2 size={16} className={statusSemanticText('success', isDarkMode)} />
-                <span className="text-sm">装箱单已生成，请在打印对话框中选择"保存为 PDF"</span>
+                <span className="text-sm">装箱单 {lastRegisteredDocNo} 已登记台账并生成，请在打印对话框中选择"保存为 PDF"</span>
               </motion.div>
             )}
             {generationStatus === 'error' && (
