@@ -35,7 +35,6 @@ const FAST_FORWARD_THRESHOLD = 240;
 export const AgentMarkdownBlock: React.FC<AgentBlockComponentProps<AgentMarkdownBlockModel>> = ({ block, isDarkMode }) => {
   const isComplete = block.status === 'complete' || block.status === 'error';
   const [displayedLen, setDisplayedLen] = useState<number>(() => (isComplete ? block.content.length : 0));
-  const rafRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 当 block 已经 complete 时，立刻显示完整内容
@@ -75,7 +74,6 @@ export const AgentMarkdownBlock: React.FC<AgentBlockComponentProps<AgentMarkdown
   // 卸载时清理
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
   const visibleText = useMemo(() => {

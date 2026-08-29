@@ -146,6 +146,129 @@ describe('Agent status route', () => {
   });
 });
 
+describe('GET /sessions（历史会话搜索与游标分页）', () => {
+  const sign = (userId: string) =>
+    createAuthService().signToken({ userId, displayName: userId, roles: ['owner'], permissions: ['*'], departmentIds: ['company'] });
+
+  function makeSessionsPrisma(rows: any[]) {
+    const calls: any[] = [];
+    const prisma = {
+      userAccount: {
+        count: async () => 1,
+        findFirst: async () => ({ id: 'u1' }),
+      },
+      agentSession: {
+        findMany: async (args: any) => {
+          calls.push(args);
+          return rows;
+        },
+      },
+      agentToolRun: {
+        count: async () => 0,
+        findFirst: async () => null,
+      },
+      auditLog: {
+        findFirst: async () => null,
+      },
+    };
+    return { prisma, calls };
+  }
+
+  const makeRow = (id: string) => ({
+    id,
+    title: `会话 ${id}`,
+    status: 'active',
+    createdAt: new Date('2026-08-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-08-02T00:00:00.000Z'),
+    messages: [],
+    _count: { messages: 0 },
+  });
+
+  it('默认 take=50：多取 1 条探测 hasMore 并输出 nextCursor', async () => {
+    const rows = Array.from({ length: 51 }, (_, i) => makeRow(`as_${String(i).padStart(3, '0')}`));
+    const { prisma, calls } = makeSessionsPrisma(rows);
+    const res = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.sessions).toHaveLength(50);
+    expect(res.body.pageInfo).toEqual({ hasMore: true, nextCursor: 'as_049', take: 50 });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].take).toBe(51);
+    expect(calls[0].cursor).toBeUndefined();
+    expect(calls[0].orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'desc' }]);
+    expect(calls[0].where).toEqual({ userId: 'u1', deletedAt: null });
+  });
+
+  it('不足一页时 hasMore=false 且 nextCursor=null', async () => {
+    const { prisma } = makeSessionsPrisma([makeRow('as_1'), makeRow('as_2')]);
+    const res = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.sessions).toHaveLength(2);
+    expect(res.body.pageInfo).toMatchObject({ hasMore: false, nextCursor: null });
+  });
+
+  it('携带 cursor 时按 id 锚定并 skip 1', async () => {
+    const { prisma, calls } = makeSessionsPrisma([makeRow('as_9')]);
+    const res = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions?cursor=as_5')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+
+    expect(res.status).toBe(200);
+    expect(calls[0].cursor).toEqual({ id: 'as_5' });
+    expect(calls[0].skip).toBe(1);
+    expect(res.body.pageInfo).toMatchObject({ hasMore: false, nextCursor: null });
+  });
+
+  it('search 命中标题或消息内容（OR contains insensitive），并作用于 where', async () => {
+    const { prisma, calls } = makeSessionsPrisma([makeRow('as_hit')]);
+    const res = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions?search=%E9%9D%A2%E6%96%99')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+
+    expect(res.status).toBe(200);
+    expect(calls[0].where).toEqual({
+      userId: 'u1',
+      deletedAt: null,
+      OR: [
+        { title: { contains: '面料', mode: 'insensitive' } },
+        { messages: { some: { deletedAt: null, content: { contains: '面料', mode: 'insensitive' } } } },
+      ],
+    });
+  });
+
+  it('search 为空白串时不添加 OR 条件', async () => {
+    const { prisma, calls } = makeSessionsPrisma([]);
+    const res = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions?search=%20%20')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+
+    expect(res.status).toBe(200);
+    expect(calls[0].where).toEqual({ userId: 'u1', deletedAt: null });
+  });
+
+  it('take 参数截断到 1-100 区间', async () => {
+    const { prisma, calls } = makeSessionsPrisma([]);
+    const res = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions?take=500')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+
+    expect(res.status).toBe(200);
+    expect(calls[0].take).toBe(101);
+
+    const res2 = await request(makeApp(false, prisma))
+      .get('/api/agent/sessions?take=abc')
+      .set('Authorization', `Bearer ${sign('u1')}`);
+    expect(res2.status).toBe(200);
+    expect(calls[1].take).toBe(51);
+  });
+});
+
 describe('POST /approvals/:id/resolve（Agent 工具审批决策）', () => {
   const sign = (userId: string, roles: string[]) =>
     createAuthService().signToken({ userId, displayName: userId, roles, permissions: ['*'], departmentIds: ['company'] });

@@ -44,14 +44,40 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 }
 
+export type AssistantSessionPage = {
+  sessions: AssistantSessionSummary[];
+  hasMore: boolean;
+  nextCursor: string | null;
+};
+
+export type ListSessionsOptions = {
+  /** 上一页最后一条 session id（服务端按 updatedAt desc 锚定） */
+  cursor?: string;
+  /** 标题或消息内容关键词 */
+  search?: string;
+  take?: number;
+};
+
 export const assistantSessionService = {
-  async listSessions(): Promise<AssistantSessionSummary[]> {
-    const response = await safeFetch(`${getRuntimeApiBase()}/agent/sessions`, {
+  async listSessions(options: ListSessionsOptions = {}): Promise<AssistantSessionPage> {
+    const params = new URLSearchParams();
+    if (options.cursor) params.set('cursor', options.cursor);
+    if (options.search?.trim()) params.set('search', options.search.trim());
+    if (typeof options.take === 'number' && Number.isFinite(options.take)) params.set('take', String(options.take));
+    const query = params.toString();
+    const response = await safeFetch(`${getRuntimeApiBase()}/agent/sessions${query ? `?${query}` : ''}`, {
       headers: authHeaders(),
       credentials: 'include',
     });
-    const data = await readJson<{ sessions: AssistantSessionSummary[] }>(response);
-    return data.sessions || [];
+    const data = await readJson<{
+      sessions: AssistantSessionSummary[];
+      pageInfo?: { hasMore?: boolean; nextCursor?: string | null };
+    }>(response);
+    return {
+      sessions: data.sessions || [],
+      hasMore: Boolean(data.pageInfo?.hasMore),
+      nextCursor: typeof data.pageInfo?.nextCursor === 'string' ? data.pageInfo.nextCursor : null,
+    };
   },
 
   async createSession(title = '新对话'): Promise<AssistantSessionSummary> {

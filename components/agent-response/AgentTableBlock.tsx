@@ -8,6 +8,14 @@ const formatCellValue = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'number') return new Intl.NumberFormat('zh-CN').format(value);
   if (typeof value === 'boolean') return value ? '是' : '否';
+  // 对象/数组不能裸转字符串（会得到 [object Object]），JSON 化呈现
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
   return String(value);
 };
 
@@ -69,6 +77,13 @@ export const AgentTableBlock: React.FC<AgentBlockComponentProps<AgentTableBlockM
             </tr>
           </thead>
           <tbody>
+            {block.rows.length === 0 && (
+              <tr>
+                <td colSpan={Math.max(block.columns.length, 1)} className={`px-3 py-6 text-center ${quietTextClass}`}>
+                  暂无数据
+                </td>
+              </tr>
+            )}
             {block.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className={rowIndex % 2 === 1 ? 'bg-[var(--recessed-bg)]' : undefined}>
                 {block.columns.map(column => (

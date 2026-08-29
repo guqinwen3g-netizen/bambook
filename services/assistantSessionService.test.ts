@@ -64,6 +64,47 @@ describe('assistantSessionService', () => {
     );
   });
 
+  it('lists sessions with cursor/search query params and returns page info', async () => {
+    localStorage.setItem('bambook_auth_token', 'token-3');
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        sessions: [{ id: 'as_10', title: '面料询价', status: 'active', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-02T00:00:00.000Z' }],
+        pageInfo: { hasMore: true, nextCursor: 'as_10', take: 50 },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const { assistantSessionService } = await import('./assistantSessionService');
+    const page = await assistantSessionService.listSessions({ cursor: 'as_9', search: '面料' });
+
+    expect(page.sessions).toHaveLength(1);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextCursor).toBe('as_10');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `https://bambook.test/api/agent/sessions?cursor=as_9&search=${encodeURIComponent('面料')}`,
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
+  it('lists sessions without query string when no options are given', async () => {
+    localStorage.setItem('bambook_auth_token', 'token-4');
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ sessions: [], pageInfo: { hasMore: false, nextCursor: null } }),
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const { assistantSessionService } = await import('./assistantSessionService');
+    const page = await assistantSessionService.listSessions();
+
+    expect(page).toEqual({ sessions: [], hasMore: false, nextCursor: null });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bambook.test/api/agent/sessions',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
   it('archives a session through the backend soft-delete endpoint', async () => {
     sessionStorage.setItem('bambook_auth_token', 'token-2');
     const fetchSpy = vi.fn(async () => ({

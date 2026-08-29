@@ -124,10 +124,27 @@ export function createAgentRouter(options: AgentStatusOptions) {
 
   router.get('/sessions', requireAgentActor, asyncHandler(async (req, res) => {
     const actor = (req as any).actor;
+    // 搜索：标题或任一消息内容命中（大小写不敏感）
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 80) : '';
+    // 游标：上一页最后一条 session id（按 updatedAt desc + id desc 稳定排序锚定）
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor.trim() : '';
+    const takeRaw = Number(req.query.take);
+    const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.floor(takeRaw), 1), 100) : 50;
+
+    const where: Record<string, unknown> = { userId: actor.userId, deletedAt: null };
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { messages: { some: { deletedAt: null, content: { contains: search, mode: 'insensitive' } } } },
+      ];
+    }
+
+    // 多取 1 条探测是否还有下一页
     const sessions = await options.prisma.agentSession.findMany({
-      where: { userId: actor.userId, deletedAt: null },
-      orderBy: { updatedAt: 'desc' },
-      take: 50,
+      where,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      take: take + 1,
       select: {
         id: true,
         title: true,
@@ -144,9 +161,13 @@ export function createAgentRouter(options: AgentStatusOptions) {
       },
     });
 
+    const hasMore = sessions.length > take;
+    const page = hasMore ? sessions.slice(0, take) : sessions;
+    const nextCursor = hasMore && page.length > 0 ? page[page.length - 1].id : null;
+
     res.json({
       ok: true,
-      sessions: sessions.map(session => ({
+      sessions: page.map(session => ({
         id: session.id,
         title: session.title || '未命名对话',
         status: session.status,
@@ -159,6 +180,7 @@ export function createAgentRouter(options: AgentStatusOptions) {
           createdAt: session.messages[0].createdAt.toISOString(),
         } : null,
       })),
+      pageInfo: { hasMore, nextCursor, take },
     });
   }));
 

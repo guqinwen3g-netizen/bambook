@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, Wrench, X, ChevronRight, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import {
@@ -119,17 +119,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const quietText = BAMBOOK_OS.tone.text.quiet;
   const surfaceClass = 'border-[var(--border-c-subtle)]';
 
+  // Esc 关闭抽屉
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* 遮罩 */}
+          {/* 遮罩（z 层级走 bds token：sheet 抽屉档） */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[100] bg-[var(--mask-bg)] backdrop-blur-sm"
+            className="fixed inset-0 z-[var(--z-sheet)] bg-[var(--mask-bg)] backdrop-blur-sm"
             onClick={onClose}
           />
           {/* 抽屉 */}
@@ -138,7 +148,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -288, opacity: 0.8 }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className={`fixed left-0 top-0 bottom-0 z-[101] w-72 ${bodyBg} border-r ${surfaceClass} shadow-none flex flex-col`}
+            className={`fixed left-0 top-0 bottom-0 z-[var(--z-sheet)] w-72 ${bodyBg} border-r ${surfaceClass} shadow-none flex flex-col`}
           >
             {/* 头部 */}
             <div className={`shrink-0 flex items-center justify-between px-4 h-12 border-b ${surfaceClass}`}>

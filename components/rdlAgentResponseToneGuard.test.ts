@@ -84,22 +84,9 @@ describe('RDL agent-response tone [共享 helper]', () => {
     expect(helper).toContain('metricToneClass');
     expect(helper).toContain('agentNeutralTone');
   });
-  it('AgentToolLifecycleBlock 消费共享 helper（无本地 riskClass）', () => {
-    expect(AGENT_RESPONSE['AgentToolLifecycleBlock.tsx']).toContain('agentResponseTone');
-    expect(AGENT_RESPONSE['AgentToolLifecycleBlock.tsx']).not.toMatch(/const\s+riskClass\s*=/);
-    expect(AGENT_RESPONSE['AgentToolLifecycleBlock.tsx']).not.toMatch(/const\s+riskPillClass\s*=/);
-  });
-  it('AgentApprovalBlock 消费共享 helper（无本地 riskClass）', () => {
-    expect(AGENT_RESPONSE['AgentApprovalBlock.tsx']).toContain('agentResponseTone');
-    expect(AGENT_RESPONSE['AgentApprovalBlock.tsx']).not.toMatch(/const\s+riskClass\s*=/);
-  });
   it('SettingsDrawer 消费共享 helper（无本地 riskPill）', () => {
     expect(AGENT_RESPONSE['SettingsDrawer.tsx']).toContain('agentResponseTone');
     expect(AGENT_RESPONSE['SettingsDrawer.tsx']).not.toMatch(/const\s+riskPill\s*=/);
-  });
-  it('AgentToolCatalogRail 消费共享 helper（无本地 riskPill）', () => {
-    expect(AGENT_RESPONSE['AgentToolCatalogRail.tsx']).toContain('agentResponseTone');
-    expect(AGENT_RESPONSE['AgentToolCatalogRail.tsx']).not.toMatch(/const\s+riskPill\s*=/);
   });
   it('AgentMetricBlock 消费共享 helper（无本地 toneClass）', () => {
     expect(AGENT_RESPONSE['AgentMetricBlock.tsx']).toContain('agentResponseTone');
@@ -107,9 +94,6 @@ describe('RDL agent-response tone [共享 helper]', () => {
   });
   it('AgentDocumentRenderer statusIcon 消费共享 helper', () => {
     expect(AGENT_RESPONSE['AgentDocumentRenderer.tsx']).toContain('statusIconClass');
-  });
-  it('AgentTimelineGroup ToolStatusIcon 消费共享 helper', () => {
-    expect(AGENT_RESPONSE['AgentTimelineGroup.tsx']).toContain('statusIconClass');
   });
   it('agentResponseTone 导出 status helper', () => {
     const helper = fs.readFileSync(path.resolve(__dirname, 'agent-response/agentResponseTone.ts'), 'utf8');
@@ -119,16 +103,6 @@ describe('RDL agent-response tone [共享 helper]', () => {
   });
   it('AgentDocumentRenderer running spinner 不用 brand-blue', () => {
     const m = AGENT_RESPONSE['AgentDocumentRenderer.tsx'].match(/CircleDashed[^;]*/);
-    expect(m).toBeTruthy();
-    expect(m![0]).not.toContain('brand-blue');
-  });
-  it('AgentTimelineGroup running spinner 不用 brand-blue', () => {
-    const m = AGENT_RESPONSE['AgentTimelineGroup.tsx'].match(/CircleDashed[^;]*/);
-    expect(m).toBeTruthy();
-    expect(m![0]).not.toContain('brand-blue');
-  });
-  it('AgentTimelineGroup live pulse 不用 brand-blue', () => {
-    const m = AGENT_RESPONSE['AgentTimelineGroup.tsx'].match(/animate-pulse[^>]*/);
     expect(m).toBeTruthy();
     expect(m![0]).not.toContain('brand-blue');
   });

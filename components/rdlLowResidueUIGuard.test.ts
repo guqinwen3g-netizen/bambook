@@ -10,7 +10,6 @@ const FILES = [
   { name: 'compiledMaterialLibraryTemplates', p: 'ui/osCompiler/compiledMaterialLibraryTemplates.tsx' },
   { name: 'ProductsManager', p: 'ProductsManager.tsx' },
   { name: 'compiledSurfacePrimitives', p: 'ui/primitives/compiledSurfacePrimitives.tsx' },
-  { name: 'AgentProcessPanel', p: 'AgentProcessPanel.tsx' },
   { name: 'AgentLiveStatusBar', p: 'AgentLiveStatusBar.tsx' },
   { name: 'Assistant', p: 'Assistant.tsx' },
   { name: 'PandaLab', p: 'mascot/PandaLab.tsx' },

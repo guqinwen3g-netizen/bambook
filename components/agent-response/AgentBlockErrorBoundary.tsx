@@ -5,6 +5,8 @@ import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 interface AgentBlockErrorBoundaryProps {
   children: React.ReactNode;
   isDarkMode?: boolean;
+  /** block 更新信号（如 status 翻转）：变化时重置错误态，给修复后的 block 一次重渲机会 */
+  resetKey?: unknown;
 }
 
 interface AgentBlockErrorBoundaryState {
@@ -16,6 +18,12 @@ export class AgentBlockErrorBoundary extends React.Component<AgentBlockErrorBoun
 
   static getDerivedStateFromError(): AgentBlockErrorBoundaryState {
     return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: AgentBlockErrorBoundaryProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
   }
 
   componentDidCatch(error: unknown) {

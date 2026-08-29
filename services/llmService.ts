@@ -7,7 +7,7 @@ import { KnowledgeItem, Order, Email, Insight } from "../types";
  */
 export const llmService = {
     /**
-     * Generate Executive Summary (template-based, computed locally from real order/email/insight counts)
+     * 生成经营摘要（本地模板化，基于真实订单/邮件/洞察计数计算）
      */
     async getExecutiveSummary(orders: Order[], emails: Email[], knowledge: KnowledgeItem[], insights: Insight[]) {
         const alertCount = orders.filter(o => o.status === 'Alert').length;
@@ -15,9 +15,9 @@ export const llmService = {
         const shippingCount = orders.filter(o => o.status === 'Shipping').length;
 
         const statusPhrase = alertCount > 0
-            ? `with ${alertCount} critical alert${alertCount > 1 ? 's' : ''} requiring attention`
-            : 'operating within normal parameters';
+            ? `有 ${alertCount} 个紧急告警需要处理`
+            : '运行平稳，暂无紧急告警';
 
-        return `Business operations ${statusPhrase}. Currently tracking ${orders.length} orders (${productionCount} in production, ${shippingCount} shipping). ${insights.length} actionable insights identified from ${emails.length} communications.`;
+        return `经营概览：${statusPhrase}。当前在跟订单 ${orders.length} 笔（生产中 ${productionCount} 笔，出运中 ${shippingCount} 笔）。从 ${emails.length} 封往来邮件中识别出 ${insights.length} 条可执行洞察。`;
     },
 };

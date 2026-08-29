@@ -6,12 +6,11 @@ import { getAuthState } from '../services/authService';
 import { assistantSessionService, AssistantSessionSummary } from '../services/assistantSessionService';
 import { ttsService } from '../services/ttsService';
 import {
-  ArrowLeft, ArrowRight,
   Send, Paperclip, Cpu, MessageSquare,
-  RefreshCw, Search, StopCircle, Globe, Volume2, VolumeX,
+  RefreshCw, Search, StopCircle, Volume2, VolumeX,
   Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
-  Archive, Check, Copy, Maximize2, Mic, Minimize2, Pencil, Trash2, X,
-  ChevronDown, ChevronRight,
+  Check, Maximize2, Mic, Minimize2, Pencil, Trash2, X,
+  ChevronRight,
   Languages, BarChart3, Mail, ShoppingBag, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,17 +27,13 @@ import { localSttService } from '../services/localSttService';
 import BambookLowercaseWordmark from './BambookLowercaseWordmark';
 import {
   buildAgentThoughtProcessText,
-  compactAgentText,
-  describeAgentTool,
   finalizeAgentEvents,
   getAgentLiveStatusText,
-  getAgentRunStatusText,
   normalizeAgentWorkEvent,
 } from '../lib/agentEventPresentation';
 import { normalizeAgentBlockStreamEvent, reduceAgentBlocks } from '../lib/agentBlockStream';
 import { useStickyScroll } from '../lib/useStickyScroll';
 import { normalizeAgentManifestResponse, type AgentToolCatalog } from '../lib/agentManifest';
-import { AgentToolCatalogRail } from './agent-response/AgentToolCatalogRail';
 import { SettingsDrawer } from './agent-response/SettingsDrawer';
 
 interface AssistantProps {
@@ -153,6 +148,8 @@ type AssistantWorkspaceItem = {
     status: 'loading' | 'loaded' | 'error';
     error?: string;
   };
+  /** browser 项刷新计数：自增触发 iframe 重挂载 */
+  refreshNonce?: number;
 };
 
 const readAssistantWorkspaceState = (): AssistantWorkspaceState => {
@@ -206,10 +203,18 @@ const readMessagesCache = (sessionId: string): ChatMessage[] => {
   }
 };
 
+// 缓存到 localStorage 前剔除附件 base64 载荷（data/previewUrl 动辄数 MB，极易击穿 5MB 配额）。
+// 名称/类型保留，刷新后附件以占位图标展示。
+const stripAttachmentsForCache = (messages: ChatMessage[]): ChatMessage[] => messages.map(message => (
+  message.attachments?.length
+    ? { ...message, attachments: message.attachments.map(attachment => ({ ...attachment, data: '', previewUrl: '' })) }
+    : message
+));
+
 const saveMessagesCache = (sessionId: string, messages: ChatMessage[]) => {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(`bambook:assistant-session-messages:${sessionId}`, JSON.stringify(messages));
+    window.localStorage.setItem(`bambook:assistant-session-messages:${sessionId}`, JSON.stringify(stripAttachmentsForCache(messages)));
   } catch {
     // Session cache is non-critical optimization
   }
@@ -245,6 +250,20 @@ const getToolRunDurationLabel = (toolRun?: AgentToolRunDetail) => {
   const completed = new Date(toolRun.completedAt).getTime();
   if (!Number.isFinite(started) || !Number.isFinite(completed) || completed < started) return '';
   return `${completed - started} ms`;
+};
+
+// 聊天请求连接超时（仅覆盖 fetch 建连+响应头阶段，不截断后续 SSE 流）
+const CHAT_CONNECT_TIMEOUT_MS = 60_000;
+
+// 网络层异常统一映射为可理解的中文提示（fetch 断网/DNS/连接拒绝在浏览器侧为 TypeError: Failed to fetch）
+const toUserFacingChatError = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    if (error instanceof TypeError || /failed to fetch|network\s?error|load failed|err_connection|connection refused/i.test(error.message)) {
+      return '无法连接 Bambook 数据中心，请检查网络连接或确认服务已启动。';
+    }
+    return error.message;
+  }
+  return '连接不稳定。请稍后再试。';
 };
 
 export type AssistantRuntimeSnapshot = {
@@ -340,15 +359,23 @@ const Assistant: React.FC<AssistantProps> = ({
   const [sessions, setSessions] = useState<AssistantSessionSummary[]>(() => readSessionsCache());
   const [historyError, setHistoryError] = useState('');
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historySearchInput, setHistorySearchInput] = useState('');
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyNextCursor, setHistoryNextCursor] = useState<string | null>(null);
+  const [isHistoryAppending, setIsHistoryAppending] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingSessionTitle, setEditingSessionTitle] = useState('');
   const [sessionActionId, setSessionActionId] = useState<string | null>(null);
-  const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [copiedMessageKey, setCopiedMessageKey] = useState<string | number | null>(null);
   const [activeAgentId, setActiveAgentId] = useState('default');
+  const [isNarrowViewport, setIsNarrowViewport] = useState(() => (
+    typeof window !== 'undefined' ? !window.matchMedia('(min-width: 1024px)').matches : false
+  ));
   useEffect(() => {
-    saveSessionsCache(sessions);
-  }, [sessions]);
+    // 搜索中的列表是过滤结果，不写入本地缓存（缓存只承载未过滤的首页）
+    if (!historySearchQuery) saveSessionsCache(sessions);
+  }, [sessions, historySearchQuery]);
 
   const selectAgent = (agentId: string) => {
     setActiveAgentId(agentId);
@@ -809,10 +836,6 @@ const Assistant: React.FC<AssistantProps> = ({
       // 卡片状态会变为 approved/rejected/modified
       // 接下来静静等待后端 SSE 唤醒继续吐出内容即可
     } catch (error: any) {
-      console.error("[Antigravity Debug] resolveAgentApproval 报错:", error);
-      if (typeof window !== 'undefined') {
-        bdsToast.danger(`【Antigravity 错误捕捉】审批落库失败：${error?.message || '未知错误'}`);
-      }
       // 回滚
       applyApprovalPatch('pending');
       patchAgentSessionContext({ status: 'blocked_for_approval', pendingApprovalId: approvalId, inputMode: 'approval_comment' });
@@ -1048,18 +1071,22 @@ const Assistant: React.FC<AssistantProps> = ({
 
   useEffect(() => () => cancelTypingAnimation(false), []);
 
-  const refreshSessions = async () => {
+  const refreshSessions = async (search = historySearchQuery) => {
     if (!getStoredAuthToken()) {
       setSessions([]);
       setHistoryError('');
       setIsHistoryLoading(false);
+      setHistoryHasMore(false);
+      setHistoryNextCursor(null);
       return;
     }
     setIsHistoryLoading(true);
     setHistoryError('');
     try {
-      const items = await assistantSessionService.listSessions();
-      setSessions(items);
+      const page = await assistantSessionService.listSessions({ search: search || undefined });
+      setSessions(page.sessions);
+      setHistoryHasMore(page.hasMore);
+      setHistoryNextCursor(page.nextCursor);
     } catch (error: any) {
       setHistoryError(error?.message || '无法加载历史');
     } finally {
@@ -1067,9 +1094,41 @@ const Assistant: React.FC<AssistantProps> = ({
     }
   };
 
+  const loadMoreSessions = async () => {
+    if (!historyHasMore || !historyNextCursor || isHistoryAppending || isHistoryLoading) return;
+    setIsHistoryAppending(true);
+    setHistoryError('');
+    try {
+      const page = await assistantSessionService.listSessions({
+        cursor: historyNextCursor,
+        search: historySearchQuery || undefined,
+      });
+      setSessions(prev => {
+        const seen = new Set(prev.map(item => item.id));
+        return [...prev, ...page.sessions.filter(item => !seen.has(item.id))];
+      });
+      setHistoryHasMore(page.hasMore);
+      setHistoryNextCursor(page.nextCursor);
+    } catch (error: any) {
+      setHistoryError(error?.message || '无法加载更多历史对话');
+    } finally {
+      setIsHistoryAppending(false);
+    }
+  };
+
+  // 搜索输入防抖：300ms 落定为查询词后触发服务端搜索（标题+消息内容）
   useEffect(() => {
-    refreshSessions();
-  }, []);
+    const handle = window.setTimeout(() => {
+      setHistorySearchQuery(historySearchInput.trim());
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [historySearchInput]);
+
+  useEffect(() => {
+    void refreshSessions(historySearchQuery);
+    // refreshSessions 读取最新 query 参数即可，不随函数身份重跑
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historySearchQuery]);
 
   const getRuntimeApiKey = () => {
     const envKey = import.meta.env.VITE_BAMBOOK_API_KEY as string | undefined;
@@ -1110,7 +1169,7 @@ const Assistant: React.FC<AssistantProps> = ({
     onAgentEvent?: (event: AgentWorkEvent) => void,
     onBlockEvent?: (event: AgentBlockStreamEvent) => void,
   ): Promise<RuntimeChatResult> => {
-    if (!response.body) throw new Error('AI Runtime did not return a stream');
+    if (!response.body) throw new Error('AI Runtime 未返回数据流，请重试。');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -1122,11 +1181,6 @@ const Assistant: React.FC<AssistantProps> = ({
       const dataRaw = block.match(/^data:\s*(.+)$/m)?.[1];
       if (!dataRaw) return false;
       const data = JSON.parse(dataRaw);
-      // ── Debug: log ALL SSE events for diagnosis ──
-      const blockType = data?.block?.type || '';
-      const toolId = data?.block?.toolId || data?.toolId || '';
-      const lifecycle = data?.block?.lifecycleStatus || data?.status || '';
-      console.info(`[Bambook SSE] event=${event} type=${blockType} toolId=${toolId} lifecycle=${lifecycle}`);
       if (event === 'agent_event' && data && typeof data === 'object') {
         const workEvent = normalizeAgentWorkEvent(data);
         if (workEvent) onAgentEvent?.(workEvent);
@@ -1135,6 +1189,16 @@ const Assistant: React.FC<AssistantProps> = ({
         const blockEvent = normalizeAgentBlockStreamEvent({ ...data, event });
         if (blockEvent) onBlockEvent?.(blockEvent);
         else if (event === 'block_start') console.warn('[Bambook SSE] block_start normalized to null (dropped):', JSON.stringify(data).slice(0, 200));
+      }
+      // 过程步骤事件（排队/TTS 降级/工作区文件读取等）接入 thinkingLogs，驱动状态行与思考过程
+      if (event === 'step') {
+        const message = typeof data.message === 'string' ? data.message.trim() : '';
+        if (message) onStep(message);
+        return false;
+      }
+      if (event === 'queued') {
+        onStep('请求已排队，等待模型资源分配…');
+        return false;
       }
       if (event === 'delta' && data.text) onDelta?.(String(data.text));
       if (event === 'tts_chunk' && typeof data.audioBase64 === 'string') {
@@ -1154,35 +1218,30 @@ const Assistant: React.FC<AssistantProps> = ({
         };
         return true;
       }
-      if (event === 'error') runtimeError = String(data.error || 'AI Runtime failed');
+      if (event === 'error') runtimeError = String(data.error || 'AI Runtime 执行失败');
       return false;
     };
 
     let receivedFinal = false;
-    let chunkCount = 0;
-    let totalBlocksParsed = 0;
     while (true) {
       const { done, value } = await reader.read();
-      if (done) { console.info(`[Bambook SSE] Stream done. chunks=${chunkCount} blocks=${totalBlocksParsed} final=${receivedFinal}`); break; }
-      chunkCount++;
+      if (done) break;
       const chunk = decoder.decode(value, { stream: true });
       buffer += chunk;
       const blocks = buffer.split('\n\n');
       buffer = blocks.pop() || '';
       for (const block of blocks) {
-        totalBlocksParsed++;
         receivedFinal = handleBlock(block) || receivedFinal;
         if (receivedFinal) break;
       }
       if (receivedFinal) {
-        console.info(`[Bambook SSE] Final received after chunk ${chunkCount}, blocks parsed ${totalBlocksParsed}. Canceling reader.`);
         await reader.cancel().catch(() => {});
         break;
       }
     }
     if (!receivedFinal && buffer.trim()) handleBlock(buffer);
     if (runtimeError) throw new Error(runtimeError);
-    if (!finalResult) throw new Error('AI Runtime stream ended without final response');
+    if (!finalResult) throw new Error('AI Runtime 数据流异常中断（未收到最终结果），请重试。');
     return finalResult;
   };
 
@@ -1214,41 +1273,63 @@ const Assistant: React.FC<AssistantProps> = ({
     }
 
     const requestUrl = `${apiBase}/ai/chat`;
-    const authMode = !Object.keys(devHeaders).length && authToken ? 'Bearer' : apiKey ? 'API-Key' : 'none';
-    console.info('[Bambook Chat] POST', requestUrl, 'authMode:', authMode, 'userId:', auth.user?.id || 'default-user');
-    const response = await fetch(requestUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...devHeaders,
-        ...(!Object.keys(devHeaders).length && authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {})
-      },
-      credentials: 'include',
-      signal,
-      body: JSON.stringify({
-        sessionId: activeSessionIdRef.current,
-        userId: auth.user?.id || 'default-user',
-        displayName: auth.user?.displayName,
-        roles: auth.user?.roles || [],
-        departmentIds: auth.user?.departmentIds || [],
-        message: modifiedMessage,
-        history,
-        attachments: userMsg.attachments || [],
-        model: selectedModel,
-        temperature,
-        tts: {
-          enabled: isTTSEnabledRef.current,
-          voice: 'melo',
-          speed: voiceSpeed,
-        }
-      })
-    });
+    // 连接超时与"用户主动停止"共用一条链路：内部 timeoutController 级联外部 signal，
+    // 60s 无响应则中止并以超时错误抛出；外部 signal 中止（停止按钮）则原样抛出 AbortError。
+    const timeoutController = new AbortController();
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      timeoutController.abort();
+    }, CHAT_CONNECT_TIMEOUT_MS);
+    const abortFromCaller = () => timeoutController.abort();
+    if (signal.aborted) timeoutController.abort();
+    else signal.addEventListener('abort', abortFromCaller);
+
+    let response: Response;
+    try {
+      response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...devHeaders,
+          ...(!Object.keys(devHeaders).length && authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {})
+        },
+        credentials: 'include',
+        signal: timeoutController.signal,
+        body: JSON.stringify({
+          sessionId: activeSessionIdRef.current,
+          userId: auth.user?.id || 'default-user',
+          displayName: auth.user?.displayName,
+          roles: auth.user?.roles || [],
+          departmentIds: auth.user?.departmentIds || [],
+          message: modifiedMessage,
+          history,
+          attachments: userMsg.attachments || [],
+          model: selectedModel,
+          temperature,
+          tts: {
+            enabled: isTTSEnabledRef.current,
+            voice: 'melo',
+            speed: voiceSpeed,
+          }
+        })
+      });
+    } catch (fetchError) {
+      if (signal.aborted && !timedOut) throw fetchError;
+      if (timedOut) throw new Error(`连接超时（${Math.round(CHAT_CONNECT_TIMEOUT_MS / 1000)} 秒无响应），请检查网络后重试。`);
+      throw new Error('无法连接 Bambook 数据中心，请检查网络连接或确认服务已启动。');
+    } finally {
+      clearTimeout(timeoutId);
+      signal.removeEventListener('abort', abortFromCaller);
+    }
     if (!response.ok) {
       const error = await response.text();
       if (response.status === 401) throw new Error('缺少 Bambook API Key，请在设置里填写 SDK API Key。');
       if (response.status === 403) throw new Error('Bambook API Key 不正确，请检查设置里的 SDK API Key。');
-      throw new Error(error || `AI Runtime HTTP ${response.status}`);
+      if (response.status === 429) throw new Error('请求过于频繁，请稍候再试。');
+      if (response.status >= 500) throw new Error(`AI 服务暂时不可用（HTTP ${response.status}），请稍后重试。`);
+      throw new Error(error || `AI Runtime 请求失败（HTTP ${response.status}）`);
     }
     return readSseResponse(response, onStep, onDelta, onTtsChunk, onAgentEvent, onBlockEvent);
   };
@@ -1483,10 +1564,6 @@ const Assistant: React.FC<AssistantProps> = ({
       let streamingText = '';
       let hasAssistantMessage = false;
       let hasBackendTtsChunk = false;
-      let firstDeltaClientAt = 0;
-      let firstTtsChunkClientAt = 0;
-      let firstTtsChunkDebug: TtsChunkDebug | undefined;
-      let firstAudioStartLogged = false;
       let isShowingThinking = false; // 当 Agent 思考过程正在显示时为 true
       let streamingThoughtText = '';
       // ── 实时过程文本流 ──
@@ -1520,10 +1597,6 @@ const Assistant: React.FC<AssistantProps> = ({
       };
 
       const applyBlockStreamEvent = (blockEvent: AgentBlockStreamEvent) => {
-        // ── Debug: log every block event for approval diagnosis ──
-        if (blockEvent.event === 'block_start') {
-          console.info('[Bambook Block]', blockEvent.event, (blockEvent.block as any)?.type, (blockEvent.block as any)?.toolId ?? '', (blockEvent.block as any)?.approvalId ?? '');
-        }
         const isAnswerBlockStart = blockEvent.event === 'block_start' && blockEvent.block.type !== 'approval';
         if (isAnswerBlockStart && isShowingThinking) {
           streamingText = '';
@@ -1536,9 +1609,6 @@ const Assistant: React.FC<AssistantProps> = ({
         const approvalBlock = blockEvent.event === 'block_start' && blockEvent.block.type === 'approval'
           ? blockEvent.block
           : null;
-        if (approvalBlock) {
-          console.info('[Bambook Approval] Setting blocked_for_approval, approvalId:', approvalBlock.approvalId);
-        }
         // 关键修复：patchAgentSessionContext 做 {...prev, ...patch}，
         // 如果 patch 里有 status: undefined，会把之前的 blocked_for_approval 覆盖为 undefined！
         // 所以非 approval block 的 patch 绝不包含 status/inputMode/pendingApprovalId 键。
@@ -1570,26 +1640,7 @@ const Assistant: React.FC<AssistantProps> = ({
       };
       if (isTTSEnabledRef.current) {
         ttsService.setAuthToken(getStoredAuthToken());
-        ttsService.beginBackendStreaming({
-          onAudioStart: (info) => {
-            if (firstAudioStartLogged || !firstDeltaClientAt) return;
-            firstAudioStartLogged = true;
-            const round = (value: number | null | undefined) => (
-              typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null
-            );
-            console.info('[TTS Sync]', {
-              segmentId: info.segmentId,
-              chars: firstTtsChunkDebug?.chars ?? null,
-              clientDeltaToFirstChunkMs: round(firstTtsChunkClientAt ? firstTtsChunkClientAt - firstDeltaClientAt : null),
-              clientDeltaToAudioStartMs: round(info.estimatedAudioStartClientAt - firstDeltaClientAt),
-              clientChunkToAudioStartMs: round(firstTtsChunkClientAt ? info.estimatedAudioStartClientAt - firstTtsChunkClientAt : null),
-              serverDeltaToSynthesisStartMs: round(firstTtsChunkDebug?.firstDeltaToSynthesisStartMs),
-              serverDeltaToChunkMs: round(firstTtsChunkDebug?.firstDeltaToChunkServerMs),
-              serverQueuedToSynthesisStartMs: round(firstTtsChunkDebug?.queuedToSynthesisStartMs),
-              serverSynthesisMs: round(firstTtsChunkDebug?.synthesisMs),
-            });
-          },
-        });
+        ttsService.beginBackendStreaming();
       }
 
       const result = await runRuntimeChat(
@@ -1600,7 +1651,6 @@ const Assistant: React.FC<AssistantProps> = ({
           assistantRuntimeStore.set({ thinkingLogs: [...current.thinkingLogs, step] });
         },
         (delta) => {
-          if (!firstDeltaClientAt) firstDeltaClientAt = performance.now();
           // 最终回答到达时，清空思考过程，从空白开始写最终回答
           if (isShowingThinking) {
             streamingText = '';
@@ -1612,10 +1662,6 @@ const Assistant: React.FC<AssistantProps> = ({
         (chunk) => {
           if (!isTTSEnabledRef.current) return;
           hasBackendTtsChunk = true;
-          if (!firstTtsChunkClientAt) {
-            firstTtsChunkClientAt = performance.now();
-            firstTtsChunkDebug = chunk.ttsDebug;
-          }
           ttsService.enqueueBackendAudioChunk(chunk);
         },
         (event) => {
@@ -1682,13 +1728,6 @@ const Assistant: React.FC<AssistantProps> = ({
       if (isTTSEnabledRef.current) {
         ttsService.endBackendStreaming();
         if (!hasBackendTtsChunk) {
-          if (firstDeltaClientAt) {
-            console.info('[TTS Sync]', {
-              mode: 'fallback-full-text',
-              reason: 'no backend tts_chunk received before final',
-              clientDeltaToFinalBeforeFallbackMs: Math.round(performance.now() - firstDeltaClientAt),
-            });
-          }
           ttsService.setAuthToken(getStoredAuthToken());
           ttsService.speak(result.text, { voiceSpeed }).catch(e => console.error("TTS fallback auto-read failed", e));
         }
@@ -1783,7 +1822,7 @@ const Assistant: React.FC<AssistantProps> = ({
       }
       const errorMsg: ChatMessage = {
         role: 'model',
-        text: error instanceof Error && error.message ? error.message : '连接不稳定。请稍后再试。',
+        text: toUserFacingChatError(error),
         timestamp: Date.now()
       };
       appendAgentEvent({
@@ -1829,6 +1868,7 @@ const Assistant: React.FC<AssistantProps> = ({
     cancelTypingAnimation(false);
     ttsService.stop();
     setHistoryError('');
+    if (isNarrowViewport) setIsHistoryOpen(false);
 
     // 1. 同步乐观读取本地缓存消息，实现零延迟“秒开”
     const cachedMessages = readMessagesCache(sessionId);
@@ -1876,7 +1916,6 @@ const Assistant: React.FC<AssistantProps> = ({
 
   const beginRenameSession = (session: AssistantSessionSummary) => {
     setHistoryError('');
-    setSessionMenuId(null);
     setEditingSessionId(session.id);
     setEditingSessionTitle(session.title || '未命名对话');
   };
@@ -1908,7 +1947,6 @@ const Assistant: React.FC<AssistantProps> = ({
   const archiveSession = async (sessionId: string) => {
     if (isLoading) return;
     setSessionActionId(sessionId);
-    setSessionMenuId(null);
     setHistoryError('');
     try {
       await assistantSessionService.archiveSession(sessionId);
@@ -1982,17 +2020,6 @@ const Assistant: React.FC<AssistantProps> = ({
   }, [activeSessionId, sessions, isLoading, messages.length]);
 
   useEffect(() => {
-    if (!sessionMenuId) return;
-    const closeMenu = () => setSessionMenuId(null);
-    window.addEventListener('click', closeMenu);
-    window.addEventListener('keydown', closeMenu);
-    return () => {
-      window.removeEventListener('click', closeMenu);
-      window.removeEventListener('keydown', closeMenu);
-    };
-  }, [sessionMenuId]);
-
-  useEffect(() => {
     if (!isAgentFullscreen) return;
     const exitFullscreen = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsAgentFullscreen(false);
@@ -2046,6 +2073,34 @@ const Assistant: React.FC<AssistantProps> = ({
     workspaceItems[0] ||
     null;
 
+  // 刷新：browser 项通过 refreshNonce 重挂载 iframe 强制重载；
+  // reference(tool_run)/review(entity) 项重新 hydrate 拉取最新数据；其余类型无远端数据源，禁用按钮。
+  const canRefreshActiveWorkspaceItem = Boolean(
+    activeWorkspaceItem && (
+      (activeWorkspaceItem.kind === 'browser' && activeWorkspaceItem.url) ||
+      (activeWorkspaceItem.kind === 'reference' && activeWorkspaceItem.referenceAnchor?.kind === 'tool_run' && activeWorkspaceItem.referenceAnchor.toolRunId) ||
+      (activeWorkspaceItem.kind === 'review' && activeWorkspaceItem.entity)
+    )
+  );
+
+  const refreshActiveWorkspaceItem = () => {
+    const target = activeWorkspaceItem;
+    if (!target) return;
+    if (target.kind === 'browser' && target.url) {
+      setWorkspaceItems(prev => prev.map(item => item.id === target.id ? { ...item, refreshNonce: (item.refreshNonce ?? 0) + 1 } : item));
+      return;
+    }
+    if (target.kind === 'reference' && target.referenceAnchor?.kind === 'tool_run' && target.referenceAnchor.toolRunId) {
+      setWorkspaceItems(prev => prev.map(item => item.id === target.id ? { ...item, referenceHydration: { status: 'loading' } } : item));
+      void hydrateReferenceToolRun(target.id, target.referenceAnchor.toolRunId);
+      return;
+    }
+    if (target.kind === 'review' && target.entity) {
+      setWorkspaceItems(prev => prev.map(item => item.id === target.id ? { ...item, entityHydration: { status: 'loading' } } : item));
+      void hydrateWorkspaceEntity(target.id, target.entity);
+    }
+  };
+
   useEffect(() => {
     if (isWorkspaceFinderOpen) return;
     if (activeWorkspaceItem?.url) {
@@ -2064,7 +2119,9 @@ const Assistant: React.FC<AssistantProps> = ({
     : activeAttachment?.mimeType?.startsWith('image/')
       ? 'Image'
       : 'Document';
-  const currentAgentStatusText = getAgentLiveStatusText(agentEvents, isLoading);
+  const currentAgentStatusText = getAgentLiveStatusText(agentEvents, isLoading)
+    // SSE step/queued 过程消息（含 TTS 降级提示）在状态行兜底可见
+    || (isLoading && thinkingLogs.length > 0 ? thinkingLogs[thinkingLogs.length - 1] : '');
   const currentAgentEvent = agentEvents[agentEvents.length - 1];
   const titleTextClass = 'text-[var(--text-primary)]';
   const bodyTextClass = 'text-[var(--text-primary)]';
@@ -2187,6 +2244,256 @@ const Assistant: React.FC<AssistantProps> = ({
     saveAssistantWorkspaceState({ isHistoryOpen });
   }, [isHistoryOpen]);
 
+  // 窄视口（<lg）：历史栏从常驻列切换为抽屉；进入窄视口时默认收起，Esc 可关闭
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsNarrowViewport(!mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener('change', update);
+    return () => mediaQuery.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (isNarrowViewport) setIsHistoryOpen(false);
+  }, [isNarrowViewport]);
+
+  useEffect(() => {
+    if (!isNarrowViewport || !isHistoryOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsHistoryOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isNarrowViewport, isHistoryOpen]);
+
+  // 历史侧栏内容：lg+ 渲染为常驻列，窄视口渲染为抽屉（同一份内容，避免双份挂载）
+  const renderHistorySidebar = () => (
+    <div className="w-56 flex flex-col h-full min-h-0">
+      <div
+        className={`min-h-12 shrink-0 border-b px-3.5 py-1.5 flex items-center ${panelDividerClass} ${isAgentFullscreen ? 'pl-16' : ''}`}
+        style={isAgentFullscreen ? { WebkitAppRegion: 'drag' } as React.CSSProperties : { WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        <BambookLowercaseWordmark
+          isDarkMode={isDarkMode}
+          className="h-7 w-auto select-none pointer-events-none"
+          style={{ marginLeft: '2px' }}
+        />
+      </div>
+      <div className="flex-1 flex flex-col space-y-4 px-2.5 py-3 min-h-0">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveAgentId('default');
+            startNewConversation();
+            if (isNarrowViewport) setIsHistoryOpen(false);
+          }}
+          className={`-mt-2.5 w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-colors duration-200 no-drag ${actionControlClass}`}
+          title="新建对话"
+        >
+          <Plus size={14} strokeWidth={1.5} className="shrink-0" />
+          <span>新建对话</span>
+        </button>
+
+        <div className="-mt-2 flex flex-col min-h-0 shrink-0 space-y-1.5 no-drag">
+          <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>Agent 功能</div>
+          <div className="relative min-h-0">
+            <div ref={agentScrollRef} className="max-h-[180px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
+              {AGENTS.map(agent => {
+                const Icon = agent.icon;
+                const isActive = activeAgentId === agent.id;
+                return (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    onClick={() => selectAgent(agent.id)}
+                    className={`w-full rounded-inset px-2.5 py-2 flex items-center gap-3 text-left transition-colors duration-200 ${
+                      isActive
+                        ? BAMBOOK_OS.controls.selectedSurface.base
+                        : `hover:bg-[var(--hover-darken)] text-[var(--text-secondary)]`
+                    }`}
+                  >
+                    <Icon size={14} strokeWidth={1.5} className={`shrink-0 ${
+                      isActive
+                        ? 'text-[var(--text-primary)]'
+                        : 'text-[var(--text-tertiary)]'
+                    }`} />
+                    <div className="min-w-0 flex-1">
+                      <div className={`text-[12px] font-light leading-4 ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{agent.name}</div>
+                      <div className={`text-[10px] font-light leading-3 truncate ${isActive ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>{agent.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col min-h-0 mt-[20px] pt-3 border-t border-dashed border-[var(--border-c-subtle)] no-drag">
+          <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light mb-1.5 shrink-0 ${labelTextClass}`}>最近对话</div>
+          <div className="px-2 pb-1.5 shrink-0">
+            <div className={`flex h-7 items-center gap-1.5 rounded-compact border px-2 ${fieldClass}`}>
+              <Search size={14} strokeWidth={1.5} className={`shrink-0 ${quietTextClass}`} />
+              <input
+                value={historySearchInput}
+                onChange={(event) => setHistorySearchInput(event.target.value)}
+                placeholder="搜索标题或内容"
+                aria-label="搜索历史对话"
+                className={`min-w-0 flex-1 bg-transparent text-[11px] font-light outline-none ${bodyTextClass}`}
+              />
+              {historySearchInput && (
+                <button
+                  type="button"
+                  onClick={() => setHistorySearchInput('')}
+                  aria-label="清除搜索"
+                  title="清除搜索"
+                  className={`shrink-0 ${quietTextClass}`}
+                >
+                  <X size={14} strokeWidth={1.5} />
+                </button>
+              )}
+            </div>
+          </div>
+          {isHistoryLoading && sessions.length === 0 && (
+            <div className={`rounded-inset border px-2.5 py-2 text-[11px] shrink-0 ${actionControlClass}`}>正在加载...</div>
+          )}
+          {!isHistoryLoading && historyError && (
+            <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 border-[var(--border-c-default)] bg-[var(--hover-darken)] text-[var(--text-tertiary)]`}>
+              {historyError === 'Login required.' ? '登录后显示个人历史对话。' : historyError}
+            </div>
+          )}
+          {!isHistoryLoading && !historyError && sessions.length === 0 && (
+            <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${actionControlClass}`}>
+              {historySearchQuery ? '没有匹配的对话。' : '还没有历史对话。'}
+            </div>
+          )}
+          <div className="relative flex-1 min-h-0">
+            <div ref={historyScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
+              {sessions.map(session => {
+                const isActive = session.id === activeSessionId;
+                const isEditing = editingSessionId === session.id;
+                const isActing = sessionActionId === session.id;
+                return (
+                  <CompiledInteractiveCard
+                    key={session.id}
+                    as="div"
+                    compilerRole="history-item"
+                    source="Assistant.history"
+                    idleSpotlightOpacity={0}
+                    className={`w-full rounded-inset text-left transition-colors duration-200 ${isActive ? BAMBOOK_OS.controls.selectedSurface.base : ''}`}
+                  >
+                    {isEditing ? (
+                      <div className="p-2">
+                        <input
+                          value={editingSessionTitle}
+                          onChange={(event) => setEditingSessionTitle(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              submitRenameSession(session.id);
+                            }
+                            if (event.key === 'Escape') {
+                              event.preventDefault();
+                              cancelRenameSession();
+                            }
+                          }}
+                          autoFocus
+                          className={`h-8 w-full rounded-compact border bg-transparent px-2 text-[12px] font-light outline-none ${fieldClass}`}
+                        />
+                        <div className="mt-1.5 flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={cancelRenameSession}
+                            className={`h-8 w-8 rounded-control border flex items-center justify-center ${actionControlClass}`}
+                            title="取消"
+                          >
+                            <X size={14} strokeWidth={1.5} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isActing}
+                            onClick={() => submitRenameSession(session.id)}
+                            className={`h-8 w-8 rounded-control border flex items-center justify-center disabled:opacity-40 ${actionControlClass}`}
+                            title="保存名称"
+                          >
+                            <Check size={14} strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="group relative">
+                        <button
+                          type="button"
+                          onClick={() => loadSession(session.id)}
+                          className="block min-h-10 w-full py-1.5 pl-2.5 pr-[32px] text-left"
+                        >
+                          <div className={`truncate text-[12px] font-light leading-4 text-[var(--text-primary)]`}>{session.title}</div>
+                          <div className={`mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[10px] font-light leading-3 ${quietTextClass}`}>
+                            <span>{formatSessionTime(session.updatedAt)}</span>
+                            {typeof session.messageCount === 'number' && <span className="truncate">{session.messageCount} 条</span>}
+                          </div>
+                        </button>
+                        <div className={`absolute right-1.5 top-0 bottom-0 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${isActive ? 'group-hover:opacity-100' : ''}`}>
+                           <button
+                             type="button"
+                             onClick={(e) => { e.stopPropagation(); beginRenameSession(session); }}
+                             className={`p-0.5 transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}
+                             title="重命名"
+                           >
+                             <Pencil size={14} strokeWidth={1.5} />
+                           </button>
+                           <button
+                             type="button"
+                             disabled={isActing}
+                             onClick={(e) => { e.stopPropagation(); archiveSession(session.id); }}
+                             className={`p-0.5 transition-colors disabled:opacity-40 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
+                             title="删除"
+                           >
+                             <Trash2 size={14} strokeWidth={1.5} />
+                           </button>
+                         </div>
+                         {isActive && (
+                           <div className="absolute right-1.5 top-0 bottom-0 flex items-center pointer-events-none group-hover:opacity-0 transition-opacity">
+                             <ChevronRight size={14} strokeWidth={1.25} className="text-[var(--text-tertiary)]" />
+                           </div>
+                         )}
+                      </div>
+                    )}
+                  </CompiledInteractiveCard>
+                );
+              })}
+              {historyHasMore && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => void loadMoreSessions()}
+                    disabled={isHistoryAppending}
+                    className={`h-8 rounded-compact border px-3 text-[11px] font-light transition-colors duration-200 disabled:opacity-45 ${actionControlClass}`}
+                  >
+                    {isHistoryAppending ? '加载中...' : '加载更多'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 底部设置按钮 */}
+      <div className={`shrink-0 border-t px-2.5 py-2 flex items-center gap-2 border-[var(--border-c-subtle)]`}>
+        <button
+          type="button"
+          onClick={() => setIsSettingsDrawerOpen(true)}
+          className={`w-full flex items-center gap-2 rounded-inset px-2.5 py-1.5 text-left transition-colors no-drag hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]`}
+          title="设置"
+        >
+          <Settings size={14} strokeWidth={1.5} className="shrink-0" />
+          <span className="text-[11px] font-light">设置</span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <motion.div
       layout
@@ -2218,194 +2525,26 @@ const Assistant: React.FC<AssistantProps> = ({
         className={agentPanelRowClass}
       >
         <div className={`${agentPanelClass} relative z-10 flex min-h-0 flex-row overflow-hidden`}>
-          {/* Left Column: History */}
-          <div className={`order-1 shrink-0 flex flex-col border-r hidden lg:flex transition-colors duration-200 ease-in-out overflow-hidden ${isHistoryOpen ? 'w-56 opacity-100' : 'w-0 opacity-0 border-none'} ${panelDividerClass}`}>
-            <div className="w-56 flex flex-col h-full min-h-0">
+          {/* Left Column: History（lg+ 常驻列） */}
+          {!isNarrowViewport && (
+            <div className={`order-1 shrink-0 flex flex-col border-r transition-colors duration-200 ease-in-out overflow-hidden ${isHistoryOpen ? 'w-56 opacity-100' : 'w-0 opacity-0 border-none'} ${panelDividerClass}`}>
+              {renderHistorySidebar()}
+            </div>
+          )}
+
+          {/* 窄视口（<lg）：历史抽屉，遮罩点击 / Esc 关闭 */}
+          {isNarrowViewport && isHistoryOpen && (
+            <div className="fixed inset-0 z-[var(--z-sheet)]">
               <div
-                className={`min-h-12 shrink-0 border-b px-3.5 py-1.5 flex items-center ${panelDividerClass} ${isAgentFullscreen ? 'pl-16' : ''}`}
-                style={isAgentFullscreen ? { WebkitAppRegion: 'drag' } as React.CSSProperties : { WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-              >
-                <BambookLowercaseWordmark
-                  isDarkMode={isDarkMode}
-                  className="h-7 w-auto select-none pointer-events-none"
-                  style={{ marginLeft: '2px' }}
-                />
+                className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm"
+                onClick={() => setIsHistoryOpen(false)}
+                aria-hidden
+              />
+              <div className={`absolute left-0 top-0 bottom-0 flex w-64 flex-col border-r bg-[var(--bg-card)] ${panelDividerClass}`}>
+                {renderHistorySidebar()}
               </div>
-	              <div className="flex-1 flex flex-col space-y-4 px-2.5 py-3 min-h-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveAgentId('default');
-                        startNewConversation();
-                      }}
-                      className={`-mt-2.5 w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-colors duration-200 no-drag ${actionControlClass}`}
-                      title="新建对话"
-                    >
-                      <Plus size={14} strokeWidth={1.5} className="shrink-0" />
-                      <span>新建对话</span>
-                    </button>
-
-                    <div className="-mt-2 flex flex-col min-h-0 shrink-0 space-y-1.5 no-drag">
-                      <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>Agent 功能</div>
-                      <div className="relative min-h-0">
-                        <div ref={agentScrollRef} className="max-h-[180px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
-                          {AGENTS.map(agent => {
-                            const Icon = agent.icon;
-                            const isActive = activeAgentId === agent.id;
-                            return (
-                              <button
-                                key={agent.id}
-                                type="button"
-                                onClick={() => selectAgent(agent.id)}
-                                className={`w-full rounded-inset px-2.5 py-2 flex items-center gap-3 text-left transition-colors duration-200 ${
-                                  isActive
-                                    ? BAMBOOK_OS.controls.selectedSurface.base
-                                    : `hover:bg-[var(--hover-darken)] text-[var(--text-secondary)]`
-                                }`}
-                              >
-                                <Icon size={14} strokeWidth={1.5} className={`shrink-0 ${
-                                  isActive
-                                    ? 'text-[var(--text-primary)]'
-                                    : 'text-[var(--text-tertiary)]'
-                                }`} />
-                                <div className="min-w-0 flex-1">
-                                  <div className={`text-[12px] font-light leading-4 ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{agent.name}</div>
-                                  <div className={`text-[10px] font-light leading-3 truncate ${isActive ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>{agent.desc}</div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 flex flex-col min-h-0 mt-[20px] pt-3 border-t border-dashed border-[var(--border-c-subtle)] no-drag">
-                      <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light mb-1.5 shrink-0 ${labelTextClass}`}>最近对话</div>
-                      {isHistoryLoading && sessions.length === 0 && (
-                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] shrink-0 ${actionControlClass}`}>正在加载...</div>
-                      )}
-                      {!isHistoryLoading && historyError && (
-                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 border-[var(--border-c-default)] bg-[var(--hover-darken)] text-[var(--text-tertiary)]`}>
-                          {historyError === 'Login required.' ? '登录后显示个人历史对话。' : historyError}
-                        </div>
-                      )}
-                      {!isHistoryLoading && !historyError && sessions.length === 0 && (
-                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${actionControlClass}`}>还没有历史对话。</div>
-                      )}
-                      <div className="relative flex-1 min-h-0">
-                        <div ref={historyScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
-                          {sessions.map(session => {
-                            const isActive = session.id === activeSessionId;
-                            const isEditing = editingSessionId === session.id;
-                            const isActing = sessionActionId === session.id;
-                            return (
-                              <CompiledInteractiveCard
-                                key={session.id}
-                                as="div"
-                                compilerRole="history-item"
-                                source="Assistant.history"
-                                idleSpotlightOpacity={0}
-                                className={`w-full rounded-inset text-left transition-colors duration-200 ${isActive ? BAMBOOK_OS.controls.selectedSurface.base : ''}`}
-                              >
-                                {isEditing ? (
-                                  <div className="p-2">
-                                    <input
-                                      value={editingSessionTitle}
-                                      onChange={(event) => setEditingSessionTitle(event.target.value)}
-                                      onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                          event.preventDefault();
-                                          submitRenameSession(session.id);
-                                        }
-                                        if (event.key === 'Escape') {
-                                          event.preventDefault();
-                                          cancelRenameSession();
-                                        }
-                                      }}
-                                      autoFocus
-                                      className={`h-8 w-full rounded-compact border bg-transparent px-2 text-[12px] font-light outline-none ${fieldClass}`}
-                                    />
-                                    <div className="mt-1.5 flex justify-end gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={cancelRenameSession}
-                                        className={`h-8 w-8 rounded-control border flex items-center justify-center ${actionControlClass}`}
-                                        title="取消"
-                                      >
-                                        <X size={14} strokeWidth={1.5} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={isActing}
-                                        onClick={() => submitRenameSession(session.id)}
-                                        className={`h-8 w-8 rounded-control border flex items-center justify-center disabled:opacity-40 ${actionControlClass}`}
-                                        title="保存名称"
-                                      >
-                                        <Check size={14} strokeWidth={1.5} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="group relative">
-                                    <button
-                                      type="button"
-                                      onClick={() => loadSession(session.id)}
-                                      className="block min-h-10 w-full py-1.5 pl-2.5 pr-[32px] text-left"
-                                    >
-                                      <div className={`truncate text-[12px] font-light leading-4 text-[var(--text-primary)]`}>{session.title}</div>
-                                      <div className={`mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[10px] font-light leading-3 ${quietTextClass}`}>
-                                        <span>{formatSessionTime(session.updatedAt)}</span>
-                                        {typeof session.messageCount === 'number' && <span className="truncate">{session.messageCount} 条</span>}
-                                      </div>
-                                    </button>
-                                    <div className={`absolute right-1.5 top-0 bottom-0 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${isActive ? 'group-hover:opacity-100' : ''}`}>
-                                       <button
-                                         type="button"
-                                         onClick={(e) => { e.stopPropagation(); beginRenameSession(session); }}
-                                         className={`p-0.5 transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}
-                                         title="重命名"
-                                       >
-                                         <Pencil size={14} strokeWidth={1.5} />
-                                       </button>
-                                       <button
-                                         type="button"
-                                         disabled={isActing}
-                                         onClick={(e) => { e.stopPropagation(); archiveSession(session.id); }}
-                                         className={`p-0.5 transition-colors disabled:opacity-40 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
-                                         title="删除"
-                                       >
-                                         <Trash2 size={14} strokeWidth={1.5} />
-                                       </button>
-                                     </div>
-                                     {isActive && (
-                                       <div className="absolute right-1.5 top-0 bottom-0 flex items-center pointer-events-none group-hover:opacity-0 transition-opacity">
-                                         <ChevronRight size={14} strokeWidth={1.25} className="text-[var(--text-tertiary)]" />
-                                       </div>
-                                     )}
-                                  </div>
-                                )}
-                              </CompiledInteractiveCard>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 底部设置按钮 */}
-                  <div className={`shrink-0 border-t px-2.5 py-2 flex items-center gap-2 border-[var(--border-c-subtle)]`}>
-                    <button
-                      type="button"
-                      onClick={() => setIsSettingsDrawerOpen(true)}
-                      className={`w-full flex items-center gap-2 rounded-inset px-2.5 py-1.5 text-left transition-colors no-drag hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]`}
-                      title="设置"
-                    >
-                      <Settings size={14} strokeWidth={1.5} className="shrink-0" />
-                      <span className="text-[11px] font-light">设置</span>
-                    </button>
-                  </div>
-                </div>
-          </div>
+            </div>
+          )}
 
           {/* Resize Handler / Splitter between Dialogue and Workspace */}
           {isWorkspaceOpen && (
@@ -2432,29 +2571,10 @@ const Assistant: React.FC<AssistantProps> = ({
                   <div className="flex shrink-0 items-center gap-1 no-drag">
                     <button
                       type="button"
-                      disabled
-                      className={`h-8 w-8 rounded-compact border flex items-center justify-center opacity-45 ${actionControlClass}`}
-                      title="后退"
-                      aria-label="后退"
-                    >
-                      <ArrowLeft size={16} strokeWidth={1.25} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled
-                      className={`h-8 w-8 rounded-compact border flex items-center justify-center opacity-45 ${actionControlClass}`}
-                      title="前进"
-                      aria-label="前进"
-                    >
-                      <ArrowRight size={16} strokeWidth={1.25} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (activeWorkspaceItem?.url) openUrlInWorkspace(activeWorkspaceItem.url);
-                      }}
-                      className={`h-8 w-8 rounded-compact border flex items-center justify-center transition-colors duration-200 ${actionControlClass}`}
-                      title="刷新"
+                      onClick={refreshActiveWorkspaceItem}
+                      disabled={!canRefreshActiveWorkspaceItem}
+                      className={`h-8 w-8 rounded-compact border flex items-center justify-center transition-colors duration-200 disabled:opacity-45 disabled:cursor-not-allowed ${actionControlClass}`}
+                      title={canRefreshActiveWorkspaceItem ? '刷新' : '当前内容不支持刷新'}
                       aria-label="刷新"
                     >
                       <RefreshCw size={14} strokeWidth={1.25} />
@@ -2544,6 +2664,7 @@ const Assistant: React.FC<AssistantProps> = ({
                           </object>
                         ) : activeWorkspaceItem.kind === 'browser' && activeWorkspaceItem.url ? (
                           <iframe
+                            key={activeWorkspaceItem.refreshNonce ?? 0}
                             src={activeWorkspaceItem.url}
                             title={activeWorkspaceItem.title}
                             className="h-full w-full border-0 bg-transparent"
@@ -2957,7 +3078,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 <section className={`${inlineSurfaceClass} px-4 py-3`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`h-10 w-10 shrink-0 rounded-inset border flex items-center justify-center overflow-hidden border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
-                      {activeAttachment.mimeType.startsWith('image/') ? (
+                      {activeAttachment.mimeType.startsWith('image/') && activeAttachment.previewUrl ? (
                         <img src={activeAttachment.previewUrl} alt={activeAttachment.name} className="h-full w-full object-cover" />
                       ) : (
                         <Paperclip size={16} />
@@ -3143,20 +3264,13 @@ const Assistant: React.FC<AssistantProps> = ({
                   <Mic size={16} strokeWidth={1.25} />
                 </button>
                 <div className="min-w-0 flex-1" />
-                <div className={`relative h-8 rounded-field border ${fieldClass}`}>
-                  <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
-                    <Cpu size={14} className="text-[var(--text-tertiary)]" />
-                  </div>
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className={`h-full max-w-[132px] appearance-none bg-transparent pl-8 pr-7 text-[11px] outline-none text-[var(--text-secondary)] [&>option]:text-black`}
-                  >
-                    <option value={MODELS.ARK_CODE}>Ark Code</option>
-                  </select>
-                  <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
-                    <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
-                  </div>
+                {/* 当前仅一个可用模型（MODELS.* 全部别名到 ARK_CODE），用静态标签如实呈现，不做假下拉 */}
+                <div
+                  className={`flex h-8 items-center gap-2 rounded-field border pl-2.5 pr-3 ${fieldClass}`}
+                  title={`当前模型：${selectedModel}`}
+                >
+                  <Cpu size={14} className="text-[var(--text-tertiary)]" />
+                  <span className="max-w-[132px] truncate text-[11px] text-[var(--text-secondary)]">{selectedModel}</span>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileSelect} />
                 <button

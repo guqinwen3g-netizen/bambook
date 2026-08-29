@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bot, Sparkles, X, Activity, Loader2 } from 'lucide-react';
+import { Bot, X, Loader2 } from 'lucide-react';
 import BambookPandaAgent, { type BambookPandaState } from './mascot/BambookPandaAgent';
 
 type AgentActivitySnapshot = BambookAgentActivitySnapshot;
 
 const CHANNEL_NAME = 'bambook-agent-os';
 const MENU_WIDTH = 196;
-const MENU_HEIGHT = 152;
+const MENU_HEIGHT = 88;
 const MENU_PET_SIZE = 160;
 const PET_RENDER_SIZE = 130;
 const MENU_GAP = 12;
@@ -30,6 +30,19 @@ const readInitialPreviewState = (): BambookPandaState | null => {
   if (typeof window === 'undefined') return null;
   const state = new URLSearchParams(window.location.search).get('bambookAgentPetState');
   return isPetPreviewState(state) ? state : null;
+};
+
+// 跟随主程序主题：localStorage theme_preference（dark/light，缺省=跟随系统），跨窗口经 storage 事件同步
+const readIsDarkMode = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  try {
+    const preference = window.localStorage.getItem('theme_preference');
+    if (preference === 'dark') return true;
+    if (preference === 'light') return false;
+  } catch {
+    // localStorage 不可用时回落系统主题
+  }
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
 };
 
 type PetPosition = { x: number; y: number };
@@ -104,9 +117,12 @@ const AgentPetWindow: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragDelta, setDragDelta] = useState({ x: 0, y: 0 });
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  // 系统"减少动态效果"偏好：跟随 prefers-reduced-motion
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [previewState, setPreviewState] = useState<BambookPandaState | null>(() => readInitialPreviewState());
+  // 吉祥物预览态仅由 URL 参数驱动（?bambookAgentPetState=xxx，供开发预览），菜单不提供切换入口
+  const [previewState] = useState<BambookPandaState | null>(() => readInitialPreviewState());
   const [petPosition, setPetPosition] = useState<PetPosition>(() => getInitialPetPosition());
+  const [isDarkMode, setIsDarkMode] = useState(() => readIsDarkMode());
   const dragRef = useRef<{
     pointerId: number | null;
     startX: number;
@@ -146,6 +162,36 @@ const AgentPetWindow: React.FC = () => {
       setMousePassthrough(true);
     };
   }, [setMousePassthrough]);
+
+  // 主题跟随：theme_preference 变化（主窗口切换）+ 系统主题变化（跟随系统模式）
+  useEffect(() => {
+    const syncTheme = () => setIsDarkMode(readIsDarkMode());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'theme_preference' || event.key === null) syncTheme();
+    };
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    window.addEventListener('storage', onStorage);
+    mediaQuery.addEventListener('change', syncTheme);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      mediaQuery.removeEventListener('change', syncTheme);
+    };
+  }, []);
+
+  // 把主题同步到浮窗文档根节点（token 化样式随主题切换）
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
+  }, [isDarkMode]);
+
+  // 减少动态效果偏好跟随系统
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener('change', update);
+    return () => mediaQuery.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     petPositionRef.current = petPosition;
@@ -250,41 +296,38 @@ const AgentPetWindow: React.FC = () => {
     if (!menuPosition) void window.bambookAgent?.setPetMenuOpen?.(false).catch(() => undefined);
   }, [menuPosition]);
 
+  // 菜单打开时：Esc 关闭；浮窗失焦（点击窗口外区域）关闭
+  useEffect(() => {
+    if (!menuPosition) return;
+    const closeMenu = () => setMenuPosition(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenu();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('blur', closeMenu);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('blur', closeMenu);
+    };
+  }, [menuPosition]);
+
   useEffect(() => {
     return () => {
       void window.bambookAgent?.setPetMenuOpen?.(false).catch(() => undefined);
     };
   }, []);
 
-  const isAssistantRunning = activity.active && (activity.source === 'assistant' || activity.source === 'pet-preview');
+  // 浮窗只真实反映 Assistant 推送的运行态；无任何"手动开启 Agent"的本地伪造开关
+  const isAssistantRunning = activity.active && activity.source === 'assistant';
   const automaticPandaState: BambookPandaState = isAssistantRunning && !reducedMotion ? 'working' : 'idle';
   const pandaState = previewState ?? automaticPandaState;
   const previewLabel = previewState ? PET_PREVIEW_LABELS[previewState] : null;
   const statusText = previewLabel ? `预览: ${previewLabel}` : (isAssistantRunning ? (activity.label || 'Bambook Agent 正在工作') : 'Agent 待命');
-  const currentPreviewIndex = PET_PREVIEW_STATES.indexOf(previewState ?? pandaState);
-  const nextPreviewState = PET_PREVIEW_STATES[(currentPreviewIndex + 1) % PET_PREVIEW_STATES.length];
-  const runningActionLabel = isAssistantRunning ? '关闭' : '开启';
 
   const openAssistant = () => {
     setMenuPosition(null);
     setMousePassthrough(true);
     void window.bambookAgent?.focusView?.('assistant');
-  };
-
-  const switchPreviewState = () => {
-    setPreviewState(nextPreviewState);
-  };
-
-  const toggleAgentRunning = () => {
-    const nextActive = !isAssistantRunning;
-    setPreviewState(null);
-    if (nextActive) setReducedMotion(false);
-    setActivity({
-      active: nextActive,
-      source: 'pet-preview',
-      label: nextActive ? 'Agent Running' : 'Agent OS 待命',
-      detail: nextActive ? '手动开启 Agent Running 状态' : '手动关闭 Agent Running 状态',
-    });
   };
 
   const hidePetWindow = () => {
@@ -497,7 +540,7 @@ const AgentPetWindow: React.FC = () => {
             size={PET_RENDER_SIZE}
             skin="bare"
             state={pandaState}
-            isDarkMode
+            isDarkMode={isDarkMode}
             title="Bambook Panda (V2 Enhanced)"
             isHovered={isHovered}
             isDragging={false}
@@ -541,14 +584,6 @@ const AgentPetWindow: React.FC = () => {
           <button type="button" onClick={openAssistant}>
             <Bot size={14} />
             <span>打开 AI 助手</span>
-          </button>
-          <button type="button" onClick={switchPreviewState}>
-            <Sparkles size={14} />
-            <span>状态切换: {PET_PREVIEW_LABELS[nextPreviewState]}</span>
-          </button>
-          <button type="button" onClick={toggleAgentRunning} data-active={isAssistantRunning ? 'true' : undefined}>
-            <Activity size={14} />
-            <span>Agent Running: {runningActionLabel}</span>
           </button>
           <button type="button" onClick={hidePetWindow}>
             <X size={14} />

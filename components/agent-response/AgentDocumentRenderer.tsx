@@ -704,20 +704,25 @@ export const AgentDocumentRenderer: React.FC<AgentDocumentRendererProps> = ({
       {reordered.map((seg, idx) => {
         if (seg.kind === 'process') {
           return (
-            <ProcessGroup
+            <AgentBlockErrorBoundary
               key={`proc_${idx}_${seg.blocks[0]?.id ?? ''}`}
-              blocks={seg.blocks}
               isDarkMode={isDarkMode}
-              isStreaming={isStreaming}
-              onReferenceClick={onReferenceClick}
-              onExecuteAction={onExecuteAction as any}
-            />
+              resetKey={`${isStreaming ? 'streaming' : 'complete'}:${seg.blocks.length}`}
+            >
+              <ProcessGroup
+                blocks={seg.blocks}
+                isDarkMode={isDarkMode}
+                isStreaming={isStreaming}
+                onReferenceClick={onReferenceClick}
+                onExecuteAction={onExecuteAction as any}
+              />
+            </AgentBlockErrorBoundary>
           );
         }
         if (seg.kind === 'markdown') {
           const block = seg.blocks[0] as import('../../types').AgentMarkdownBlock;
           return (
-            <AgentBlockErrorBoundary key={block.id} isDarkMode={isDarkMode}>
+            <AgentBlockErrorBoundary key={block.id} isDarkMode={isDarkMode} resetKey={block.status}>
               <StreamMarkdown block={block} isDarkMode={isDarkMode} />
             </AgentBlockErrorBoundary>
           );
@@ -726,7 +731,7 @@ export const AgentDocumentRenderer: React.FC<AgentDocumentRendererProps> = ({
         const block = seg.blocks[0];
         const Renderer = blockRegistry[block.type] ?? AgentUnsupportedBlock;
         return (
-          <AgentBlockErrorBoundary key={block.id} isDarkMode={isDarkMode}>
+          <AgentBlockErrorBoundary key={block.id} isDarkMode={isDarkMode} resetKey={block.status}>
             <Renderer
               block={block as any}
               isDarkMode={isDarkMode}

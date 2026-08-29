@@ -382,7 +382,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                   className={`${inlineSurfaceClass} h-12 w-12 rounded-inset overflow-hidden flex items-center justify-center text-[10px] cursor-pointer ${isDarkModeOverride}`}
                   title={att.name}
                 >
-                  {att.mimeType?.startsWith('image/')
+                  {att.mimeType?.startsWith('image/') && att.previewUrl
                     ? <img src={att.previewUrl} alt={att.name} className="w-full h-full object-cover" />
                     : <Paperclip size={14} />}
                 </div>
