@@ -29,6 +29,7 @@ import {
   Download,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import {
   BOM,
   BOMLine,
@@ -107,15 +108,24 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // R678-⑤ 服务端搜索词（300ms 防抖后生效，逐键不再打服务端；Enter 立即生效）
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailCache, setDetailCache] = useState<Record<string, BOM>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  // R678-② 写按钮权限门（服务端 bom:write scope 兜底）
+  const canWriteBom = hasPermission('bom:write');
   const scrollRef = useRef<HTMLDivElement>(null);
   // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐，与 ScrollEdgeFades 原参数同口径）
   useStaticEdgeMask(scrollRef, { topFadeEnd: 12, bottomFade: 12 });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   // ── 加载 BOM 列表 ──
   const loadBOMs = useCallback(async () => {
@@ -124,7 +134,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
     try {
       const result = await apiService.listBOMs({
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        search: searchQuery || undefined,
+        search: appliedSearch || undefined,
         limit: 200,
       });
       setBoms(result.items || []);
@@ -134,7 +144,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, appliedSearch]);
 
   /** BOM 台账 Excel 导出（当前筛选条件全量） */
   const handleExportXlsx = useCallback(async () => {
@@ -142,14 +152,14 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
     try {
       await apiService.exportBomListXlsx({
         ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-        ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+        ...(appliedSearch ? { search: appliedSearch } : {}),
       });
     } catch (e: any) {
       setError(`台账导出失败：${e?.message || e}`);
     } finally {
       setExportingXlsx(false);
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, appliedSearch]);
 
   useEffect(() => {
     loadBOMs();
@@ -183,8 +193,9 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
     setActionLoading(`confirm_${id}`);
     try {
       const updated = await apiService.confirmBOM(id);
-      setBoms((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'Confirmed' } : b)));
       setDetailCache((prev) => ({ ...prev, [id]: updated }));
+      // R678-⑥ 状态流转后按当前 statusFilter 重筛：Draft 页签下已确认的行不应残留
+      await loadBOMs();
     } catch (e: any) {
       setError(e?.message || '确认 BOM 失败');
     } finally {
@@ -196,8 +207,9 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
     setActionLoading(`archive_${id}`);
     try {
       const updated = await apiService.archiveBOM(id);
-      setBoms((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'Archived' } : b)));
       setDetailCache((prev) => ({ ...prev, [id]: updated }));
+      // R678-⑥ 同上：归档后行从非 Archived 页签消失
+      await loadBOMs();
     } catch (e: any) {
       setError(e?.message || '归档 BOM 失败');
     } finally {
@@ -244,9 +256,11 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
         subtitle="Bill of Materials"
         isDarkMode={isDarkMode}
         actions={
+          canWriteBom ? (
           <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
             <Plus size={14} /><span>新建 BOM</span>
           </button>
+          ) : undefined
         }
       />
 
@@ -272,7 +286,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索 BOM 编号/描述..."
               className="bds-input sm pl-9"
-              onKeyDown={(e) => { if (e.key === 'Enter') loadBOMs(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') setAppliedSearch(searchQuery.trim()); }}
             />
           </div>
           <button onClick={loadBOMs} className="bds-btn bds-btn-ghost">
@@ -499,6 +513,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
                             <div className="flex items-center gap-2 flex-wrap">
                               {bom.status === 'Draft' && (
                                 <>
+                                  {canWriteBom && (
                                   <button
                                     onClick={() => handleConfirm(bom.id)}
                                     disabled={actionLoading === `confirm_${bom.id}`}
@@ -507,6 +522,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
                                     {actionLoading === `confirm_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                                     <span>确认 BOM</span>
                                   </button>
+                                  )}
                                   <button
                                     onClick={() => handleRecalculate(bom.id)}
                                     disabled={actionLoading === `recalc_${bom.id}`}
@@ -515,6 +531,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
                                     {actionLoading === `recalc_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
                                     <span>重新计算</span>
                                   </button>
+                                  {canWriteBom && (
                                   <button
                                     onClick={() => handleDelete(bom.id)}
                                     disabled={actionLoading === `delete_${bom.id}`}
@@ -523,6 +540,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
                                     {actionLoading === `delete_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                     <span>删除</span>
                                   </button>
+                                  )}
                                 </>
                               )}
                               {(bom.status === 'Draft' || bom.status === 'Confirmed') && (
@@ -697,7 +715,8 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
   return (
-    <div className="bds-modal-mask" onClick={onClose}>
+    // R678-⑩ 提交中禁关：遮罩误点会导致 in-flight 创建结果不可见（成功/失败反馈丢失）
+    <div className="bds-modal-mask" onClick={() => { if (!submitting) onClose(); }}>
       <div
         className="bds-modal"
         style={{ width: '56rem', maxHeight: '90vh', overflowY: 'auto' }}
@@ -705,7 +724,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base" style={{ color: 'var(--text-primary)' }}>新建 BOM</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon">
+          <button onClick={onClose} disabled={submitting} className="bds-btn bds-btn-ghost bds-btn-icon">
             <X size={18} />
           </button>
         </div>
@@ -871,6 +890,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onClose}
+            disabled={submitting}
             className="bds-btn bds-btn-ghost"
           >
             取消

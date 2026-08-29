@@ -5,6 +5,7 @@ import * as QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory, FactoryProfile } from '../types';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import { storageService } from '../services/storageService';
 import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { sampleRoomService, SampleCardItemView } from '../services/sampleRoomService';
@@ -12,7 +13,6 @@ import { developmentService } from '../services/developmentService';
 import RelationCombobox from './ui/RelationCombobox';
 import {
   COMPOSITION_TERMS,
-  findCompositionTermByValue,
   normalizeCompositionTermValue,
   type CompositionTermSuggestion,
 } from '../data/compositionTerms';
@@ -86,6 +86,8 @@ export interface ProductsManagerProps {
     statusOptions?: Array<ProductAsset['status']>;
     requiredFieldIds?: string[];
     visibleTableColumnIds?: string[];
+    /** R678-① 成分词条（设置工作区「字典词条」可编辑，初始值=静态 COMPOSITION_TERMS 全表） */
+    compositionTerms?: Array<{ abbreviation: string; chineseName: string; englishName: string }>;
   };
 }
 
@@ -695,8 +697,7 @@ const CERT_OPTIONS = [
 const CertificationCheckboxes: React.FC<{
   product: Partial<ProductAsset> | null;
   isDarkMode: boolean;
-  onChange: () => void;
-}> = ({ product, isDarkMode, onChange }) => {
+}> = ({ product, isDarkMode }) => {
   const existing = new Set(
     (product?.fabricCertifications || []).map(c => c.certification),
   );
@@ -721,7 +722,6 @@ const CertificationCheckboxes: React.FC<{
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-    onChange();
   };
 
   const addCustom = () => {
@@ -729,13 +729,11 @@ const CertificationCheckboxes: React.FC<{
     if (val && !checked.has(val) && !customCerts.includes(val)) {
       setCustomCerts(prev => [...prev, val]);
       setCustomInput('');
-      onChange();
     }
   };
 
   const removeCustom = (cert: string) => {
     setCustomCerts(prev => prev.filter(c => c !== cert));
-    onChange();
   };
 
   const labelCls = `text-[11px] font-light cursor-pointer select-none ${
@@ -1004,7 +1002,21 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [pdmlRawSyncing, setPdmlRawSyncing] = useState(false);
   const [pdmlRawMapping, setPdmlRawMapping] = useState(false);
   const [pdmlRawError, setPdmlRawError] = useState('');
-  const [productWriteError, setProductWriteError] = useState('');
+  // R678-② 写按钮权限门（参照 FinancePaymentRequestsPanel canCreate 模式；服务端 products:write scope 兜底）
+  const canWriteProducts = hasPermission('products:write');
+  // R678-③ 归档/移除确认模态：Esc 关闭（遮罩点击关闭在 JSX onClick 承接）
+  const deleteConfirmOpen = Boolean(deleteSubId || deleteProdId);
+  useEffect(() => {
+    if (!deleteConfirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDeleteSubId(null);
+        setDeleteProdId(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [deleteConfirmOpen]);
   // 档案保存 in-flight 守卫：双击/连击提交会双写云端（无幂等键），保存期间禁用提交按钮
   const [productSaving, setProductSaving] = useState(false);
   const [pdmlRawSyncedAt, setPdmlRawSyncedAt] = useState<number | null>(null);
@@ -1298,7 +1310,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
   const activeSubCategoryIds = useMemo(() => new Set(currentSubCategories.map(c => c.id)), [currentSubCategories]);
 
-  const compositionTermSuggestions: CompositionTermSuggestion[] = COMPOSITION_TERMS;
+  // R678-① 成分词条真源接线：表单联想/校验消费模块设置「字典词条」（设置工作区可编辑，
+  // 初始值=静态 COMPOSITION_TERMS 全表）；运行时 prop 未透传时回退 localStorage 持久化设置
+  const compositionTermSuggestions = useMemo<CompositionTermSuggestion[]>(() => {
+    const fromProp = moduleSettings?.compositionTerms;
+    if (Array.isArray(fromProp) && fromProp.length > 0) return fromProp;
+    return readInitialProductModuleSettings().compositionTerms;
+  }, [moduleSettings?.compositionTerms]);
 
   const selectedMainProducts = useMemo(() => {
     return products.filter(p => p.mainCategory === selectedMain && !p.deletedAt);
@@ -1946,7 +1964,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       .filter(Boolean);
     if (values.length === 0) return null;
 
-    return COMPOSITION_TERMS.find(term => {
+    return compositionTermSuggestions.find(term => {
       const termValues = [term.abbreviation, term.chineseName, term.englishName]
         .map(normalizeCompositionTermValue)
         .filter(Boolean);
@@ -1975,7 +1993,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   };
 
   const findCompositionTermSuggestion = (value: string) => {
-    return findCompositionTermByValue(value);
+    const normalized = normalizeCompositionTermValue(value);
+    if (!normalized) return null;
+    return compositionTermSuggestions.find(term =>
+      [term.abbreviation, term.chineseName, term.englishName]
+        .some(item => normalizeCompositionTermValue(item) === normalized),
+    ) || null;
   };
 
   const updateCompositionDraftRow = (id: string, patch: Partial<CompositionDraftLine>, shouldAutoFillTerm = false) => {
@@ -2726,7 +2749,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             <CertificationCheckboxes
               product={product ?? null}
               isDarkMode={isDarkMode}
-              onChange={() => {}}
             />
           </div>
           <div className="md:col-span-2 space-y-2">
@@ -2924,14 +2946,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       description: String(formData.get('description') || '').trim() || undefined,
       updatedAt: Date.now()
     };
-    setProductWriteError('');
     try {
       ensureOnlineWrite();
       await apiService.saveProductCategory(newItem, cloudEndpoint);
       onUpdateCategories([newItem, ...productCategories], newItem);
       setshowAddSubModal(false);
     } catch (error: any) {
-      setProductWriteError(error?.message || String(error));
+      bdsToast.danger(error?.message || String(error));
     }
   };
 
@@ -2945,14 +2966,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       description: String(formData.get('description') || '').trim() || undefined,
       updatedAt: Date.now(),
     };
-    setProductWriteError('');
     try {
       ensureOnlineWrite();
       await apiService.saveProductCategory(updated, cloudEndpoint);
       onUpdateCategories(productCategories.map(c => c.id === updated.id ? updated : c), updated);
       setEditingSub(null);
     } catch (error: any) {
-      setProductWriteError(error?.message || String(error));
+      bdsToast.danger(error?.message || String(error));
     }
   };
 
@@ -2961,14 +2981,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     const target = productCategories.find(c => c.id === deleteSubId);
     if (target) {
       const tombstone = { ...target, deletedAt: Date.now() };
-      setProductWriteError('');
       try {
         ensureOnlineWrite();
         await apiService.deleteProductCategory(tombstone, cloudEndpoint);
         onUpdateCategories(productCategories.map(c => c.id === deleteSubId ? tombstone : c), tombstone);
         setDeleteSubId(null);
       } catch (error: any) {
-        setProductWriteError(error?.message || String(error));
+        bdsToast.danger(error?.message || String(error));
       }
       return;
     }
@@ -3015,7 +3034,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	    };
     Object.assign(newItem, buildFabricRelatedDataFromForm(formData, id));
     const payload = { ...newItem, fabricProfile: newItem.fabricProfile || undefined, garmentProfile: newItem.garmentProfile || undefined, trimmingProfile: newItem.trimmingProfile || undefined };
-    setProductWriteError('');
     setProductSaving(true);
     try {
       ensureOnlineWrite();
@@ -3034,8 +3052,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       onUpdateProducts([persistedWithImages, ...products], persistedWithImages);
       setPendingImages([]);
       setShowAddProdModal(false);
+      bdsToast.success('产品档案已创建');
     } catch (error: any) {
-      setProductWriteError(error?.message || String(error));
+      bdsToast.danger(error?.message || String(error));
     } finally {
       setProductSaving(false);
     }
@@ -3096,15 +3115,15 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       fabricPrices: updated.fabricPrices,
       compositionLines: updated.compositionLines,
     };
-    setProductWriteError('');
     setProductSaving(true);
     try {
       ensureOnlineWrite();
       const persisted = await apiService.updateProductAsset(updated.id, payload, cloudEndpoint);
       onUpdateProducts(products.map(p => p.id === persisted.id ? persisted : p), persisted);
       setEditingProd(null);
+      bdsToast.success('产品档案已更新');
     } catch (error: any) {
-      setProductWriteError(error?.message || String(error));
+      bdsToast.danger(error?.message || String(error));
     } finally {
       setProductSaving(false);
     }
@@ -3115,7 +3134,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     const target = products.find(p => p.id === deleteProdId);
     if (target) {
       const tombstone = { ...target, deletedAt: Date.now() };
-      setProductWriteError('');
       try {
         ensureOnlineWrite();
         await apiService.deleteProductAsset(deleteProdId, cloudEndpoint);
@@ -3123,8 +3141,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         setDeleteProdId(null);
         setEditingProd(null);
         setShowAddProdModal(false);
+        bdsToast.success('产品已归档');
       } catch (error: any) {
-        setProductWriteError(error?.message || String(error));
+        bdsToast.danger(error?.message || String(error));
       }
       return;
     }
@@ -3132,6 +3151,16 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   };
 
   const pdmlRawValue = (row: PdmlRawFabric, key: string) => String(row.rawData?.[key] ?? '').trim();
+
+  // R678-⑧ 关闭录入/编辑表单：编辑入口分详情页「编辑」（navLevel=detail、selectedProduct 已清空）
+  // 与列表行「编辑」（navLevel=list）两处——取消时从哪来回哪去，详情入口恢复详情快照而非掉到列表
+  const closeProductForm = () => {
+    if (editingProd && navLevel === 'detail') {
+      setSelectedProduct(products.find(p => p.id === editingProd.id) || editingProd);
+    }
+    setShowAddProdModal(false);
+    setEditingProd(null);
+  };
 
   const hideUnderlyingProductPage = fullscreenProductFormOpen;
   const productContentCanvasClass = BAMBOOK_OS.layout.desktopPageCanvasClass;
@@ -3228,11 +3257,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         )}
         actions={(
         <>
-          {productWriteError && (
-            <div className={`max-w-[280px] truncate text-[11px] font-light text-[var(--text-secondary)]`}>
-              {productWriteError}
-            </div>
-          )}
           {navLevel === 'list' && isPdmlRawView && (
             <>
               <button
@@ -3253,7 +3277,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </button>
             </>
           )}
-          {navLevel === 'list' && !isPdmlRawView && (
+          {navLevel === 'list' && !isPdmlRawView && canWriteProducts && (
             <button
               onClick={() => setShowAddProdModal(true)}
               data-ui-lab-wallpaper-contrast="primary"
@@ -3546,7 +3570,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.18, delay: idx * 0.02 }}
+                      transition={{ duration: 0.18, delay: Math.min(idx * 0.02, 0.3) }}
                       key={product.id}
                       onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
                       className={`group relative isolate overflow-hidden p-6 h-[220px] rounded-card-lg text-left transition-colors duration-200 ${productCardClass}`}
@@ -3629,7 +3653,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                           onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          transition={{ duration: 0.18, delay: idx * 0.02 }}
+                          transition={{ duration: 0.18, delay: Math.min(idx * 0.02, 0.3) }}
                           className={`flex w-full relative isolate overflow-hidden cursor-pointer transition-[background,box-shadow,color,transform] duration-200 ${productTableRowHoverClass}`}
                         >
                           {productTableColumns.map(column => (
@@ -3638,6 +3662,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                             </div>
                           ))}
                           <div className="w-[8%] px-4 py-3 relative z-10 flex flex-col justify-center">
+                            {canWriteProducts && (
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
@@ -3656,6 +3681,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 <Trash2 size={14} />
                               </button>
                             </div>
+                            )}
                           </div>
                         </motion.div>
                       ))}
@@ -3815,6 +3841,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {canWriteProducts && (
                   <button
                     type="button"
                     onClick={() => { setEditingProd(selectedProduct); setSelectedProduct(null); }}
@@ -3822,6 +3849,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   >
                     <Edit2 size={14} className="mr-1.5" /> 编辑
                   </button>
+                  )}
                 </div>
               </div>
 
@@ -4266,7 +4294,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   <div className={PRODUCT_TITLE_NAV_GROUP_CLASS}>
                     <button
                       type="button"
-                      onClick={() => { setShowAddProdModal(false); setEditingProd(null); }}
+                      onClick={closeProductForm}
                       data-ui-lab-wallpaper-contrast="primary"
                       className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center`}
                       aria-label="返回数字档案"
@@ -4274,7 +4302,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       <ChevronLeft size={18} strokeWidth={1.5} />
                     </button>
                     <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
-                      <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}>
+                      <button type="button" onClick={closeProductForm} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}>
                         <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} text-[var(--text-primary)]`}>
                           数字档案
                         </span>
@@ -4286,7 +4314,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     </div>
                   </div>
                   <div className="flex h-full items-center gap-2 shrink-0">
-                    {editingProd && (
+                    {editingProd && canWriteProducts && (
                       <button
                         type="button"
                         onClick={() => setDeleteProdId(editingProd.id)}
@@ -4297,7 +4325,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     )}
                     <button
                       type="button"
-                      onClick={() => { setShowAddProdModal(false); setEditingProd(null); }}
+                      onClick={closeProductForm}
                       data-ui-lab-wallpaper-contrast="primary"
                       className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center`}
                     >
@@ -4617,8 +4645,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           )}
 
       {(deleteSubId || deleteProdId) && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}>
+        <div
+          className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
+          onClick={() => { setDeleteSubId(null); setDeleteProdId(null); }}
+        >
+          <div
+            className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-subtle)]`}>
                 <AlertTriangle size={24} strokeWidth={1.5} />
@@ -4790,7 +4824,8 @@ export const DEFAULT_PRODUCT_MODULE_SETTINGS: UiLabProductModuleSettings = {
   defaultListDisplayMode: 'grid',
   defaultSortValue: 'updatedAt:desc',
   statusOptions: ['Development', 'Active', 'Archived'],
-  compositionTerms: COMPOSITION_TERMS.slice(0, 16).map((term, index) => ({
+  // R678-① 初始值=静态表全量（原 slice(0, 16) 会让表单校验/联想丢失其余词条）
+  compositionTerms: COMPOSITION_TERMS.map((term, index) => ({
     id: `term-${term.abbreviation || index}`,
     abbreviation: term.abbreviation,
     chineseName: term.chineseName,
