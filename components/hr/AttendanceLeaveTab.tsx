@@ -10,6 +10,7 @@ import {
   type AttendanceRecord, type AttendanceSummaryRow, type LeaveRequest, type LeaveType,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import { bdsPrompt } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface AttendanceLeaveTabProps {
@@ -161,7 +162,13 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
   };
 
   const decide = async (id: string, decision: 'Approved' | 'Rejected') => {
-    const rejectReason = decision === 'Rejected' ? window.prompt('请输入拒绝原因') || '' : undefined;
+    let rejectReason: string | undefined;
+    if (decision === 'Rejected') {
+      const input = await bdsPrompt({ title: '驳回请假单', placeholder: '请输入拒绝原因', confirmText: '确认驳回', danger: true });
+      // 取消（null）必须中止审批——不可 || '' 吞掉取消语义（原生 prompt 时代旧 bug）
+      if (input === null) return;
+      rejectReason = input;
+    }
     setBusy(true);
     setError('');
     try {

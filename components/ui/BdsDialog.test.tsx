@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
-import { bdsConfirm } from './BdsDialog';
+import { bdsConfirm, bdsPrompt } from './BdsDialog';
 import { bdsToast, __resetBdsToastForTesting } from './bdsToast';
 
 // React 19 act 环境 flag（消除 "not configured to support act" 警告）
@@ -84,6 +84,67 @@ describe('bdsConfirm', () => {
     clickButton('删除它');
     await act(async () => { await promise; });
     expect(resolved).toBe(true);
+  });
+});
+
+describe('bdsPrompt（走查批次 R2 输入型原语）', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  function typeIntoInput(value: string): void {
+    const input = document.querySelector('.bds-modal input') as HTMLInputElement | null;
+    if (!input) throw new Error('prompt input not found');
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+    act(() => {
+      setter.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  it('输入 + 确认 → resolve 输入串；placeholder / bds-input 类渲染', async () => {
+    let resolved: string | null | undefined;
+    const promise = bdsPrompt({ title: '撤销授权', placeholder: '撤销原因（必填）' })
+      .then(v => { resolved = v; return v; });
+    await act(async () => { await Promise.resolve(); });
+    const input = document.querySelector('.bds-modal input') as HTMLInputElement;
+    expect(input.className).toContain('bds-input');
+    expect(input.placeholder).toBe('撤销原因（必填）');
+    typeIntoInput('客户要求收回');
+    clickButton('确认');
+    await act(async () => { await promise; });
+    expect(resolved).toBe('客户要求收回');
+  });
+
+  it('取消 → resolve null（不被吞成空串）', async () => {
+    let resolved: string | null | undefined;
+    const promise = bdsPrompt({ title: '驳回', cancelText: '算了' }).then(v => { resolved = v; return v; });
+    await act(async () => { await Promise.resolve(); });
+    clickButton('算了');
+    await act(async () => { await promise; });
+    expect(resolved).toBeNull();
+  });
+
+  it('ESC → resolve null；Enter → resolve 当前输入', async () => {
+    let escResult: string | null | undefined;
+    const p1 = bdsPrompt({ title: 'A' }).then(v => { escResult = v; return v; });
+    await act(async () => { await Promise.resolve(); });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    await act(async () => { await p1; });
+    expect(escResult).toBeNull();
+
+    let enterResult: string | null | undefined;
+    const p2 = bdsPrompt({ title: 'B' }).then(v => { enterResult = v; return v; });
+    await act(async () => { await Promise.resolve(); });
+    typeIntoInput('hello');
+    const input = document.querySelector('.bds-modal input')!;
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    await act(async () => { await p2; });
+    expect(enterResult).toBe('hello');
   });
 });
 

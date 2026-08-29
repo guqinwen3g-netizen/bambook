@@ -38,6 +38,17 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
         }
     }, [isOpen]);
 
+    // ESC 关闭：与遮罩点击同语义——统一走 onClose，由消费方决定是否可关
+    // （如 SampleRoomPanel 提交中 onClose={() => !itemSaving && ...}，Esc 同样被该条件拦截）
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
+
     if (!visible) return null;
 
     const heightClasses = {

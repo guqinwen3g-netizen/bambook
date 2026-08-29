@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 
@@ -40,6 +40,14 @@ export const BdsDialog: React.FC<BdsDialogProps> = ({
   onCancel,
 }) => {
   const isConfirm = !!onCancel;
+  // ESC 关闭：与遮罩点击同语义（onCancel ?? onConfirm）；loading（提交中）不响应，避免误关
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) (onCancel ?? onConfirm)();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loading, onCancel, onConfirm]);
   return (
     <div className="bds-modal-mask" onClick={onCancel ?? onConfirm}>
       <div className="bds-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -85,6 +93,7 @@ export default BdsDialog;
 // 实现要点：
 //   - 每次调用独立 root + 容器（document.body 直挂，不依赖 App 根部——App.tsx 冻结）
 //   - ESC / 遮罩点击 = resolve(false)；确认 = resolve(true)
+//     （ESC 监听已收口进 BdsDialog 本体，命令式/声明式行为一致）
 //   - 复用声明式 BdsDialog 的视觉（bds-modal-mask / bds-modal / bds-btn-danger）
 // ════════════════════════════════════════════════════════════════
 
@@ -112,29 +121,92 @@ export function bdsConfirm(options: BdsConfirmOptions): Promise<boolean> {
       container.remove();
     };
 
-    const ConfirmShell: React.FC = () => {
-      useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-          if (e.key === 'Escape') finish(false);
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, []);
+    const ConfirmShell: React.FC = () => (
+      <BdsDialog
+        title={options.title}
+        confirmLabel={options.confirmText}
+        cancelLabel={options.cancelText ?? '取消'}
+        danger={options.danger ?? false}
+        onConfirm={() => finish(true)}
+        onCancel={() => finish(false)}
+      >
+        {options.body}
+      </BdsDialog>
+    );
+
+    root.render(<ConfirmShell />);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// bdsPrompt — 命令式输入语义（走查批次 R2）
+//
+// 迁移映射：
+//   const v = window.prompt('请输入原因')
+//     → const v = await bdsPrompt({ title: '请输入原因' })
+//
+// 实现要点：
+//   - 返回 Promise<string | null>：确认 = 输入串（可为空串）；ESC / 遮罩点击 / 取消 = null
+//     —— 与 window.prompt 取消语义对齐，调用方必须判 null 中止，不可 || '' 吞掉取消
+//   - 输入框走 .bds-input（BDS token，禁硬编码色/圆角）；Enter = 确认
+// ════════════════════════════════════════════════════════════════
+
+export interface BdsPromptOptions {
+  title: React.ReactNode;
+  body?: React.ReactNode;
+  placeholder?: string;
+  defaultValue?: string;
+  confirmText?: string;
+  cancelText?: string;
+  /** 破坏性操作：确认键走 bds-btn-danger */
+  danger?: boolean;
+}
+
+export function bdsPrompt(options: BdsPromptOptions): Promise<string | null> {
+  return new Promise<string | null>(resolve => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let settled = false;
+    const finish = (result: string | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+      // unmount 异步安全：先 resolve 不阻塞调用方
+      root.unmount();
+      container.remove();
+    };
+
+    const PromptShell: React.FC = () => {
+      const [value, setValue] = useState(options.defaultValue ?? '');
       return (
         <BdsDialog
           title={options.title}
-          confirmLabel={options.confirmText}
+          confirmLabel={options.confirmText ?? '确认'}
           cancelLabel={options.cancelText ?? '取消'}
           danger={options.danger ?? false}
-          onConfirm={() => finish(true)}
-          onCancel={() => finish(false)}
+          onConfirm={() => finish(value)}
+          onCancel={() => finish(null)}
         >
           {options.body}
+          <input
+            autoFocus
+            type="text"
+            className="bds-input w-full"
+            value={value}
+            placeholder={options.placeholder}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                finish(value);
+              }
+            }}
+          />
         </BdsDialog>
       );
     };
 
-    root.render(<ConfirmShell />);
+    root.render(<PromptShell />);
   });
 }

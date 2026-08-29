@@ -22,6 +22,7 @@ import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import { bdsToast } from './ui/bdsToast';
+import { bdsPrompt } from './ui/BdsDialog';
 import { CompiledInteractiveCard } from './ui/primitives/compiledPrimitives';
 import { localSttService } from '../services/localSttService';
 import BambookLowercaseWordmark from './BambookLowercaseWordmark';
@@ -563,9 +564,9 @@ const Assistant: React.FC<AssistantProps> = ({
     setInput(action.label || '请继续');
   };
 
-  const openUrlInWorkspace = (rawUrl?: string) => {
+  const openUrlInWorkspace = async (rawUrl?: string) => {
     if (typeof window === 'undefined') return;
-    const urlSource = rawUrl ?? window.prompt('输入要打开的链接');
+    const urlSource = rawUrl ?? await bdsPrompt({ title: '打开链接', placeholder: '输入要打开的链接', confirmText: '打开' });
     if (!urlSource) return;
     const normalizedUrl = /^https?:\/\//i.test(urlSource.trim()) ? urlSource.trim() : `https://${urlSource.trim()}`;
     openWorkspaceItem({
@@ -583,7 +584,7 @@ const Assistant: React.FC<AssistantProps> = ({
     if (!query) return;
     const looksLikeUrl = /^https?:\/\//i.test(query) || /^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(query);
     if (looksLikeUrl) {
-      openUrlInWorkspace(query);
+      void openUrlInWorkspace(query);
       return;
     }
     setWorkspaceFinderQuery(query);
@@ -2881,7 +2882,7 @@ const Assistant: React.FC<AssistantProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => openUrlInWorkspace()}
+                          onClick={() => void openUrlInWorkspace()}
                           className={`h-10 rounded-compact border px-4 text-xs font-light transition-colors duration-200 ${actionControlClass}`}
                         >
                           打开链接

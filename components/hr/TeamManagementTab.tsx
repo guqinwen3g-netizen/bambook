@@ -13,7 +13,7 @@ import { Check, Pencil, Plus, RefreshCw, Trash2, UserPlus, Users, X } from 'luci
 import { hrTokens, type HrPersonnelOption } from './hrTokens';
 import { apiService } from '../../services/apiService';
 import { bdsToast } from '../ui/bdsToast';
-import { bdsConfirm } from '../ui/BdsDialog';
+import { bdsConfirm, bdsPrompt } from '../ui/BdsDialog';
 import { buildDepartmentOptions } from '../../lib/departmentTree';
 
 interface DeptOption { id: string; name: string; parentId?: string | null }
@@ -236,7 +236,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
   };
 
   const revokeShare = async (team: TeamRow, grant: GrantRow) => {
-    const reason = window.prompt('撤销原因（审计留痕必填）');
+    const reason = await bdsPrompt({ title: '撤销共享授权', placeholder: '撤销原因（审计留痕必填）', confirmText: '撤销授权', danger: true });
     if (!reason?.trim()) return;
     setBusyId(`revoke-${grant.id}`);
     try {
