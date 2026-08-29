@@ -41,6 +41,7 @@ import {
 import BottomSheet from '../ui/BottomSheet';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { bdsToast } from '../ui/bdsToast';
+import RelationPickerCombobox from './RelationPickerCombobox';
 import type { Relation } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -227,6 +228,8 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
       else await creditService.thawCredit(customerId, trimmed, endpoint);
       setAction(null);
       setReason('');
+      // R678：冻结/解冻成功反馈（原静默，用户无法确认审计级操作已生效）
+      bdsToast.success(action === 'freeze' ? '信用额度已冻结，新订单将被信用门禁阻断' : '信用额度已解冻，门禁恢复正常');
       await loadCredit(customerId);
     } catch (e: any) {
       setActionError(String(e?.message || e));
@@ -633,8 +636,8 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
             </span>
           </div>
 
-          {/* 实时损益汇总（净损失 = 申报 − 转卖回收 − 回款 + 退运成本） */}
-          <div className="mt-3 grid grid-cols-3 gap-2.5">
+          {/* 实时损益汇总（净损失 = 申报 − 转卖回收 − 回款 + 退运成本；R678：grid-cols-3 补断点） */}
+          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             <div className="rounded-inset p-3 bds-inset">
               <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>申报债权</div>
               <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(summary.totalClaimed)}</div>
@@ -1028,18 +1031,18 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
-      {/* 工具栏：客户选择 */}
+      {/* 工具栏：客户选择（R678：原生 select 全量渲染 → 可搜索 combobox） */}
       <div className="bds-filterbar">
-        <select
-          value={customerId}
-          onChange={e => selectCustomer(e.target.value)}
-          className="bds-select min-w-64"
-        >
-          <option value="">选择客户档案…</option>
-          {customerOptions.map(r => (
-            <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
-          ))}
-        </select>
+        <div className="w-72">
+          <RelationPickerCombobox
+            value={customerId}
+            options={customerOptions}
+            onChange={id => selectCustomer(id)}
+            emptyOptionLabel="选择客户档案…"
+            placeholder="搜索并选择客户档案"
+            ariaLabel="选择客户"
+          />
+        </div>
         {status?.hasCreditLimit && (
           <div className={cx('ml-auto text-[11px] font-light', textSecondary)}>
             {status.creditFrozen ? '信用门禁：冻结中' : '信用门禁：正常'} · 最大逾期 {status.maxOverdueDays} 天

@@ -55,6 +55,36 @@ type PaymentVoucherListParams = {
   offset?: number;
 };
 
+/**
+ * R678：统一错误透出——优先消费服务端 error.message（后端已中文化），
+ * 无服务端文案时按 HTTP 状态码映射中文，杜绝 "xxx failed: HTTP 403" 英文裸透。
+ */
+const HTTP_STATUS_FALLBACK: Record<number, string> = {
+  400: '请求参数有误',
+  401: '登录状态已失效，请重新登录',
+  403: '当前账号无权限执行此操作',
+  404: '记录不存在或已被删除',
+  409: '数据状态冲突，请刷新后重试',
+  429: '操作过于频繁，请稍后再试',
+  500: '服务器内部错误，请稍后重试',
+};
+
+/** 从错误响应体提取服务端文案（error.message / error 字符串 / message） */
+function extractServerMessage(data: any): string {
+  return (
+    (typeof data?.error?.message === 'string' && data.error.message)
+    || (typeof data?.error === 'string' && data.error)
+    || (typeof data?.message === 'string' && data.message)
+    || ''
+  ).trim();
+}
+
+async function readVoucherError(res: Response, actionLabel: string): Promise<never> {
+  const data = await res.json().catch(() => ({}));
+  const reason = extractServerMessage(data) || HTTP_STATUS_FALLBACK[res.status] || '未知错误';
+  throw new Error(`${actionLabel}失败：${reason}（HTTP ${res.status}）`);
+}
+
 export const paymentVoucherService = {
   async listPaymentVouchers(endpoint?: string, params?: PaymentVoucherListParams): Promise<PaymentVoucher[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
@@ -73,7 +103,7 @@ export const paymentVoucherService = {
     const res = await fetch(fullUrl, {
       headers: apiService.getAuthHeaders(),
     });
-    if (!res.ok) throw new Error(`listPaymentVouchers failed: HTTP ${res.status}`);
+    if (!res.ok) await readVoucherError(res, '凭证列表加载');
     const data = await res.json();
     return data.items || [];
   },
@@ -85,7 +115,7 @@ export const paymentVoucherService = {
     const res = await fetch(url, {
       headers: apiService.getAuthHeaders(),
     });
-    if (!res.ok) throw new Error(`getPaymentVoucher failed: HTTP ${res.status}`);
+    if (!res.ok) await readVoucherError(res, '凭证详情加载');
     const data = await res.json();
     return data;
   },
@@ -99,13 +129,7 @@ export const paymentVoucherService = {
       headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const errorMessage = typeof err.error === 'object'
-        ? JSON.stringify(err.error)
-        : (err.error || `createPaymentVoucher failed: HTTP ${res.status}`);
-      throw new Error(errorMessage);
-    }
+    if (!res.ok) await readVoucherError(res, '凭证创建');
     const data = await res.json();
     return data;
   },
@@ -119,13 +143,7 @@ export const paymentVoucherService = {
       headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const errorMessage = typeof err.error === 'object'
-        ? JSON.stringify(err.error)
-        : (err.error || `updatePaymentVoucher failed: HTTP ${res.status}`);
-      throw new Error(errorMessage);
-    }
+    if (!res.ok) await readVoucherError(res, '凭证更新');
     const data = await res.json();
     return data;
   },
@@ -139,8 +157,7 @@ export const paymentVoucherService = {
       method: 'DELETE',
       headers: apiService.getAuthHeaders(),
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error?.message || data?.error?.code || `deletePaymentVoucher failed: HTTP ${res.status}`);
+    if (!res.ok) await readVoucherError(res, '凭证删除');
     return { ok: true };
   },
 
@@ -154,8 +171,13 @@ export const paymentVoucherService = {
       body: JSON.stringify({ reason }),
     });
     let data: any;
-    try { data = await res.json(); } catch { throw new Error(`cancelVoucher failed: HTTP ${res.status} (non-JSON response)`); }
-    if (!res.ok || !data?.ok) throw new Error(data?.error?.message || data?.error?.code || `cancelVoucher failed: HTTP ${res.status}`);
+    try { data = await res.json(); } catch { throw new Error(`凭证作废失败：响应不是合法 JSON（HTTP ${res.status}）`); }
+    if (!res.ok || !data?.ok) {
+      const serverMessage = extractServerMessage(data)
+        || (typeof data?.error?.code === 'string' ? data.error.code : '');
+      const reason = serverMessage || HTTP_STATUS_FALLBACK[res.status] || '未知错误';
+      throw new Error(`凭证作废失败：${reason}（HTTP ${res.status}）`);
+    }
     return data.voucher;
   },
 };

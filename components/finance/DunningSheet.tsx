@@ -238,7 +238,7 @@ export default function DunningSheet({
   const current = langTab === 'zh' ? letter?.zh : letter?.en;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:justify-center">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center sm:items-center sm:justify-center">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-[var(--mask-bg)] backdrop-blur-sm transition-opacity duration-300"
@@ -246,7 +246,7 @@ export default function DunningSheet({
       />
 
       {/* Sheet */}
-      <div className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-[24px] border-t border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] sm:max-w-2xl sm:rounded-card sm:border">
+      <div className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-card border-t border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] sm:max-w-2xl sm:rounded-card sm:border">
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between px-6 pb-3 pt-5">
           <div>

@@ -17,8 +17,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, Ban, ClipboardList, Loader2, Plus, Search } from 'lucide-react';
 import { getAuthState, hasPermission } from '../../services/authService';
 import { approvalKernelService } from '../../services/approvalKernelService';
+import { apiService } from '../../services/apiService';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { bdsConfirm } from '../ui/BdsDialog';
+import RelationPickerCombobox from './RelationPickerCombobox';
 import {
   paymentRequestService,
   PAYMENT_REQUEST_STATUSES,
@@ -81,6 +83,23 @@ const EMPTY_FORM = {
 export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint, relations }: FinancePaymentRequestsPanelProps) {
   const currentUserId = getAuthState().user?.id ?? '';
   const canCreate = hasPermission('finance:payment_request:create');
+
+  // R678：申请人/审批人 id→姓名映射（/api/hr/personnel 用户目录，GET 需 hr:read——FINANCE 角色持有）；
+  // 目录不可用（无权限/离线）时降级渲染原始 id，不阻断详情查看
+  const [userDirectory, setUserDirectory] = useState<Map<string, string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiService.listUserAccounts(endpoint)
+      .then(list => { if (!cancelled) setUserDirectory(new Map(list.map(u => [u.id, u.displayName]))); })
+      .catch(() => { if (!cancelled) setUserDirectory(null); });
+    return () => { cancelled = true; };
+  }, [endpoint]);
+  const userDisplayName = useCallback((id?: string | null): string => {
+    if (!id) return '—';
+    const me = getAuthState().user;
+    if (me && id === me.id && me.displayName) return me.displayName;
+    return userDirectory?.get(id) || id;
+  }, [userDirectory]);
 
   const supplierOptions = useMemo(
     () => relations.filter(r => !r.deletedAt && (r.category === 'Supplier' || r.type === 'Supplier')),
@@ -317,7 +336,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
       { label: '预期付款日', value: detail.expectedPaymentDate || '—' },
       { label: '付款性质', value: voucherCategoryLabel(detail.paymentCategory) },
       { label: '币种', value: detail.currency || '—' },
-      { label: '申请人', value: detail.applicantId || '—' },
+      { label: '申请人', value: userDisplayName(detail.applicantId) },
       { label: '事由', value: detail.remark || '—' },
     ];
 
@@ -370,7 +389,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 </div>
                 <div className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-2 py-1">
                   <div className={cx('text-[10px] font-light tracking-wide', textSecondary)}>审批人</div>
-                  <div className={cx('truncate text-xs font-light', textPrimary)}>{approval.reviewerId || '—'}</div>
+                  <div className={cx('truncate text-xs font-light', textPrimary)}>{userDisplayName(approval.reviewerId)}</div>
                 </div>
                 <div className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-2 py-1">
                   <div className={cx('text-[10px] font-light tracking-wide', textSecondary)}>决策时间</div>
@@ -519,16 +538,14 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
             <div className="space-y-3">
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>供应商档案</label>
-                <select
+                {/* R678：原生 select 全量渲染 → 可搜索 combobox（选中即带出 supplierName 快照） */}
+                <RelationPickerCombobox
                   value={form.supplierRelationId}
-                  onChange={e => setForm(f => ({ ...f, supplierRelationId: e.target.value }))}
-                  className="bds-select sm"
-                >
-                  <option value="">手动输入（不关联档案）</option>
-                  {supplierOptions.map(r => (
-                    <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
-                  ))}
-                </select>
+                  options={supplierOptions}
+                  emptyOptionLabel="手动输入（不关联档案）"
+                  ariaLabel="供应商档案"
+                  onChange={id => setForm(f => ({ ...f, supplierRelationId: id }))}
+                />
               </div>
               {!form.supplierRelationId && (
                 <div>

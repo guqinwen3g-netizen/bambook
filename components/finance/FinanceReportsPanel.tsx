@@ -38,6 +38,7 @@ import type {
   InternalTransferStatus,
 } from '../../services/internalTradeService';
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
+import RelationPickerCombobox from './RelationPickerCombobox';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import A4DocumentPreviewModal from '../ui/A4DocumentPreviewModal';
 import type { AgingBuckets, AgingReport, CustomerStatement, DunningStage, FxGainLossReport, FxLedger, Order, Relation, Shipment, StatementSection, SupplierStatement } from '../../types';
@@ -271,6 +272,30 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     }
   }, []);
 
+  // R678：合并利润 Excel 导出——GET /v1/finance/reports/consolidated-profit?format=xlsx
+  // （后端 format=xlsx 已就绪；apiService 归属其他车道，下载落盘模式与 exportAgingReportXlsx 同族内聚此处）
+  const exportConsolidatedXlsx = useCallback(async () => {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (conFrom) query.set('from', conFrom);
+    if (conTo) query.set('to', conTo);
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/finance/reports/consolidated-profit?${query.toString()}`, base);
+    const res = await fetch(url, { headers: apiService.getAuthHeaders() });
+    if (!res.ok) throw new Error(`合并利润导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `合并利润_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  }, [conFrom, conTo, endpoint]);
+
   const loadFx = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -348,7 +373,6 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
 
   // 初次进入各 tab 时加载
   useEffect(() => {
-    if (tab === 'aging' && !aging) loadAging();
     if (tab === 'fx' && !fx) loadFx();
     if (tab === 'fx-ledger' && !ledger) loadLedger();
     if (tab === 'statement' && relations.length === 0) {
@@ -366,7 +390,13 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
       }).catch(() => {});
     }
-  }, [tab, aging, fx, ledger, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadAging, loadFx, loadLedger]);
+  }, [tab, fx, ledger, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadFx, loadLedger]);
+
+  // R678：账龄应收/应付切换即重拉（loadAging 依赖 agingType，随切换变更引用）——
+  // 原实现仅 setAgingType 不重拉，标题按新类型渲染而数据滞留旧类型（"标题应付/数据应收"错配）
+  useEffect(() => {
+    if (tab === 'aging') loadAging();
+  }, [tab, loadAging]);
 
   // 合并利润：进入 tab 即加载；日期范围变更后（合法 YYYY-MM-DD 或清空）自动重新拉取
   useEffect(() => {
@@ -1237,10 +1267,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           )}
           {tab === 'statement' && (
             <>
-              <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="bds-select sm min-w-40" aria-label="选择客户">
-                {relations.length === 0 && <option value="">加载客户...</option>}
-                {relations.map(r => <option key={r.id} value={r.id}>{r.chineseName || r.name}</option>)}
-              </select>
+              {/* R678：客户全量原生 select（上限 500 条）→ 可搜索 combobox，超量截断提示 */}
+              <div className="w-56">
+                <RelationPickerCombobox
+                  value={customerId}
+                  options={relations}
+                  onChange={id => setCustomerId(id)}
+                  placeholder={relations.length === 0 ? '加载客户...' : '搜索并选择客户'}
+                  ariaLabel="选择客户"
+                />
+              </div>
               <CapsuleDateInput value={stmtFrom} onChange={setStmtFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={stmtTo} onChange={setStmtTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
@@ -1255,10 +1291,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           )}
           {tab === 'supplier-statement' && (
             <>
-              <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="bds-select sm min-w-40" aria-label="选择供应商">
-                {supplierRelations.length === 0 && <option value="">加载供应商...</option>}
-                {supplierRelations.map(r => <option key={r.id} value={r.id}>{r.chineseName || r.name}</option>)}
-              </select>
+              {/* R678：供应商全量原生 select → 可搜索 combobox（同客户对账单） */}
+              <div className="w-56">
+                <RelationPickerCombobox
+                  value={supplierId}
+                  options={supplierRelations}
+                  onChange={id => setSupplierId(id)}
+                  placeholder={supplierRelations.length === 0 ? '加载供应商...' : '搜索并选择供应商'}
+                  ariaLabel="选择供应商"
+                />
+              </div>
               <CapsuleDateInput value={supFrom} onChange={setSupFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={supTo} onChange={setSupTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
@@ -1307,6 +1349,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <RdlPill type="button" active={consolidatedMode === 'company'} onClick={() => setConsolidatedMode('company')} className="min-h-8 px-3 text-[11px]">合并视图</RdlPill>
               <RdlPill type="button" active={consolidatedMode === 'department'} onClick={() => setConsolidatedMode('department')} className="min-h-8 px-3 text-[11px]">部门视角</RdlPill>
               <RdlPill type="button" active tone="accent" onClick={loadConsolidated} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
+              {/* R678：合并利润导出入口（后端 format=xlsx 已就绪，随当前 from/to 口径导出） */}
+              <RdlPill type="button" onClick={() => void runExport('consolidated', exportConsolidatedXlsx)} className="min-h-8 px-3 text-[11px]">
+                {exporting === 'consolidated' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
+              </RdlPill>
             </>
           )}
           {tab === 'internal-trade' && (

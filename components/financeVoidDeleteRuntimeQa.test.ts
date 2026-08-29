@@ -187,8 +187,9 @@ describe('runtime QA [前端 service]: paymentVoucherService delete', () => {
     expect(VOUCHER_SVC_SRC).toMatch(/\/v1\/finance\/vouchers\/\$\{[^}]+\}/);
     expect(VOUCHER_SVC_SRC).toMatch(/method: 'DELETE'/);
   });
-  it('失败 throw Error（消费后端 error）', () => {
-    expect(VOUCHER_SVC_SRC).toMatch(/throw new Error\(data\?\.error\?\.message/);
+  it('失败 throw Error（消费后端 error；R678 起统一经 readVoucherError 中文映射，error.message 仍被消费）', () => {
+    expect(VOUCHER_SVC_SRC).toMatch(/data\?\.error\?\.message/);
+    expect(VOUCHER_SVC_SRC).toMatch(/readVoucherError\(res, '凭证删除'\)/);
   });
 });
 

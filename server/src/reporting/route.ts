@@ -224,7 +224,9 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
     res.json(serialize(result.data));
   });
 
-  router.get('/monthly-close/compare', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
+  // R678：compare 是纯读聚合（仅查 ReportDefinition/ReportRun 快照），降为 reports:read ——
+  // 原挂 reports:write 导致只读角色进「月末结转」tab（MonthlyCloseSection 挂载即 loadCompare）即 403
+  router.get('/monthly-close/compare', requireReportsRead, async (req: Request, res: Response) => {
     const result = await monthlyCloseService.compareMonthlyClose({
       periodKey: typeof req.query.periodKey === 'string' ? req.query.periodKey : undefined,
     });

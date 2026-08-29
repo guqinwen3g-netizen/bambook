@@ -34,6 +34,7 @@ import {
 } from '../../services/reconciliationService';
 import BottomSheet from '../ui/BottomSheet';
 import { bdsToast } from '../ui/bdsToast';
+import RelationPickerCombobox from './RelationPickerCombobox';
 import type { Relation } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -84,7 +85,6 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
     () => relations.filter(r => !r.deletedAt && (r.category === 'Customer' || r.type === 'Customer')),
     [relations],
   );
-  const relationDisplayName = (r: Relation) => r.chineseName || r.name;
 
   // ── 视图：差异清单 | 多币种（P2-7） ──
   const [view, setView] = useState<'list' | 'fx'>('list');
@@ -202,17 +202,17 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
               </button>
             ))}
           </div>
-          <select
-            value={customerId}
-            onChange={e => setCustomerId(e.target.value)}
-            className="bds-select sm min-w-40"
-            aria-label="选择客户"
-          >
-            <option value="">全部客户（仅差异清单）</option>
-            {customerOptions.map(r => (
-              <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
-            ))}
-          </select>
+          {/* R678：客户全量原生 select → 可搜索 combobox（保留「全部客户」空值语义） */}
+          <div className="w-56">
+            <RelationPickerCombobox
+              value={customerId}
+              options={customerOptions}
+              onChange={id => setCustomerId(id)}
+              emptyOptionLabel="全部客户（仅差异清单）"
+              placeholder="搜索并选择客户"
+              ariaLabel="选择客户"
+            />
+          </div>
           {summaryLoading && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />}
         </div>
         {summary && (
@@ -318,9 +318,19 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
                 {items.map((d, idx) => (
                   <tr
                     key={`${d.orderId}-${d.type}-${d.field}-${idx}`}
-                    className="cursor-pointer border-t transition-colors hover:bg-[var(--recessed-bg)]"
+                    className="cursor-pointer border-t transition-colors hover:bg-[var(--recessed-bg)] focus-visible:bg-[var(--recessed-bg-hover)] focus-visible:outline-none"
                     style={{ borderColor: 'var(--border-c-soft)' }}
                     onClick={() => openDetail(d.orderId)}
+                    // R678：键盘可达——Tab 聚焦 + Enter/Space 打开订单对账详情（与点击同路径）
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`查看订单 ${d.orderCode || d.poNumber || d.orderId} 对账详情`}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openDetail(d.orderId);
+                      }
+                    }}
                   >
                     <td className="py-2 pr-3"><span className={SEVERITY_BADGE[d.severity]}>{SEVERITY_LABELS[d.severity]}</span></td>
                     <td className={cx('py-2 pr-3 font-light', textPrimary)}>{DISCREPANCY_TYPE_LABELS[d.type] || d.type}</td>
@@ -395,9 +405,19 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
                       return (
                         <tr
                           key={o.orderId}
-                          className="cursor-pointer border-t transition-colors hover:bg-[var(--recessed-bg)]"
+                          className="cursor-pointer border-t transition-colors hover:bg-[var(--recessed-bg)] focus-visible:bg-[var(--recessed-bg-hover)] focus-visible:outline-none"
                           style={{ borderColor: 'var(--border-c-soft)' }}
                           onClick={() => openDetail(o.orderId)}
+                          // R678：键盘可达——Tab 聚焦 + Enter/Space 打开汇率链抽屉（与点击同路径）
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`查看订单 ${o.orderCode || o.poNumber || o.orderId} 汇率链详情`}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openDetail(o.orderId);
+                            }
+                          }}
                         >
                           <td className={cx('py-2 pr-3 font-light tabular-nums', textPrimary)}>{o.orderCode || o.poNumber || o.orderId}</td>
                           <td className={cx('py-2 pr-3 font-light', textSecondary)}>{o.fx.invoicedByCurrency.map(g => g.currency).join('/') || o.currency || '—'}</td>

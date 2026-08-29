@@ -49,7 +49,9 @@ import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { developmentService } from '../services/developmentService';
+import { hasPermission } from '../services/authService';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
+import RelationPickerCombobox from './finance/RelationPickerCombobox';
 
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -401,6 +403,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 }) => {
   // ── View switching ───
   const [activeTab, setActiveTab] = useState<FinanceTabId>(initialTab);
+  // R6 权限显隐（W-C 矩阵真源 scope；服务端 requirePermission fail-closed 兜底）：
+  // 发票写 = invoices:write；凭证写（含结汇/付汇/核销）= vouchers:write；增值税票写 = vat:write
+  const canWriteInvoices = hasPermission('invoices:write');
+  const canWriteVouchers = hasPermission('vouchers:write');
+  const canWriteVat = hasPermission('vat:write');
   // Keep local state for activeTab in sync with parent's initialTab prop (handles deep-link navigation).
   useEffect(() => {
     setActiveTab(initialTab);
@@ -566,6 +573,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setShowCreateVoucher(false);
       setEditingVoucher(null);
       setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '', paymentRequestId: '' });
+      bdsToast.success(`凭证 ${created.voucherNumber} 已创建`);
     } catch (e: any) {
       // 失败：保留原数据，显示可执行反馈
       setVoucherError(`创建失败：${e?.message ?? e}`);
@@ -873,6 +881,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setInvoices(refreshed);
       // 选中新建的应收发票
       setSelectedId(newInvoice.id);
+      bdsToast.success(`已转换为正式应收发票 ${newInvoice.invoiceNumber}`);
     } catch (e: any) {
       setVoidDeleteError(`PI 转换失败：${e.message || e}`);
     } finally {
@@ -880,7 +889,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     }
   };
 
-  const handleSaveInvoice = async () => {
+  // R678：statusOverride 显式传参（「保存并开票」与 setState 时序解耦——
+  // setInvoiceForm 后 await 本函数读到的是旧 status，payload 必须以入参为准）
+  const handleSaveInvoice = async (statusOverride?: InvoiceStatus) => {
     if (invoiceSaving) return;
     const invoiceAmount = Number(invoiceForm.amount);
     if (!invoiceForm.invoiceNumber || !invoiceForm.amount) {
@@ -897,7 +908,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       const payload = {
         invoiceNumber: invoiceForm.invoiceNumber,
         type: invoiceForm.type,
-        status: invoiceForm.status,
+        status: statusOverride ?? invoiceForm.status,
         amount: invoiceAmount,
         currency: invoiceForm.currency,
         customerName: invoiceForm.customerName || undefined,
@@ -915,11 +926,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         const updated = await invoiceService.updateInvoice(editingInvoice.id, payload);
         setInvoices(prev => prev.map(i => i.id === updated.id ? { ...i, ...updated } as InvoiceEntity : i));
         setSelectedId(updated.id);
+        bdsToast.success(`发票 ${updated.invoiceNumber} 已更新`);
       } else {
         // 新建：调 POST，成功后追加到本地
         const created = await invoiceService.createInvoice(payload);
         setInvoices(prev => [created as InvoiceEntity, ...prev]);
         setSelectedId(created.id);
+        bdsToast.success(`发票 ${created.invoiceNumber} 已创建${payload.status === 'Issued' ? '并开票' : ''}`);
       }
       setShowInvoiceModal(false);
     } catch (e: any) {
@@ -1023,6 +1036,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           notes: vatForm.notes.trim() || undefined,
         });
         setVatInvoices(prev => prev.map(v => v.id === editingVat.id ? { ...v, ...updated } : v));
+        bdsToast.success(`增值税发票 ${editingVat.vatNumber} 已更新`);
       } else {
         const created = await vatInvoiceService.createVatInvoice({
           vatNumber: vatForm.vatNumber.trim(),
@@ -1114,6 +1128,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       // ✅ 消费后端返回的完整实体更新本地（不伪造状态）
       setVatInvoices(prev => prev.map(v => v.id === vatTransitionTarget.id ? { ...v, ...updated } : v));
       setVatTransitionTarget(null);
+      bdsToast.success(`增值税发票 ${vatTransitionTarget.vatNumber} ${vatTransitionAction === 'Verified' ? '已认证' : vatTransitionAction === 'Declared' ? '已申报退税' : '已红冲'}`);
     } catch (e: any) {
       setVatTransitionError(`流转失败：${e?.message ?? e}`);
     } finally {
@@ -1145,6 +1160,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       await vatInvoiceService.deleteVatInvoice(vat.id);
       setVatInvoices(prev => prev.filter(v => v.id !== vat.id));
       setSelectedId(null);
+      bdsToast.success(`增值税发票 ${vat.vatNumber} 已删除`);
     } catch (e: any) {
       setVatListError(`删除失败：${e?.message ?? e}`);
     } finally {
@@ -1226,6 +1242,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         return idx >= 0 ? prev.map(a => a.id === newAlloc.id ? merged : a) : [merged, ...prev];
       });
       setShowAllocModal(false);
+      bdsToast.success(editingAllocId ? '核销记录已更新' : '核销已登记');
       mutationOk = true;
     } catch (e: any) {
       // mutation 失败——真实未落库，显示失败反馈
@@ -1257,6 +1274,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       // ✅ mutation 成功——先消费反向重算结果 + 本地 remove allocation（乐观更新）
       applyRecalcResult(result.newInvoiceStatus, result.newVoucherStatus, parties.invoiceId, parties.voucherId);
       setAllocations(prev => prev.filter(a => a.id !== allocId));
+      bdsToast.success('核销已撤销，发票/凭证状态已反向重算');
       mutationOk = true;
     } catch (e: any) {
       // mutation 失败——真实未落库，显示失败反馈
@@ -1750,12 +1768,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       );
     }
 
-    const canEdit = vat.status === 'Received' || vat.status === 'Verified';
-    const canVerify = vat.status === 'Received';
-    const canDeclare = vat.status === 'Verified' && vat.direction === 'Input' && vat.invoiceType === 'Special';
-    const canRedFlush = vat.status === 'Verified' || vat.status === 'Declared';
-    const canCancel = vat.status === 'Received';
-    const canDelete = vat.status !== 'Declared';
+    // R6：vat:write 门控叠加在状态机显隐之上（服务端 requirePermission 兜底）
+    const canEdit = canWriteVat && (vat.status === 'Received' || vat.status === 'Verified');
+    const canVerify = canWriteVat && vat.status === 'Received';
+    const canDeclare = canWriteVat && vat.status === 'Verified' && vat.direction === 'Input' && vat.invoiceType === 'Special';
+    const canRedFlush = canWriteVat && (vat.status === 'Verified' || vat.status === 'Declared');
+    const canCancel = canWriteVat && vat.status === 'Received';
+    const canDelete = canWriteVat && vat.status !== 'Declared';
 
     const fieldRows = [
       { label: '发票号码', value: vat.vatNumber },
@@ -1963,8 +1982,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             {/* 按钮簇只放纯动作按钮；状态徽章已上移到标题块。
                flex-wrap + justify-start：窄 panel 下可换行且左对齐整齐，不再顶破 panel。 */}
             <div className="flex flex-wrap items-center justify-start gap-2">
-              {/* P0 invoice manual UI: 编辑发票入口 */}
-              {isInvoice && invoice && (
+              {/* P0 invoice manual UI: 编辑发票入口（R6：invoices:write 门控） */}
+              {isInvoice && invoice && canWriteInvoices && (
                 <button
                   type="button"
                   onClick={() => openEditInvoice(invoice)}
@@ -1974,8 +1993,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   编辑
                 </button>
               )}
-              {/* Phase 1-04: PI 转换为正式应收发票（仅 Proforma 类型且非 Cancelled） */}
-              {isInvoice && invoice && (invoice as any).type === 'Proforma' && invoice.status !== 'Cancelled' && (
+              {/* Phase 1-04: PI 转换为正式应收发票（仅 Proforma 类型且非 Cancelled；R6：invoices:write 门控） */}
+              {isInvoice && invoice && canWriteInvoices && (invoice as any).type === 'Proforma' && invoice.status !== 'Cancelled' && (
                 <button
                   type="button"
                   disabled={convertingPiId === invoice.id}
@@ -2009,8 +2028,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   导出 PDF
                 </button>
               )}
-              {/* task_mqyusoio: 作废入口（只对非 Cancelled 发票显示） */}
-              {isInvoice && invoice && invoice.status !== 'Cancelled' && (
+              {/* task_mqyusoio: 作废入口（只对非 Cancelled 发票显示；R6：invoices:write 门控） */}
+              {isInvoice && invoice && canWriteInvoices && invoice.status !== 'Cancelled' && (
                 <button
                   type="button"
                   disabled={voidDeletingId === invoice.id}
@@ -2034,8 +2053,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   作废
                 </button>
               )}
-              {/* task_mqyusoio: 软删入口（所有发票可删，HAS_ALLOCATIONS 阻断） */}
-              {isInvoice && invoice && (
+              {/* task_mqyusoio: 软删入口（所有发票可删，HAS_ALLOCATIONS 阻断；R6：invoices:write 门控） */}
+              {isInvoice && invoice && canWriteInvoices && (
                 <button
                   type="button"
                   disabled={voidDeletingId === invoice.id}
@@ -2047,6 +2066,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       await invoiceService.deleteInvoice(invoice.id);
                       setInvoices(prev => prev.filter(i => i.id !== invoice.id));
                       setSelectedId(null);
+                      bdsToast.success(`发票 ${invoice.invoiceNumber} 已删除`);
                     } catch (e: any) {
                       setVoidDeleteError(`删除失败：${e.message || e}`);
                     } finally {
@@ -2059,8 +2079,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   删除
                 </button>
               )}
-              {/* voucher 编辑入口 */}
-              {!isInvoice && voucher && (
+              {/* voucher 编辑入口（R6：vouchers:write 门控） */}
+              {!isInvoice && voucher && canWriteVouchers && (
                 <button
                   type="button"
                   onClick={() => openEditVoucher(voucher)}
@@ -2070,8 +2090,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   编辑
                 </button>
               )}
-              {/* F2 外汇核销闭环：结汇入口（仅外币收款凭证有结汇语义） */}
-              {!isInvoice && voucher && voucher.type === 'Receipt' && voucher.currency !== 'CNY' && (
+              {/* F2 外汇核销闭环：结汇入口（仅外币收款凭证有结汇语义；R6：vouchers:write 门控） */}
+              {!isInvoice && voucher && canWriteVouchers && voucher.type === 'Receipt' && voucher.currency !== 'CNY' && (
                 <button
                   type="button"
                   onClick={() => openSettlementModal(voucher)}
@@ -2081,8 +2101,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   结汇
                 </button>
               )}
-              {/* C6 付汇闭环：付汇入口（仅外币付款凭证有付汇语义，镜像结汇付款侧） */}
-              {!isInvoice && voucher && voucher.type === 'Disbursement' && voucher.currency !== 'CNY' && (
+              {/* C6 付汇闭环：付汇入口（仅外币付款凭证有付汇语义，镜像结汇付款侧；R6：vouchers:write 门控） */}
+              {!isInvoice && voucher && canWriteVouchers && voucher.type === 'Disbursement' && voucher.currency !== 'CNY' && (
                 <button
                   type="button"
                   onClick={() => openRemittanceModal(voucher)}
@@ -2092,8 +2112,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   付汇
                 </button>
               )}
-              {/* voucher 作废入口（非 cancelled 状态可作废） */}
-              {!isInvoice && voucher && voucher.status !== 'cancelled' && (
+              {/* voucher 作废入口（非 cancelled 状态可作废；R6：vouchers:write 门控） */}
+              {!isInvoice && voucher && canWriteVouchers && voucher.status !== 'cancelled' && (
                 <button
                   type="button"
                   disabled={voidDeletingId === voucher.id}
@@ -2104,6 +2124,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     try {
                       const updated = await paymentVoucherService.cancelVoucher(voucher.id);
                       setVouchers(prev => prev.map(v => v.id === voucher.id ? { ...v, ...updated } : v));
+                      bdsToast.success(`凭证 ${voucher.voucherNumber} 已作废`);
                     } catch (e: any) {
                       setVoidDeleteError(`作废失败：${e.message || e}`);
                     } finally {
@@ -2116,8 +2137,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   作废
                 </button>
               )}
-              {/* task_mqyusoio: voucher 软删入口（消费 paymentVoucherService.deletePaymentVoucher） */}
-              {!isInvoice && voucher && (
+              {/* task_mqyusoio: voucher 软删入口（消费 paymentVoucherService.deletePaymentVoucher；R6：vouchers:write 门控） */}
+              {!isInvoice && voucher && canWriteVouchers && (
                 <button
                   type="button"
                   disabled={voidDeletingId === voucher.id}
@@ -2129,6 +2150,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       await paymentVoucherService.deletePaymentVoucher(voucher.id);
                       setVouchers(prev => prev.filter(v => v.id !== voucher.id));
                       setSelectedId(null);
+                      bdsToast.success(`凭证 ${voucher.voucherNumber} 已删除`);
                     } catch (e: any) {
                       setVoidDeleteError(`删除失败：${e.message || e}`);
                     } finally {
@@ -2270,23 +2292,26 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     改为 flex-wrap，input 用 min-w-0 flex-1 可收缩，窄宽时按钮自动换行。 */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>附件（{((Array.isArray((invoiceDetail as any)?.attachments) ? (invoiceDetail as any).attachments : []) as InvoiceAttachment[]).length}）</div>
-                  <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:flex-none">
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
-                      className="bds-input min-w-0 flex-1 text-[10px] sm:w-40 sm:flex-none"
-                      onChange={e => setInvoiceUpFile(e.target.files?.[0] ?? null)}
-                    />
-                    <button
-                      type="button"
-                      disabled={invoiceUploading}
-                      onClick={() => handleUploadInvoiceAttachment(invoice.id)}
-                      className="bds-btn bds-btn-secondary"
-                    >
-                      <Upload size={14} strokeWidth={1.75} />
-                      {invoiceUploading ? '上传中...' : '上传文件'}
-                    </button>
-                  </div>
+                  {/* R6：附件上传 = 发票写操作，invoices:write 门控 */}
+                  {canWriteInvoices && (
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:flex-none">
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                        className="bds-input min-w-0 flex-1 text-[10px] sm:w-40 sm:flex-none"
+                        onChange={e => setInvoiceUpFile(e.target.files?.[0] ?? null)}
+                      />
+                      <button
+                        type="button"
+                        disabled={invoiceUploading}
+                        onClick={() => handleUploadInvoiceAttachment(invoice.id)}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        <Upload size={14} strokeWidth={1.75} />
+                        {invoiceUploading ? '上传中...' : '上传文件'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {invoiceAttachmentErr && (
                   <div className="bds-alert danger mt-2">{invoiceAttachmentErr}</div>
@@ -2330,14 +2355,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   同时较宽会挤爆，统一 flex-wrap 兜底。 */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>核销明细（{allocations.length}）</div>
-                <button
-                  type="button"
-                  onClick={openCreateAlloc}
-                  className="bds-btn bds-btn-secondary"
-                >
-                  <Link2 size={16} strokeWidth={1.75} />
-                  添加核销
-                </button>
+                {/* R6：核销写入门控（发票上下文 = invoices:write；凭证上下文 = vouchers:write） */}
+                {(isInvoiceContext ? canWriteInvoices : canWriteVouchers) && (
+                  <button
+                    type="button"
+                    onClick={openCreateAlloc}
+                    className="bds-btn bds-btn-secondary"
+                  >
+                    <Link2 size={16} strokeWidth={1.75} />
+                    添加核销
+                  </button>
+                )}
               </div>
               {allocLoading ? (
                 <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>加载中...</div>
@@ -2356,14 +2384,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        <button type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
-                          className="bds-btn bds-btn-ghost bds-btn-icon">
-                          <Pencil size={14} strokeWidth={1.75} />
-                        </button>
-                        <button type="button" onClick={() => handleDeleteAlloc(alloc.id)}
-                          className="bds-btn bds-btn-ghost bds-btn-icon">
-                          <Trash2 size={14} strokeWidth={1.75} />
-                        </button>
+                        {/* R6：核销编辑/删除与「添加核销」同一上下文权限门 */}
+                        {(isInvoiceContext ? canWriteInvoices : canWriteVouchers) && (
+                          <>
+                            <button type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
+                              className="bds-btn bds-btn-ghost bds-btn-icon">
+                              <Pencil size={14} strokeWidth={1.75} />
+                            </button>
+                            <button type="button" onClick={() => handleDeleteAlloc(alloc.id)}
+                              className="bds-btn bds-btn-ghost bds-btn-icon">
+                              <Trash2 size={14} strokeWidth={1.75} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2414,8 +2447,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         isDarkMode={isDarkMode}
         actions={(
           <>
-            {/* P0 payment manual path: 无 Agent 手动创建凭证入口 */}
-            {activeTab === 'vouchers' && (
+            {/* P0 payment manual path: 无 Agent 手动创建凭证入口（R6：vouchers:write 门控） */}
+            {activeTab === 'vouchers' && canWriteVouchers && (
               <button
                 type="button"
                 className="bds-btn bds-btn-primary"
@@ -2425,8 +2458,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 新建凭证
               </button>
             )}
-            {/* P0 invoice manual UI: 无 Agent 手动创建发票入口 */}
-            {activeTab === 'invoices' && (
+            {/* P0 invoice manual UI: 无 Agent 手动创建发票入口（R6：invoices:write 门控） */}
+            {activeTab === 'invoices' && canWriteInvoices && (
               <button
                 type="button"
                 onClick={openCreateInvoice}
@@ -2436,8 +2469,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 新建发票
               </button>
             )}
-            {/* C6 增值税发票：手动登记入口 */}
-            {activeTab === 'vatInvoices' && (
+            {/* C6 增值税发票：手动登记入口（R6：vat:write 门控） */}
+            {activeTab === 'vatInvoices' && canWriteVat && (
               <button
                 type="button"
                 onClick={openCreateVat}
@@ -2714,16 +2747,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象档案</label>
-                <select className="bds-select sm" value={voucherForm.customerRelationId} onChange={e => {
-                    const rid = e.target.value;
-                    const rel = relationOptions.find(r => r.id === rid);
-                    setVoucherForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
-                  }}>
-                  <option value="">手动输入（不关联档案）</option>
-                  {relationOptionsFor(voucherForm.type === 'Receipt' ? 'Customer' : 'Supplier').map(r => (
-                    <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
-                  ))}
-                </select>
+                {/* R678：原生 select 全量渲染（上限 500 条不可搜索）→ 可搜索 combobox，超 50 条截断提示 */}
+                <RelationPickerCombobox
+                  value={voucherForm.customerRelationId}
+                  options={relationOptionsFor(voucherForm.type === 'Receipt' ? 'Customer' : 'Supplier')}
+                  emptyOptionLabel="手动输入（不关联档案）"
+                  ariaLabel="交易对象档案"
+                  onChange={(rid, rel) => setVoucherForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }))}
+                />
               </div>
               {!voucherForm.customerRelationId && (
                 <div>
@@ -2808,16 +2839,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}</label>
-                  <select className="bds-select sm" value={invoiceForm.customerRelationId} onChange={e => {
-                      const rid = e.target.value;
-                      const rel = relationOptions.find(r => r.id === rid);
-                      setInvoiceForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
-                    }}>
-                    <option value="">手动输入（不关联档案）</option>
-                    {relationOptionsFor(invoiceForm.type === 'Receivable' ? 'Customer' : 'Supplier').map(r => (
-                      <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
-                    ))}
-                  </select>
+                  {/* R678：原生 select 全量渲染 → 可搜索 combobox（同凭证弹窗交易对象） */}
+                  <RelationPickerCombobox
+                    value={invoiceForm.customerRelationId}
+                    options={relationOptionsFor(invoiceForm.type === 'Receivable' ? 'Customer' : 'Supplier')}
+                    emptyOptionLabel="手动输入（不关联档案）"
+                    ariaLabel={invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}
+                    onChange={(rid, rel) => setInvoiceForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }))}
+                  />
                 </div>
                 {!invoiceForm.customerRelationId && (
                   <div>
@@ -2882,14 +2911,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 className="bds-btn bds-btn-secondary">取消</button>
               {!editingInvoice && (
                 <button type="button" disabled={invoiceSaving} onClick={async () => {
+                  // R678：status 以入参直传（不再依赖 setInvoiceForm 后的状态时序）
                   setInvoiceForm(f => ({ ...f, status: 'Issued' as InvoiceStatus }));
-                  await handleSaveInvoice();
+                  await handleSaveInvoice('Issued' as InvoiceStatus);
                 }}
                   className="bds-btn bds-btn-secondary">
                   保存并开票
                 </button>
               )}
-              <button type="button" disabled={invoiceSaving} onClick={handleSaveInvoice}
+              <button type="button" disabled={invoiceSaving} onClick={() => void handleSaveInvoice()}
                 className="bds-btn bds-btn-primary">
                 {invoiceSaving ? '保存中...' : '保存'}
               </button>

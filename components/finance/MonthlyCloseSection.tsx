@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CalendarCheck, Loader2, RefreshCw } from 'lucide-react';
 import { reportingService, MonthlyCloseCompareItem, MonthlyCloseRunResult } from '../../services/reportingService';
+import { hasPermission } from '../../services/authService';
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 import { RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
@@ -33,6 +34,8 @@ function fmtPct(v: number | null): string {
 interface MonthlyCloseSectionProps { isDarkMode: boolean; endpoint?: string; }
 
 export const MonthlyCloseSection: React.FC<MonthlyCloseSectionProps> = ({ endpoint }) => {
+  // R678：compare 读端点已降 reports:read（后端 route.ts）；执行结转仍为 reports:write，按钮按 scope 显隐
+  const canRunClose = hasPermission('reports:write');
   const [periodKey, setPeriodKey] = useState(previousMonthKey());
   const [running, setRunning] = useState(false);
   const [compareLoading, setCompareLoading] = useState(false);
@@ -99,10 +102,12 @@ export const MonthlyCloseSection: React.FC<MonthlyCloseSectionProps> = ({ endpoi
                 {compareLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                 刷新对比
               </button>
-              <button type="button" className="bds-btn bds-btn-primary h-9" disabled={running} onClick={runClose}>
-                {running ? <Loader2 size={14} className="animate-spin" /> : <CalendarCheck size={14} />}
-                {running ? '结转中...' : '一键结转'}
-              </button>
+              {canRunClose && (
+                <button type="button" className="bds-btn bds-btn-primary h-9" disabled={running} onClick={runClose}>
+                  {running ? <Loader2 size={14} className="animate-spin" /> : <CalendarCheck size={14} />}
+                  {running ? '结转中...' : '一键结转'}
+                </button>
+              )}
             </div>
           </div>
         </RdlToolbar>
