@@ -221,12 +221,19 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
 
 // ==================== 电子画册 Panel ====================
 
+// R678 画册列表「加载更多」：apiService.listLookbooks 已落地 limit 签名（服务端默认 50、单次上限 200）。
+// 增长窗口式加载更多（limit 递增重取）；触顶 200 后回退截断提示（诚实披露，不伪装全量）。
+const LOOKBOOK_PAGE_SIZE = 50;
+const LOOKBOOK_MAX_WINDOW = 200;
+
 function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [items, setItems] = useState<LookbookCatalog[]>([]);
   const [loading, setLoading] = useState(true);
   // R4 三态补全：列表加载失败置 error 态渲染横幅 + 重试，不再仅 console.error 吞错
   const [loadError, setLoadError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'' | LookbookStatus>('');
+  const [limit, setLimit] = useState(LOOKBOOK_PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LookbookCatalog | null>(null);
   const [itemsEditing, setItemsEditing] = useState<LookbookCatalog | null>(null);
@@ -238,11 +245,13 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
     return () => registerNewAction?.(null);
   }, [registerNewAction]);
 
-  const load = useCallback(async () => {
+  // load 仅随 statusFilter 重建：刷新/切筛选重置窗口到首页大小；loadMore 走独立通道不触发整页 loading
+  const load = useCallback(async (targetLimit: number = LOOKBOOK_PAGE_SIZE) => {
     setLoading(true);
     setLoadError(null);
     try {
-      setItems(await apiService.listLookbooks(statusFilter ? { status: statusFilter } : undefined));
+      setItems(await apiService.listLookbooks({ ...(statusFilter ? { status: statusFilter } : {}), limit: targetLimit }));
+      setLimit(targetLimit);
     } catch (e) {
       console.error('[MarketingManager] listLookbooks failed', e);
       setLoadError(`画册列表加载失败：${e instanceof Error ? e.message : String(e)}`);
@@ -250,6 +259,21 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
       setLoading(false);
     }
   }, [statusFilter]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    const nextLimit = Math.min(limit + LOOKBOOK_PAGE_SIZE, LOOKBOOK_MAX_WINDOW);
+    setLoadingMore(true);
+    try {
+      setItems(await apiService.listLookbooks({ ...(statusFilter ? { status: statusFilter } : {}), limit: nextLimit }));
+      setLimit(nextLimit);
+    } catch (e) {
+      console.error('[MarketingManager] listLookbooks loadMore failed', e);
+      bdsToast.danger(`加载更多画册失败：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -259,7 +283,8 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
     setUpdatingId(item.id);
     try {
       await apiService.transitionLookbook(item.id, action);
-      await load();
+      await load(limit);
+      bdsToast.success(action === 'publish' ? '画册已发布' : action === 'unpublish' ? '已撤回为草稿' : '画册已归档');
     } catch (e) {
       console.error('[MarketingManager] transitionLookbook failed', e);
       bdsToast.danger(`操作失败: ${e instanceof Error ? e.message : String(e)}`);
@@ -273,7 +298,8 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
     setUpdatingId(id);
     try {
       await apiService.deleteLookbook(id);
-      await load();
+      await load(limit);
+      bdsToast.success('画册已删除');
     } catch (e) {
       console.error('[MarketingManager] deleteLookbook failed', e);
       bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
@@ -302,7 +328,7 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className="bds-btn bds-btn-secondary">
+            <button onClick={() => load()} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
@@ -318,7 +344,7 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
           <div className="bds-alert danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span className="flex-1">{loadError}</span>
-            <button onClick={load} className="bds-btn bds-btn-secondary shrink-0">重试</button>
+            <button onClick={() => load()} className="bds-btn bds-btn-secondary shrink-0">重试</button>
           </div>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无画册，点击「新建画册」开始" />
@@ -404,11 +430,19 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
               </div>
             ))}
           </div>
-          {/* R3 截断诚实化：服务端 lookbookService 默认 take 50（上限 200），apiService.listLookbooks
-              丢弃响应里的 total（apiService.ts 归 Lane-A 独占）——触顶即提示，不把截断伪装成全量 */}
-          {items.length >= 50 && (
+          {/* R678 加载更多（增长窗口）：返回条数满当前窗口即可能还有；触顶服务端单次上限 200 后回退截断提示
+              （apiService.listLookbooks 已落地 limit，offset/total 未暴露——超窗部分按状态筛选定位，不把截断伪装成全量） */}
+          {items.length >= limit && limit < LOOKBOOK_MAX_WINDOW && (
+            <div className="flex justify-center mt-3">
+              <button onClick={handleLoadMore} disabled={loadingMore} className="bds-btn bds-btn-secondary">
+                {loadingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                加载更多（已显示 {items.length} 条）
+              </button>
+            </div>
+          )}
+          {items.length >= LOOKBOOK_MAX_WINDOW && limit >= LOOKBOOK_MAX_WINDOW && (
             <p className="text-xs text-center mt-2" style={{ color: 'var(--text-tertiary)' }}>
-              仅显示前 50 条画册（已达单次加载上限），更早的画册请按状态筛选定位
+              已达服务端单次加载上限 200 条，更早的画册请按状态筛选定位
             </p>
           )}
           </>
@@ -427,7 +461,8 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
                   await apiService.createLookbook(input);
                 }
                 setShowForm(false);
-                await load();
+                await load(limit);
+                bdsToast.success(editing ? '画册已更新' : '画册已创建');
               } catch (e) {
                 console.error('[MarketingManager] saveLookbook failed', e);
                 bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
@@ -442,7 +477,8 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
             onClose={() => setItemsEditing(null)}
             onSaved={async () => {
               setItemsEditing(null);
-              await load();
+              await load(limit);
+              bdsToast.success('画册条目已保存');
             }}
           />
         )}
@@ -747,6 +783,7 @@ function FabricRecommendPanel() {
       await apiService.deleteFabricRecommendation(id);
       if (latest?.id === id) setLatest(null);
       await loadHistory();
+      bdsToast.success('推荐记录已删除');
     } catch (e) {
       console.error('[MarketingManager] deleteFabricRecommendation failed', e);
       bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
@@ -760,7 +797,8 @@ function FabricRecommendPanel() {
       {/* 推荐条件 */}
       <div className="bds-card">
         <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>推荐条件</h3>
-        <div className="grid grid-cols-4 gap-3">
+        {/* R678：推荐条件网格补降级断点（与 QuotationManager/ProcurementManager 同一 grid-cols-2 xl:grid-cols-4 口径），窄容器不再挤压 */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           <Field label="季节">
             <input className={inputClass} value={season} onChange={(e) => setSeason(e.target.value)} placeholder="如 2026AW" />
           </Field>
@@ -906,8 +944,9 @@ function FabricRecommendPanel() {
               </div>
             ))}
           </div>
-          {/* R3 截断诚实化：服务端 listRecommendations 默认 take 50（上限 200），apiService 丢弃 total——
-              触顶即提示，不把截断伪装成全量 */}
+          {/* R3 截断诚实化：服务端 listRecommendations 默认 take 50（上限 200，服务端已支持 limit/offset），
+              但 apiService.listFabricRecommendations 签名未落地分页入参且丢弃 total——触顶即提示，不把截断伪装成全量；
+              apiService 补参落地后接「加载更多」（同画册面板 R678 模式） */}
           {history.length >= 50 && (
             <p className="text-xs text-center mt-2" style={{ color: 'var(--text-tertiary)' }}>
               仅显示最近 50 条推荐记录（已达单次加载上限），更早的记录暂未加载

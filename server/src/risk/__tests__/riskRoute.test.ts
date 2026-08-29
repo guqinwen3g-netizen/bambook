@@ -746,6 +746,36 @@ describe('H3 · 出口管制与人工合规录入', () => {
     expect(ok.body.item.type).toBe('origin_rule');
     expect(ok.body.item.checkedById).toBe('u1');
   });
+
+  it('R678 合规记录分页：limit/offset 透传服务端，total 为全量计数（翻页不重叠、越界空页 total 不变）', async () => {
+    const app = makeApp(prisma);
+    for (let i = 1; i <= 5; i++) {
+      const res = await request(app).post('/api/v1/risk/compliance-checks').set(auth()).send({
+        type: 'origin_rule', targetType: 'Order', targetId: `O${i}`, result: 'pass', summary: `记录 ${i}`,
+      });
+      expect(res.status).toBe(201);
+    }
+
+    const page1 = await request(app).get('/api/v1/risk/compliance-checks?type=origin_rule&limit=2').set(auth());
+    expect(page1.status).toBe(200);
+    expect(page1.body.total).toBe(5);
+    expect(page1.body.items).toHaveLength(2);
+
+    const page2 = await request(app).get('/api/v1/risk/compliance-checks?type=origin_rule&limit=2&offset=2').set(auth());
+    expect(page2.body.total).toBe(5);
+    expect(page2.body.items).toHaveLength(2);
+    const page1Ids = new Set(page1.body.items.map((c: any) => c.id));
+    expect(page2.body.items.every((c: any) => !page1Ids.has(c.id))).toBe(true);
+
+    // offset 越过末尾：空页但 total 仍为全量
+    const tail = await request(app).get('/api/v1/risk/compliance-checks?type=origin_rule&limit=2&offset=4').set(auth());
+    expect(tail.body.items).toHaveLength(1);
+    expect(tail.body.total).toBe(5);
+
+    // 不传 offset 行为不变（默认 0）：首页与显式 offset=0 等价
+    const explicit0 = await request(app).get('/api/v1/risk/compliance-checks?type=origin_rule&limit=2&offset=0').set(auth());
+    expect(explicit0.body.items.map((c: any) => c.id)).toEqual(page1.body.items.map((c: any) => c.id));
+  });
 });
 
 // ════════════════════════════════════════════════════════════════

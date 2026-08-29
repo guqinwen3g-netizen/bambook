@@ -31,6 +31,7 @@ import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { CompiledInteractiveCard } from './ui/primitives/compiledPrimitives';
+import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { SIDEBAR_HOVER_CLASS } from './ui/sidebarConstants';
 import { Relation, Order, View } from '../types';
@@ -223,7 +224,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                       <CompiledInteractiveCard
                         as="div"
                         onClick={() => handleToolClick(tool)}
-                        spotlightColor={isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(14, 165, 233, 0.12)'}
+                        spotlightColor={isDarkMode ? BAMBOOK_OS.spotlight.cardDarkColor : BAMBOOK_OS.spotlight.cardLightColor}
                         spotlightSize={isDarkMode ? 320 : 260}
                         liquidSpotlight
                         liquidSpotlightTone={isDarkMode ? 'dark' : 'light'}

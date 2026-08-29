@@ -829,15 +829,16 @@ export function createRiskService(prisma: PrismaClient) {
     });
   }
 
-  async function listComplianceChecks(query: { type?: string; result?: string; targetType?: string; targetId?: string; limit?: number }) {
+  async function listComplianceChecks(query: { type?: string; result?: string; targetType?: string; targetId?: string; limit?: number; offset?: number }) {
     const where: any = {};
     if (query.type) where.type = query.type;
     if (query.result) where.result = query.result;
     if (query.targetType) where.targetType = query.targetType;
     if (query.targetId) where.targetId = query.targetId;
     const take = Math.min(query.limit || 50, 200);
+    const skip = query.offset || 0;
     const [items, total] = await Promise.all([
-      db.complianceCheck.findMany({ where, orderBy: { checkedAt: 'desc' }, take }),
+      db.complianceCheck.findMany({ where, orderBy: { checkedAt: 'desc' }, take, skip }),
       db.complianceCheck.count({ where }),
     ]);
     return { items, total };

@@ -359,6 +359,7 @@ function AlertsPanel() {
     try {
       await apiService.updateRiskAlertStatus(item.id, status);
       await refreshAll();
+      bdsToast.success('预警状态已更新');
     } catch (e: any) {
       bdsToast.danger(`更新预警状态失败：${e?.message || e}`);
     } finally {
@@ -635,6 +636,7 @@ function FxPanel() {
       setRateValue('');
       setRateNote('');
       await refreshAll();
+      bdsToast.success('汇率已录入');
     } catch (e: any) {
       bdsToast.danger(`录入汇率失败：${e?.message || e}`);
     } finally {
@@ -663,6 +665,7 @@ function FxPanel() {
       setLockRate('');
       setLockNote('');
       await loadLocks();
+      bdsToast.success('汇率锁定已创建');
     } catch (e: any) {
       bdsToast.danger(`新建汇率锁定失败：${e?.message || e}`);
     } finally {
@@ -675,6 +678,7 @@ function FxPanel() {
     try {
       await apiService.deleteFxLock(lock.id);
       await loadLocks();
+      bdsToast.success('汇率锁定已解除');
     } catch (e: any) {
       bdsToast.danger(`删除锁定失败：${e?.message || e}`);
     }
@@ -943,6 +947,7 @@ function CreditPanel() {
       await apiService.evaluateCreditRating(evaluateRelationId);
       setEvaluateRelationId('');
       await loadRatings();
+      bdsToast.success('信用评估完成');
     } catch (e: any) {
       bdsToast.danger(`信用评估失败：${e?.message || e}`);
     } finally {
@@ -1138,6 +1143,7 @@ function CompliancePanel() {
       await apiService.runHsCodeCheck(hsDeclarationId.trim());
       setHsDeclarationId('');
       await loadChecks();
+      bdsToast.success('HS Code 检查完成');
     } catch (e: any) {
       bdsToast.danger(`HS Code 检查失败：${e?.message || e}`);
     } finally {
@@ -1155,6 +1161,7 @@ function CompliancePanel() {
       await apiService.runExportControlCheck(ecDeclarationId.trim());
       setEcDeclarationId('');
       await loadChecks();
+      bdsToast.success('出口管制检查完成');
     } catch (e: any) {
       bdsToast.danger(`出口管制检查失败：${e?.message || e}`);
     } finally {
@@ -1180,6 +1187,7 @@ function CompliancePanel() {
       setManualSummary('');
       setManualResult('pass');
       await loadChecks();
+      bdsToast.success('合规检查已登记');
     } catch (e: any) {
       bdsToast.danger(`登记合规检查失败：${e?.message || e}`);
     } finally {
@@ -1338,7 +1346,9 @@ function CompliancePanel() {
             </tbody>
           </table>
         )}
-        {/* R3 诚实化：数据源当前仅支持服务端默认窗口（50 条），达窗口上限时披露截断并引导筛选 */}
+        {/* R3 诚实化：数据源当前仅支持服务端默认窗口（50 条），达窗口上限时披露截断并引导筛选。
+            R678：服务端 listComplianceChecks 已补 limit/offset 真分页（riskRoute 透传 + total 真源），
+            前端 apiService.listComplianceChecks 的 {limit, offset} 补参在途（库存车道）——落地后此处接「加载更多」替换本提示 */}
         {!loading && !loadError && checks.length >= 50 && (
           <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
             当前为服务端默认最近 50 条窗口，更早记录请用上方类型/结果筛选缩小范围

@@ -22,7 +22,7 @@
  *   - POST /credit-risk-scan               — 手动触发信用风险扫描（owner/admin/manager）
  *
  * 合规（PRD 15.3）：
- *   - GET  /compliance-checks              — 检查记录（?type&result&targetType&targetId&limit）
+ *   - GET  /compliance-checks              — 检查记录（?type&result&targetType&targetId&limit&offset）
  *   - POST /compliance-checks/hs-code      — HS 编码校验 {declarationId}
  *   - POST /compliance-checks/export-control — 出口管制校验 {declarationId}
  *   - POST /compliance-checks              — 人工录入（origin_rule 等）{type, targetType, targetId, result, summary, details?}
@@ -239,6 +239,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
         targetType: req.query.targetType ? String(req.query.targetType) : undefined,
         targetId: req.query.targetId ? String(req.query.targetId) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
+        offset: req.query.offset ? Number(req.query.offset) : undefined,
       });
       res.json(serializeValue(result));
     } catch (e: any) {

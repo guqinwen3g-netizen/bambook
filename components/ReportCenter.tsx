@@ -233,13 +233,13 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
   const tabBtnCls = (active: boolean) =>
     `px-4 py-1.5 rounded-full text-xs font-light inline-flex items-center gap-1.5 transition-colors ${
       active
-        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
+        ? 'bg-[var(--os-vnext-brand-blue)] text-[var(--on-accent)]'
         : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
     }`;
   const chipCls = (active: boolean) =>
     `px-2.5 py-1 rounded-full text-[11px] font-light transition-colors cursor-pointer ${
       active
-        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
+        ? 'bg-[var(--os-vnext-brand-blue)] text-[var(--on-accent)]'
         : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
     }`;
 

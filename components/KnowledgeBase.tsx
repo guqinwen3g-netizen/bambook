@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
+import { bdsToast } from './ui/bdsToast';
 import { apiService } from '../services/apiService';
 
 const KB_CATEGORIES = ['Product', 'Policy', 'Customer', 'Production', 'Company', 'Supplier'] as const;
@@ -137,6 +138,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       setKnowledge([item, ...knowledgeRef.current], item);
       setNewItem({ title: '', content: '', category: 'Product' });
       setShowAddModal(false);
+      bdsToast.success('知识已入库并同步');
     } catch (e: any) {
       setKnowledgeError(e?.message || '知识写入失败，请稍后重试');
     } finally {
@@ -152,6 +154,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       const saved = { ...editingItem, updatedAt };
       setKnowledge(knowledgeRef.current.map(k => (k.id === saved.id ? saved : k)), saved);
       setEditingItem(null);
+      bdsToast.success('修正已保存');
     };
     try {
       const result = await apiService.updateKnowledgeDocument(editingItem.id, {
@@ -181,6 +184,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         setKnowledge(knowledgeRef.current.map(k => (k.id === targetId ? tombstone : k)), tombstone);
       }
       setDeleteConfirmId(null);
+      bdsToast.success('已移入回收站');
     };
     try {
       await apiService.deleteKnowledgeDocument(targetId);
@@ -307,6 +311,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       }
       setSopShowNew(false);
       setSopEditing(null);
+      bdsToast.success(sopEditing ? 'SOP 模板已更新' : 'SOP 模板已创建');
     } catch (e: any) {
       setSopError(e?.message || 'SOP 保存失败');
     } finally {
@@ -323,6 +328,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       setSopTemplates(prev => prev.filter(t => t.id !== sopDeleteId));
       if (sopDetail?.id === sopDeleteId) setSopDetail(null);
       setSopDeleteId(null);
+      bdsToast.success('SOP 模板已删除');
     } catch (e: any) {
       setSopError(e?.message || 'SOP 删除失败');
     } finally {
@@ -359,11 +365,23 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
     }
   };
 
+  // R678：头部搜索对全部列表型 tab 生效（qa 为问答面板无可过滤列表，搜索框在该 tab 不渲染）
+  const searchQuery = searchTerm.trim().toLowerCase();
   const filteredOfficial = knowledge.filter(k =>
     !k.deletedAt && (
-      k.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      k.content.toLowerCase().includes(searchTerm.toLowerCase())
+      !searchQuery ||
+      k.title.toLowerCase().includes(searchQuery) ||
+      k.content.toLowerCase().includes(searchQuery)
     )
+  );
+  const filteredInsights = insights.filter(i =>
+    !searchQuery || i.fact.toLowerCase().includes(searchQuery)
+  );
+  const filteredSopTemplates = sopTemplates.filter(t =>
+    !searchQuery ||
+    t.title.toLowerCase().includes(searchQuery) ||
+    (t.summary || '').toLowerCase().includes(searchQuery) ||
+    t.content.toLowerCase().includes(searchQuery)
   );
   // R3：文档总数诚实提示（listKnowledgeDocuments 当前全量拉取无分页；后续分页化后以服务端 total 替换本计数口径）
   const officialTotal = knowledge.reduce((n, k) => n + (k.deletedAt ? 0 : 1), 0);
@@ -380,15 +398,18 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         isDarkMode={isDarkMode}
         actions={(
           <div className="flex items-center gap-4 shrink-0">
+            {/* R678：qa tab 为问答面板（无可过滤列表），搜索框仅列表型 tab 渲染，避免输入无效 */}
+            {activeTab !== 'qa' && (
             <div className="relative group">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${'text-[var(--text-quaternary)] group-focus-within:text-[var(--text-link)]'}`} size={14} />
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="搜索资产..."
+                placeholder={activeTab === 'memory' ? '搜索记忆...' : activeTab === 'sop' ? '搜索模板...' : '搜索资产...'}
                 className={`bds-input pl-9 pr-4 py-2 rounded-control text-xs w-64`}
               />
             </div>
+            )}
             <button onClick={() => setShowAddModal(true)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 transition-colors duration-200 text-[11px] font-light tracking-wide ${'bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'}`}>
               <Plus size={14} strokeWidth={1.5} /> 新增资产
             </button>
@@ -401,9 +422,9 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       <div className={`${BAMBOOK_OS.layout.desktopSubtoolbarClass} justify-center bg-transparent`}>
         <div className={`inline-flex p-1 rounded-full ${BAMBOOK_OS.controls.actionControl.base}`}>
           <button onClick={() => setActiveTab('official')} className={tabButtonClass('official')}>官方知识库 ({filteredOfficial.length})</button>
-          <button onClick={() => setActiveTab('memory')} className={tabButtonClass('memory')}>智脑神经记忆 ({insights.length})</button>
+          <button onClick={() => setActiveTab('memory')} className={tabButtonClass('memory')}>智脑神经记忆 ({filteredInsights.length})</button>
           <button onClick={() => setActiveTab('qa')} className={tabButtonClass('qa')}>智能问答</button>
-          <button onClick={() => setActiveTab('sop')} className={tabButtonClass('sop')}>SOP 模板 ({sopTemplates.length})</button>
+          <button onClick={() => setActiveTab('sop')} className={tabButtonClass('sop')}>SOP 模板 ({filteredSopTemplates.length})</button>
         </div>
       </div>
 
@@ -451,7 +472,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
         {activeTab === 'memory' && (
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
-            {insights.map(insight => (
+            {filteredInsights.map(insight => (
               <motion.div layout key={insight.id} className={`shrink-0 p-6 flex flex-col ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
                 <div className="flex-1">
                   <p className={`text-[14px] font-light leading-relaxed italic ${'text-[var(--text-secondary)]'}`}>"{insight.fact}"</p>
@@ -464,6 +485,12 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 </div>
               </motion.div>
             ))}
+            {filteredInsights.length === 0 && (
+              <div className={`w-full py-20 flex flex-col items-center justify-center ${'text-[var(--text-quaternary)]'}`}>
+                <Database size={24} strokeWidth={1.5} className="opacity-10 mb-4" />
+                <p className="text-xs font-light tracking-wide">{searchQuery ? '暂无匹配的记忆条目' : '暂无神经记忆'}</p>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -569,7 +596,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
             ) : (
               <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 justify-center content-start">
-                {sopTemplates.map(tpl => (
+                {filteredSopTemplates.map(tpl => (
                   <motion.div layout key={tpl.id} onClick={() => { setSopDetail(tpl); setSopInstantiatedMsg(''); setSopError(null); }} className={`shrink-0 p-6 flex flex-col cursor-pointer ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
                     <div className="mb-3 flex items-center gap-2">
                       <span className={`px-2.5 py-1 text-[9px] font-light tracking-wide rounded-full border ${BAMBOOK_OS.controls.actionControl.base}`}>{tpl.category}</span>
@@ -585,10 +612,10 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                     </div>
                   </motion.div>
                 ))}
-                {sopTemplates.length === 0 && !sopLoading && (
+                {filteredSopTemplates.length === 0 && !sopLoading && (
                   <div className={`w-full py-20 flex flex-col items-center justify-center ${'text-[var(--text-quaternary)]'}`}>
                     <ListChecks size={24} strokeWidth={1.5} className="opacity-10 mb-4" />
-                    <p className="text-xs font-light tracking-wide">暂无 SOP 模板</p>
+                    <p className="text-xs font-light tracking-wide">{searchQuery ? '暂无匹配的 SOP 模板' : '暂无 SOP 模板'}</p>
                   </div>
                 )}
               </motion.div>
@@ -604,7 +631,8 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-xl overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-12 py-8 border-b flex items-center justify-between ${'border-[var(--border-c-default)]'}`}>
               <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{editingItem ? '修正资产档案' : '录入新资产'}</h3>
-              <button onClick={() => { setShowAddModal(false); setEditingItem(null); }} className={`bds-btn bds-btn-icon sm rounded-full ${BAMBOOK_OS.controls.actionControl.base}`}><X size={18} /></button>
+              {/* R678：X 关闭时重置草稿与错误态，避免重开残留上次输入 */}
+              <button onClick={() => { setShowAddModal(false); setEditingItem(null); setNewItem({ title: '', content: '', category: 'Product' }); setKnowledgeError(null); }} className={`bds-btn bds-btn-icon sm rounded-full ${BAMBOOK_OS.controls.actionControl.base}`}><X size={18} /></button>
             </div>
             <div className="p-12 space-y-8">
               <div className="space-y-4">
