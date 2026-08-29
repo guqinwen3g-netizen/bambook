@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, Plus, UserCircle2, X } from 'lucide-react';
 import {
-  hrTokens, hrFormatDate, hrOptionLabel,
+  hrTokens, hrFormatDate, hrOptionLabel, hrErrorMessage,
   type HrPersonnelOption,
 } from './hrTokens';
 import {
@@ -12,7 +12,9 @@ import {
   EMPLOYMENT_STATUS_OPTIONS, EMPLOYMENT_EVENT_OPTIONS, CONTRACT_TYPE_OPTIONS,
   type EmployeeProfile, type EmploymentEvent, type EmploymentEventType,
 } from '../../services/hrService';
+import { hasPermission } from '../../services/authService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { buildDepartmentOptions } from '../../lib/departmentTree';
 
@@ -64,12 +66,17 @@ const eventSemantic = (type: string): StatusSemantic => {
 const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, personnel, departments, positions }) => {
   const t = hrTokens(isDarkMode);
 
+  // R678-③ 写操作按 hr:write 门控显隐（与后端写门同口径），无权限时只读
+  const canWrite = hasPermission('hr:write');
+
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState('');
+  // R678-⑧ 部门筛选（后端 /employees deptId 已支持）
+  const [deptFilter, setDeptFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
@@ -86,6 +93,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
     try {
       const rows = await hrService.listEmployees({
         status: statusFilter || undefined,
+        deptId: deptFilter || undefined,
         q: searchTerm.trim() || undefined,
       });
       setEmployees(rows);
@@ -94,13 +102,13 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
         setShowProfileForm(false);
       }
     } catch (e: any) {
-      setError(e?.message || '加载员工档案失败');
+      setError(hrErrorMessage(e, '加载员工档案失败'));
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm, selectedUserId]);
+  }, [statusFilter, deptFilter, searchTerm, selectedUserId]);
 
-  useEffect(() => { load(); }, [statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [statusFilter, deptFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEvents = useCallback(async (userId: string) => {
     try {
@@ -149,6 +157,12 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
     setEvents([]);
   };
 
+  // R678-④ 取消统一 reset + hide（此前档案表单无取消入口，只能覆盖式保存）
+  const closeProfileForm = () => {
+    setProfileForm(emptyProfileForm);
+    setShowProfileForm(false);
+  };
+
   const submitProfile = async () => {
     if (!profileForm.userId) { setError('请选择员工'); return; }
     if (!profileForm.hireDate) { setError('入职日期必填'); return; }
@@ -167,11 +181,12 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
         workLocation: profileForm.workLocation || null,
         notes: profileForm.notes || null,
       });
+      bdsToast.success('员工档案已保存');
       await load();
       setSelectedUserId(profileForm.userId);
       loadEvents(profileForm.userId);
     } catch (e: any) {
-      setError(e?.message || '保存档案失败');
+      setError(hrErrorMessage(e, '保存档案失败'));
     } finally {
       setBusy(false);
     }
@@ -194,10 +209,11 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
       });
       setEventForm(emptyEventForm);
       setShowEventForm(false);
+      bdsToast.success('异动已登记');
       await load();
       loadEvents(selectedUserId);
     } catch (e: any) {
-      setError(e?.message || '登记异动失败');
+      setError(hrErrorMessage(e, '登记异动失败'));
     } finally {
       setBusy(false);
     }
@@ -218,13 +234,19 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
           <option value="">全部状态</option>
           {EMPLOYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+        <select className={`${t.selectCls} max-w-40`} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
+          <option value="">全部部门</option>
+          {buildDepartmentOptions(departments).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+        </select>
         <button onClick={load} className={t.actionButtonCls}>查询</button>
         <span className={t.sectionMutedClass}>共 {employees.length} 人</span>
-        <div className="ml-auto">
-          <button onClick={openNewProfile} className={t.primaryButtonCls} disabled={unprofiled.length === 0}>
-            <Plus className="w-3.5 h-3.5" /> 新建档案
-          </button>
-        </div>
+        {canWrite && (
+          <div className="ml-auto">
+            <button onClick={openNewProfile} className={t.primaryButtonCls} disabled={unprofiled.length === 0}>
+              <Plus className="w-3.5 h-3.5" /> 新建档案
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -265,7 +287,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
             {!loading && employees.length === 0 && (
               <div className={`py-12 text-center ${t.sectionMutedClass}`}>
                 <UserCircle2 className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                {searchTerm || statusFilter ? '无匹配员工' : '暂无员工档案，点击右上角「新建档案」'}
+                {searchTerm || statusFilter || deptFilter ? '无匹配员工' : '暂无员工档案，点击右上角「新建档案」'}
               </div>
             )}
             {loading && <div className={`py-12 text-center ${t.sectionMutedClass}`}>加载中…</div>}
@@ -357,9 +379,12 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
               )}
 
               <div className="flex justify-end gap-2 pt-1">
-                <button onClick={submitProfile} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
-                  <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '保存档案'}
-                </button>
+                <button onClick={closeProfileForm} className={t.actionButtonCls}>取消</button>
+                {canWrite && (
+                  <button onClick={submitProfile} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+                    <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '保存档案'}
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -373,12 +398,14 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
             <div className={`${t.cardClass} p-5 space-y-3`}>
               <div className="flex items-center justify-between">
                 <div className={t.sectionTitleClass}>异动记录</div>
-                <button onClick={() => setShowEventForm(v => !v)} className={t.subtleButtonCls}>
-                  <Plus className="w-3 h-3" /> 登记异动
-                </button>
+                {canWrite && (
+                  <button onClick={() => { if (showEventForm) setEventForm(emptyEventForm); setShowEventForm(v => !v); }} className={t.subtleButtonCls}>
+                    <Plus className="w-3 h-3" /> 登记异动
+                  </button>
+                )}
               </div>
 
-              {showEventForm && (
+              {showEventForm && canWrite && (
                 <div className="space-y-3 rounded-compact border border-[var(--border-c-default)] p-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -420,7 +447,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                       onChange={e => setEventForm(f => ({ ...f, reason: e.target.value }))} />
                   </div>
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => setShowEventForm(false)} className={t.actionButtonCls}>取消</button>
+                    <button onClick={() => { setEventForm(emptyEventForm); setShowEventForm(false); }} className={t.actionButtonCls}>取消</button>
                     <button onClick={submitEvent} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                       <Check className="w-3.5 h-3.5" /> 提交
                     </button>

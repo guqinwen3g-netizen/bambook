@@ -10,8 +10,9 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Pencil, Plus, RefreshCw, Trash2, UserPlus, Users, X } from 'lucide-react';
-import { hrTokens, type HrPersonnelOption } from './hrTokens';
+import { hrTokens, hrErrorMessage, type HrPersonnelOption } from './hrTokens';
 import { apiService } from '../../services/apiService';
+import { hasPermission } from '../../services/authService';
 import { bdsToast } from '../ui/bdsToast';
 import { bdsConfirm, bdsPrompt } from '../ui/BdsDialog';
 import { buildDepartmentOptions } from '../../lib/departmentTree';
@@ -59,6 +60,9 @@ const emptyTeamForm = { name: '', description: '', leaderId: '', departmentId: '
 const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, personnel, departments }) => {
   const t = hrTokens(isDarkMode);
 
+  // R678-③ 写操作按 hr:write 门控显隐（与后端写门同口径），无权限时只读
+  const canWrite = hasPermission('hr:write');
+
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -85,7 +89,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       const d = await apiService.hrGet<{ teams?: TeamRow[] }>('teams');
       setTeams(d.teams || []);
     } catch (e: any) {
-      setError(e?.message || '加载小组列表失败');
+      setError(hrErrorMessage(e, '加载小组列表失败'));
     } finally {
       setLoading(false);
     }
@@ -99,7 +103,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       const d = await apiService.hrGet<{ grants?: GrantRow[] }>(`teams/${teamId}/grants`);
       setGrants(d.grants || []);
     } catch (e: any) {
-      bdsToast.danger(e?.message || '授权列表加载失败');
+      bdsToast.danger(hrErrorMessage(e, '授权列表加载失败'));
     } finally {
       setGrantsLoading(false);
     }
@@ -110,8 +114,10 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
     try {
       const d = await apiService.hrGet<{ overview?: TeamOverview }>(`teams/${teamId}/overview`);
       setOverview(d.overview || null);
-    } catch {
-      setOverview(null); // 概况加载失败不阻断组管理主流程
+    } catch (e: any) {
+      // R678-⑥ 概况加载失败不再静默——错误条提示，组管理主流程不阻断
+      setOverview(null);
+      bdsToast.danger(hrErrorMessage(e, '组经营概况加载失败'));
     }
   }, []);
 
@@ -167,7 +173,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       setTeamForm(emptyTeamForm);
       await loadTeams();
     } catch (e: any) {
-      setError(e?.message || (editingTeamId ? '更新小组失败' : '创建小组失败'));
+      setError(hrErrorMessage(e, editingTeamId ? '更新小组失败' : '创建小组失败'));
     } finally {
       setBusyId(null);
     }
@@ -187,7 +193,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       setGrants([]);
       await loadTeams();
     } catch (e: any) {
-      bdsToast.danger(e?.message || '解散失败');
+      bdsToast.danger(hrErrorMessage(e, '解散失败'));
     } finally {
       setBusyId(null);
     }
@@ -199,9 +205,10 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
     try {
       await apiService.hrSend(`teams/${team.id}/members`, { userId: memberUserId });
       setMemberUserId('');
+      bdsToast.success('成员已加入');
       await loadTeams();
     } catch (e: any) {
-      bdsToast.danger(e?.message || '添加成员失败');
+      bdsToast.danger(hrErrorMessage(e, '添加成员失败'));
     } finally {
       setBusyId(null);
     }
@@ -218,9 +225,10 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
     setBusyId(`rm-member-${userId}`);
     try {
       await apiService.hrSend(`teams/${team.id}/members/${userId}`, {}, 'DELETE');
+      bdsToast.success('成员已移出');
       await loadTeams();
     } catch (e: any) {
-      bdsToast.danger(e?.message || '移除成员失败');
+      bdsToast.danger(hrErrorMessage(e, '移除成员失败'));
     } finally {
       setBusyId(null);
     }
@@ -236,7 +244,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       bdsToast.success('已共享客户档案到小组');
       await Promise.all([loadGrants(team.id), loadOverview(team.id)]);
     } catch (e: any) {
-      bdsToast.danger(e?.message || '共享失败（仅对客户档案有写权限者可共享，DR-042 §6.1）');
+      bdsToast.danger(hrErrorMessage(e, '共享失败（仅对客户档案有写权限者可共享，DR-042 §6.1）'));
     } finally {
       setBusyId(null);
     }
@@ -251,7 +259,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       bdsToast.success('授权已撤销');
       await Promise.all([loadGrants(team.id), loadOverview(team.id)]);
     } catch (e: any) {
-      bdsToast.danger(e?.message || '撤销失败');
+      bdsToast.danger(hrErrorMessage(e, '撤销失败'));
     } finally {
       setBusyId(null);
     }
@@ -276,13 +284,17 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             <button type="button" onClick={() => { setDetailTeamId(null); setGrants([]); setOverview(null); }} className={t.actionButtonCls}>
               <X size={14} strokeWidth={1.5} />返回列表
             </button>
-            <button type="button" onClick={() => openEdit(detailTeam)} className={t.actionButtonCls}>
-              <Pencil size={14} />编辑
-            </button>
-            <button type="button" onClick={() => dissolveTeam(detailTeam)} disabled={busyId === `dissolve-${detailTeam.id}`}
-              className={`${t.dangerButtonCls} disabled:opacity-50`}>
-              <Trash2 size={14} />解散
-            </button>
+            {canWrite && (
+              <>
+                <button type="button" onClick={() => openEdit(detailTeam)} className={t.actionButtonCls}>
+                  <Pencil size={14} />编辑
+                </button>
+                <button type="button" onClick={() => dissolveTeam(detailTeam)} disabled={busyId === `dissolve-${detailTeam.id}`}
+                  className={`${t.dangerButtonCls} disabled:opacity-50`}>
+                  <Trash2 size={14} />解散
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -347,29 +359,33 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             {members.map(m => (
               <span key={m.id || m.userId} className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--accent-text)]">
                 {personnel.find(u => u.id === m.userId)?.displayName || m.userId}{m.role === 'leader' && ' · 组长'}
-                <button type="button" onClick={() => removeMember(detailTeam, m.userId)} disabled={busyId === `rm-member-${m.userId}`}
-                  className="opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30" title="移除出组">
-                  <X size={14} />
-                </button>
+                {canWrite && (
+                  <button type="button" onClick={() => removeMember(detailTeam, m.userId)} disabled={busyId === `rm-member-${m.userId}`}
+                    className="opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30" title="移除出组">
+                    <X size={14} />
+                  </button>
+                )}
               </span>
             ))}
             {members.length === 0 && <span className={`text-[11px] font-light ${t.textSecondaryClass}`}>暂无成员（B-04：空组授权无害空转）</span>}
           </div>
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className={t.labelCls}>添加成员</label>
-              <select className={t.selectCls + ' mt-1'} value={memberUserId} onChange={e => setMemberUserId(e.target.value)}>
-                <option value="">选择用户</option>
-                {personnel.filter(u => !members.some(m => m.userId === u.id)).map(u => (
-                  <option key={u.id} value={u.id}>{u.displayName}</option>
-                ))}
-              </select>
+          {canWrite && (
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className={t.labelCls}>添加成员</label>
+                <select className={t.selectCls + ' mt-1'} value={memberUserId} onChange={e => setMemberUserId(e.target.value)}>
+                  <option value="">选择用户</option>
+                  {personnel.filter(u => !members.some(m => m.userId === u.id)).map(u => (
+                    <option key={u.id} value={u.id}>{u.displayName}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" disabled={!memberUserId || busyId === 'add-member'} onClick={() => addMember(detailTeam)}
+                className={t.primaryButtonCls + ' disabled:opacity-50'}>
+                <UserPlus size={14} />加入
+              </button>
             </div>
-            <button type="button" disabled={!memberUserId || busyId === 'add-member'} onClick={() => addMember(detailTeam)}
-              className={t.primaryButtonCls + ' disabled:opacity-50'}>
-              <UserPlus size={14} />加入
-            </button>
-          </div>
+          )}
         </div>
 
         {/* 授权管理 */}
@@ -381,32 +397,34 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
               <RefreshCw size={14} />刷新
             </button>
           </div>
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className={t.labelCls}>选择客户（我可见范围内）</label>
-              <select className={t.selectCls + ' mt-1'} value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}>
-                <option value="">{relationOptions.length === 0 ? '暂无可共享的客户' : '选择要共享的客户档案'}</option>
-                {relationOptions
-                  .filter(r => !activeGrants.some(g => g.entityId === r.id))
-                  .map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}{r.code ? `（${r.code}）` : ''}{r.stage ? ` · ${r.stage}` : ''}
-                    </option>
-                  ))}
-              </select>
+          {canWrite && (
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className={t.labelCls}>选择客户（我可见范围内）</label>
+                <select className={t.selectCls + ' mt-1'} value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}>
+                  <option value="">{relationOptions.length === 0 ? '暂无可共享的客户' : '选择要共享的客户档案'}</option>
+                  {relationOptions
+                    .filter(r => !activeGrants.some(g => g.entityId === r.id))
+                    .map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}{r.code ? `（${r.code}）` : ''}{r.stage ? ` · ${r.stage}` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className={t.labelCls}>档位</label>
+                <select className={t.selectCls + ' mt-1'} value={grantPermission} onChange={e => setGrantPermission(e.target.value as 'read' | 'read+followup')}>
+                  <option value="read+followup">可查看 + 可跟进</option>
+                  <option value="read">仅查看</option>
+                </select>
+              </div>
+              <button type="button" disabled={!grantRelationId.trim() || busyId === 'add-grant'} onClick={() => grantShare(detailTeam)}
+                className={t.primaryButtonCls + ' disabled:opacity-50'}>
+                <Check size={14} />共享
+              </button>
             </div>
-            <div>
-              <label className={t.labelCls}>档位</label>
-              <select className={t.selectCls + ' mt-1'} value={grantPermission} onChange={e => setGrantPermission(e.target.value as 'read' | 'read+followup')}>
-                <option value="read+followup">可查看 + 可跟进</option>
-                <option value="read">仅查看</option>
-              </select>
-            </div>
-            <button type="button" disabled={!grantRelationId.trim() || busyId === 'add-grant'} onClick={() => grantShare(detailTeam)}
-              className={t.primaryButtonCls + ' disabled:opacity-50'}>
-              <Check size={14} />共享
-            </button>
-          </div>
+          )}
           <div className="space-y-1.5">
             {grants.length === 0 && <span className={`text-[11px] font-light ${t.textSecondaryClass}`}>暂无授权记录</span>}
             {grants.map(g => (
@@ -422,7 +440,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
                     ? <span className="rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]">已撤销</span>
                     : <span className="rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">生效中</span>}
                 </div>
-                {!g.revokedAt && (
+                {canWrite && !g.revokedAt && (
                   <button type="button" onClick={() => revokeShare(detailTeam, g)} disabled={busyId === `revoke-${g.id}`}
                     className={t.dangerButtonCls + ' disabled:opacity-50'}>
                     <X size={14} />撤销
@@ -441,15 +459,17 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className={t.sectionTitleClass}>{teams.length} 个小组 · 跨部门业务协作单元</span>
-        <button type="button" onClick={() => (showForm && !editingTeamId ? setShowForm(false) : openCreate())} className={t.actionButtonCls}>
-          {showForm && !editingTeamId ? <X size={14} strokeWidth={1.5} /> : <Plus size={14} strokeWidth={1.5} />}
-          {showForm && !editingTeamId ? '取消' : '新建小组'}
-        </button>
+        {canWrite && (
+          <button type="button" onClick={() => (showForm && !editingTeamId ? setShowForm(false) : openCreate())} className={t.actionButtonCls}>
+            {showForm && !editingTeamId ? <X size={14} strokeWidth={1.5} /> : <Plus size={14} strokeWidth={1.5} />}
+            {showForm && !editingTeamId ? '取消' : '新建小组'}
+          </button>
+        )}
       </div>
 
       {error && <div className="text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
 
-      {showForm && (
+      {showForm && canWrite && (
         <div className={t.cardClass + ' p-5 space-y-4'}>
           <div>
             <h3 className={t.sectionTitleClass}>{editingTeamId ? '编辑小组' : '新建小组'}</h3>
@@ -519,9 +539,11 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
               <p className={`mt-1 text-[11px] font-light ${t.textSecondaryClass} truncate`}>{team.description || '无描述'}</p>
             </div>
             <div className="flex gap-2 shrink-0">
-              <button type="button" onClick={() => openEdit(team)} className={t.actionButtonCls}>
-                <Pencil size={14} />编辑
-              </button>
+              {canWrite && (
+                <button type="button" onClick={() => openEdit(team)} className={t.actionButtonCls}>
+                  <Pencil size={14} />编辑
+                </button>
+              )}
               <button type="button" onClick={() => { setDetailTeamId(team.id); setGrants([]); setOverview(null); loadGrants(team.id); loadOverview(team.id); loadRelationOptions(); }} className={t.actionButtonCls}>
                 <Users size={14} strokeWidth={1.5} />管理
               </button>

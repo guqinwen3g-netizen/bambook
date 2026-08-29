@@ -3,14 +3,16 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, Plus, X } from 'lucide-react';
-import { hrTokens, hrOptionLabel, type HrPersonnelOption } from './hrTokens';
+import { hrTokens, hrOptionLabel, hrErrorMessage, type HrPersonnelOption } from './hrTokens';
 import {
   hrService,
   ATTENDANCE_STATUS_OPTIONS, LEAVE_TYPE_OPTIONS, LEAVE_STATUS_OPTIONS,
   type AttendanceRecord, type AttendanceSummaryRow, type LeaveRequest, type LeaveType,
 } from '../../services/hrService';
+import { hasPermission } from '../../services/authService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import { bdsConfirm, bdsPrompt } from '../ui/BdsDialog';
+import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface AttendanceLeaveTabProps {
@@ -50,6 +52,9 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
   const t = hrTokens(isDarkMode);
   const [subView, setSubView] = useState<'records' | 'leave'>('records');
 
+  // R678-③ 写操作按 hr:write 门控显隐（与后端写门同口径），无权限时只读
+  const canWrite = hasPermission('hr:write');
+
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -59,6 +64,8 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
   const [summary, setSummary] = useState<AttendanceSummaryRow[]>([]);
   const [attLoading, setAttLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  // R678-⑧ 员工筛选（后端 /attendance userId 已支持）
+  const [attUserFilter, setAttUserFilter] = useState('');
   const [showAttForm, setShowAttForm] = useState(false);
   const [attForm, setAttForm] = useState(emptyAttendanceForm);
 
@@ -73,17 +80,17 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
     setAttLoading(true);
     try {
       const [rows, sum] = await Promise.all([
-        hrService.listAttendance({ month, status: statusFilter || undefined }),
+        hrService.listAttendance({ month, status: statusFilter || undefined, userId: attUserFilter || undefined }),
         hrService.attendanceSummary(month),
       ]);
       setRecords(rows);
       setSummary(sum);
     } catch (e: any) {
-      setError(e?.message || '加载考勤失败');
+      setError(hrErrorMessage(e, '加载考勤失败'));
     } finally {
       setAttLoading(false);
     }
-  }, [month, statusFilter]);
+  }, [month, statusFilter, attUserFilter]);
 
   const loadLeave = useCallback(async () => {
     setLeaveLoading(true);
@@ -91,7 +98,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
       const rows = await hrService.listLeaveRequests({ status: leaveStatusFilter || undefined });
       setLeaveRequests(rows);
     } catch (e: any) {
-      setError(e?.message || '加载请假单失败');
+      setError(hrErrorMessage(e, '加载请假单失败'));
     } finally {
       setLeaveLoading(false);
     }
@@ -127,9 +134,10 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
       });
       setAttForm(emptyAttendanceForm);
       setShowAttForm(false);
+      bdsToast.success('考勤已登记');
       await loadAttendance();
     } catch (e: any) {
-      setError(e?.message || '登记考勤失败');
+      setError(hrErrorMessage(e, '登记考勤失败'));
     } finally {
       setBusy(false);
     }
@@ -153,9 +161,10 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
       });
       setLeaveForm(emptyLeaveForm);
       setShowLeaveForm(false);
+      bdsToast.success('请假单已提交');
       await loadLeave();
     } catch (e: any) {
-      setError(e?.message || '提交请假单失败');
+      setError(hrErrorMessage(e, '提交请假单失败'));
     } finally {
       setBusy(false);
     }
@@ -173,9 +182,10 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
     setError('');
     try {
       await hrService.decideLeaveRequest(id, decision, rejectReason);
+      bdsToast.success(decision === 'Approved' ? '已批准请假单' : '已驳回请假单');
       await loadLeave();
     } catch (e: any) {
-      setError(e?.message || '审批失败');
+      setError(hrErrorMessage(e, '审批失败'));
     } finally {
       setBusy(false);
     }
@@ -195,9 +205,10 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
     setError('');
     try {
       await hrService.cancelLeaveRequest(id);
+      bdsToast.success('请假单已取消');
       await loadLeave();
     } catch (e: any) {
-      setError(e?.message || '取消失败');
+      setError(hrErrorMessage(e, '取消失败'));
     } finally {
       setBusy(false);
     }
@@ -226,11 +237,17 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <option value="">全部状态</option>
               {ATTENDANCE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <div className="ml-auto">
-              <button onClick={() => setShowAttForm(v => !v)} className={t.primaryButtonCls}>
-                <Plus className="w-3.5 h-3.5" /> 登记考勤
-              </button>
-            </div>
+            <select className={`${t.selectCls} max-w-36`} value={attUserFilter} onChange={e => setAttUserFilter(e.target.value)}>
+              <option value="">全部员工</option>
+              {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
+            </select>
+            {canWrite && (
+              <div className="ml-auto">
+                <button onClick={() => setShowAttForm(v => !v)} className={t.primaryButtonCls}>
+                  <Plus className="w-3.5 h-3.5" /> 登记考勤
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -238,11 +255,13 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <option value="">全部状态</option>
               {LEAVE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <div className="ml-auto">
-              <button onClick={() => setShowLeaveForm(v => !v)} className={t.primaryButtonCls}>
-                <Plus className="w-3.5 h-3.5" /> 新建请假单
-              </button>
-            </div>
+            {canWrite && (
+              <div className="ml-auto">
+                <button onClick={() => setShowLeaveForm(v => !v)} className={t.primaryButtonCls}>
+                  <Plus className="w-3.5 h-3.5" /> 新建请假单
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -275,7 +294,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
             ))}
           </div>
 
-          {showAttForm && (
+          {showAttForm && canWrite && (
             <div className={`${t.cardClass} mx-1 p-5 space-y-3`}>
               <div className={t.sectionTitleClass}>登记考勤（同日同人覆盖更新）</div>
               <div className="grid grid-cols-4 gap-3">
@@ -309,7 +328,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                   onChange={e => setAttForm(f => ({ ...f, note: e.target.value }))} placeholder="留空则按 09:30-17:30 自动推导状态" />
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowAttForm(false)} className={t.actionButtonCls}>取消</button>
+                <button onClick={() => { setAttForm({ ...emptyAttendanceForm, date: today() }); setShowAttForm(false); }} className={t.actionButtonCls}>取消</button>
                 <button onClick={submitAttendance} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                   <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '保存'}
                 </button>
@@ -355,7 +374,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
       {/* ── 请假子视图 ── */}
       {subView === 'leave' && (
         <>
-          {showLeaveForm && (
+          {showLeaveForm && canWrite && (
             <div className={`${t.cardClass} mx-1 p-5 space-y-3`}>
               <div className={t.sectionTitleClass}>新建请假单</div>
               <div className="grid grid-cols-3 gap-3">
@@ -396,7 +415,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowLeaveForm(false)} className={t.actionButtonCls}>取消</button>
+                <button onClick={() => { setLeaveForm(emptyLeaveForm); setShowLeaveForm(false); }} className={t.actionButtonCls}>取消</button>
                 <button onClick={submitLeave} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                   <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '提交'}
                 </button>
@@ -428,13 +447,13 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                     </span>
                   </div>
                   <div className={`${t.tdCls} flex items-center gap-1.5`}>
-                    {r.status === 'Pending' && (
+                    {canWrite && r.status === 'Pending' && (
                       <>
                         <button disabled={busy} onClick={() => decide(r.id, 'Approved')} className={t.subtleButtonCls}>批准</button>
                         <button disabled={busy} onClick={() => decide(r.id, 'Rejected')} className={t.dangerButtonCls}>拒绝</button>
                       </>
                     )}
-                    {(r.status === 'Pending' || r.status === 'Approved') && (
+                    {canWrite && (r.status === 'Pending' || r.status === 'Approved') && (
                       <button disabled={busy} onClick={() => cancelLeave(r.id)} className={t.subtleButtonCls}>取消</button>
                     )}
                     {r.status === 'Rejected' && r.rejectReason && (

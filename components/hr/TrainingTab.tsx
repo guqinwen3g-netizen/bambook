@@ -3,13 +3,15 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
-import { hrTokens, hrFormatDate, hrOptionLabel, type HrPersonnelOption } from './hrTokens';
+import { hrTokens, hrFormatDate, hrOptionLabel, hrErrorMessage, type HrPersonnelOption } from './hrTokens';
 import {
   hrService, COURSE_STATUS_OPTIONS, ENROLLMENT_STATUS_OPTIONS,
   type TrainingCourse, type TrainingEnrollment, type EnrollmentStatus,
 } from '../../services/hrService';
+import { hasPermission } from '../../services/authService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import { bdsConfirm } from '../ui/BdsDialog';
+import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface TrainingTabProps {
@@ -44,6 +46,9 @@ const emptyCourseForm = {
 const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
   const t = hrTokens(isDarkMode);
 
+  // R678-③ 写操作按 hr:write 门控显隐（与后端写门同口径），无权限时只读
+  const canWrite = hasPermission('hr:write');
+
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -65,7 +70,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
       const rows = await hrService.listTrainingCourses({ status: statusFilter || undefined });
       setCourses(rows);
     } catch (e: any) {
-      setError(e?.message || '加载课程失败');
+      setError(hrErrorMessage(e, '加载课程失败'));
     } finally {
       setCoursesLoading(false);
     }
@@ -76,7 +81,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
       const rows = await hrService.listEnrollments({ courseId });
       setEnrollments(rows);
     } catch (e: any) {
-      setError(e?.message || '加载报名记录失败');
+      setError(hrErrorMessage(e, '加载报名记录失败'));
     }
   }, []);
 
@@ -116,10 +121,11 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
       });
       setCourseForm(emptyCourseForm);
       setShowCourseForm(false);
+      bdsToast.success('课程已创建');
       await loadCourses();
       setSelectedCourseId(course.id);
     } catch (e: any) {
-      setError(e?.message || '创建课程失败');
+      setError(hrErrorMessage(e, '创建课程失败'));
     } finally {
       setBusy(false);
     }
@@ -130,9 +136,10 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
     setError('');
     try {
       await hrService.updateTrainingCourse(id, { status });
+      bdsToast.success('课程状态已更新');
       await loadCourses();
     } catch (e: any) {
-      setError(e?.message || '更新课程状态失败');
+      setError(hrErrorMessage(e, '更新课程状态失败'));
     } finally {
       setBusy(false);
     }
@@ -152,9 +159,10 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
     try {
       await hrService.deleteTrainingCourse(id);
       if (selectedCourseId === id) setSelectedCourseId(null);
+      bdsToast.success('课程已删除');
       await loadCourses();
     } catch (e: any) {
-      setError(e?.message || '删除课程失败');
+      setError(hrErrorMessage(e, '删除课程失败'));
     } finally {
       setBusy(false);
     }
@@ -167,10 +175,11 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
     try {
       await hrService.enrollTraining(selectedCourseId, enrollUserId);
       setEnrollUserId('');
+      bdsToast.success('报名成功');
       await loadEnrollments(selectedCourseId);
       await loadCourses();
     } catch (e: any) {
-      setError(e?.message || '报名失败');
+      setError(hrErrorMessage(e, '报名失败'));
     } finally {
       setBusy(false);
     }
@@ -198,10 +207,11 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
         certificate: enrollmentForm.certificate || null,
       });
       setEditingEnrollmentId(null);
+      bdsToast.success('报名记录已更新');
       if (selectedCourseId) await loadEnrollments(selectedCourseId);
       await loadCourses();
     } catch (e: any) {
-      setError(e?.message || '更新报名记录失败');
+      setError(hrErrorMessage(e, '更新报名记录失败'));
     } finally {
       setBusy(false);
     }
@@ -215,11 +225,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
           {COURSE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <span className={t.sectionMutedClass}>共 {courses.length} 门课程</span>
-        <div className="ml-auto">
-          <button onClick={() => setShowCourseForm(v => !v)} className={t.primaryButtonCls}>
-            <Plus className="w-3.5 h-3.5" /> 新建课程
-          </button>
-        </div>
+        {canWrite && (
+          <div className="ml-auto">
+            <button onClick={() => { if (showCourseForm) setCourseForm(emptyCourseForm); setShowCourseForm(v => !v); }} className={t.primaryButtonCls}>
+              <Plus className="w-3.5 h-3.5" /> 新建课程
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -230,7 +242,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
         </div>
       )}
 
-      {showCourseForm && (
+      {showCourseForm && canWrite && (
         <div className={`${t.cardClass} mx-1 p-5 space-y-3`}>
           <div className={t.sectionTitleClass}>新建培训课程</div>
           <div className="grid grid-cols-3 gap-3">
@@ -274,7 +286,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
               onChange={e => setCourseForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowCourseForm(false)} className={t.actionButtonCls}>取消</button>
+            <button onClick={() => { setCourseForm(emptyCourseForm); setShowCourseForm(false); }} className={t.actionButtonCls}>取消</button>
             <button onClick={submitCourse} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
               <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '创建'}
             </button>
@@ -316,23 +328,25 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
             <>
               <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                 <span className={`truncate ${t.sectionTitleClass}`}>{selectedCourse.title}</span>
-                <div className="ml-auto flex items-center gap-1.5">
-                  {selectedCourse.status === 'Planned' && (
-                    <button disabled={busy} onClick={() => setCourseStatus(selectedCourse.id, 'Ongoing')} className={t.subtleButtonCls}>开课</button>
-                  )}
-                  {selectedCourse.status === 'Ongoing' && (
-                    <button disabled={busy} onClick={() => setCourseStatus(selectedCourse.id, 'Completed')} className={t.subtleButtonCls}>结课</button>
-                  )}
-                  {(selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
-                    <button disabled={busy} onClick={() => setCourseStatus(selectedCourse.id, 'Cancelled')} className={t.dangerButtonCls}>取消课程</button>
-                  )}
-                  <button disabled={busy} onClick={() => removeCourse(selectedCourse.id)} className={t.dangerButtonCls}>
-                    <Trash2 className="w-3 h-3" /> 删除
-                  </button>
-                </div>
+                {canWrite && (
+                  <div className="ml-auto flex items-center gap-1.5">
+                    {selectedCourse.status === 'Planned' && (
+                      <button disabled={busy} onClick={() => setCourseStatus(selectedCourse.id, 'Ongoing')} className={t.subtleButtonCls}>开课</button>
+                    )}
+                    {selectedCourse.status === 'Ongoing' && (
+                      <button disabled={busy} onClick={() => setCourseStatus(selectedCourse.id, 'Completed')} className={t.subtleButtonCls}>结课</button>
+                    )}
+                    {(selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
+                      <button disabled={busy} onClick={() => setCourseStatus(selectedCourse.id, 'Cancelled')} className={t.dangerButtonCls}>取消课程</button>
+                    )}
+                    <button disabled={busy} onClick={() => removeCourse(selectedCourse.id)} className={t.dangerButtonCls}>
+                      <Trash2 className="w-3 h-3" /> 删除
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {(selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
+              {canWrite && (selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
                 <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                   <select className={`${t.selectCls} max-w-56`} value={enrollUserId} onChange={e => setEnrollUserId(e.target.value)}>
                     <option value="">选择员工报名</option>
@@ -367,7 +381,9 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                       <div className={t.tdCls}>{e.score ?? '-'}</div>
                       <div className={`${t.tdCls} truncate ${t.textSecondaryClass}`}>{e.certificate || '-'}</div>
                       <div className={t.tdCls}>
-                        <button onClick={() => openEditEnrollment(e)} className={t.subtleButtonCls}>更新</button>
+                        {canWrite && (
+                          <button onClick={() => openEditEnrollment(e)} className={t.subtleButtonCls}>更新</button>
+                        )}
                       </div>
                     </div>
                     {editingEnrollmentId === e.id && (

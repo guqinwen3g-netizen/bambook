@@ -5,16 +5,22 @@
  *   原仅周期+评定录入，缺 KPI 指标表单 + 项目关联（剧本 1.10 要求）。
  *   现利用 schema「kpi Json 弹性字段」结构化存储 KpiItem[]，每项可关联 HR 项目。
  *   设计真源：server/prisma/schema.prisma L1507「kpi Json 保持指标弹性」
+ *
+ * R678-②（2026-08-29）：Draft 评定补「编辑」入口——后端 PUT upsert 本就支持 Draft 改稿
+ *   （server/src/hr/hrService.ts upsertPerformanceReview：existing.status==='Draft' 允许 update），
+ *   前端此前只列未评人、Draft 行仅「提交」，草稿写错无法改。现 Draft 行可重开表单回填改稿。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
-import { hrTokens, hrOptionLabel, type HrPersonnelOption } from './hrTokens';
+import { hrTokens, hrOptionLabel, hrErrorMessage, type HrPersonnelOption } from './hrTokens';
 import {
   hrService, REVIEW_STATUS_OPTIONS, REVIEW_GRADE_OPTIONS,
   type PerformanceCycle, type PerformanceReview, type ReviewGrade, type KpiItem,
 } from '../../services/hrService';
+import { hasPermission } from '../../services/authService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import { bdsConfirm } from '../ui/BdsDialog';
+import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 /// HR 项目简化选项（HRManager 加载的 ProjectInfo 投影，仅传 id/name/code 用于 KPI 关联下拉）
@@ -61,6 +67,9 @@ const genKpiId = () => `kpi_${Date.now().toString(36)}_${Math.random().toString(
 const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, projects = [] }) => {
   const t = hrTokens(isDarkMode);
 
+  // R678-③ 写操作按 hr:write 门控显隐（与后端写门同口径），无权限时只读
+  const canWrite = hasPermission('hr:write');
+
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -83,7 +92,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
       const rows = await hrService.listPerformanceCycles();
       setCycles(rows);
     } catch (e: any) {
-      setError(e?.message || '加载考核周期失败');
+      setError(hrErrorMessage(e, '加载考核周期失败'));
     } finally {
       setCyclesLoading(false);
     }
@@ -95,7 +104,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
       const rows = await hrService.listPerformanceReviews({ cycleId });
       setReviews(rows);
     } catch (e: any) {
-      setError(e?.message || '加载评定失败');
+      setError(hrErrorMessage(e, '加载评定失败'));
     } finally {
       setReviewsLoading(false);
     }
@@ -127,10 +136,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
       });
       setCycleForm(emptyCycleForm);
       setShowCycleForm(false);
+      bdsToast.success('考核周期已创建');
       await loadCycles();
       setSelectedCycleId(cycle.id);
     } catch (e: any) {
-      setError(e?.message || '创建周期失败');
+      setError(hrErrorMessage(e, '创建周期失败'));
     } finally {
       setBusy(false);
     }
@@ -167,10 +177,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
       });
       setReviewForm(emptyReviewForm);
       setShowReviewForm(false);
+      bdsToast.success('评定草稿已保存');
       await loadReviews(selectedCycleId);
       await loadCycles();
     } catch (e: any) {
-      setError(e?.message || '保存评定失败');
+      setError(hrErrorMessage(e, '保存评定失败'));
     } finally {
       setBusy(false);
     }
@@ -181,12 +192,37 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
     setError('');
     try {
       await hrService.submitPerformanceReview(id);
+      bdsToast.success('评定已提交');
       if (selectedCycleId) await loadReviews(selectedCycleId);
     } catch (e: any) {
-      setError(e?.message || '提交失败');
+      setError(hrErrorMessage(e, '提交失败'));
     } finally {
       setBusy(false);
     }
+  };
+
+  // R678-② Draft 改稿：重开评定表单并回填（员工锁定——upsert 以 cycleId+userId 为键，禁换人覆盖他人草稿）
+  const openEditReview = (r: PerformanceReview) => {
+    setReviewForm({
+      userId: r.userId,
+      selfScore: r.selfScore != null ? String(r.selfScore) : '',
+      comment: r.comment || '',
+      kpis: (Array.isArray(r.kpi) ? r.kpi : []).map(k => ({
+        id: k.id || genKpiId(),
+        name: k.name || '',
+        target: k.target || '',
+        weight: Number(k.weight) || 0,
+        unit: k.unit || '',
+        projectId: k.projectId || '',
+      })),
+    });
+    setShowReviewForm(true);
+  };
+
+  // R678-④ 录入评定 toggle/取消统一 reset——避免残留草稿污染下次录入
+  const toggleReviewForm = () => {
+    if (showReviewForm) setReviewForm(emptyReviewForm);
+    setShowReviewForm(v => !v);
   };
 
   const openConfirm = (r: PerformanceReview) => {
@@ -215,10 +251,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
         comment: confirmForm.comment || undefined,
       });
       setConfirmingId(null);
+      bdsToast.success('终评已确认');
       if (selectedCycleId) await loadReviews(selectedCycleId);
       await loadCycles();
     } catch (e: any) {
-      setError(e?.message || '终评确认失败');
+      setError(hrErrorMessage(e, '终评确认失败'));
     } finally {
       setBusy(false);
     }
@@ -236,9 +273,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
     setError('');
     try {
       await hrService.closePerformanceCycle(selectedCycleId);
+      bdsToast.success('考核周期已关闭');
       await loadCycles();
     } catch (e: any) {
-      setError(e?.message || '关闭周期失败');
+      setError(hrErrorMessage(e, '关闭周期失败'));
     } finally {
       setBusy(false);
     }
@@ -250,15 +288,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
     return personnel.filter(p => !reviewed.has(p.id));
   }, [reviews, personnel]);
 
+  // R678-② 编辑 Draft 判定：userId 已有评定记录（不在未评 picker 内）→ 编辑模式，员工锁定
+  const editingDraftUserId = useMemo(() => {
+    if (!reviewForm.userId) return null;
+    return unreviewed.some(p => p.id === reviewForm.userId) ? null : reviewForm.userId;
+  }, [reviewForm.userId, unreviewed]);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center gap-2 px-1">
         <span className={t.sectionMutedClass}>考核周期</span>
-        <div className="ml-auto">
-          <button onClick={() => setShowCycleForm(v => !v)} className={t.primaryButtonCls}>
-            <Plus className="w-3.5 h-3.5" /> 新建周期
-          </button>
-        </div>
+        {canWrite && (
+          <div className="ml-auto">
+            <button onClick={() => { if (showCycleForm) setCycleForm(emptyCycleForm); setShowCycleForm(v => !v); }} className={t.primaryButtonCls}>
+              <Plus className="w-3.5 h-3.5" /> 新建周期
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -269,7 +315,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
         </div>
       )}
 
-      {showCycleForm && (
+      {showCycleForm && canWrite && (
         <div className={`${t.cardClass} mx-1 p-5 space-y-3`}>
           <div className={t.sectionTitleClass}>新建考核周期</div>
           <div className="grid grid-cols-4 gap-3">
@@ -295,7 +341,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowCycleForm(false)} className={t.actionButtonCls}>取消</button>
+            <button onClick={() => { setCycleForm(emptyCycleForm); setShowCycleForm(false); }} className={t.actionButtonCls}>取消</button>
             <button onClick={submitCycle} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
               <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '创建'}
             </button>
@@ -335,26 +381,33 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
               <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                 <span className={t.sectionTitleClass}>{selectedCycle.name}</span>
                 <span className={t.sectionMutedClass}>{selectedCycle.period}</span>
-                <div className="ml-auto flex items-center gap-1.5">
-                  {selectedCycle.status === 'Open' && (
-                    <>
-                      <button onClick={() => setShowReviewForm(v => !v)} className={t.subtleButtonCls}>
-                        <Plus className="w-3 h-3" /> 录入评定
-                      </button>
-                      <button disabled={busy} onClick={closeCycle} className={t.actionButtonCls}>关闭周期</button>
-                    </>
-                  )}
-                </div>
+                {canWrite && (
+                  <div className="ml-auto flex items-center gap-1.5">
+                    {selectedCycle.status === 'Open' && (
+                      <>
+                        <button onClick={toggleReviewForm} className={t.subtleButtonCls}>
+                          <Plus className="w-3 h-3" /> 录入评定
+                        </button>
+                        <button disabled={busy} onClick={closeCycle} className={t.actionButtonCls}>关闭周期</button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {showReviewForm && selectedCycle.status === 'Open' && (
+              {showReviewForm && canWrite && selectedCycle.status === 'Open' && (
                 <div className="space-y-3 border-b border-[var(--border-c-default)] px-4 py-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <div className={t.labelCls + ' mb-1'}>员工（未评定）*</div>
-                      <select className={t.selectCls} value={reviewForm.userId}
+                      <div className={t.labelCls + ' mb-1'}>{editingDraftUserId ? '员工（编辑草稿，锁定）' : '员工（未评定）*'}</div>
+                      <select className={t.selectCls} value={reviewForm.userId} disabled={!!editingDraftUserId}
                         onChange={e => setReviewForm(f => ({ ...f, userId: e.target.value }))}>
                         <option value="">请选择</option>
+                        {editingDraftUserId && (
+                          <option value={editingDraftUserId}>
+                            {personnel.find(p => p.id === editingDraftUserId)?.displayName || editingDraftUserId}
+                          </option>
+                        )}
                         {unreviewed.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
                       </select>
                     </div>
@@ -441,7 +494,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                   </div>
 
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => setShowReviewForm(false)} className={t.actionButtonCls}>取消</button>
+                    <button onClick={() => { setReviewForm(emptyReviewForm); setShowReviewForm(false); }} className={t.actionButtonCls}>取消</button>
                     <button onClick={submitReview} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                       <Check className="w-3.5 h-3.5" /> 保存（草稿）
                     </button>
@@ -477,10 +530,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                         </span>
                       </div>
                       <div className={`${t.tdCls} flex items-center gap-1.5`}>
-                        {r.status === 'Draft' && selectedCycle.status === 'Open' && (
-                          <button disabled={busy} onClick={() => submitReviewAction(r.id)} className={t.subtleButtonCls}>提交</button>
+                        {canWrite && r.status === 'Draft' && selectedCycle.status === 'Open' && (
+                          <>
+                            <button disabled={busy} onClick={() => openEditReview(r)} className={t.subtleButtonCls}>编辑</button>
+                            <button disabled={busy} onClick={() => submitReviewAction(r.id)} className={t.subtleButtonCls}>提交</button>
+                          </>
                         )}
-                        {r.status === 'Submitted' && (
+                        {canWrite && r.status === 'Submitted' && (
                           <button disabled={busy} onClick={() => openConfirm(r)} className={t.subtleButtonCls}>终评确认</button>
                         )}
                         {Array.isArray(r.kpi) && r.kpi.length > 0 && (

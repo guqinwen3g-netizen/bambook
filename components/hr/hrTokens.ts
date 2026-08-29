@@ -99,3 +99,17 @@ export const hrFormatMoney = (value: number | null | undefined, currency = 'CNY'
 
 export const hrOptionLabel = (options: ReadonlyArray<{ value: string; label: string }>, value: string | null | undefined): string =>
   options.find(o => o.value === value)?.label || value || '-';
+
+/**
+ * R678-⑦ HR 域错误统一转译：
+ * 后端 scope 门 403 原文（INSUFFICIENT_SCOPE…）直接进横幅/toast 对用户无意义，
+ * 统一转译为「无权限执行该操作」；其余错误保留后端中文 message，兜底 fallback。
+ */
+export const hrErrorMessage = (e: unknown, fallback: string): string => {
+  const msg = (e as { message?: unknown })?.message;
+  if (typeof msg === 'string' && msg.length > 0) {
+    if (msg.includes('INSUFFICIENT_SCOPE')) return '无权限执行该操作';
+    return msg;
+  }
+  return fallback;
+};

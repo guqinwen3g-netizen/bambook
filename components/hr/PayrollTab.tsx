@@ -3,13 +3,15 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, Plus, X } from 'lucide-react';
-import { hrTokens, hrFormatDate, hrFormatMoney, hrOptionLabel, type HrPersonnelOption } from './hrTokens';
+import { hrTokens, hrFormatDate, hrFormatMoney, hrOptionLabel, hrErrorMessage, type HrPersonnelOption } from './hrTokens';
 import {
   hrService, PAYROLL_STATUS_OPTIONS,
   type PayrollRun, type PayrollRunDetail, type PayrollItem, type SalaryStructure,
 } from '../../services/hrService';
+import { hasPermission } from '../../services/authService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import { bdsConfirm } from '../ui/BdsDialog';
+import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface PayrollTabProps {
@@ -31,6 +33,9 @@ const emptySalaryForm = { userId: '', baseSalary: '', positionAllowance: '', eff
 const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
   const t = hrTokens(isDarkMode);
   const [subView, setSubView] = useState<'runs' | 'salary'>('runs');
+
+  // R678-③ 写操作按 hr:write 门控显隐（与后端写门同口径），无权限时只读
+  const canWrite = hasPermission('hr:write');
 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -57,7 +62,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       const rows = await hrService.listPayrollRuns();
       setRuns(rows);
     } catch (e: any) {
-      setError(e?.message || '加载工资单失败');
+      setError(hrErrorMessage(e, '加载工资单失败'));
     } finally {
       setRunsLoading(false);
     }
@@ -68,7 +73,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       const detail = await hrService.getPayrollRun(runId);
       setRunDetail(detail);
     } catch (e: any) {
-      setError(e?.message || '加载工资单明细失败');
+      setError(hrErrorMessage(e, '加载工资单明细失败'));
     }
   }, []);
 
@@ -85,7 +90,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       const rows = await hrService.getSalaryHistory(userId);
       setSalaryHistory(rows);
     } catch (e: any) {
-      setError(e?.message || '加载薪资结构失败');
+      setError(hrErrorMessage(e, '加载薪资结构失败'));
     }
   }, []);
 
@@ -101,24 +106,27 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       const run = await hrService.createPayrollRun(runForm.period, runForm.note || undefined);
       setRunForm(emptyRunForm);
       setShowRunForm(false);
+      bdsToast.success('工资单已创建');
       await loadRuns();
       setSelectedRunId(run.id);
     } catch (e: any) {
-      setError(e?.message || '创建工资单失败');
+      setError(hrErrorMessage(e, '创建工资单失败'));
     } finally {
       setBusy(false);
     }
   };
 
-  const runAction = async (fn: () => Promise<unknown>, failMsg: string) => {
+  // R678-⑥ runAction 补成功反馈（successMsg 可选——不传则静默，供纯刷新场景）
+  const runAction = async (fn: () => Promise<unknown>, failMsg: string, successMsg?: string) => {
     setBusy(true);
     setError('');
     try {
       await fn();
+      if (successMsg) bdsToast.success(successMsg);
       await loadRuns();
       if (selectedRunId) await loadRunDetail(selectedRunId);
     } catch (e: any) {
-      setError(e?.message || failMsg);
+      setError(hrErrorMessage(e, failMsg));
     } finally {
       setBusy(false);
     }
@@ -132,7 +140,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       body: `${runDetail.period} 批次共 ${runDetail.headcount} 人，合计实发 ${hrFormatMoney(runDetail.totalNet)}。确认后明细锁定，不可再调整。`,
       confirmText: '确认工资单',
     }))) return;
-    await runAction(() => hrService.confirmPayrollRun(runDetail.id), '确认失败');
+    await runAction(() => hrService.confirmPayrollRun(runDetail.id), '确认失败', '工资单已确认，明细已锁定');
   };
 
   const markRunPaid = async () => {
@@ -142,7 +150,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       body: `确认 ${runDetail.period} 批次（合计实发 ${hrFormatMoney(runDetail.totalNet)}）已实际发放？标记后进入「已发放」终态，不可回退。`,
       confirmText: '标记发放',
     }))) return;
-    await runAction(() => hrService.markPayrollPaid(runDetail.id), '发放登记失败');
+    await runAction(() => hrService.markPayrollPaid(runDetail.id), '发放登记失败', '已登记发放');
   };
 
   const openEditItem = (item: PayrollItem) => {
@@ -169,12 +177,13 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
         note: itemForm.note || null,
       });
       setEditingItemId(null);
+      bdsToast.success('明细已更新');
       if (selectedRunId) {
         await loadRunDetail(selectedRunId);
         await loadRuns();
       }
     } catch (e: any) {
-      setError(e?.message || '更新明细失败');
+      setError(hrErrorMessage(e, '更新明细失败'));
     } finally {
       setBusy(false);
     }
@@ -197,9 +206,10 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       });
       setSalaryForm({ ...emptySalaryForm, userId: salaryForm.userId });
       setShowSalaryForm(false);
+      bdsToast.success('薪资结构已保存');
       await loadSalaryHistory(salaryForm.userId);
     } catch (e: any) {
-      setError(e?.message || '保存薪资结构失败');
+      setError(hrErrorMessage(e, '保存薪资结构失败'));
     } finally {
       setBusy(false);
     }
@@ -219,17 +229,19 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
           <button className={subPillCls(subView === 'runs')} onClick={() => setSubView('runs')}>工资单</button>
           <button className={subPillCls(subView === 'salary')} onClick={() => setSubView('salary')}>薪资结构</button>
         </div>
-        <div className="ml-auto">
-          {subView === 'runs' ? (
-            <button onClick={() => setShowRunForm(v => !v)} className={t.primaryButtonCls}>
-              <Plus className="w-3.5 h-3.5" /> 新建工资单
-            </button>
-          ) : (
-            <button onClick={() => { if (!salaryUserId) { setError('请先选择员工'); return; } setSalaryForm(f => ({ ...f, userId: salaryUserId })); setShowSalaryForm(v => !v); }} className={t.primaryButtonCls}>
-              <Plus className="w-3.5 h-3.5" /> 调整薪资
-            </button>
-          )}
-        </div>
+        {canWrite && (
+          <div className="ml-auto">
+            {subView === 'runs' ? (
+              <button onClick={() => { if (showRunForm) setRunForm({ ...emptyRunForm, period: new Date().toISOString().slice(0, 7) }); setShowRunForm(v => !v); }} className={t.primaryButtonCls}>
+                <Plus className="w-3.5 h-3.5" /> 新建工资单
+              </button>
+            ) : (
+              <button onClick={() => { if (!salaryUserId) { setError('请先选择员工'); return; } setSalaryForm(f => ({ ...f, userId: salaryUserId })); setShowSalaryForm(v => !v); }} className={t.primaryButtonCls}>
+                <Plus className="w-3.5 h-3.5" /> 调整薪资
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -243,7 +255,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       {/* ── 工资单子视图 ── */}
       {subView === 'runs' && (
         <>
-          {showRunForm && (
+          {showRunForm && canWrite && (
             <div className={`${t.cardClass} mx-1 p-5 space-y-3`}>
               <div className={t.sectionTitleClass}>新建工资单（每月一批，幂等）</div>
               <div className="grid grid-cols-3 gap-3">
@@ -259,7 +271,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowRunForm(false)} className={t.actionButtonCls}>取消</button>
+                <button onClick={() => { setRunForm({ ...emptyRunForm, period: new Date().toISOString().slice(0, 7) }); setShowRunForm(false); }} className={t.actionButtonCls}>取消</button>
                 <button onClick={submitRun} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                   <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '创建'}
                 </button>
@@ -304,17 +316,19 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                     <span className={t.sectionMutedClass}>
                       {runDetail.headcount} 人 · 合计 {hrFormatMoney(runDetail.totalNet)}
                     </span>
-                    <div className="ml-auto flex items-center gap-1.5">
-                      {runDetail.status === 'Draft' && (
-                        <>
-                          <button disabled={busy} onClick={() => runAction(() => hrService.generatePayrollItems(runDetail.id), '生成明细失败')} className={t.subtleButtonCls}>生成明细</button>
-                          <button disabled={busy} onClick={confirmRun} className={t.primaryButtonCls}>确认</button>
-                        </>
-                      )}
-                      {runDetail.status === 'Confirmed' && (
-                        <button disabled={busy} onClick={markRunPaid} className={t.primaryButtonCls}>标记发放</button>
-                      )}
-                    </div>
+                    {canWrite && (
+                      <div className="ml-auto flex items-center gap-1.5">
+                        {runDetail.status === 'Draft' && (
+                          <>
+                            <button disabled={busy} onClick={() => runAction(() => hrService.generatePayrollItems(runDetail.id), '生成明细失败', '明细已生成')} className={t.subtleButtonCls}>生成明细</button>
+                            <button disabled={busy} onClick={confirmRun} className={t.primaryButtonCls}>确认</button>
+                          </>
+                        )}
+                        {runDetail.status === 'Confirmed' && (
+                          <button disabled={busy} onClick={markRunPaid} className={t.primaryButtonCls}>标记发放</button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-[minmax(0,1fr)_90px_80px_80px_80px_80px_80px_100px_72px] border-b border-[var(--border-c-default)]">
@@ -344,7 +358,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                           <div className={t.tdCls}>{item.deduction.toFixed(2)}</div>
                           <div className={`${t.tdCls} font-normal`}>{item.net.toFixed(2)}</div>
                           <div className={t.tdCls}>
-                            {runDetail.status === 'Draft' && (
+                            {canWrite && runDetail.status === 'Draft' && (
                               <button onClick={() => openEditItem(item)} className={t.subtleButtonCls}>调整</button>
                             )}
                           </div>
@@ -411,7 +425,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
             </select>
           </div>
 
-          {showSalaryForm && (
+          {showSalaryForm && canWrite && (
             <div className={`${t.cardClass} mx-1 p-5 space-y-3`}>
               <div className={t.sectionTitleClass}>调整薪资 · {nameOf.get(salaryForm.userId) || ''}</div>
               <div className="grid grid-cols-4 gap-3">
@@ -438,7 +452,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
               </div>
               <div className={t.sectionMutedClass}>保存后原薪资结构自动封版（生效区间留痕），新结构自生效日起生效。</div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowSalaryForm(false)} className={t.actionButtonCls}>取消</button>
+                <button onClick={() => { setSalaryForm({ ...emptySalaryForm, userId: salaryForm.userId }); setShowSalaryForm(false); }} className={t.actionButtonCls}>取消</button>
                 <button onClick={submitSalary} disabled={busy} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                   <Check className="w-3.5 h-3.5" /> {busy ? '提交中…' : '保存'}
                 </button>

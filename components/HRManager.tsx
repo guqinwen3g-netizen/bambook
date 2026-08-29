@@ -19,6 +19,8 @@ import PerformanceTab from './hr/PerformanceTab';
 import TrainingTab from './hr/TrainingTab';
 import TeamManagementTab from './hr/TeamManagementTab';
 import { bdsConfirm } from './ui/BdsDialog';
+import { bdsToast } from './ui/bdsToast';
+import { hrErrorMessage } from './hr/hrTokens';
 
 // ── C3 HR 视图（org = 既有组织架构视图）──
 type HRView = 'org' | 'teams' | 'employees' | 'attendance' | 'payroll' | 'performance' | 'training';
@@ -194,6 +196,15 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const canViewSalary = hasPermission('sensitive:salary');
   // K3 岗位管理：新建/改/删为 hr:write 写操作（后端门禁同口径），无权限时只读
   const canManagePositions = hasPermission('hr:write');
+  // R678-③：全 lane 写按钮统一按 hr:write 门控（与后端写门同口径）——canManagePositions 的通用别名
+  const canWriteHr = canManagePositions;
+
+  // R678-⑤：子 tab 保活——记录访问过的视图，懒挂载后以 display:none 切换（不再卸载丢筛选/选中/在途表单状态）；
+  // 数据保鲜口径：各 tab 的筛选变更/表单提交/查询按钮均会重拉（HR 低频域数据可接受）
+  const [visitedViews, setVisitedViews] = useState<ReadonlySet<HRView>>(() => new Set<HRView>(['org']));
+  useEffect(() => {
+    setVisitedViews(prev => (prev.has(activeView) ? prev : new Set(prev).add(activeView)));
+  }, [activeView]);
 
   // Personnel
   const [personnel, setPersonnel] = useState<PersonnelMember[]>([]);
@@ -297,7 +308,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       setProjects(projectsData.projects || []);
       setAssignments(assignmentsData.assignments || []);
     } catch (e: any) {
-      setLoadError(e?.message || '加载人事数据失败');
+      setLoadError(hrErrorMessage(e, '加载人事数据失败'));
     } finally {
       setLoading(false);
     }
@@ -370,9 +381,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         await apiService.hrSend('projects', projectForm);
       }
       closeProjectForm();
+      bdsToast.success(editingProjectId ? '项目已保存' : '项目已创建');
       await loadAll();
     } catch (e: any) {
-      setLoadError(e?.message || '保存项目失败');
+      setLoadError(hrErrorMessage(e, '保存项目失败'));
     } finally {
       setActionBusy(false);
     }
@@ -384,9 +396,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setActionBusy(true);
     try {
       await apiService.hrSend(`projects/${id}`, {}, 'DELETE');
+      bdsToast.success('项目已删除');
       await loadAll();
     } catch (e: any) {
-      setLoadError(e?.message || '删除项目失败');
+      setLoadError(hrErrorMessage(e, '删除项目失败'));
     } finally {
       setActionBusy(false);
     }
@@ -403,9 +416,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         await apiService.hrSend('assignments', assignmentForm);
       }
       closeAssignmentForm();
+      bdsToast.success(editingAssignmentId ? '工作分配已保存' : '工作分配已创建');
       await loadAll();
     } catch (e: any) {
-      setLoadError(e?.message || '保存工作分配失败');
+      setLoadError(hrErrorMessage(e, '保存工作分配失败'));
     } finally {
       setActionBusy(false);
     }
@@ -417,9 +431,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setActionBusy(true);
     try {
       await apiService.hrSend(`assignments/${id}`, {}, 'DELETE');
+      bdsToast.success('工作分配已删除');
       await loadAll();
     } catch (e: any) {
-      setLoadError(e?.message || '删除工作分配失败');
+      setLoadError(hrErrorMessage(e, '删除工作分配失败'));
     } finally {
       setActionBusy(false);
     }
@@ -466,9 +481,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         await apiService.hrSend('positions', body);
       }
       closePositionForm();
+      bdsToast.success(editingPositionId ? '岗位已保存' : '岗位已创建');
       await loadAll();
     } catch (e: any) {
-      setLoadError(e?.message || '保存岗位失败');
+      setLoadError(hrErrorMessage(e, '保存岗位失败'));
     } finally {
       setActionBusy(false);
     }
@@ -480,9 +496,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setActionBusy(true);
     try {
       await apiService.hrSend(`positions/${id}`, {}, 'DELETE');
+      bdsToast.success('岗位已删除');
       await loadAll();
     } catch (e: any) {
-      setLoadError(e?.message || '删除岗位失败');
+      setLoadError(hrErrorMessage(e, '删除岗位失败'));
     } finally {
       setActionBusy(false);
     }
@@ -625,7 +642,24 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     return deptPersonnel.filter(p => p.displayName.toLowerCase().includes(t) || (p.email || '').toLowerCase().includes(t));
   }, [deptPersonnel, detailSearchTerm]);
 
-  const detailSearchPlaceholder = effectiveNode.type === 'project' ? '搜索工作分配…' : '搜索人员…';
+  // R678-①：detailSearchTerm 消费补全——team 视图按项目名/编号过滤，project 视图按任务标题/承担人过滤
+  // （此前 placeholder 承诺「搜索工作分配…」但两视图均不过滤，属装饰性搜索框）
+  const filteredTeamProjects = useMemo(() => {
+    const t = detailSearchTerm.trim().toLowerCase();
+    if (!t) return teamProjects;
+    return teamProjects.filter(p => p.name.toLowerCase().includes(t) || (p.code || '').toLowerCase().includes(t));
+  }, [teamProjects, detailSearchTerm]);
+
+  const filteredProjectAssignments = useMemo(() => {
+    const t = detailSearchTerm.trim().toLowerCase();
+    if (!t) return projectAssignments;
+    return projectAssignments.filter(a => a.title.toLowerCase().includes(t) || a.userName.toLowerCase().includes(t));
+  }, [projectAssignments, detailSearchTerm]);
+
+  const detailSearchPlaceholder =
+    effectiveNode.type === 'project' ? '搜索工作分配…'
+    : effectiveNode.type === 'team' ? '搜索项目…'
+    : '搜索人员…';
 
   // ── Tree node renderer ──
   const renderTreeNode = (node: DeptNode | TeamNode | ProjectNode, depth: number): React.ReactNode => {
@@ -762,14 +796,16 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             </span>
           )}
         </div>
-        <div className="flex gap-1">
-          <button onClick={() => openProjectForm(proj)} className={subtleButtonCls}>
-            <Pencil className="w-3 h-3" /> 编辑
-          </button>
-          <button onClick={() => deleteProject(proj.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+        {canWriteHr && (
+          <div className="flex gap-1">
+            <button onClick={() => openProjectForm(proj)} className={subtleButtonCls}>
+              <Pencil className="w-3 h-3" /> 编辑
+            </button>
+            <button onClick={() => deleteProject(proj.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -799,14 +835,16 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         </div>
       </div>
       <span className={statusChipCls(a.status)}>{statusLabel(a.status, ASSIGNMENT_STATUS_OPTIONS)}</span>
-      <div className="flex gap-1">
-        <button onClick={() => openAssignmentForm(a)} className={subtleButtonCls}>
-          <Pencil className="w-3 h-3" />
-        </button>
-        <button onClick={() => deleteAssignment(a.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
-          <Trash2 className="w-3 h-3" />
-        </button>
-      </div>
+      {canWriteHr && (
+        <div className="flex gap-1">
+          <button onClick={() => openAssignmentForm(a)} className={subtleButtonCls}>
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button onClick={() => deleteAssignment(a.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -885,20 +923,22 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           placeholder={detailSearchPlaceholder}
         />
       </div>
-      <div className="ml-auto flex items-center gap-1.5">
-        {effectiveNode.type === 'dept' && (
-          <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
-        )}
-        {effectiveNode.type === 'team' && selectedTeam && (
-          <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
-        )}
-        {effectiveNode.type === 'project' && selectedProject && (
-          <>
-            <button onClick={() => openAssignmentForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 分配任务</button>
-            <button onClick={() => openProjectForm(selectedProject)} className={subtleButtonCls}><Pencil className="w-3 h-3" /> 编辑</button>
-          </>
-        )}
-      </div>
+      {canWriteHr && (
+        <div className="ml-auto flex items-center gap-1.5">
+          {effectiveNode.type === 'dept' && (
+            <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
+          )}
+          {effectiveNode.type === 'team' && selectedTeam && (
+            <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
+          )}
+          {effectiveNode.type === 'project' && selectedProject && (
+            <>
+              <button onClick={() => openAssignmentForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 分配任务</button>
+              <button onClick={() => openProjectForm(selectedProject)} className={subtleButtonCls}><Pencil className="w-3 h-3" /> 编辑</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -1031,11 +1071,13 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>团队项目</h3>
-              <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新建</button>
+              {canWriteHr && (
+                <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新建</button>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {teamProjects.map(renderProjectCard)}
-              {teamProjects.length === 0 && (
+              {filteredTeamProjects.map(renderProjectCard)}
+              {filteredTeamProjects.length === 0 && (
                 <div className="bds-empty col-span-2">
                   <div className="glyph"><FolderKanban size={24} /></div>
                   <div className="title">该团队暂无项目</div>
@@ -1066,11 +1108,13 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>工作分配</h3>
-              <button onClick={() => openAssignmentForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 分配任务</button>
+              {canWriteHr && (
+                <button onClick={() => openAssignmentForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 分配任务</button>
+              )}
             </div>
             <div className="space-y-2">
-              {projectAssignments.map(renderAssignmentRow)}
-              {projectAssignments.length === 0 && (
+              {filteredProjectAssignments.map(renderAssignmentRow)}
+              {filteredProjectAssignments.length === 0 && (
                 <div className="bds-empty">
                   <div className="glyph"><ClipboardList size={24} /></div>
                   <div className="title">该项目暂无工作分配</div>
@@ -1096,7 +1140,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         title="人事管理"
         subtitle="Human Resources"
         contextLabel="Organization & Teams"
-        actions={activeView === 'org' ? (
+        actions={activeView === 'org' && canWriteHr ? (
           <RdlToolbar density="compact">
             <RdlPill type="button" active tone="accent" onClick={() => openProjectForm()} className="min-h-8 px-4 text-[11px]">
               <Plus className="w-3.5 h-3.5" /> 新建项目
@@ -1192,7 +1236,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
             {/* Inline form expansion（v2.1：组生命周期统一走「小组管理」tab，此处仅项目/任务表单） */}
             <AnimatePresence>
-              {showProjectForm && (
+              {showProjectForm && canWriteHr && (
                 <motion.div
                   key="project-form"
                   initial={{ opacity: 0, height: 0 }}
@@ -1247,7 +1291,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div>
                         <div className={labelCls}>结束日期</div>
                         <CapsuleDateInput className={inputCls} value={projectForm.endDate}
-                            onChange={(v) => setProjectForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
+                          onChange={(v) => setProjectForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <button onClick={closeProjectForm} className={actionButtonCls}>取消</button>
@@ -1260,7 +1304,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                 </motion.div>
               )}
 
-              {showAssignmentForm && (
+              {showAssignmentForm && canWriteHr && (
                 <motion.div
                   key="assignment-form"
                   initial={{ opacity: 0, height: 0 }}
@@ -1325,7 +1369,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                 </motion.div>
               )}
 
-              {showPositionForm && (
+              {showPositionForm && canManagePositions && (
                 <motion.div
                   key="position-form"
                   initial={{ opacity: 0, height: 0 }}
@@ -1393,19 +1437,43 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       ) : (
       <main className="flex-1 min-h-0 px-7 pb-5 pt-1">
         <RdlSurface tone="panel" className="flex h-full min-h-0 flex-col overflow-hidden p-4">
-          {activeView === 'employees' && (
-            <EmployeeProfilesTab
-              isDarkMode={isDarkMode}
-              personnel={personnel}
-              departments={departments}
-              positions={positions}
-            />
+          {/* R678-⑤：子 tab 懒挂载 + display:none 保活——切换视图不再卸载（筛选/选中/在途表单状态保留），
+              仅访问过的视图才挂载（避免首屏六路并发请求）；payroll 保留 sensitive:salary 直达防御 */}
+          {visitedViews.has('employees') && (
+            <div className="flex-1 min-h-0 flex flex-col" style={{ display: activeView === 'employees' ? 'flex' : 'none' }}>
+              <EmployeeProfilesTab
+                isDarkMode={isDarkMode}
+                personnel={personnel}
+                departments={departments}
+                positions={positions}
+              />
+            </div>
           )}
-          {activeView === 'attendance' && <AttendanceLeaveTab isDarkMode={isDarkMode} personnel={personnel} />}
-          {activeView === 'payroll' && canViewSalary && <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />}
-          {activeView === 'performance' && <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} projects={projects.map(p => ({ id: p.id, name: p.name, code: p.code }))} />}
-          {activeView === 'training' && <TrainingTab isDarkMode={isDarkMode} personnel={personnel} />}
-          {activeView === 'teams' && <TeamManagementTab isDarkMode={isDarkMode} personnel={personnel} departments={departments} />}
+          {visitedViews.has('attendance') && (
+            <div className="flex-1 min-h-0 flex flex-col" style={{ display: activeView === 'attendance' ? 'flex' : 'none' }}>
+              <AttendanceLeaveTab isDarkMode={isDarkMode} personnel={personnel} />
+            </div>
+          )}
+          {visitedViews.has('payroll') && (
+            <div className="flex-1 min-h-0 flex flex-col" style={{ display: activeView === 'payroll' && canViewSalary ? 'flex' : 'none' }}>
+              <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />
+            </div>
+          )}
+          {visitedViews.has('performance') && (
+            <div className="flex-1 min-h-0 flex flex-col" style={{ display: activeView === 'performance' ? 'flex' : 'none' }}>
+              <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} projects={projects.map(p => ({ id: p.id, name: p.name, code: p.code }))} />
+            </div>
+          )}
+          {visitedViews.has('training') && (
+            <div className="flex-1 min-h-0 flex flex-col" style={{ display: activeView === 'training' ? 'flex' : 'none' }}>
+              <TrainingTab isDarkMode={isDarkMode} personnel={personnel} />
+            </div>
+          )}
+          {visitedViews.has('teams') && (
+            <div className="flex-1 min-h-0 flex flex-col" style={{ display: activeView === 'teams' ? 'flex' : 'none' }}>
+              <TeamManagementTab isDarkMode={isDarkMode} personnel={personnel} departments={departments} />
+            </div>
+          )}
         </RdlSurface>
       </main>
       )}
