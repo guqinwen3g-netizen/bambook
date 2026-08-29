@@ -208,12 +208,11 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
           if (full.some((r) => r.id === navRelationId)) list = full;
         } catch { /* 保持 mine 口径 */ }
       }
-      const filtered = search
-        ? list.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()) || (r.category || '').includes(search.toLowerCase()))
-        : list;
-      setRelations(filtered);
-      if (!selectedRelationId && filtered.length > 0) {
-        setSelectedRelationId(filtered[0].id);
+      // R678-1 搜索半装饰修复：relations 存全量，搜索过滤改由 filteredRelations
+      // useMemo 派生（输入即过滤），不再要求点刷新才重跑加载
+      setRelations(list);
+      if (!selectedRelationId && list.length > 0) {
+        setSelectedRelationId(list[0].id);
       }
     } catch (e: any) {
       console.error('[CrmManager] loadRelations failed', e);
@@ -221,7 +220,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
     } finally {
       setLoading(false);
     }
-  }, [search, selectedRelationId, navRelationId]);
+  }, [selectedRelationId, navRelationId]);
 
   useEffect(() => {
     loadRelations();
@@ -268,6 +267,22 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
     () => relations.find((r) => r.id === selectedRelationId),
     [relations, selectedRelationId],
   );
+
+  // R678-1 搜索即时过滤：从全量 relations 派生下拉选项（输入即生效，不触发重新加载）
+  const filteredRelations = useMemo(() => {
+    const kw = search.trim().toLowerCase();
+    if (!kw) return relations;
+    return relations.filter((r) =>
+      r.name.toLowerCase().includes(kw) || (r.category || '').toLowerCase().includes(kw)
+    );
+  }, [relations, search]);
+
+  // 选中客户被搜索词过滤掉时仍保留在下拉选项中——避免 select 显示空白、内容区与下拉脱节
+  const relationSelectOptions = useMemo(() => {
+    if (!selectedRelationId || filteredRelations.some((r) => r.id === selectedRelationId)) return filteredRelations;
+    const selected = relations.find((r) => r.id === selectedRelationId);
+    return selected ? [selected, ...filteredRelations] : filteredRelations;
+  }, [filteredRelations, relations, selectedRelationId]);
 
   // ══════════════════════════════════════════════════════════════
   // 商机操作
@@ -324,6 +339,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       } else {
         await apiService.createFollowUp(selectedRelationId, input);
       }
+      bdsToast.success(id ? '跟进记录已更新' : '跟进记录已创建');
       setShowFollowUpForm(false);
       setEditingFollowUp(null);
       await loadCrmData();
@@ -390,6 +406,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
     if (!selectedRelationId) return;
     try {
       await apiService.assignCustomerTier(selectedRelationId, input);
+      bdsToast.success('客户分层已评定');
       setShowTierForm(false);
       await loadCrmData();
     } catch (e: any) {
@@ -434,7 +451,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
             style={{ width: 'auto', minWidth: 200 }}
           >
             <option value="">选择客户...</option>
-            {relations.map((r) => (
+            {relationSelectOptions.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name} ({r.category})
               </option>
@@ -651,8 +668,34 @@ function OpportunitiesTab({
 
   const visibleStages = oppStageFilter ? OPPORTUNITY_STAGES.filter((s) => s.id === oppStageFilter) : OPPORTUNITY_STAGES;
 
-  const totalAmount = opportunities.reduce((sum, o) => sum + o.amount, 0);
-  const wonAmount = opportunities.filter((o) => o.stage === 'ClosedWon').reduce((s, o) => s + o.amount, 0);
+  // R678-5 管线汇总跨币种修复：不再把不同币种金额直接相加后挂单一币种展示——
+  // 按币种分组小计，逐币种呈现（单币种时保持原单行样式）
+  const sumByCurrency = (list: Opportunity[]): Array<[string, number]> => {
+    const map = new Map<string, number>();
+    for (const o of list) {
+      const cur = o.currency || 'CNY';
+      map.set(cur, (map.get(cur) ?? 0) + o.amount);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  };
+  const totalByCurrency = sumByCurrency(opportunities);
+  const wonByCurrency = sumByCurrency(opportunities.filter((o) => o.stage === 'ClosedWon'));
+
+  const renderCurrencyAmounts = (entries: Array<[string, number]>) => {
+    if (entries.length === 0) {
+      return <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{formatAmount(0, 'CNY')}</div>;
+    }
+    if (entries.length === 1) {
+      return <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{formatAmount(entries[0][1], entries[0][0])}</div>;
+    }
+    return (
+      <div className="mt-1 space-y-0.5">
+        {entries.map(([cur, sum]) => (
+          <div key={cur} className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>{formatAmount(sum, cur)}</div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -664,11 +707,11 @@ function OpportunitiesTab({
         </div>
         <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
           <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>管线总额</div>
-          <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{formatAmount(totalAmount, opportunities[0]?.currency ?? 'CNY')}</div>
+          {renderCurrencyAmounts(totalByCurrency)}
         </div>
         <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
           <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>已成交</div>
-          <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{formatAmount(wonAmount, opportunities[0]?.currency ?? 'CNY')}</div>
+          {renderCurrencyAmounts(wonByCurrency)}
         </div>
         <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
           <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>当前客户</div>
@@ -808,6 +851,8 @@ function FollowUpsTab({
   const [fuSearch, setFuSearch] = useState('');
   const [fuTypeFilter, setFuTypeFilter] = useState('');
   const [fuSort, setFuSort] = useState<'followUpAt-desc' | 'followUpAt-asc' | 'nextFollowUpAt-asc'>('followUpAt-desc');
+  // R678-6 逾期横幅：超过 5 条时默认折叠前 5 条，可展开查看全部（不静默吞掉后续逾期）
+  const [overdueExpanded, setOverdueExpanded] = useState(false);
 
   const visibleFollowUps = useMemo(() => {
     let list = followUps;
@@ -838,13 +883,23 @@ function FollowUpsTab({
             逾期跟进 ({overdueFollowUps.length})
           </div>
           <div className="space-y-1">
-            {overdueFollowUps.slice(0, 5).map((fu) => (
+            {(overdueExpanded ? overdueFollowUps : overdueFollowUps.slice(0, 5)).map((fu) => (
               <div key={fu.id} className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                 <Clock className="w-3 h-3" style={{ color: 'var(--danger-text)' }} />
                 <span>{fu.nextFollowUpTopic || fu.content}</span>
                 <span style={{ color: 'var(--text-tertiary)' }}>— 原定 {formatDate(fu.nextFollowUpAt)}</span>
               </div>
             ))}
+            {overdueFollowUps.length > 5 && (
+              <button
+                type="button"
+                onClick={() => setOverdueExpanded((v) => !v)}
+                className="bds-btn bds-btn-link text-xs"
+                style={{ color: 'var(--danger-text)' }}
+              >
+                {overdueExpanded ? '收起' : `查看全部 ${overdueFollowUps.length} 条`}
+              </button>
+            )}
           </div>
         </div>
       )}

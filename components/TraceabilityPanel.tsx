@@ -15,6 +15,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, AlertCircle, Search, GitBranch, ArrowRight, Boxes } from 'lucide-react';
 import { RdlSurface, RdlPill } from './ui/RDLPrimitives';
 import { PageHeader } from './ui/PageHeader';
+import { apiService } from '../services/apiService';
+import type { Relation } from '../types';
+import RelationCombobox from './ui/RelationCombobox';
 import {
   traceabilityService,
   TRACE_SCENARIOS,
@@ -121,6 +124,17 @@ function formatSummaryKey(key: string): string {
     paymentCount: '收款数',
     shipCount: '出货数',
     overdue: '逾期数',
+    // R678-9 purchaseToStock 场景汇总键（后端 traceabilityService 双入口：采购单正向 + 库存物料反向）
+    poNumber: '采购单号',
+    poStatus: '采购单状态',
+    receiptCount: '收货单数',
+    totalAccepted: '累计验收数量',
+    movementCount: '库存变动数',
+    itemCount: '库存物料数',
+    poCount: '关联采购单数',
+    currentQty: '当前库存量',
+    materialCode: '物料编码',
+    itemDescription: '物料描述',
     pending: '待处理',
     completed: '已完成',
     inProgress: '进行中',
@@ -151,9 +165,25 @@ export function TraceabilityPanel({
 }: TraceabilityPanelProps) {
   const [scenario, setScenario] = useState<TraceScenario>(presetScenario || 'customerPanorama');
   const [rootId, setRootId] = useState(presetRootId || '');
+  // R678-3 Relation 根场景：档案检索下拉（免手输 ID）——rootLabelText 为显示名，rootId 为实际查询 ID
+  const [rootLabelText, setRootLabelText] = useState('');
+  const [rootRelations, setRootRelations] = useState<Relation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TraceResult | null>(null);
+
+  const activeScenarioMeta = TRACE_SCENARIOS.find((s) => s.id === scenario);
+  const isRelationRootScenario = activeScenarioMeta?.rootType === 'Relation';
+
+  // 仅在选择器可见（非嵌入预设）且场景根为 Relation 时加载档案列表
+  useEffect(() => {
+    if (presetScenario || !isRelationRootScenario) return;
+    let cancelled = false;
+    apiService.listRelations()
+      .then((list) => { if (!cancelled) setRootRelations(list); })
+      .catch(() => { /* 档案列表加载失败不阻断其余场景的手输路径 */ });
+    return () => { cancelled = true; };
+  }, [presetScenario, isRelationRootScenario]);
 
   const textPrimary = 'text-[var(--text-primary)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
@@ -164,7 +194,7 @@ export function TraceabilityPanel({
 
   const runTrace = useCallback(async (sc: TraceScenario, id: string) => {
     if (!id.trim()) {
-      setError('请输入溯源根 ID');
+      setError(TRACE_SCENARIOS.find((s) => s.id === sc)?.rootType === 'Relation' ? '请先搜索并选择溯源档案' : '请输入溯源根 ID');
       return;
     }
     setLoading(true);
@@ -216,7 +246,15 @@ export function TraceabilityPanel({
               <RdlPill
                 key={s.id}
                 active={scenario === s.id}
-                onClick={() => setScenario(s.id)}
+                onClick={() => {
+                  // R678-9 切换场景清空旧结果与旧根——避免上一场景的结果/根 ID 挂在
+                  // 新场景下被误读（根实体类型随场景变化，旧 ID 在新场景下无意义）
+                  setScenario(s.id);
+                  setResult(null);
+                  setError(null);
+                  setRootId('');
+                  setRootLabelText('');
+                }}
               >
                 {s.label}
               </RdlPill>
@@ -226,16 +264,32 @@ export function TraceabilityPanel({
           <div className={cx('text-[11px] font-light', textSecondary)}>
             {TRACE_SCENARIOS.find((s) => s.id === scenario)?.description}
           </div>
-          {/* rootId 输入 + 查询按钮 */}
+          {/* rootId 输入 + 查询按钮：Relation 根场景用档案检索下拉（免手输 ID），其余场景保留 ID 输入 */}
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={rootId}
-              onChange={(e) => setRootId(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') runTrace(scenario, rootId); }}
-              placeholder={TRACE_SCENARIOS.find((s) => s.id === scenario)?.rootLabel || '输入 ID...'}
-              className={cx('h-9 flex-1 rounded-field border px-3 text-xs font-light outline-none', inputBg, textPrimary)}
-            />
+            {isRelationRootScenario ? (
+              <div className="flex-1 min-w-0">
+                <RelationCombobox
+                  value={rootLabelText}
+                  relationId={rootId || undefined}
+                  relations={rootRelations}
+                  placeholder="搜索并选择档案..."
+                  inputClassName={cx('h-9 w-full rounded-field border px-3 text-xs font-light outline-none', inputBg, textPrimary)}
+                  onChange={({ name, relationId: nextId }) => {
+                    setRootLabelText(name);
+                    setRootId(nextId || '');
+                  }}
+                />
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={rootId}
+                onChange={(e) => setRootId(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') runTrace(scenario, rootId); }}
+                placeholder={activeScenarioMeta?.rootLabel || '输入 ID...'}
+                className={cx('h-9 flex-1 rounded-field border px-3 text-xs font-light outline-none', inputBg, textPrimary)}
+              />
+            )}
             <button
               onClick={() => runTrace(scenario, rootId)}
               disabled={loading}
@@ -341,11 +395,12 @@ export function TraceabilityPanel({
               </div>
               <RdlSurface tone="card" padding="compact">
                 <div className="space-y-0.5">
-                  {result.edges.map((edge, i) => {
+                  {result.edges.map((edge) => {
                     const fromNode = nodeMap.get(edge.from);
                     const toNode = nodeMap.get(edge.to);
                     return (
-                      <div key={i} className={cx('flex items-center gap-2 rounded-control px-2 py-1.5 text-[11px]', rowBg)}>
+                      // R678-9 复合 key（from+relation+to）：索引 key 在结果集变化时错位复用行状态
+                      <div key={`${edge.from}|${edge.relation}|${edge.to}`} className={cx('flex items-center gap-2 rounded-control px-2 py-1.5 text-[11px]', rowBg)}>
                         <span className={cx('min-w-0 flex-1 truncate font-light', textPrimary)}>
                           {fromNode?.label || edge.from}
                         </span>
@@ -377,7 +432,7 @@ export function TraceabilityPanel({
       {!result && !loading && !error && !presetScenario && (
         <div className={cx('flex flex-col items-center justify-center gap-2 py-20 text-xs font-light', textFaint)}>
           <GitBranch size={24} className="opacity-40" />
-          <div>选择场景并输入 ID 开始溯源查询</div>
+          <div>{isRelationRootScenario ? '选择场景并搜索选择档案开始溯源' : '选择场景并输入 ID 开始溯源查询'}</div>
         </div>
       )}
     </div>

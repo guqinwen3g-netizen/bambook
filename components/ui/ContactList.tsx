@@ -30,6 +30,8 @@ interface ContactListProps {
     selectedId: string | null;  // null = 组织, 其他 = 联系人ID
     onSelect: (id: string | null) => void;
     onAddContact: () => void;
+    /** R678-R6：无 relations:write 权限时隐藏「添加联系人」入口（默认 true 兼容既有调用方） */
+    canWrite?: boolean;
     isDarkMode: boolean;
 }
 
@@ -39,6 +41,7 @@ const ContactList: React.FC<ContactListProps> = ({
     selectedId,
     onSelect,
     onAddContact,
+    canWrite = true,
     isDarkMode
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -210,7 +213,8 @@ const ContactList: React.FC<ContactListProps> = ({
                 )}
             </div>
 
-            {/* 添加联系人按钮 */}
+            {/* 添加联系人按钮（R678-R6：无写权限时隐藏） */}
+            {canWrite && (
             <div className="p-3 shrink-0">
                 <button
                     onClick={onAddContact}
@@ -224,6 +228,7 @@ const ContactList: React.FC<ContactListProps> = ({
                     添加联系人
                 </button>
             </div>
+            )}
         </CompiledSurfacePanel>
         </div>
     );

@@ -11,6 +11,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
+import { TRACE_SCENARIOS, type TraceScenario } from '../services/traceabilityService';
+import { hasPermission } from '../services/authService';
 import ContactList from './ui/ContactList';
 import DetailPanel, { RELATION_CATEGORY_DETAIL_CONFIG } from './ui/DetailPanel';
 import OrgChart, { isDescendantContact } from './ui/OrgChart';
@@ -387,6 +389,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   // 组织架构拖拽持久化失败提示（独立通道：不污染表单/删除弹窗的 relationSaveError）
   const [orgMoveError, setOrgMoveError] = useState<string | null>(null);
   const [relationBusy, setRelationBusy] = useState(false);
+  // R678-10 真分页：首屏 listRelations 硬顶 500——触顶后经 listRelationsPage(offset) 续载，
+  // relationsTotalCount 记录服务端 total（null=未知，未点过加载更多）
+  const [relationsTotalCount, setRelationsTotalCount] = useState<number | null>(null);
+  const [relationsLoadingMore, setRelationsLoadingMore] = useState(false);
   const [tagRows, setTagRows] = useState<RelationTagRow[]>([{ id: 'tag-0', value: '' }]);
   const [backupContactRows, setBackupContactRows] = useState<BackupContactRow[]>([{ id: 'backup-0', name: '', email: '', phone: '', note: '' }]);
   const [shipToRows, setShipToRows] = useState<ShipToRow[]>([{ id: 'shipto-0', contactName: '', city: '', postcode: '', phone: '', address: '', note: '' }]);
@@ -504,7 +510,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     if (!showAddModal) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    
+
     // Escape 键关闭弹窗
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -512,13 +518,23 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         setEditingItem(null);
       }
     };
-    
+
     document.addEventListener('keydown', handleEscape);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showAddModal]);
+
+  // R678-8 删除确认弹窗（自建弹层，非 BdsDialog）：补 Esc 关闭（busy 中不打断进行中的删除请求）
+  useEffect(() => {
+    if (!confirmDeleteId) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !relationBusy) setConfirmDeleteId(null);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [confirmDeleteId, relationBusy]);
 
   useEffect(() => {
     if (!showAddModal) return;
@@ -602,6 +618,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
   // Constants
   const categories = RELATION_CATEGORY_DEFINITIONS;
+
+  // R678-R6 档案写权限评估：无 relations:write 时隐藏导出/新增/编辑/删除入口
+  // （服务端 V2 路由 relations:write/delete scope 门禁兜底，前端隐藏避免点了才 403）
+  const canWriteRelations = hasPermission('relations:write');
 
   const orgContactCount = (orgId: string) => relations.filter(r => r.parentId === orgId && !r.deletedAt).length;
   const tierLabel = (rating?: number) => `Tier ${Math.min(5, Math.max(1, Number(rating || 3)))}`;
@@ -734,6 +754,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     relations.find(r => r.id === selectedOrgId),
     [relations, selectedOrgId]);
 
+  // R678-2 溯源场景按组织分类映射（供应商→供应商全景，其余→客户全景），面板标题随之动态化
+  const selectedOrgTraceScenario: TraceScenario = selectedOrganization?.category === 'Supplier' ? 'supplierPanorama' : 'customerPanorama';
+  const selectedOrgTraceMeta = TRACE_SCENARIOS.find((s) => s.id === selectedOrgTraceScenario);
+
   // Level 3 Tab 1: Contacts in this organization
   const orgContacts = useMemo(() => {
     if (!selectedOrgId) return [];
@@ -768,6 +792,24 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     }
   };
 
+  // R678-10 真分页「加载更多」：以当前列表长度为 offset 拉下一页（listRelationsPage 透出
+  // total），新档案按 id 去重合并进全量数组；到达 total 后按钮转为「已加载全部」
+  const handleLoadMoreRelations = async () => {
+    if (relationsLoadingMore) return;
+    setRelationsLoadingMore(true);
+    try {
+      const page = await apiService.listRelationsPage(cloudEndpoint, { offset: relations.length, limit: 500 });
+      setRelationsTotalCount(page.total);
+      const knownIds = new Set(relations.map((r) => r.id));
+      const fresh = page.items.filter((item) => !knownIds.has(item.id) && !item.deletedAt);
+      if (fresh.length > 0) onUpdate([...relations, ...fresh]);
+    } catch (e: any) {
+      bdsToast.danger(e?.message || '加载更多档案失败');
+    } finally {
+      setRelationsLoadingMore(false);
+    }
+  };
+
   const renderRelationListToolbar = (toolbarInsetClass = '', includeOffset = true) => (
     <SpotlightCard
       spotlightColor={isDarkMode ? RELATIONS_TOOLBAR_SPOTLIGHT_DARK_COLOR : RELATIONS_TOOLBAR_SPOTLIGHT_LIGHT_COLOR}
@@ -796,7 +838,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         </div>
 
         <div className={RELATIONS_TOOLBAR_VIEW_GROUP_CLASS}>
-          {/* C1 受控导出（REQ2-13）：导出当前分类组织档案 CSV（服务端 data:export:full 门禁 + 审计） */}
+          {/* C1 受控导出（REQ2-13）：导出当前分类组织档案 CSV（服务端 data:export:full 门禁 + 审计）；
+              R678-R6：无 relations:write 权限时隐藏入口，避免点了才 403 */}
+          {canWriteRelations && (
           <button
             type="button"
             onClick={handleExportRelations}
@@ -811,6 +855,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
               <Download size={14} strokeWidth={1.5} />
             )}
           </button>
+          )}
 
           <CustomSelect
             value={relationSortMode}
@@ -935,6 +980,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       } else {
         onUpdate([persisted, ...relations], persisted);
       }
+      // R678-7 保存成功反馈：此前静默关窗，用户无法确认写入成功
+      bdsToast.success(editingItem ? '档案已更新' : '档案已创建');
       setShowAddModal(false);
       setEditingItem(null);
     } catch (e: any) {
@@ -1249,8 +1296,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
               <Building2 size={14} strokeWidth={1.5} /> 工厂档案
             </RelationsTitleSpotlightButton>
           )}
-          {/* 新增按钮：分类页不展示 */}
-          {(navLevel === 'organizations' || navLevel === 'detail') && (
+          {/* 新增按钮：分类页不展示；R678-R6 无 relations:write 权限时隐藏 */}
+          {(navLevel === 'organizations' || navLevel === 'detail') && canWriteRelations && (
             <RelationsTitleSpotlightButton
               isDarkMode={isDarkMode}
               type="button"
@@ -1411,6 +1458,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           <div className={`text-[var(--text-tertiary)] mt-1 truncate`}>{org.paymentTerms || org.paymentPreference || '付款未填'}</div>
                         </div>
                         <div className="relative z-10 pl-2 pr-4 py-4 text-right">
+                          {/* R678-R6：无 relations:write 权限时隐藏行内编辑入口 */}
+                          {canWriteRelations && (
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setEditingItem(org); setShowAddModal(true); }}
@@ -1419,6 +1468,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           >
                             <Edit2 size={13} />
                           </button>
+                          )}
                         </div>
                       </motion.div>
                     ))}
@@ -1426,13 +1476,27 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 </CompiledTableShell>
             )}
 
-            {/* R3 截断诚实化：apiService.listRelations 硬顶 limit=500 且丢弃服务端 total/hasMore
-                （apiService.ts 归 Lane-A 独占，本车道不碰；服务端 /v2/relations 已支持 offset 分页，
-                待 apiService 透出 offset/total 后可改真分页）。档案数组触顶即存在未加载档案——
-                明示截断而非把 500 条伪装成全量 */}
+            {/* R678-10 真分页：apiService.listRelationsPage 已透出 {items,total}+offset（ec95bbb），
+                首屏 500 触顶后提供「加载更多」续载——替代旧「请联系管理员」截断死路。
+                到达服务端 total 后转为已加载完毕提示，不再伪装全量 */}
             {relations.length >= 500 && (
               <div className="col-span-full py-3 text-center text-xs text-[var(--text-tertiary)]">
-                仅显示前 500 条档案（已达单次加载上限），其余档案暂未加载，请联系管理员处理
+                {relationsTotalCount !== null && relations.length >= relationsTotalCount ? (
+                  <span>已加载全部 {relationsTotalCount} 条档案</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreRelations}
+                    disabled={relationsLoadingMore}
+                    className="transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+                  >
+                    {relationsLoadingMore
+                      ? '正在加载更多档案...'
+                      : relationsTotalCount !== null
+                        ? `加载更多（已加载 ${relations.length}/${relationsTotalCount} 条）`
+                        : '加载更多档案'}
+                  </button>
+                )}
               </div>
             )}
 
@@ -1450,13 +1514,15 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 ) : (
                   <>
                     <p className="text-sm font-light tracking-wide mb-2">暂无组织</p>
-                    <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>该分类还没有组织，点击下方按钮创建第一个</p>
+                    <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>该分类还没有组织{canWriteRelations ? '，点击下方按钮创建第一个' : ''}</p>
+                    {canWriteRelations && (
                     <button
                       onClick={() => setShowAddModal(true)}
                       className={`px-4 py-2 rounded-full text-xs font-light transition-colors duration-200 ${relationTableEmptyActionClass}`}
                     >
                       创建组织
                     </button>
+                    )}
                   </>
                 )}
               </div>
@@ -1478,10 +1544,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                   selectedId={selectedContactId}
                   onSelect={setSelectedContactId}
                   onAddContact={() => setShowAddModal(true)}
+                  canWrite={canWriteRelations}
                   isDarkMode={isDarkMode}
                 />
 
-                {/* 右侧详情面板 */}
+                {/* 右侧详情面板（DetailPanel/OrgChart 内部按钮归其自身车道；
+                    此处在处理函数层门禁——无 relations:write 时拦截并提示） */}
                 <DetailPanel
                   type={selectedContactId ? 'contact' : 'organization'}
                   data={selectedContactId
@@ -1491,6 +1559,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                   organization={selectedContactId ? selectedOrganization : undefined}
                   onNavigate={onNavigate}
                   onEdit={() => {
+                    if (!canWriteRelations) { bdsToast.warning('当前账号无档案编辑权限'); return; }
                     const target = selectedContactId
                       ? orgContacts.find(c => c.id === selectedContactId)
                       : selectedOrganization;
@@ -1501,6 +1570,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                   }}
                   onDelete={() => {
                     // 删除入口收拢：详情页底部为唯一删除入口，须经确认弹窗（不直删）
+                    if (!canWriteRelations) { bdsToast.warning('当前账号无档案删除权限'); return; }
                     const targetId = selectedContactId || selectedOrgId;
                     if (targetId) {
                       setConfirmDeleteId(targetId);
@@ -1527,8 +1597,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       setSelectedContactId(id);
                       setActiveTab('contacts');
                     }}
-                    onAddContact={() => setShowAddModal(true)}
+                    onAddContact={() => {
+                      if (!canWriteRelations) { bdsToast.warning('当前账号无档案编辑权限'); return; }
+                      setShowAddModal(true);
+                    }}
                     onEditContact={(contact) => {
+                      if (!canWriteRelations) { bdsToast.warning('当前账号无档案编辑权限'); return; }
                       setEditingItem(contact);
                       setShowAddModal(true);
                     }}
@@ -1625,7 +1699,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 <div className="col-span-2 text-xs text-[var(--text-tertiary)] bg-[var(--recessed-bg)] rounded-control px-3 py-2">{relationSaveError}</div>
               )}
               <input type="hidden" name="isOrganization" value={relationFormIsOrganization ? 'on' : 'off'} />
-              <input type="hidden" name="category" value={selectedCategory || 'Other'} />
+              {/* R678-4 分类静默改写修复：编辑态以档案自身 category 为准（与表单分区
+                  relationFormCategory 同源），仅新增态取当前所在分类——此前编辑跨分类
+                  档案时隐藏域写 selectedCategory，保存后分类被静默改写 */}
+              <input type="hidden" name="category" value={editingItem?.category || selectedCategory || 'Other'} />
 
               <aside className="self-start">
                 <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}>
@@ -2232,12 +2309,13 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 面板标题栏 */}
+            {/* 面板标题栏：R678-2 场景随组织分类映射（供应商→供应商全景/其余→客户全景），
+                标题取 TRACE_SCENARIOS 元数据动态呈现，不再全部分类硬编码「客户全景溯源」 */}
             <div className={`flex items-center justify-between border-b px-4 py-3 border-[var(--border-c-default)]`}>
               <div className="flex items-center gap-2">
                 <GitBranch size={15} className={'text-[var(--text-secondary)]'} />
-                <span className={`text-sm font-light text-[var(--text-primary)]`}>客户全景溯源</span>
-                <span className={`text-[10px] font-light tracking-[0.14em] text-[var(--text-tertiary)]`}>Customer Panorama</span>
+                <span className={`text-sm font-light text-[var(--text-primary)]`}>{selectedOrgTraceMeta?.label ?? '客户全景'}溯源</span>
+                <span className={`text-[10px] font-light tracking-[0.14em] text-[var(--text-tertiary)]`}>{selectedOrgTraceMeta?.labelEn ?? 'Customer Panorama'}</span>
               </div>
               <button
                 type="button"
@@ -2250,7 +2328,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             {/* 溯源内容 */}
             <TraceabilityPanel
               isDarkMode={isDarkMode}
-              presetScenario="customerPanorama"
+              presetScenario={selectedOrgTraceScenario}
               presetRootId={selectedOrgId}
               embedded
             />
