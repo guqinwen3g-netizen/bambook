@@ -17,7 +17,6 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 // refresh, cloud sync) that cascade setState into the entire App tree.
 // Currently disabled — kept for future regression hunts.
 const DIAG_FREEZE_DASHBOARD = false;
-const ENABLE_WALLPAPER_SWITCHING = false;
 const DEV_PREVIEW_CONTINUITY_KEY = 'bambook_dev_preview_continuity';
 const AUTH_TOKEN_KEY = 'bambook_auth_token';
 export const DESIGN_TUNER_TOGGLE_SHORTCUT = 'mod+shift+t';
@@ -132,12 +131,9 @@ import { subscribe, checkAuth, getAuthState, canAccessView, AuthState } from './
 import { getDevOptions, subscribe as subscribeDevOptions, type DevOptions } from './services/devOptionsService';
 import { resolveInitialDarkMode } from './appTheme';
 import type { StoredThemePreference } from './appTheme';
-import { resolvePublicAssetUrl } from './utils/publicAssets';
 import {
   applyWallpaperAccentPaletteToElement,
   defaultWallpaperAccentPalette,
-  getCachedWallpaperAccentPalette,
-  resolveWallpaperAccentPalette,
   type WallpaperAccentPalette,
 } from './utils/wallpaperAccent';
 import Sidebar from './components/Sidebar';
@@ -892,19 +888,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     requestOsAdaptiveContrastRefresh();
-  }, [ENABLE_WALLPAPER_SWITCHING ? config.backgroundImage : '']);
+  }, []);
 
   useLayoutEffect(() => {
     const root = appRootRef.current;
     if (!root) return undefined;
 
     let disposed = false;
-    let readyImage: HTMLImageElement | null = null;
-    const wallpaperUrl = ENABLE_WALLPAPER_SWITCHING && config.backgroundImage ? resolvePublicAssetUrl(config.backgroundImage) : '';
     // 优化 #4：跨帧 debounce —— burst 时只跑一次（leading + 96ms trailing），
     // 避免 MutationObserver / resize 风暴重复触发整页 reapply。
     const debouncer = createOsAdaptiveDebouncer(() => {
-      if (!disposed) applyCollapsedSidebarContrast(root, readyImage, isDarkMode, wallpaperUrl);
+      if (!disposed) applyCollapsedSidebarContrast(root, null, isDarkMode, '');
     });
 
     const scheduleWithCurrentImage = () => debouncer.schedule();
@@ -924,23 +918,7 @@ const App: React.FC = () => {
       subtree: true,
     });
 
-    if (wallpaperUrl) {
-      const image = new Image();
-      image.decoding = 'async';
-      image.onload = () => {
-        readyImage = image;
-        debouncer.schedule();
-      };
-      image.onerror = () => debouncer.schedule();
-      image.src = wallpaperUrl;
-      debouncer.schedule();
-      if (image.complete && image.naturalWidth) {
-        readyImage = image;
-        debouncer.schedule();
-      }
-    } else {
-      debouncer.schedule();
-    }
+    debouncer.schedule();
 
     return () => {
       disposed = true;
@@ -949,7 +927,7 @@ const App: React.FC = () => {
       window.removeEventListener('bambook:os-adaptive-contrast-refresh', scheduleWithCurrentImage);
       mutationObserver?.disconnect();
     };
-  }, [ENABLE_WALLPAPER_SWITCHING ? config.backgroundImage : '', isDarkMode]);
+  }, [isDarkMode]);
   // 优化 #2：不再依赖 isCollapsed —— sidebar 折叠状态变化会改 class，已被 MutationObserver 自动捕获。
 
   // Persist UI state changes to localStorage
@@ -1063,22 +1041,20 @@ const App: React.FC = () => {
       ...config,
       themeMode: nextIsDarkMode ? 'dark' : 'light',
     };
-    syncWallpaperAccentForConfig(nextConfig, nextIsDarkMode);
+    syncWallpaperAccentForConfig(nextIsDarkMode);
     setIsDarkMode(nextIsDarkMode);
     setConfig(nextConfig);
     apiService.saveConfig(nextConfig);
   };
 
   const activeView = authState.isAuthenticated && !canAccessView(currentView) ? View.Dashboard : currentView;
-  const effectiveBackgroundImage = ENABLE_WALLPAPER_SWITCHING ? config.backgroundImage : '';
-  const resolvedBackgroundImageUrl = effectiveBackgroundImage ? resolvePublicAssetUrl(effectiveBackgroundImage) : '';
-  const isWallpaperMode = Boolean(resolvedBackgroundImageUrl);
-  const appearanceMode = isWallpaperMode ? 'wallpaper' : (isDarkMode ? 'dark' : 'light');
+  // 壁纸切换已退役（原 ENABLE_WALLPAPER_SWITCHING 恒 false，死分支已清除）：
+  // 壁纸模式恒 off，仅保留 data 属性供 CSS 选择器与 Sidebar.test.tsx 源码断言稳定匹配。
+  const isWallpaperMode = false;
+  const appearanceMode = isDarkMode ? 'dark' : 'light';
   const [wallpaperAccentPalette, setWallpaperAccentPalette] = useState<WallpaperAccentPalette>(() =>
-    getCachedWallpaperAccentPalette(ENABLE_WALLPAPER_SWITCHING && config.backgroundImage ? resolvePublicAssetUrl(config.backgroundImage) : '', isDarkMode) ??
     defaultWallpaperAccentPalette(isDarkMode)
   );
-  const wallpaperAccentRequestIdRef = useRef(0);
 
   const commitWallpaperAccentPalette = useCallback((palette: WallpaperAccentPalette) => {
     // 命令式写 CSS 变量（同步、零 React 重渲染），下游所有用了
@@ -1100,32 +1076,11 @@ const App: React.FC = () => {
   }, []);
 
   useLayoutEffect(() => {
-    let cancelled = false;
-    const requestId = ++wallpaperAccentRequestIdRef.current;
-    const fallback = defaultWallpaperAccentPalette(isDarkMode);
-    if (!resolvedBackgroundImageUrl) {
-      commitWallpaperAccentPalette(fallback);
-      return () => { cancelled = true; };
-    }
-    commitWallpaperAccentPalette(getCachedWallpaperAccentPalette(resolvedBackgroundImageUrl, isDarkMode) ?? fallback);
-    resolveWallpaperAccentPalette(resolvedBackgroundImageUrl, isDarkMode).then(palette => {
-      if (cancelled || wallpaperAccentRequestIdRef.current !== requestId) return;
-      commitWallpaperAccentPalette(palette);
-    });
-    return () => { cancelled = true; };
-  }, [commitWallpaperAccentPalette, isDarkMode, resolvedBackgroundImageUrl]);
+    commitWallpaperAccentPalette(defaultWallpaperAccentPalette(isDarkMode));
+  }, [commitWallpaperAccentPalette, isDarkMode]);
 
-  const syncWallpaperAccentForConfig = useCallback((nextConfig: SystemConfig, nextIsDarkMode: boolean) => {
-    const requestId = ++wallpaperAccentRequestIdRef.current;
-    const nextWallpaperUrl = ENABLE_WALLPAPER_SWITCHING && nextConfig.backgroundImage ? resolvePublicAssetUrl(nextConfig.backgroundImage) : '';
-    const immediatePalette = getCachedWallpaperAccentPalette(nextWallpaperUrl, nextIsDarkMode) ??
-      defaultWallpaperAccentPalette(nextIsDarkMode);
-    commitWallpaperAccentPalette(immediatePalette);
-    if (!nextWallpaperUrl) return;
-    void resolveWallpaperAccentPalette(nextWallpaperUrl, nextIsDarkMode).then(palette => {
-      if (wallpaperAccentRequestIdRef.current !== requestId) return;
-      commitWallpaperAccentPalette(palette);
-    });
+  const syncWallpaperAccentForConfig = useCallback((nextIsDarkMode: boolean) => {
+    commitWallpaperAccentPalette(defaultWallpaperAccentPalette(nextIsDarkMode));
   }, [commitWallpaperAccentPalette]);
   // A5d 报表下钻联动：跳转目标模块并定位模块内 tab（FinanceManager/CustomsManager initialTab）
   const [moduleTabOverrides, setModuleTabOverrides] = useState<Partial<Record<View, string>>>({});
@@ -1334,20 +1289,13 @@ const App: React.FC = () => {
         ['--os-vnext-brand-blue-rgb' as any]: wallpaperAccentPalette.accentRgb,
         ['--os-vnext-brand-blue-strong-rgb' as any]: wallpaperAccentPalette.accentStrongRgb,
         ['--os-vnext-brand-blue-soft-rgb' as any]: wallpaperAccentPalette.accentSoftRgb,
-        ...(resolvedBackgroundImageUrl
+        ...(isDarkMode
           ? {
-              backgroundImage: `url(${resolvedBackgroundImageUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
+              backgroundImage: 'linear-gradient(135deg, #070D15 0%, #0B111B 46%, #050A11 100%)',
             }
-          : isDarkMode
-            ? {
-                backgroundImage: 'linear-gradient(135deg, #070D15 0%, #0B111B 46%, #050A11 100%)',
-              }
-            : {
-                backgroundImage: 'linear-gradient(135deg, #EEF2F6 0%, #D8DEE7 48%, #AEB9C8 100%)',
-              }),
+          : {
+              backgroundImage: 'linear-gradient(135deg, #EEF2F6 0%, #D8DEE7 48%, #AEB9C8 100%)',
+            }),
       }}
     >
       <SplashScreen isVisible={isLoading} isDarkMode={isDarkMode} />
@@ -1389,17 +1337,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* 自定义壁纸高对比磨砂防护层 */}
-      {resolvedBackgroundImageUrl && (
-        <div
-          className={`absolute inset-0 z-0 pointer-events-none transition-all duration-500 ${
-            isDarkMode
-              ? 'bg-black/35 backdrop-brightness-[0.80] backdrop-contrast-[1.02]'
-              : 'bg-white/20 backdrop-brightness-[1.02] backdrop-contrast-[0.98]'
-          }`}
-        />
-      )}
-
       {/*
         Production Globe Integration - Total Unconstrained Layer
         放置在背景层，使其可以自由溢出至 Sidebar 下方。
@@ -1416,7 +1353,6 @@ const App: React.FC = () => {
                 orders={orders}
                 sidebarOffset={0}
                 isDarkMode={isDarkMode}
-                wallpaperUrl={resolvedBackgroundImageUrl}
                 accentPalette={wallpaperAccentPalette}
                 initialDelay={0}
                 quality={globeParams.quality}
@@ -1429,7 +1365,6 @@ const App: React.FC = () => {
                 orders={orders}
                 sidebarOffset={(isCollapsed ? 64 : 232) * appScale}
                 isDarkMode={isDarkMode}
-                wallpaperUrl={resolvedBackgroundImageUrl}
                 initialDelay={0}
                 quality={globeParams.quality}
                 viewportCenter={globeViewportCenter}
@@ -1719,7 +1654,7 @@ const App: React.FC = () => {
                     : nc.themeMode === 'dark'
                       ? true
                       : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  syncWallpaperAccentForConfig(nc, nextIsDarkMode);
+                  syncWallpaperAccentForConfig(nextIsDarkMode);
                   setConfig(nc);
                   apiService.saveConfig(nc);
                   if (nc.themeMode === 'light') setIsDarkMode(false);

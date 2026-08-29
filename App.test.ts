@@ -9,7 +9,6 @@ describe('App light background tone', () => {
     expect(source).toContain("bg-app-light");
     expect(source).toContain("bg-app-dark");
     expect(source).toContain("linear-gradient(135deg, #EEF2F6 0%, #D8DEE7 48%, #AEB9C8 100%)");
-    expect(source).toContain("bg-white/20");
     expect(source).not.toContain("bg-[#EEF5FA]");
     expect(source).not.toContain("bg-[#F5F8FA]");
   });
@@ -58,13 +57,6 @@ describe('App light background tone', () => {
     expect(source).not.toContain('initialDelay={2500}');
     expect(source).not.toContain('opacity-0 translate-y-12 scale-95 blur-md');
     expect(source).not.toContain('delay-500');
-  });
-
-  it('normalizes saved public asset paths before rendering Electron file URLs', () => {
-    const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
-
-    expect(source).toContain("import { resolvePublicAssetUrl } from './utils/publicAssets'");
-    expect(source).toContain('backgroundImage: `url(${resolvedBackgroundImageUrl})`,');
   });
 
   it('hides native scrollbars globally while preserving scroll containers', () => {
