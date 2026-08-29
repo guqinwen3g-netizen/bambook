@@ -480,7 +480,8 @@ async function seedRbacDirect() {
 
 function auth(req: Request, res: Response, next: NextFunction) {
   if (!ADMIN_TOKEN && process.env.NODE_ENV !== 'production') return next();
-  const token = String(req.headers['x-bambook-ops-token'] || req.query.token || '').trim();
+  // token 只走 header：URL query 会进代理/网关访问日志，明文 token 不能出现在 URL 里
+  const token = String(req.headers['x-bambook-ops-token'] || '').trim();
   if (!token) return res.status(401).json({ ok: false, error: 'UNAUTHORIZED', message: 'Missing X-Bambook-Ops-Token' });
   if (token !== ADMIN_TOKEN) return res.status(403).json({ ok: false, error: 'FORBIDDEN', message: 'Invalid ops token' });
   return next();

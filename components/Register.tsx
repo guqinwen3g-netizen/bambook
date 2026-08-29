@@ -98,7 +98,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
     setSuccess('');
     if (password.length < 6) { setError('密码至少 6 位'); return; }
     if (password !== confirm) { setError('两次输入的密码不一致'); return; }
-    if (!code || code.length < 4) { setError('请输入邮箱收到的验证码'); return; }
+    if (!code || code.length !== 6) { setError('请输入邮箱收到的 6 位验证码'); return; }
     setIsLoading(true);
     try {
       await register({

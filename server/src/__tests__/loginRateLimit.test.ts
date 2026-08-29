@@ -116,6 +116,8 @@ describe('/login 防爆破（集成）', () => {
       const res = await request(app).post('/auth/login').send({ email: 'nobody@bambook.test', password: 'wrong' });
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('INVALID_CREDENTIALS');
+      // 401 文案前端直渲，必须为中文（R678 登录域收口）
+      expect(res.body.message).toBe('姓名/邮箱或密码不正确。');
     }
     const blocked = await request(app).post('/auth/login').send({ email: 'nobody@bambook.test', password: 'wrong' });
     expect(blocked.status).toBe(429);

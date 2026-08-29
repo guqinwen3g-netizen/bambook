@@ -157,6 +157,30 @@ function getAuthApiBase(): string {
   return `${DEFAULT_AUTH_ENDPOINT}/api`;
 }
 
+/**
+ * 认证请求统一错误映射层：把底层网络/协议异常翻译成用户可读文案，
+ * 业务页面不再直渲 err.message 原文（TypeError: Failed to fetch 等）。
+ * - TypeError / AbortError（断网、CORS、fetch 超时中断）→ 服务器不可达或超时
+ * - 非 JSON 响应（代理错误页/HTML 网关页）→ 服务异常（HTTP N）
+ * - 其余（后端业务 message，已是中文）→ 原样透传
+ */
+const NETWORK_ERROR_MESSAGE = '服务器不可达或超时，请检查网络';
+const NON_JSON_RESPONSE_RE = /^HTTP (\d+) returned non-JSON response/;
+
+export function mapAuthErrorMessage(error: unknown, fallback = '操作失败，请稍后重试'): string {
+  if (error && typeof error === 'object') {
+    const err = error as { name?: unknown; message?: unknown };
+    if (err.name === 'AbortError' || error instanceof TypeError) {
+      return NETWORK_ERROR_MESSAGE;
+    }
+    const message = typeof err.message === 'string' ? err.message : '';
+    const nonJson = NON_JSON_RESPONSE_RE.exec(message);
+    if (nonJson) return `服务异常（HTTP ${nonJson[1]}）`;
+    if (message) return message;
+  }
+  return fallback;
+}
+
 async function readJsonResponse(res: Response): Promise<any> {
   const text = await res.text();
   if (!text.trim()) {
@@ -248,15 +272,25 @@ export async function register(input: RegisterInput): Promise<{ message: string;
 }
 
 export async function login(identifier: string, password: string): Promise<AuthUser> {
-  const res = await fetchAuth('/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ email: identifier, identifier, password }),
-  }, { fallbackToOmitCredentials: true });
-  const data = await readJsonResponse(res);
+  let res: Response;
+  let data: any;
+  try {
+    res = await fetchAuth('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: identifier, identifier, password }),
+    }, { fallbackToOmitCredentials: true });
+    data = await readJsonResponse(res);
+  } catch (error) {
+    throw new Error(mapAuthErrorMessage(error, '登录失败，请稍后重试'));
+  }
   if (!res.ok) {
-    throw new Error(data.message || data.error || `Login failed (HTTP ${res.status})`);
+    const err: any = new Error(data.message || data.error || `服务异常（HTTP ${res.status}）`);
+    err.code = data.error;
+    // 429 防爆破限流：透传后端算好的冷却时长，供登录页做倒计时
+    if (typeof data.retryAfterMs === 'number') err.retryAfterMs = data.retryAfterMs;
+    throw err;
   }
   if (data.token) {
     localStorage.setItem(AUTH_TOKEN_KEY, data.token);

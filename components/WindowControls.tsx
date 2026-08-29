@@ -208,6 +208,9 @@ const WindowControls: React.FC = () => {
 
 type CtrlKind = 'minimize' | 'maximize' | 'close';
 
+// bds-ok: 以下九枚 hex 是 macOS 原生交通灯（红/黄/绿窗口按钮）的精确拟态色，
+// 属于「操作系统级语义色」而非应用设计 token 体系——跨平台一致性要求
+// Windows/Linux 的自定义按钮与 macOS 原生按钮逐色一致，故不做 token 化。
 const CTRL_COLOR: Record<CtrlKind, { bg: string; hover: string; glyph: string }> = {
     minimize: { bg: '#FEBC2E', hover: '#FFD25C', glyph: '#7A4B00' },
     maximize: { bg: '#27C93F', hover: '#54E16C', glyph: '#0E5A1C' },

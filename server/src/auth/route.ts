@@ -146,7 +146,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
 
     if (!user || !user.passwordHash) {
       loginRateLimiter?.recordFailure(rateLimitKey);
-      return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: 'Invalid name/email or password.' });
+      return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: '姓名/邮箱或密码不正确。' });
     }
 
     if (user.status === 'pending') {
@@ -165,7 +165,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
     const valid = await auth.verifyPassword(password, user.passwordHash);
     if (!valid) {
       loginRateLimiter?.recordFailure(rateLimitKey);
-      return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: 'Invalid name/email or password.' });
+      return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: '姓名/邮箱或密码不正确。' });
     }
 
     // 登录成功：清除该 IP+账号的失败计数

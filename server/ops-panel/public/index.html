@@ -160,7 +160,12 @@
       .log-panel details { border: 1px solid var(--border-subtle); border-radius: 18px; background: var(--glass-3); padding: 12px; }
       .log-panel summary { cursor: pointer; color: var(--text-secondary); font-weight: 750; }
       .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 10px; }
-      .log-tools { display: grid; grid-template-columns: minmax(0, 1fr) 96px auto auto; gap: 8px; margin: 10px 0; align-items: center; }
+      .tabs button.active { border-color: var(--border-glow-blue); background: var(--glass-12); color: var(--text-primary); box-shadow: 0 0 0 3px rgba(74,158,255,0.12); }
+      .log-tools { display: grid; grid-template-columns: minmax(0, 1fr) 96px auto auto auto; gap: 8px; margin: 10px 0; align-items: center; }
+      #toastStack { position: fixed; right: 18px; bottom: 18px; z-index: 9999; display: grid; gap: 8px; max-width: min(460px, calc(100vw - 36px)); }
+      .toast { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border-default); background: rgba(13,24,43,0.94); color: var(--text-secondary); font-size: 12px; line-height: 1.55; box-shadow: var(--shadow-lg); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); cursor: pointer; white-space: pre-wrap; word-break: break-word; }
+      .toast.ok { border-color: rgba(34,197,94,0.45); }
+      .toast.error { border-color: rgba(255,107,107,0.55); color: var(--text-primary); }
       .log-tools label { display: inline-flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
       .log-tools input[type="checkbox"] { width: auto; }
       pre { background: rgba(5,10,21,0.82); color: rgba(235,245,255,0.90); border: 1px solid var(--border-subtle); padding: 16px; border-radius: 18px; overflow: auto; min-height: 220px; max-height: 560px; white-space: pre-wrap; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
@@ -315,26 +320,32 @@
                 <div class="section-note">默认收起，排错时展开查看。</div>
               </div>
             </div>
-            <details>
+            <details id="logDetails">
               <summary>展开最近日志</summary>
               <div class="tabs">
-                <button class="secondary" data-log="ops">操作日志</button>
+                <button class="secondary active" data-log="ops">操作日志</button>
                 <button class="secondary" data-log="cloudflare">Cloudflare</button>
                 <button class="secondary" data-log="main">主 API</button>
                 <button class="secondary" data-log="health">健康检查</button>
+                <button class="secondary" data-log="melo">Melo 安装</button>
+                <button class="secondary" data-log="meloService">Melo 服务</button>
+                <button class="secondary" data-log="meloServiceError">Melo 服务错误</button>
               </div>
               <div class="log-tools">
                 <input id="logSearch" placeholder="搜索关键词" />
                 <input id="logLines" type="number" min="20" max="10000" value="160" />
                 <label><input id="logStderrOnly" type="checkbox" /> 只看异常</label>
+                <button class="secondary" id="searchLog">搜索</button>
                 <button class="secondary" id="downloadLog">下载日志</button>
               </div>
-              <pre id="log">等待加载日志...</pre>
+              <pre id="log">展开后点击上方日志源加载...</pre>
             </details>
           </article>
         </section>
       </main>
     </div>
+
+    <div id="toastStack" aria-live="polite"></div>
 
     <script>
       const tokenInput = document.getElementById('token');
@@ -393,10 +404,49 @@
       document.getElementById('rollbackDevFile').onclick = rollbackDevFile;
       document.getElementById('uploadDevFile').onclick = uploadDevFile;
       document.getElementById('logSearch').onkeydown = event => { if (event.key === 'Enter') loadLog(state.currentLogName); };
+      document.getElementById('searchLog').onclick = () => loadLog(state.currentLogName);
       document.getElementById('logLines').onchange = () => loadLog(state.currentLogName);
       document.getElementById('logStderrOnly').onchange = () => loadLog(state.currentLogName);
       document.getElementById('downloadLog').onclick = downloadLog;
+      // 日志面板默认收起：展开（用户主动行为）时才加载当前日志源，
+      // loadLog 不再被 refresh()/动作结果隐式触发，避免顶掉动作反馈
+      const logDetails = document.getElementById('logDetails');
+      logDetails.addEventListener('toggle', () => {
+        if (logDetails.open) loadLog(state.currentLogName);
+      });
+      // 健康仪表盘自动刷新：页面隐藏时暂停计时器，回到前台立即补一次刷新
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          if (state.autoRefreshTimer) clearTimeout(state.autoRefreshTimer);
+          state.autoRefreshTimer = null;
+        } else {
+          refresh();
+        }
+      });
       renderDevQuickActions();
+
+      // 动作结果浮动提示（常驻独立区域，与默认折叠的日志面板解耦）
+      function notify(message, kind = 'ok') {
+        const stack = document.getElementById('toastStack');
+        const el = document.createElement('div');
+        el.className = `toast ${kind}`;
+        el.textContent = message;
+        el.title = '点击关闭';
+        el.onclick = () => el.remove();
+        stack.appendChild(el);
+        setTimeout(() => el.remove(), kind === 'error' ? 10000 : 6000);
+      }
+
+      // 失败指数退避：30s → 60s → 120s ……封顶 5 分钟，成功即复位
+      function scheduleAutoRefresh() {
+        if (state.autoRefreshTimer) clearTimeout(state.autoRefreshTimer);
+        state.autoRefreshTimer = null;
+        if (document.hidden) return;
+        const delay = state.refreshFailures > 0
+          ? Math.min(AUTO_REFRESH_MS * Math.pow(2, state.refreshFailures), AUTO_REFRESH_MAX_BACKOFF_MS)
+          : AUTO_REFRESH_MS;
+        state.autoRefreshTimer = setTimeout(() => refresh(), delay);
+      }
 
       async function api(path, options = {}) {
         const res = await fetch(path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
@@ -412,14 +462,17 @@
           renderStatus(data.status);
           renderActions(state.actions);
           loadDataMap();
-          loadLog('ops');
           loadDevJobs();
+          state.refreshFailures = 0;
         } catch (error) {
+          state.refreshFailures += 1;
           document.getElementById('overallTitle').className = 'status-title error';
           document.getElementById('overallTitle').textContent = '无法读取';
           document.getElementById('overallCopy').textContent = '请检查管理员密码是否正确，或确认运维面板服务是否在线。';
           renderCoreLights([]);
           document.getElementById('services').innerHTML = `<div class="detail">${escapeHtml(error.message)}</div>`;
+        } finally {
+          scheduleAutoRefresh();
         }
       }
 
@@ -602,26 +655,26 @@
         } else if (!confirm(`要执行：${action.label}？`)) {
           return;
         }
-        const log = document.getElementById('log');
-        log.textContent = `正在执行 ${action.label} ...`;
+        notify(`正在执行 ${action.label} ...`);
         try {
           const result = await api(`${API_BASE}/actions/${id}`, {
             method: 'POST',
             body: JSON.stringify(confirmCode ? { confirm: confirmCode } : {})
           });
           if (result.job) {
-            log.textContent = `已创建任务 ${result.job.id}，请在 Remote Develop 输出区查看实时进度。`;
+            notify(`已创建任务 ${result.job.id}（${action.label}），进度见 Remote Develop 输出区。`);
             state.currentDevJobId = result.job.id;
             renderDevJob(result.job);
             pollDevJob(result.job.id);
             loadDevJobs();
             return;
           }
-          log.textContent = [result.stdout, result.stderr].filter(Boolean).join('\n') || '执行完成。';
+          notify(`${action.label} 执行完成。`);
           refresh();
         } catch (error) {
-          log.textContent = `执行失败：${error.message}`;
-          loadLog('ops');
+          // 失败消息写常驻 toast 区域，不再依赖折叠的日志面板，
+          // 也不再触发 loadLog（避免异步日志覆盖错误反馈）
+          notify(`${action.label} 执行失败：${error.message}`, 'error');
         }
       }
 
@@ -631,6 +684,9 @@
 
       async function loadLog(name) {
         state.currentLogName = name || state.currentLogName || 'ops';
+        document.querySelectorAll('[data-log]').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.log === state.currentLogName);
+        });
         const q = document.getElementById('logSearch')?.value?.trim() || '';
         const lines = document.getElementById('logLines')?.value || '160';
         const stderrOnly = document.getElementById('logStderrOnly')?.checked ? '1' : '';
@@ -645,14 +701,33 @@
         }
       }
 
-      function downloadLog() {
+      async function downloadLog() {
+        const name = state.currentLogName || 'ops';
         const q = document.getElementById('logSearch')?.value?.trim() || '';
         const lines = document.getElementById('logLines')?.value || '160';
         const stderrOnly = document.getElementById('logStderrOnly')?.checked ? '1' : '';
-        const params = new URLSearchParams({ name: state.currentLogName || 'ops', lines, download: '1', token: tokenInput.value.trim() });
+        // token 只走 X-Bambook-Ops-Token header，不再拼进 URL query（避免进代理访问日志）
+        const params = new URLSearchParams({ name, lines, download: '1' });
         if (q) params.set('q', q);
         if (stderrOnly) params.set('stderrOnly', '1');
-        window.open(`${API_BASE}/logs?${params.toString()}`, '_blank');
+        try {
+          const res = await fetch(`${API_BASE}/logs?${params.toString()}`, { headers: headers() });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.message || data.error || `HTTP ${res.status}`);
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `bambook-${name}.log`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          notify(`日志下载失败：${error.message}`, 'error');
+        }
       }
 
       function renderDevQuickActions() {
@@ -756,7 +831,12 @@
             const data = await api(`${API_BASE}/dev/jobs/${encodeURIComponent(id)}`);
             renderDevJob(data.job);
             loadDevJobs();
-            if (data.job.status === 'running') pollDevJob(id);
+            if (data.job.status === 'running') {
+              pollDevJob(id);
+            } else {
+              // job 进入终态（ok/error/cancelled）：动作可能改变了服务状态，联动一次健康刷新
+              refresh();
+            }
           } catch (error) {
             document.getElementById('devOutput').textContent += `\n[ops-ui] 轮询失败：${error.message}`;
           }
@@ -948,17 +1028,16 @@
           return alert('API Key 格式不对，应以 re_ 开头。已取消。');
         }
 
-        const logBox = document.getElementById('log');
-        logBox.textContent = `正在配置 Resend (${fromEmail})...`;
+        notify(`正在配置 Resend (${fromEmail})...`);
         try {
           const result = await api(`${API_BASE}/admin/email-key`, {
             method: 'POST',
             body: JSON.stringify({ apiKey: trimmed, from })
           });
-          logBox.textContent = `✓ ${result.message || 'Resend 配置完成。'}\n  发件人：${result.from || from}\n  约 5~10 秒后自动生效。`;
+          notify(`✓ ${result.message || 'Resend 配置完成。'}\n发件人：${result.from || from}\n约 5~10 秒后自动生效。`);
           setTimeout(refresh, 8000);
         } catch (error) {
-          logBox.textContent = `✗ Resend 配置失败：${error.message}`;
+          notify(`✗ Resend 配置失败：${error.message}`, 'error');
           alert(`失败：${error.message}`);
         }
       }
