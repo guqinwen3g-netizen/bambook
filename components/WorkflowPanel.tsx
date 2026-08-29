@@ -510,7 +510,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
         </div>
       )}
       {error && (
-        <div className="rounded-control px-4 py-2 text-xs bg-[var(--danger-tint)] text-[var(--danger-text)]">
+        <div className="bds-error-banner">
           {error}
         </div>
       )}
@@ -737,7 +737,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
         </div>
       )}
       {error && (
-        <div className="rounded-control px-4 py-2 text-xs bg-[var(--danger-tint)] text-[var(--danger-text)]">
+        <div className="bds-error-banner">
           {error}
         </div>
       )}

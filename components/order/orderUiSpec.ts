@@ -467,64 +467,64 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
 
     // ── 第八批：订单类型标签（Fabric/Garment/Other 三色区分） ──
     typeTagFabric: dark
-      ? 'rounded-full border border-[rgba(125,196,235,0.30)] bg-accent-blue/[0.12] px-2 py-0.5 text-[10px] font-light tracking-wide text-accent-blue'
+      ? 'rounded-full border border-[var(--accent-border)] bg-[var(--accent-tint)] px-2 py-0.5 text-[10px] font-light tracking-wide text-[var(--accent-text)]'
       : 'rounded-full border border-action/25 bg-action/[0.06] px-2 py-0.5 text-[10px] font-light tracking-wide text-link',
     typeTagGarment: dark
-      ? 'rounded-full border border-[rgba(168,139,235,0.30)] bg-purple-400/[0.12] px-2 py-0.5 text-[10px] font-light tracking-wide text-purple-300'
-      : 'rounded-full border border-purple-400/30 bg-purple-400/[0.08] px-2 py-0.5 text-[10px] font-light tracking-wide text-purple-600',
+      ? 'rounded-full border border-[var(--accent-border)] bg-[var(--accent-tint)] px-2 py-0.5 text-[10px] font-light tracking-wide text-[var(--accent-text)]'
+      : 'rounded-full border border-[var(--accent-border)] bg-[var(--accent-tint)] px-2 py-0.5 text-[10px] font-light tracking-wide text-[var(--accent-text)]',
     typeTagOther: dark
-      ? 'rounded-full border border-[rgba(251,191,36,0.30)] bg-amber-400/[0.12] px-2 py-0.5 text-[10px] font-light tracking-wide text-amber-300'
-      : 'rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-2 py-0.5 text-[10px] font-light tracking-wide text-amber-700',
-    typeDotFabric: dark ? 'bg-accent-blue' : 'bg-action',
-    typeDotGarment: dark ? 'bg-purple-400' : 'bg-purple-500',
-    typeDotOther: dark ? 'bg-amber-400' : 'bg-amber-500',
+      ? 'rounded-full border border-[var(--warning-border)] bg-[var(--warning-tint)] px-2 py-0.5 text-[10px] font-light tracking-wide text-[var(--warning-text)]'
+      : 'rounded-full border border-[var(--warning-border)] bg-[var(--warning-tint)] px-2 py-0.5 text-[10px] font-light tracking-wide text-[var(--warning-text)]',
+    typeDotFabric: dark ? 'bg-[var(--accent)]' : 'bg-action',
+    typeDotGarment: dark ? 'bg-[var(--accent)]' : 'bg-[var(--accent)]',
+    typeDotOther: dark ? 'bg-[var(--warning)]' : 'bg-[var(--warning)]',
 
     // ── 第九批：移动端卡片与空状态样式 ──
-    mobileCardPrimaryText: dark ? 'text-white' : 'text-slate-900',
-    mobileCardSecondaryText: dark ? 'text-slate-300' : 'text-slate-700',
-    mobileCardLabelText: dark ? 'text-slate-500' : 'text-slate-400',
-    mobileCardMenuHoverBg: dark ? 'hover:bg-white/10' : 'hover:bg-slate-100',
-    mobileCardProgressBg: dark ? 'bg-slate-700' : 'bg-slate-100',
+    mobileCardPrimaryText: dark ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]',
+    mobileCardSecondaryText: dark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]',
+    mobileCardLabelText: dark ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-tertiary)]',
+    mobileCardMenuHoverBg: dark ? 'hover:bg-[var(--hover-darken)]' : 'hover:bg-[var(--hover-darken)]',
+    mobileCardProgressBg: dark ? 'bg-[var(--recessed-bg)]' : 'bg-[var(--recessed-bg)]',
     mobileCapsuleTag: dark
-      ? 'border-[rgba(255,255,255,0.14)] text-white/55'
-      : 'border-[rgba(148,163,184,0.55)] text-slate-500',
-    emptyStateText: dark ? 'text-white/35' : 'text-slate-400',
-    emptyStateSubtext: dark ? 'text-white/28' : 'text-slate-400',
-    emptyStateIcon: dark ? 'text-white/24' : 'text-slate-300',
-    overlayBg: dark ? 'bg-slate-950/60' : 'bg-slate-900/30',
-    borderSubtle: dark ? 'border-white/[0.06]' : 'border-slate-200/45',
+      ? 'border-[var(--border-c-subtle)] text-[var(--text-secondary)]'
+      : 'border-[var(--border-c-subtle)] text-[var(--text-secondary)]',
+    emptyStateText: dark ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-tertiary)]',
+    emptyStateSubtext: dark ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-tertiary)]',
+    emptyStateIcon: dark ? 'text-[var(--text-quaternary)]' : 'text-[var(--text-quaternary)]',
+    overlayBg: dark ? 'bg-[var(--mask-bg)]' : 'bg-[var(--mask-bg)]',
+    borderSubtle: dark ? 'border-[var(--border-c-subtle)]' : 'border-[var(--border-c-subtle)]',
 
     // ── 第十批：子编辑器统一配方 ──
     subFieldInput: `h-9 px-3 rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${
       BAMBOOK_OS.controls.recessedField.base
     }`,
     subFieldFocus: dark
-      ? 'focus:border-[rgba(125,196,235,0.45)] focus:ring-1 focus:ring-accent-blue/20'
-      : 'focus:border-action/45 focus:ring-1 focus:ring-action/15',
+      ? 'focus:border-[var(--border-c-strong)] focus:ring-1 focus:ring-[var(--border-c-strong)]/40'
+      : 'focus:border-[var(--border-c-strong)] focus:ring-1 focus:ring-[var(--border-c-strong)]/40',
     deleteBtn: `flex h-9 w-9 shrink-0 items-center justify-center rounded-control border transition-all ${
       dark
-        ? 'border-white/10 text-white/40 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-400'
-        : 'border-slate-200 text-slate-400 hover:bg-red-50 hover:border-red-300 hover:text-red-600'
+        ? 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:border-[var(--danger-border)] hover:text-[var(--danger-text)]'
+        : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:border-[var(--danger-border)] hover:text-[var(--danger-text)]'
     }`,
     addBtn: `flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[11px] font-light transition-all ${
       dark
-        ? 'border-white/20 text-white/60 hover:bg-accent-blue/[0.06] hover:border-accent-blue/30 hover:text-accent-blue'
-        : 'border-slate-300 text-slate-500 hover:bg-action/[0.04] hover:border-action/30 hover:text-link'
+        ? 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:border-[var(--accent-border)] hover:text-[var(--accent-text)]'
+        : 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:border-[var(--accent-border)] hover:text-[var(--accent-text)]'
     }`,
     quickAddBtn: `rounded-full border px-2.5 py-1 text-[10px] font-light transition-all ${
       dark
-        ? 'border-white/15 text-white/70 hover:bg-white/[0.05] hover:border-white/25'
-        : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+        ? 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-strong)]'
+        : 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-strong)]'
     }`,
     quickAddBtnDisabled: `rounded-full border px-2.5 py-1 text-[10px] font-light ${
       dark
-        ? 'border-white/5 text-white/20 cursor-not-allowed'
-        : 'border-slate-100 text-slate-300 cursor-not-allowed'
+        ? 'border-[var(--border-c-subtle)] text-[var(--text-quaternary)] cursor-not-allowed'
+        : 'border-[var(--border-c-subtle)] text-[var(--text-quaternary)] cursor-not-allowed'
     }`,
     btnFullWidthConfirm: `w-full py-5 text-xs font-light uppercase tracking-widest rounded-full mt-4 transition-all ${
       dark
-        ? 'bg-[rgba(255,255,255,0.10)] text-white/80 hover:bg-[rgba(255,255,255,0.15)]'
-        : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(148,163,184,0.45)] text-slate-700 hover:bg-[rgba(255,255,255,0.90)] hover:text-slate-900'
+        ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]'
+        : 'bg-[var(--recessed-bg-strong)] border border-[var(--border-c-default)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]'
     }`,
   };
 };
