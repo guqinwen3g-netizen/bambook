@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SystemConfig, MODELS, type WallpaperOption } from '../types';
+import { SystemConfig, MODELS } from '../types';
 import { apiService } from '../services/apiService';
 import { knowledgeApiService } from '../services/knowledgeApiService';
 import { storageService, type DeviceStorageReport } from '../services/storageService';
@@ -10,17 +10,14 @@ import {
   Layout, BrainCircuit, Volume2,
   Monitor, Moon, Sun, DatabaseZap,
   Bot, Server, Cpu, Globe, User, ArrowRight, LogOut,
-  HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
+  HardDrive, RefreshCw, Trash2, Pencil, RotateCw,
   KeyRound, Wrench
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
-import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { requestOsAdaptiveContrastRefresh } from './ui/osAdaptiveContrast';
 import UserAvatar from './ui/UserAvatar';
-import { resolvePublicAssetUrl } from '../utils/publicAssets';
-import { setWallpaperAccentSample } from '../utils/wallpaperAccent';
 import {
   SIDEBAR_ACTIVE_CLASS,
   SIDEBAR_HOVER_CLASS,
@@ -32,8 +29,6 @@ import {
   CompiledSplitNavPanel,
   CompiledSplitWorkspace,
 } from './ui/primitives/compiledPrimitives';
-
-const ENABLE_WALLPAPER_SWITCHING = false;
 
 export interface SettingsProps {
   mode?: 'account' | 'system';
@@ -56,237 +51,6 @@ type AvatarCropDraft = {
 
 const AVATAR_CROP_PREVIEW_SIZE = 224;
 const AVATAR_OUTPUT_SIZE = 256;
-
-export const WALLPAPER_PRESETS: WallpaperOption[] = [
-  { id: 'none', title: '经典渐变', group: '极简', url: '' },
-  { id: 'scifi', title: '蓝羽流光', group: '极简', url: '/wallpapers/wallhaven-4dqgvj.jpg' },
-  { id: 'wallhaven-e8ejjw', title: '蓝紫柔光', group: '极简', url: '/wallpapers/wallhaven-e8ejjw.jpg' },
-  { id: 'cyber', title: '赛博光束', group: '极简', url: '/wallpapers/wallhaven-1kqvwg.jpg' },
-  { id: 'aurora', title: '湖镜列车', group: '自然', url: '/wallpapers/wallhaven-yqxzqx.jpg' },
-  { id: 'wallhaven-48pwv2', title: '雪浪成墙', group: '自然', url: '/wallpapers/wallhaven-48pwv2.jpg' },
-  { id: 'wallhaven-6lw5ll', title: '雪峰流云', group: '自然', url: '/wallpapers/wallhaven-6lw5ll.jpg' },
-  { id: 'wallhaven-mdmrly', title: '碧浪卷心', group: '自然', url: '/wallpapers/wallhaven-mdmrly.jpg' },
-  { id: 'wallhaven-rqjrzq', title: '雾海灰潮', group: '自然', url: '/wallpapers/wallhaven-rqjrzq.jpg' },
-  { id: 'wallhaven-966ev1', title: '沪上暮光', group: '城市', url: '/wallpapers/wallhaven-966ev1.jpg' },
-  { id: 'image-5', title: '星落晚窗', group: '动漫', url: '/wallpapers/5.jpg' },
-  { id: 'wallhaven-gw2zpq', title: '暮野孤影', group: '动漫', url: '/wallpapers/wallhaven-gw2zpq.jpg' },
-  { id: 'test-solid-black', title: '纯黑', group: '纯色', url: '/wallpapers/test-solid-black.svg' },
-  { id: 'test-solid-white', title: '纯白', group: '纯色', url: '/wallpapers/test-solid-white.svg' },
-  { id: 'test-solid-brand-blue', title: '主题蓝', group: '纯色', url: '/wallpapers/test-solid-brand-blue.svg' },
-  { id: 'solid-mist-blue', title: '雾蓝', group: '纯色', url: '/wallpapers/solid-mist-blue.svg' },
-  { id: 'solid-lagoon', title: '湖青', group: '纯色', url: '/wallpapers/solid-lagoon.svg' },
-  { id: 'solid-dusk-violet', title: '暮紫', group: '纯色', url: '/wallpapers/solid-dusk-violet.svg' },
-  { id: 'solid-graphite', title: '石墨', group: '纯色', url: '/wallpapers/solid-graphite.svg' },
-  { id: 'solid-warm-gray', title: '暖灰', group: '纯色', url: '/wallpapers/solid-warm-gray.svg' },
-  { id: 'solid-sage', title: '鼠尾草', group: '纯色', url: '/wallpapers/solid-sage.svg' },
-  { id: 'solid-midnight-blue', title: '午夜蓝', group: '纯色', url: '/wallpapers/solid-midnight-blue.svg' },
-  { id: 'solid-burgundy', title: '勃艮第红', group: '纯色', url: '/wallpapers/solid-burgundy.svg' },
-  { id: 'solid-forest-green', title: '森林绿', group: '纯色', url: '/wallpapers/solid-forest-green.svg' },
-  { id: 'solid-sunset', title: '暖阳', group: '纯色', url: '/wallpapers/solid-sunset.svg' },
-  { id: 'solid-mint', title: '薄荷绿', group: '纯色', url: '/wallpapers/solid-mint.svg' },
-  { id: 'solid-sakura-pink', title: '樱花粉', group: '纯色', url: '/wallpapers/solid-sakura-pink.svg' },
-  { id: 'solid-mustard', title: '芥末黄', group: '纯色', url: '/wallpapers/solid-mustard.svg' },
-];
-
-const PACKAGED_WALLPAPER_URL_BY_ID = WALLPAPER_PRESETS.reduce<Record<string, string>>((map, preset) => {
-  map[preset.id] = preset.url;
-  return map;
-}, {});
-
-const WALLPAPER_GROUP_ORDER = ['极简', '自然', '城市', '动漫', '纯色'];
-
-const DEFAULT_WALLPAPER_PREVIEW_LIGHT_STYLE = {
-  backgroundImage: [
-    'radial-gradient(circle at 12% 8%, rgba(93,224,230,0.22), transparent 34%)',
-    'radial-gradient(circle at 86% 92%, rgba(0,74,173,0.16), transparent 36%)',
-    'radial-gradient(circle at 52% 48%, rgba(213,229,242,0.34), transparent 42%)',
-    'linear-gradient(135deg, #DDE8F2 0%, #CFDEEC 48%, #BCCFE1 100%)',
-  ].join(', '),
-};
-
-const DEFAULT_WALLPAPER_PREVIEW_DARK_STYLE = {
-  backgroundImage: [
-    'radial-gradient(circle at 7% 8%, rgba(64,92,126,0.17), transparent 44%)',
-    'radial-gradient(circle at 94% 12%, rgba(73,112,130,0.10), transparent 42%)',
-    'radial-gradient(circle at 90% 94%, rgba(92,112,132,0.12), transparent 46%)',
-    'radial-gradient(circle at 8% 92%, rgba(52,72,100,0.12), transparent 48%)',
-    'linear-gradient(135deg, #070D15 0%, #0B111B 46%, #050A11 100%)',
-  ].join(', '),
-};
-
-const WALLPAPER_CURATED_TITLES: Record<string, string> = {
-  '/wallpapers/wallhaven-yqxzqx.jpg': '湖镜列车',
-  '/wallpapers/5.jpg': '星落晚窗',
-  '/wallpapers/wallhaven-4dqgvj.jpg': '蓝羽流光',
-  '/wallpapers/wallhaven-48pwv2.jpg': '雪浪成墙',
-  '/wallpapers/wallhaven-1kqvwg.jpg': '赛博光束',
-  '/wallpapers/wallhaven-6lw5ll.jpg': '雪峰流云',
-  '/wallpapers/wallhaven-966ev1.jpg': '沪上暮光',
-  '/wallpapers/wallhaven-e8ejjw.jpg': '蓝紫柔光',
-  '/wallpapers/wallhaven-gw2zpq.jpg': '暮野孤影',
-  '/wallpapers/wallhaven-mdmrly.jpg': '碧浪卷心',
-  '/wallpapers/wallhaven-rqjrzq.jpg': '雾海灰潮',
-  '/wallpapers/test-solid-black.svg': '纯黑',
-  '/wallpapers/test-solid-white.svg': '纯白',
-  '/wallpapers/test-solid-brand-blue.svg': '主题蓝',
-  '/wallpapers/solid-mist-blue.svg': '雾蓝',
-  '/wallpapers/solid-lagoon.svg': '湖青',
-  '/wallpapers/solid-dusk-violet.svg': '暮紫',
-  '/wallpapers/solid-graphite.svg': '石墨',
-  '/wallpapers/solid-warm-gray.svg': '暖灰',
-  '/wallpapers/solid-sage.svg': '鼠尾草',
-  '/wallpapers/solid-midnight-blue.svg': '午夜蓝',
-  '/wallpapers/solid-burgundy.svg': '勃艮第红',
-  '/wallpapers/solid-forest-green.svg': '森林绿',
-  '/wallpapers/solid-sunset.svg': '暖阳',
-  '/wallpapers/solid-mint.svg': '薄荷绿',
-  '/wallpapers/solid-sakura-pink.svg': '樱花粉',
-  '/wallpapers/solid-mustard.svg': '芥末黄',
-};
-
-const WALLPAPER_CURATED_GROUPS: Record<string, string> = {
-  '': '极简',
-  '/wallpapers/wallhaven-yqxzqx.jpg': '自然',
-  '/wallpapers/5.jpg': '动漫',
-  '/wallpapers/wallhaven-4dqgvj.jpg': '极简',
-  '/wallpapers/wallhaven-48pwv2.jpg': '自然',
-  '/wallpapers/wallhaven-1kqvwg.jpg': '极简',
-  '/wallpapers/wallhaven-4982k0.jpg': '极简',
-  '/wallpapers/wallhaven-6lw5ll.jpg': '自然',
-  '/wallpapers/wallhaven-966ev1.jpg': '城市',
-  '/wallpapers/wallhaven-e8ejjw.jpg': '极简',
-  '/wallpapers/wallhaven-gw2zpq.jpg': '动漫',
-  '/wallpapers/wallhaven-mdmrly.jpg': '自然',
-  '/wallpapers/wallhaven-rqjrzq.jpg': '自然',
-  '/wallpapers/test-solid-black.svg': '纯色',
-  '/wallpapers/test-solid-white.svg': '纯色',
-  '/wallpapers/test-solid-brand-blue.svg': '纯色',
-  '/wallpapers/solid-mist-blue.svg': '纯色',
-  '/wallpapers/solid-lagoon.svg': '纯色',
-  '/wallpapers/solid-dusk-violet.svg': '纯色',
-  '/wallpapers/solid-graphite.svg': '纯色',
-  '/wallpapers/solid-warm-gray.svg': '纯色',
-  '/wallpapers/solid-sage.svg': '纯色',
-  '/wallpapers/solid-midnight-blue.svg': '纯色',
-  '/wallpapers/solid-burgundy.svg': '纯色',
-  '/wallpapers/solid-forest-green.svg': '纯色',
-  '/wallpapers/solid-sunset.svg': '纯色',
-  '/wallpapers/solid-mint.svg': '纯色',
-  '/wallpapers/solid-sakura-pink.svg': '纯色',
-  '/wallpapers/solid-mustard.svg': '纯色',
-};
-
-const shouldUseCuratedWallpaperTitle = (option: WallpaperOption) => {
-  const title = (option.title || '').trim();
-  if (title === '科幻母舰') return true;
-  if (/^wallhaven-[\w-]+(?:\.(?:jpe?g|png|webp))?$/i.test(title)) return true;
-  return title === (option.url || '').split('/').pop();
-};
-
-const shouldUseCuratedWallpaperGroup = (option: WallpaperOption) => {
-  const group = (option.group || '').trim();
-  return !group || group === '默认' || group === '未分组' || group === '科幻';
-};
-
-const getWallpaperGroupRank = (group: string) => {
-  const index = WALLPAPER_GROUP_ORDER.indexOf(group);
-  return index === -1 ? WALLPAPER_GROUP_ORDER.length : index;
-};
-
-const getPackagedWallpaperUrl = (option: WallpaperOption) => {
-  const id = option.assetId || option.id;
-  if (id && PACKAGED_WALLPAPER_URL_BY_ID[id] !== undefined) return PACKAGED_WALLPAPER_URL_BY_ID[id];
-  const match = option.url.match(/\/api\/v1\/system-assets\/([^/]+)\/file/);
-  return match ? PACKAGED_WALLPAPER_URL_BY_ID[decodeURIComponent(match[1])] : undefined;
-};
-
-const normalizeWallpaperOptions = (options?: WallpaperOption[]): WallpaperOption[] => {
-  if (!Array.isArray(options) || options.length === 0) return WALLPAPER_PRESETS;
-  const normalizedOptions = options
-    .map((option, index) => {
-      const packagedUrl = getPackagedWallpaperUrl(option);
-      const url = packagedUrl ?? option.url ?? '';
-      return {
-        id: option.id || option.assetId || `wallpaper-${index}`,
-        title: shouldUseCuratedWallpaperTitle({ ...option, url })
-          ? WALLPAPER_CURATED_TITLES[url] || option.title
-          : option.title || WALLPAPER_CURATED_TITLES[url] || url.split('/').pop() || '未命名壁纸',
-        url,
-        group: shouldUseCuratedWallpaperGroup(option)
-          ? WALLPAPER_CURATED_GROUPS[url || ''] || option.group?.trim() || '未分组'
-          : option.group.trim(),
-        hidden: Boolean(option.hidden),
-        sortOrder: option.sortOrder,
-      };
-    })
-    .filter(option => option.url === '' || WALLPAPER_PRESETS.some(preset => preset.url === option.url));
-  const existingUrls = new Set(normalizedOptions.map(option => option.url));
-  const missingPackagedOptions = WALLPAPER_PRESETS.filter(preset => !existingUrls.has(preset.url));
-  return [...normalizedOptions, ...missingPackagedOptions];
-};
-
-const compressWallpaper = (file: File): Promise<{ dataUrl: string; sample: { r: number; g: number; b: number } | null }> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('读取壁纸失败'));
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onerror = () => reject(new Error('解析图片失败'));
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve({ dataUrl: String(reader.result || ''), sample: null });
-          return;
-        }
-        const MAX_LIMIT = 1920;
-        let w = img.width;
-        let h = img.height;
-        if (w > MAX_LIMIT || h > MAX_LIMIT) {
-          if (w > h) {
-            h = Math.round((h * MAX_LIMIT) / w);
-            w = MAX_LIMIT;
-          } else {
-            w = Math.round((w * MAX_LIMIT) / h);
-            h = MAX_LIMIT;
-          }
-        }
-        canvas.width = w;
-        canvas.height = h;
-        ctx.drawImage(img, 0, 0, w, h);
-        const compressed = canvas.toDataURL('image/jpeg', 0.8);
-
-        // 复用 canvas 上的已解码像素，顺手算 12×12 平均色作为颜色档案，
-        // 与 wallpaperAccent.sampleWallpaperAverageColorUncached 完全一致。
-        let sample: { r: number; g: number; b: number } | null = null;
-        try {
-          const sampleCanvas = document.createElement('canvas');
-          sampleCanvas.width = 12;
-          sampleCanvas.height = 12;
-          const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
-          if (sampleCtx) {
-            sampleCtx.drawImage(canvas, 0, 0, sampleCanvas.width, sampleCanvas.height);
-            const pixels = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data;
-            let r = 0, g = 0, b = 0, count = 0;
-            for (let i = 0; i < pixels.length; i += 4) {
-              r += pixels[i];
-              g += pixels[i + 1];
-              b += pixels[i + 2];
-              count += 1;
-            }
-            if (count) sample = { r: r / count, g: g / count, b: b / count };
-          }
-        } catch {
-          // 采样失败不影响壁纸本身，运行时仍可走异步 fallback。
-        }
-
-        resolve({ dataUrl: compressed, sample });
-      };
-      img.src = String(reader.result || '');
-    };
-    reader.readAsDataURL(file);
-  });
-};
 
 // 当前内置 Agent 统一走后端 AI Runtime。模型 ID 来源于
 // lib/ai/models.ts 的公共常量；真实 provider 和 key 只存在于后端。
@@ -446,7 +210,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
     }
     setLocalConfig(newConfig);
     onUpdateConfig(newConfig);
-    if (field === 'themeMode' || field === 'backgroundImage') {
+    if (field === 'themeMode') {
       requestOsAdaptiveContrastRefresh();
     }
   };
@@ -499,9 +263,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const optionActiveCls = `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`;
   // SIDEBAR_HOVER/PRESS 的 DARK 与 LIGHT 版已坍缩为同一自适应配方，单类承载双主题
   const optionIdleCls = `border border-transparent bg-transparent shadow-none text-[var(--text-secondary)] ${SIDEBAR_HOVER_CLASS} ${SIDEBAR_PRESS_CLASS}`;
-  const uploadDropzoneCls = 'relative h-20 rounded-control border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all duration-200 border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
-  const selectedWallpaperCls = 'border-[var(--os-vnext-brand-blue)] shadow-none';
-  const idleWallpaperCls = 'border-[var(--border-c-subtle)] hover:border-[var(--border-c-default)]';
   const rangeCls = 'bambook-settings-range w-full appearance-none cursor-pointer';
   const switchCls = (checked: boolean) => `bds-switch ${checked ? 'on' : ''}`;
 
@@ -511,17 +272,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const user = auth.user;
   const canUseAiChat = hasPermission('ai:chat');
   const isProductionGlobeEnabled = localConfig.enableProductionGlobe !== false;
-  const wallpaperOptions = normalizeWallpaperOptions(localConfig.systemWallpaperOptions);
-  const groupedWallpaperOptions = wallpaperOptions.reduce<Array<{ group: string; presets: WallpaperOption[] }>>((groups, preset) => {
-    const groupName = preset.group || '未分组';
-    const existing = groups.find(group => group.group === groupName);
-    if (existing) existing.presets.push(preset);
-    else groups.push({ group: groupName, presets: [preset] });
-    return groups;
-  }, []).sort((a, b) => (
-    getWallpaperGroupRank(a.group) - getWallpaperGroupRank(b.group)
-    || a.group.localeCompare(b.group, 'zh-Hans-CN')
-  ));
   const visibleTabs = useMemo(() => SETTINGS_TABS.filter(tab => (
     mode === 'account'
       ? tab.id === 'account'
@@ -804,109 +554,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       </div>
                     </div>
                   </div>
-
-                  {ENABLE_WALLPAPER_SWITCHING && (
-                  <div className={`pt-6 border-t ${sectionDividerCls}`}>
-                    <h3 className={`text-xs font-light uppercase tracking-[0.2em] mb-2 text-[var(--text-tertiary)]`}>桌面背景壁纸</h3>
-                    <p className={`text-xs mb-4 ${secondaryTextCls}`}>
-                      选择内置的物理折射壁纸或上传自定义照片，以提升工作区的毛玻璃感与三维立体深度。
-                    </p>
-
-                    <div className="space-y-4">
-                      {groupedWallpaperOptions.map(group => (
-                        <div key={group.group} className="space-y-2">
-                          <div className={`text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]`}>{group.group}</div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {group.presets.map(preset => {
-                              const resolvedBackgroundImage = resolvePublicAssetUrl(localConfig.backgroundImage);
-                              const isSelected = (!localConfig.backgroundImage && preset.url === '') || (resolvedBackgroundImage === preset.url);
-                              return (
-                                <div
-                                  key={preset.id}
-                                  className={`relative rounded-control border transition-colors duration-200 ${isSelected ? selectedWallpaperCls : idleWallpaperCls}`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdate('backgroundImage', preset.url)}
-                                    className="group/wp relative flex h-20 w-full flex-col justify-end overflow-hidden rounded-control p-2 text-left"
-                                  >
-                                    {preset.url ? (
-                                      <>
-                                        <div
-                                          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/wp:scale-105"
-                                          style={{ backgroundImage: `url(${resolvePublicAssetUrl(preset.url)})` }}
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                                      </>
-                                    ) : (
-                                      <>
-                                        <div
-                                          className="absolute inset-0 transition-transform duration-500 group-hover/wp:scale-105"
-                                          style={isDarkMode ? DEFAULT_WALLPAPER_PREVIEW_DARK_STYLE : DEFAULT_WALLPAPER_PREVIEW_LIGHT_STYLE}
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-white/15" />
-                                      </>
-                                    )}
-                                    <span className="relative z-10 flex max-w-full items-center gap-1 text-[10px] font-light text-white drop-shadow-none">
-                                      <span className="truncate">{preset.title}</span>
-                                    </span>
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* 如果有自定义上传的背景（且不在 Preset 里），显示它 */}
-                      {localConfig.backgroundImage && !wallpaperOptions.some(p => p.url === resolvePublicAssetUrl(localConfig.backgroundImage)) && (
-                        <button
-                          type="button"
-                          className={`group/wp relative h-20 rounded-control border ${selectedWallpaperCls} overflow-hidden flex flex-col justify-end p-2 text-left`}
-                        >
-                          <div
-                            className="absolute inset-0 bg-cover bg-center"
-                            style={{ backgroundImage: `url(${resolvePublicAssetUrl(localConfig.backgroundImage)})` }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                          <span className="relative z-10 text-[10px] font-light text-white truncate max-w-full drop-shadow-none flex items-center gap-1">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--active-darken)]" />
-                            自定义背景
-                          </span>
-                        </button>
-                      )}
-
-                      {/* 上传图片卡片按钮 */}
-                      <label
-                        className={uploadDropzoneCls}
-                      >
-                        <Upload size={18} strokeWidth={1.5} />
-                        <span className="text-[10px] font-light">上传背景图</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="sr-only"
-                          onChange={async (e) => {
-                            const file = e.currentTarget.files?.[0];
-                            if (file) {
-                              try {
-                                const { dataUrl, sample } = await compressWallpaper(file);
-                                // 关键：把颜色档案写进缓存里，要先于 handleUpdate；
-                                // 这样下一帧 App 重新渲染时 getCachedWallpaperAccentPalette
-                                // 立刻命中，accent CSS 变量同步切换、无任何异步延迟。
-                                if (sample) setWallpaperAccentSample(dataUrl, sample);
-                                handleUpdate('backgroundImage', dataUrl);
-                              } catch (err: any) {
-                                bdsToast.danger(err.message || '读取并压缩壁纸失败');
-                              }
-                            }
-                            e.currentTarget.value = '';
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  )}
                 </div>
               )}
 

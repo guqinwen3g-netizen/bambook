@@ -597,6 +597,28 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
     const dashboardMetricCaptionClass = 'text-[12px] font-normal text-os-adaptive-subtitle';
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
+    // 账户菜单关闭契约（对齐侧边栏账户菜单）：Esc + 外点关闭。
+    // 外点判定豁免触发钮（data-dashboard-account-bar）与菜单本体（data-dashboard-account-menu），
+    // 触发钮自身的 onClick toggle 已处理"再点一次关闭"。
+    useEffect(() => {
+        if (!accountMenuOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setAccountMenuOpen(false);
+        };
+        const onPointerDown = (e: MouseEvent) => {
+            const el = e.target as HTMLElement | null;
+            if (!el) return;
+            if (el.closest('[data-dashboard-account-menu]') || el.closest('[data-dashboard-account-bar]')) return;
+            setAccountMenuOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        window.addEventListener('mousedown', onPointerDown);
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            window.removeEventListener('mousedown', onPointerDown);
+        };
+    }, [accountMenuOpen]);
+
     // Sync Global Pulse — slow rotation across the view-state cards.
     // (Originally toggled off during the stutter investigation; restored
     // now that the real culprit was the globe's setInterval-based
@@ -845,6 +867,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     type="button"
                                     aria-label="账户菜单"
                                     aria-expanded={accountMenuOpen}
+                                    data-dashboard-account-bar
                                     onClick={() => setAccountMenuOpen((open) => !open)}
                                     className={`pointer-events-auto flex h-14 items-center gap-3 rounded-card-lg border px-4 pr-5 ${dashboardHeaderPillClass} text-os-adaptive-primary`}
                                 >
@@ -863,6 +886,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                 <AnimatePresence>
                                     {accountMenuOpen && (
                                         <motion.div
+                                            data-dashboard-account-menu
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}

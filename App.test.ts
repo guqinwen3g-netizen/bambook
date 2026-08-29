@@ -209,12 +209,6 @@ describe('App light background tone', () => {
     expect(source).toContain('{activeView === View.AdminPanel && (\n              <AdminPanel');
   });
 
-  it('passes the company data-center endpoint into the data twin layout page', () => {
-    const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
-
-    expect(source).toContain('<DataCenter isDarkMode={isDarkMode} dataCenterEndpoint={config.cloudEndpoint} />');
-  });
-
   it('starts every explicit login on the dashboard instead of the last saved page', () => {
     const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
     const loginSource = source.slice(

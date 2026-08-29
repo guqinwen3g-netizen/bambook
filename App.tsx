@@ -137,7 +137,6 @@ import {
   applyWallpaperAccentPaletteToElement,
   defaultWallpaperAccentPalette,
   getCachedWallpaperAccentPalette,
-  preloadWallpaperAccentPalettes,
   resolveWallpaperAccentPalette,
   type WallpaperAccentPalette,
 } from './utils/wallpaperAccent';
@@ -152,7 +151,7 @@ import DataCenter from './components/DataCenter';
 import OrderManager, { savedRowToOrder } from './components/OrderManager';
 import CommandPalette from './components/CommandPalette';
 import EmailManager from './components/EmailManager';
-import Settings, { WALLPAPER_PRESETS } from './components/Settings';
+import Settings from './components/Settings';
 import RelationsManager from './components/RelationsManager';
 import ProductsManager, {
   parseProductModuleSortValue,
@@ -1116,17 +1115,6 @@ const App: React.FC = () => {
     return () => { cancelled = true; };
   }, [commitWallpaperAccentPalette, isDarkMode, resolvedBackgroundImageUrl]);
 
-  useEffect(() => {
-    if (!ENABLE_WALLPAPER_SWITCHING) return;
-    const configuredWallpapers = Array.isArray(config.systemWallpaperOptions) && config.systemWallpaperOptions.length > 0
-      ? config.systemWallpaperOptions
-      : WALLPAPER_PRESETS;
-    preloadWallpaperAccentPalettes([
-      resolvedBackgroundImageUrl,
-      ...configuredWallpapers.map(option => resolvePublicAssetUrl(option.url)),
-    ]);
-  }, [config.systemWallpaperOptions, resolvedBackgroundImageUrl]);
-
   const syncWallpaperAccentForConfig = useCallback((nextConfig: SystemConfig, nextIsDarkMode: boolean) => {
     const requestId = ++wallpaperAccentRequestIdRef.current;
     const nextWallpaperUrl = ENABLE_WALLPAPER_SWITCHING && nextConfig.backgroundImage ? resolvePublicAssetUrl(nextConfig.backgroundImage) : '';
@@ -1679,7 +1667,7 @@ const App: React.FC = () => {
               <ProductionBoard isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />
             )}
             {activeView === View.DataCenter && (
-              <DataCenter isDarkMode={isDarkMode} dataCenterEndpoint={config.cloudEndpoint} />
+              <DataCenter isDarkMode={isDarkMode} />
             )}
             {activeView === View.Orders && (
               ordersReady

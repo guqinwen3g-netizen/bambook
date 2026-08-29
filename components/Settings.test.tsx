@@ -103,47 +103,6 @@ describe('Settings permission visibility', () => {
     expect(source).toContain("onClick={() => handleUpdate('enableProductionGlobe', !isProductionGlobeEnabled)}");
   });
 
-  it('renders built-in wallpaper previews through the public asset resolver', () => {
-    expect(source).toContain("import { resolvePublicAssetUrl } from '../utils/publicAssets'");
-    expect(source).toContain('style={{ backgroundImage: `url(${resolvePublicAssetUrl(preset.url)})` }}');
-    expect(source).toContain('style={{ backgroundImage: `url(${resolvePublicAssetUrl(localConfig.backgroundImage)})` }}');
-  });
-
-  it('uses packaged default wallpapers without admin editing controls', () => {
-    const typeSource = readFileSync(new URL('../types.ts', import.meta.url), 'utf8');
-
-    expect(typeSource).toContain('systemWallpaperOptions?: WallpaperOption[]');
-    expect(source).toContain('const PACKAGED_WALLPAPER_URL_BY_ID');
-    expect(source).toContain('getPackagedWallpaperUrl(option)');
-    expect(source).toContain('normalizeWallpaperOptions(localConfig.systemWallpaperOptions)');
-    expect(source).toContain("PACKAGED_WALLPAPER_URL_BY_ID[decodeURIComponent(match[1])]");
-    expect(source).toContain("const WALLPAPER_GROUP_ORDER = ['极简', '自然', '城市', '动漫', '纯色']");
-    expect(source).not.toContain("id: 'image-0076aswb'");
-    expect(source).not.toContain("id: 'wallhaven-0qkg1q'");
-    expect(source).toContain('DEFAULT_WALLPAPER_PREVIEW_LIGHT_STYLE');
-    expect(source).toContain('rgba(213,229,242,0.34)');
-    expect(source).toContain('linear-gradient(135deg, #DDE8F2 0%, #CFDEEC 48%, #BCCFE1 100%)');
-    expect(source).not.toContain('linear-gradient(135deg, #F1F6FA 0%, #E8F3FF 48%, #DCEBFA 100%)');
-    expect(source).toContain('DEFAULT_WALLPAPER_PREVIEW_DARK_STYLE');
-    expect(source).toContain('rgba(64,92,126,0.17)');
-    expect(source).toContain('circle at 94% 12%');
-    expect(source).toContain('circle at 8% 92%');
-    expect(source).toContain('linear-gradient(135deg, #070D15 0%, #0B111B 46%, #050A11 100%)');
-    expect(source).not.toContain('linear-gradient(135deg, #0a1628 0%, #0f2340 48%, #07111f 100%)');
-    expect(source).toContain('isDarkMode ? DEFAULT_WALLPAPER_PREVIEW_DARK_STYLE : DEFAULT_WALLPAPER_PREVIEW_LIGHT_STYLE');
-    expect(source).toContain('WALLPAPER_CURATED_GROUPS');
-    expect(source).toContain('getWallpaperGroupRank(a.group) - getWallpaperGroupRank(b.group)');
-    expect(source).not.toContain('data-testid="owner-wallpaper-admin-controls"');
-    expect(source).not.toContain('data-testid="wallpaper-option-editor"');
-    expect(source).not.toContain('编辑壁纸选项');
-    expect(source).not.toContain('addWallpaperOption');
-    expect(source).not.toContain('removeWallpaperOption');
-    expect(source).not.toContain('owner-only-wallpaper-manager');
-    expect(source).not.toContain('unlink');
-    expect(source).not.toContain('fs.rm');
-    expect(source).not.toContain('child_process');
-  });
-
   it('lets users upload a circular account avatar and persists it through auth profile', () => {
     expect(source).toContain('createCircularAvatarDataUrl');
     expect(source).toContain("canvas.toDataURL('image/webp', 0.86)");

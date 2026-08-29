@@ -17,9 +17,6 @@ const QA_SUGGESTED_QUESTIONS = [
 
 type DataCenterProps = {
   isDarkMode?: boolean;
-  /** @deprecated R678 死 prop：旧版布局编辑器下线后组件不再消费（端点由 apiService 内部自取）。
-      物理删除需联动 App.tsx 调用侧与 App.test.ts 断言（均归 App 车道），本车道仅标注移交。 */
-  dataCenterEndpoint?: string;
 };
 
 const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
