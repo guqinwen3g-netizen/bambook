@@ -83,7 +83,7 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                 liquidSpotlight={liquidSpotlight}
                 idleSpotlightOpacity={idleSpotlightOpacity}
                 liquidSpotlightTone="light"
-                className={`relative w-full h-full overflow-visible transition-all duration-700 ${MARKET_INTELLIGENCE_CARD_CLASS} flex flex-col`}
+                className={`relative w-full h-full overflow-visible transition-colors duration-200 ${MARKET_INTELLIGENCE_CARD_CLASS} flex flex-col`}
             >
                 {/* Header - Fixed */}
                 <div className="flex shrink-0 items-center justify-between px-5 py-3.5 z-20 relative">

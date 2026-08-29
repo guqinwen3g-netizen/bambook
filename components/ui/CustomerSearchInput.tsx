@@ -152,7 +152,7 @@ export default function CustomerSearchInput({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className={`w-full pl-9 pr-10 py-2.5 rounded-control border transition-all outline-none ${fieldClass}`}
+          className={`w-full pl-9 pr-10 py-2.5 rounded-control border transition-colors duration-200 outline-none ${fieldClass}`}
         />
         {selectedCustomer && (
           <button

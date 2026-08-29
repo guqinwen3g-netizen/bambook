@@ -92,7 +92,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                 ) : (
                     <button
                         onClick={loadMore}
-                        className={`w-full py-3 border text-[10px] font-light uppercase tracking-widest rounded-full transition-all ${actionControlClass}`}
+                        className={`w-full py-3 border text-[10px] font-light uppercase tracking-widest rounded-full transition-colors duration-200 ${actionControlClass}`}
                     >
                         Load Previous Messages
                     </button>
@@ -124,7 +124,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                     return (
                         <div
                             onClick={() => onSelect(email)}
-                            className={`group flex items-start gap-3 px-4 py-4 border-b cursor-pointer transition-all border-[var(--border-c-subtle)] ${isSelected
+                            className={`group flex items-start gap-3 px-4 py-4 border-b cursor-pointer transition-colors duration-200 border-[var(--border-c-subtle)] ${isSelected
                                 ? `${selectedSurfaceClass} relative after:absolute after:left-0 after:top-0 after:bottom-0 after:w-px after:bg-[var(--os-vnext-brand-blue)]`
                                 : 'hover:bg-[var(--recessed-bg-hover)] active:bg-[var(--active-darken)]'
                                 }`}

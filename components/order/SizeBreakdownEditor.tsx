@@ -53,7 +53,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
               </span>
               <div className={`h-16 w-full overflow-hidden rounded-control flex items-end ${spec.fieldSlotEmpty}`}>
                 <div
-                  className={`w-full rounded-t-md transition-all duration-500 ${spec.timelineDotActive}`}
+                  className={`w-full rounded-t-md transition-colors duration-200 ${spec.timelineDotActive}`}
                   style={{ height: `${ratio * 100}%` }}
                 />
               </div>
@@ -111,7 +111,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
                 </span>
                 <div className={`h-14 w-full overflow-hidden rounded-control flex items-end ${spec.fieldSlotEmpty}`}>
                   <div
-                    className={`w-full rounded-t-md transition-all duration-300 ${spec.timelineDotActive}`}
+                    className={`w-full rounded-t-md transition-colors duration-200 ${spec.timelineDotActive}`}
                     style={{ height: `${ratio * 100}%` }}
                   />
                 </div>

@@ -193,7 +193,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
           w-full flex items-center justify-between gap-2 border ${triggerSizeClass}
-          transition-all duration-300
+          transition-colors duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${isOpen ? triggerOpenClass : triggerIdleClass}
           ${isToolbarSurface ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}

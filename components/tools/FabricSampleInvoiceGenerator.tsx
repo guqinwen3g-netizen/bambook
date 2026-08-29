@@ -847,7 +847,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
             <button
               type="button"
               onClick={() => setActivePage('editor')}
-              className={`mb-3 inline-flex items-center gap-2 text-sm transition-all duration-300 ${
+              className={`mb-3 inline-flex items-center gap-2 text-sm transition-colors duration-200 ${
                 'text-[var(--text-tertiary)] hover:text-[var(--os-vnext-brand-blue)]'
               }`}
             >
@@ -929,7 +929,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
         <button
           type="button"
           onClick={() => setActivePage('history')}
-          className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-light transition-all duration-300 ${
+          className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-light transition-colors duration-200 ${
             'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)] hover:text-[var(--text-primary)] border border-[var(--border-c-default)]'
           }`}
         >
@@ -1235,7 +1235,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 </h3>
                 <button
                   onClick={() => setItems(prev => [...prev, createEmptyFabricInvoiceItem()])}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light transition-all duration-300 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light transition-colors duration-200 ${
                     isDarkMode
                       ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/20'
                       : 'bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.08)] text-[var(--os-vnext-brand-blue)] hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.12)]'
@@ -1261,7 +1261,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                       <button
                         onClick={() => setItems(prev => prev.length > 1 ? prev.filter(row => row.id !== item.id) : prev)}
                         disabled={items.length === 1}
-                        className={`p-1.5 rounded-control transition-all duration-300 ${
+                        className={`p-1.5 rounded-control transition-colors duration-200 ${
                           items.length === 1
                             ? 'opacity-30 cursor-not-allowed'
                             : 'text-[var(--text-tertiary)] hover:text-rose-500 hover:bg-rose-400/10'

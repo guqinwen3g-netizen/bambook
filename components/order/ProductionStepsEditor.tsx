@@ -84,7 +84,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
           return (
             <React.Fragment key={step.step}>
               <div className="flex min-w-14 flex-col items-center gap-1.5">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-all ${btnCls}`}>
+                <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-colors duration-200 ${btnCls}`}>
                   {STEP_ICONS[step.step]}
                 </div>
                 <span className={`text-[10px] font-light tracking-wide ${spec.listRowSecondary}`}>
@@ -149,7 +149,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
                   type="button"
                   onClick={() => cycleStatus(step.step)}
                   title={`点击切换状态（当前：${statusLabel}）`}
-                  className={`flex h-9 w-9 items-center justify-center rounded-control border transition-all hover:scale-105 ${btnCls}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-control border transition-all duration-200 hover:scale-105 ${btnCls}`}
                 >
                   {STEP_ICONS[step.step]}
                 </button>

@@ -87,8 +87,8 @@ export const MoqThresholdsPanel: React.FC = () => {
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
   const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
-  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-all ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
-  const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all ${BAMBOOK_OS.controls.actionControl.bordered}`;
+  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-colors duration-200 ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
+  const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const primaryTextCls = 'text-[var(--text-primary)]';
   const secondaryTextCls = BAMBOOK_OS.tone.text.quiet;
   const weakTextCls = 'var(--text-tertiary)';

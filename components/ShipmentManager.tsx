@@ -1207,7 +1207,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         key={section.id}
                         type="button"
                         onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className="w-full rounded-full border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-3 py-3 text-left transition-all hover:bg-[var(--recessed-bg)] hover:border-[var(--border-c-strong)]"
+                        className="w-full rounded-full border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-3 py-3 text-left transition-colors duration-200 hover:bg-[var(--recessed-bg)] hover:border-[var(--border-c-strong)]"
                       >
                         <div className="flex items-center gap-3">
                           <span className="w-6 h-6 shrink-0 rounded-full border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] flex items-center justify-center text-[10px] font-light text-[var(--text-tertiary)] transition-colors">

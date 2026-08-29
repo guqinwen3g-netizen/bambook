@@ -232,14 +232,14 @@ describe('Dashboard HUD polish', () => {
         expect(DASHBOARD_REFRESH_ICON_LIGHT_CLASS).toContain(DASHBOARD_QUIET_ICON_LIGHT_CLASS);
         expect(source).not.toContain('const dashboardQuietIconClass');
         expect(source).not.toContain('className={dashboardQuietIconClass}');
-        expect(source).toContain('p-1.5 rounded-full transition-all duration-300 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}');
+        expect(source).toContain('p-1.5 rounded-full transition-colors duration-200 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}');
         expect(source).toContain('className={dashboardCardLabelClass}>Cognition');
         expect(cognitionMetricSource).toContain("{cognitionView === 'nodes' ? 'Active Nodes' : 'High Priority'}");
         expect(cognitionMetricSource).toContain('bg-[var(--accent)]');
         expect(source).toContain('className={dashboardCardLabelClass}>Production');
         expect(productionMetricSource).toContain("{productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}");
         expect(productionMetricSource).toContain('bg-[var(--accent)]');
-        expect(source).toContain('${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300');
+        expect(source).toContain('${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200');
         expect(source).toContain('className={dashboardCardLabelClass}>Critical Analysis');
         expect(criticalMetricSource).toContain("{criticalView === 'production' ? 'Line Blocks' : criticalView === 'logistics' ? 'Delay Risks' : 'Unread Inbox'}");
         expect(criticalMetricSource).toContain('bg-[var(--accent)]');
@@ -263,7 +263,7 @@ describe('Dashboard HUD polish', () => {
             source.indexOf('{/* BOTTOM HUD')
         );
 
-        expect(source).toContain("'h-full min-h-0 overflow-visible transition-all duration-300'");
+        expect(source).toContain("'h-full min-h-0 overflow-visible transition-colors duration-200'");
         expect(source).not.toContain('hover:-translate-y-1');
         expect(marketWrapperSource).toContain('className={dashboardMarketHubClass}');
         expect(marketWrapperSource).not.toContain('h-[200px]');
@@ -290,8 +290,8 @@ describe('Dashboard HUD polish', () => {
         expect(source).toContain(": 'dashboard-spatial-bottom col-span-12 row-start-2 grid grid-cols-12 gap-1.5 min-h-0 items-stretch';");
         expect(DASHBOARD_GLOBE_BOTTOM_CLASS).toContain('gap-1 lg:gap-1.5');
         expect(source).toContain("'dashboard-spatial-left col-start-1 col-span-4 row-start-1 row-span-2 grid grid-cols-2 grid-rows-[minmax(0,0.82fr)_minmax(0,1fr)] gap-1.5 min-h-0 min-w-0 self-end'");
-        expect(source).toContain('col-start-5 col-span-2 row-start-1 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-all duration-300');
-        expect(source).toContain('col-start-2 row-start-2 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-all duration-300');
+        expect(source).toContain('col-start-5 col-span-2 row-start-1 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-colors duration-200');
+        expect(source).toContain('col-start-2 row-start-2 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-colors duration-200');
         expect(source).toContain('col-start-7 col-span-6 row-start-1 min-w-0 w-full perspective-[1200px] h-full pointer-events-auto');
         expect(source).toContain('DASHBOARD_HUD_BOTTOM_INSET_CLASS');
         expect(source).toContain('${DASHBOARD_HUD_BOTTOM_INSET_CLASS}');

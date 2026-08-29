@@ -288,7 +288,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[90] bg-slate-950/20 backdrop-blur-sm flex items-start justify-center pt-[16vh] px-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[90] bg-[var(--mask-bg)] backdrop-blur-sm flex items-start justify-center pt-[16vh] px-6 animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-label="全局搜索"

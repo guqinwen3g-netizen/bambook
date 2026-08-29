@@ -111,7 +111,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
           return (
             <React.Fragment key={stage.stage}>
               <div className="flex min-w-16 flex-col items-center gap-1.5">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-all ${btnCls}`}>
+                <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-colors duration-200 ${btnCls}`}>
                   {STAGE_ICONS[stage.stage]}
                 </div>
                 <span className={`text-[10px] font-light tracking-wide ${spec.listRowSecondary}`}>
@@ -181,7 +181,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
                   type="button"
                   onClick={() => cycleStatus(stage.stage)}
                   title={`${STAGE_LABELS_ZH[stage.stage]}（${STAGE_LABELS_EN[stage.stage]} Sample）— 当前：${STATUS_LABELS[stage.status]}，点击切换`}
-                  className={`flex h-9 w-9 items-center justify-center rounded-control border transition-all hover:scale-105 ${btnCls}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-control border transition-all duration-200 hover:scale-105 ${btnCls}`}
                 >
                   {STAGE_ICONS[stage.stage]}
                 </button>

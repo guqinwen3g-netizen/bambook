@@ -50,7 +50,7 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
         <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:justify-center">
             {/* Backdrop */}
             <div
-                className={`fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+                className={`fixed inset-0 bg-[var(--mask-bg)] backdrop-blur-sm transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
                 onClick={onClose}
             />
 

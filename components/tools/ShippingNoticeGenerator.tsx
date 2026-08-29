@@ -328,7 +328,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         onClick={() => handleAddPO(po)}
                         className={`
-                          w-full p-3 rounded-inset text-left transition-all
+                          w-full p-3 rounded-inset text-left transition-colors duration-200
                           bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)] border border-[var(--border-c-default)]
                         `}
                       >

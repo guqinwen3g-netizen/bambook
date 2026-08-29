@@ -645,11 +645,11 @@ function BeamTooltip({ order, isFocused, radius }: { order: Order, isFocused: bo
     return (
         <Html position={tipPos} center zIndexRange={[100, 0]}>
             <div className={`
- border p-4 rounded-inset shadow-2xl text-white min-w-[220px] transition-all duration-300 pointer-events-none select-none
+ border p-4 rounded-inset text-white min-w-[220px] transition-colors duration-300 pointer-events-none select-none
                 ${isFocused
-                    ? 'bg-blue-950/90 border-blue-400/50 scale-110 shadow-blue-500/20'
+                    ? 'bg-blue-950/90 border-blue-400/50 scale-110'
                     : 'bg-slate-950/90 border-white/20 scale-100'}
-            `}>
+            `} style={{ boxShadow: 'var(--shadow-dropdown)' }}>
                 <div className="flex items-center justify-between mb-2">
                     <div className="text-[10px] font-light uppercase tracking-[0.2em] text-slate-400">{order.status}</div>
                     <div className={`w-2 h-2 rounded-full ${isFocused ? 'animate-pulse' : ''}`} style={{ backgroundColor: color }}></div>

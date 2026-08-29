@@ -313,7 +313,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     rowPillSurface: dark
       ? 'border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] text-white/80'
       : 'border-[rgba(148,163,184,0.28)] bg-[rgba(255,255,255,0.45)] text-slate-800',
-    rowPill: `flex w-full items-center justify-between gap-3 rounded-full border px-4 py-2 text-left text-[13px] font-light transition-all ${
+    rowPill: `flex w-full items-center justify-between gap-3 rounded-full border px-4 py-2 text-left text-[13px] font-light transition-colors duration-200 ${
       dark
         ? 'border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] text-white/80'
         : 'border-[rgba(148,163,184,0.28)] bg-[rgba(255,255,255,0.45)] text-slate-800'
@@ -324,7 +324,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     chip: `shrink-0 rounded-full border px-2 py-px text-[10px] font-light ${statusSemanticClass('neutral', dark)}`,
 
     btnBase:
-      'flex h-10 min-w-[80px] shrink-0 items-center justify-center gap-1.5 rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all',
+      'flex h-10 min-w-[80px] shrink-0 items-center justify-center gap-1.5 rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-colors duration-200',
     btnGhost: dark
       ? 'border-[rgba(255,255,255,0.13)] text-white/70 hover:bg-[rgba(255,255,255,0.05)]'
       : 'border-[rgba(148,163,184,0.55)] text-slate-600 hover:bg-[rgba(241,245,249,0.70)]',
@@ -337,13 +337,13 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     btnPrimary: dark
       ? 'border-transparent bg-accent-blue/90 text-slate-950 hover:bg-accent-blue'
       : 'border-transparent bg-action text-white hover:bg-link',
-    btnIcon: `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all ${
+    btnIcon: `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${
       dark
         ? 'border-[rgba(255,255,255,0.13)] text-white/70 hover:bg-[rgba(255,255,255,0.05)]'
         : 'border-[rgba(148,163,184,0.55)] text-slate-600 hover:bg-[rgba(241,245,249,0.70)]'
     }`,
 
-    field: `h-10 w-full rounded-full border px-4 text-xs font-light outline-none transition-all ${
+    field: `h-10 w-full rounded-full border px-4 text-xs font-light outline-none transition-colors duration-200 ${
       BAMBOOK_OS.controls.recessedField.base
     }`,
     fieldNoSpinner:
@@ -356,7 +356,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     emptyText: `text-xs font-light ${dark ? 'text-white/42' : 'text-slate-500'}`,
 
     // ── 第二批补全配方（消除跨文件手写重复） ──
-    toggleShell: `flex h-10 w-fit items-center gap-3 rounded-full border px-4 text-xs font-light outline-none transition-all ${
+    toggleShell: `flex h-10 w-fit items-center gap-3 rounded-full border px-4 text-xs font-light outline-none transition-colors duration-200 ${
       BAMBOOK_OS.controls.recessedField.base
     }`,
     btnActive: dark
@@ -417,7 +417,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     overlayMapIndexClass: dark
       ? 'bg-white/[0.035] border-white/[0.06] text-white/58'
       : 'bg-white/55 border-white/60 text-slate-500',
-    overlayMapButtonClass: `w-full text-left rounded-full border px-3 py-3 transition-all ${
+    overlayMapButtonClass: `w-full text-left rounded-full border px-3 py-3 transition-colors duration-200 ${
       dark
         ? 'border-transparent hover:bg-white/[0.05] hover:border-white/[0.10] text-white/70 hover:text-white/85'
         : 'border-transparent hover:bg-slate-50/70 hover:border-slate-200 text-slate-600 hover:text-slate-900'
@@ -495,23 +495,23 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     borderSubtle: dark ? 'border-[var(--border-c-subtle)]' : 'border-[var(--border-c-subtle)]',
 
     // ── 第十批：子编辑器统一配方 ──
-    subFieldInput: `h-9 px-3 rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${
+    subFieldInput: `h-9 px-3 rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-colors duration-200 ${
       BAMBOOK_OS.controls.recessedField.base
     }`,
     subFieldFocus: dark
       ? 'focus:border-[var(--border-c-strong)] focus:ring-1 focus:ring-[var(--border-c-strong)]/40'
       : 'focus:border-[var(--border-c-strong)] focus:ring-1 focus:ring-[var(--border-c-strong)]/40',
-    deleteBtn: `flex h-9 w-9 shrink-0 items-center justify-center rounded-control border transition-all ${
+    deleteBtn: `flex h-9 w-9 shrink-0 items-center justify-center rounded-control border transition-colors duration-200 ${
       dark
         ? 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:border-[var(--danger-border)] hover:text-[var(--danger-text)]'
         : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:border-[var(--danger-border)] hover:text-[var(--danger-text)]'
     }`,
-    addBtn: `flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[11px] font-light transition-all ${
+    addBtn: `flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[11px] font-light transition-colors duration-200 ${
       dark
         ? 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:border-[var(--accent-border)] hover:text-[var(--accent-text)]'
         : 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:border-[var(--accent-border)] hover:text-[var(--accent-text)]'
     }`,
-    quickAddBtn: `rounded-full border px-2.5 py-1 text-[10px] font-light transition-all ${
+    quickAddBtn: `rounded-full border px-2.5 py-1 text-[10px] font-light transition-colors duration-200 ${
       dark
         ? 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-strong)]'
         : 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-strong)]'
@@ -521,7 +521,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
         ? 'border-[var(--border-c-subtle)] text-[var(--text-quaternary)] cursor-not-allowed'
         : 'border-[var(--border-c-subtle)] text-[var(--text-quaternary)] cursor-not-allowed'
     }`,
-    btnFullWidthConfirm: `w-full py-5 text-xs font-light uppercase tracking-widest rounded-full mt-4 transition-all ${
+    btnFullWidthConfirm: `w-full py-5 text-xs font-light uppercase tracking-widest rounded-full mt-4 transition-colors duration-200 ${
       dark
         ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]'
         : 'bg-[var(--recessed-bg-strong)] border border-[var(--border-c-default)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]'

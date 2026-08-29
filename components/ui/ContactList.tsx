@@ -99,7 +99,7 @@ const ContactList: React.FC<ContactListProps> = ({
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className={`
               w-full h-9 pl-9 pr-4 rounded-inset text-xs font-light
-              border outline-none transition-all ${searchInputClass}
+              border outline-none transition-colors duration-200 ${searchInputClass}
             `}
                     />
                 </div>
@@ -110,7 +110,7 @@ const ContactList: React.FC<ContactListProps> = ({
                 <button
                     onClick={() => onSelect(null)}
                     className={`
-            w-full px-3 py-2.5 flex items-center gap-3 transition-all duration-200 relative isolate overflow-hidden rounded-control
+            w-full px-3 py-2.5 flex items-center gap-3 transition-colors duration-200 relative isolate overflow-hidden rounded-control
             ${isOrgSelected
                             ? activeItemClass
                             : idleItemClass
@@ -163,7 +163,7 @@ const ContactList: React.FC<ContactListProps> = ({
                                 transition={{ delay: idx * 0.02 }}
                                 onClick={() => onSelect(contact.id)}
                                 className={`
-	                  w-full px-3 py-2.5 flex items-center gap-3 transition-all duration-200 group relative isolate overflow-hidden rounded-control
+	                  w-full px-3 py-2.5 flex items-center gap-3 transition-colors duration-200 group relative isolate overflow-hidden rounded-control
                   ${isSelected
                                         ? activeItemClass
                                         : idleItemClass
@@ -215,7 +215,7 @@ const ContactList: React.FC<ContactListProps> = ({
                 <button
                     onClick={onAddContact}
                     className={`
-            w-full h-9 rounded-control flex items-center justify-center gap-2 transition-all duration-200
+            w-full h-9 rounded-control flex items-center justify-center gap-2 transition-colors duration-200
             border font-light text-xs
             ${actionButtonClass}
           `}

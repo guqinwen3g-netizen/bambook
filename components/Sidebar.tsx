@@ -187,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                 onClick={() => triggerViewChange(item.id)}
                 aria-label={item.label}
                 data-sidebar-collapsed-nav-button
-                className={`relative group flex h-10 w-10 items-center justify-center overflow-hidden rounded-control p-0 transition-all duration-300
+                className={`relative group flex h-10 w-10 items-center justify-center overflow-hidden rounded-control p-0 transition-colors duration-200
                   text-[var(--os-adaptive-primary)]`}
                 data-sidebar-adaptive-icon
               >
@@ -203,7 +203,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
             setIsCollapsed(false);
             openSettingsTab('system');
           }}
-          className={`absolute bottom-6 left-1/2 z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center overflow-hidden rounded-control transition-all duration-300 hover:scale-105
+          className={`absolute bottom-6 left-1/2 z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center overflow-hidden rounded-control transition-colors duration-200 hover:scale-105
             text-[var(--os-adaptive-primary)]`}
           aria-label="设置"
           data-sidebar-collapsed-settings

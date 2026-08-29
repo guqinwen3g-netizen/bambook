@@ -2218,7 +2218,7 @@ const Assistant: React.FC<AssistantProps> = ({
       >
         <div className={`${agentPanelClass} relative z-10 flex min-h-0 flex-row overflow-hidden`}>
           {/* Left Column: History */}
-          <div className={`order-1 shrink-0 flex flex-col border-r hidden lg:flex transition-all duration-300 ease-in-out overflow-hidden ${isHistoryOpen ? 'w-56 opacity-100' : 'w-0 opacity-0 border-none'} ${panelDividerClass}`}>
+          <div className={`order-1 shrink-0 flex flex-col border-r hidden lg:flex transition-colors duration-200 ease-in-out overflow-hidden ${isHistoryOpen ? 'w-56 opacity-100' : 'w-0 opacity-0 border-none'} ${panelDividerClass}`}>
             <div className="w-56 flex flex-col h-full min-h-0">
               <div
                 className={`min-h-12 shrink-0 border-b px-3.5 py-1.5 flex items-center ${panelDividerClass} ${isAgentFullscreen ? 'pl-16' : ''}`}
@@ -2237,7 +2237,7 @@ const Assistant: React.FC<AssistantProps> = ({
                         setActiveAgentId('default');
                         startNewConversation();
                       }}
-                      className={`-mt-2.5 w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-all no-drag ${actionControlClass}`}
+                      className={`-mt-2.5 w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-colors duration-200 no-drag ${actionControlClass}`}
                       title="新建对话"
                     >
                       <Plus size={14} strokeWidth={1.5} className="shrink-0" />
@@ -2256,7 +2256,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 key={agent.id}
                                 type="button"
                                 onClick={() => selectAgent(agent.id)}
-                                className={`w-full rounded-inset px-2.5 py-2 flex items-center gap-3 text-left transition-all ${
+                                className={`w-full rounded-inset px-2.5 py-2 flex items-center gap-3 text-left transition-colors duration-200 ${
                                   isActive
                                     ? BAMBOOK_OS.controls.selectedSurface.base
                                     : `hover:bg-[var(--hover-darken)] text-[var(--text-secondary)]`
@@ -2304,7 +2304,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 compilerRole="history-item"
                                 source="Assistant.history"
                                 idleSpotlightOpacity={0}
-                                className={`w-full rounded-inset text-left transition-all ${isActive ? BAMBOOK_OS.controls.selectedSurface.base : ''}`}
+                                className={`w-full rounded-inset text-left transition-colors duration-200 ${isActive ? BAMBOOK_OS.controls.selectedSurface.base : ''}`}
                               >
                                 {isEditing ? (
                                   <div className="p-2">
@@ -2409,11 +2409,11 @@ const Assistant: React.FC<AssistantProps> = ({
           {/* Resize Handler / Splitter between Dialogue and Workspace */}
           {isWorkspaceOpen && (
             <div
-              className="order-3 w-1.5 shrink-0 h-full cursor-col-resize transition-all relative group z-[50] no-drag"
+              className="order-3 w-1.5 shrink-0 h-full cursor-col-resize transition-colors duration-200 relative group z-[50] no-drag"
               onMouseDown={handleResizeStart}
             >
               {/* Inner visual separator line */}
-              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px group-hover:w-0.5 group-active:w-0.5 transition-all bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)]`} />
+              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px group-hover:w-0.5 group-active:w-0.5 transition-all duration-200 bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)]`} />
             </div>
           )}
 
@@ -2452,7 +2452,7 @@ const Assistant: React.FC<AssistantProps> = ({
                       onClick={() => {
                         if (activeWorkspaceItem?.url) openUrlInWorkspace(activeWorkspaceItem.url);
                       }}
-                      className={`h-8 w-8 rounded-compact border flex items-center justify-center transition-all ${actionControlClass}`}
+                      className={`h-8 w-8 rounded-compact border flex items-center justify-center transition-colors duration-200 ${actionControlClass}`}
                       title="刷新"
                       aria-label="刷新"
                     >
@@ -2474,7 +2474,7 @@ const Assistant: React.FC<AssistantProps> = ({
                       setIsWorkspaceOpen(false);
                       patchAgentSessionContext({ workspace: { kind: 'empty' } });
                     }}
-                    className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all no-drag ${actionControlClass}`}
+                    className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-colors duration-200 no-drag ${actionControlClass}`}
                     title="收起工作区"
                     aria-label="收起工作区"
                   >
@@ -2501,7 +2501,7 @@ const Assistant: React.FC<AssistantProps> = ({
                               patchAgentSessionContext({ workspace: workspaceBindingFromItem(item) });
                             }
                           }}
-                          className={`group flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-light transition-all ${workspaceTabClass(selected)}`}
+                          className={`group flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-light transition-colors duration-200 ${workspaceTabClass(selected)}`}
                           title={item.title}
                         >
                           <span className="truncate">{item.title}</span>
@@ -2565,7 +2565,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                     activeArtifactId: activeWorkspaceItem.artifactBlock!.artifactId,
                                     workspace: { kind: 'artifact', artifactId: activeWorkspaceItem.artifactBlock!.artifactId, version: activeWorkspaceItem.artifactBlock!.version },
                                   })}
-                                  className={`h-8 shrink-0 rounded-compact border px-3 text-xs font-light transition-all ${actionControlClass}`}
+                                  className={`h-8 shrink-0 rounded-compact border px-3 text-xs font-light transition-colors duration-200 ${actionControlClass}`}
                                 >
                                   继续编辑
                                 </button>
@@ -2605,7 +2605,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => hydrateReferenceToolRun(activeWorkspaceItem.id, activeWorkspaceItem.referenceAnchor!.toolRunId!)}
-                                    className={`h-8 shrink-0 rounded-compact border px-3 text-xs font-light transition-all ${actionControlClass}`}
+                                    className={`h-8 shrink-0 rounded-compact border px-3 text-xs font-light transition-colors duration-200 ${actionControlClass}`}
                                   >
                                     刷新审计
                                   </button>
@@ -2689,7 +2689,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => hydrateWorkspaceEntity(activeWorkspaceItem.id, activeWorkspaceItem.entity!)}
-                                  className={`h-8 shrink-0 rounded-compact border px-3 text-xs font-light transition-all ${actionControlClass}`}
+                                  className={`h-8 shrink-0 rounded-compact border px-3 text-xs font-light transition-colors duration-200 ${actionControlClass}`}
                                 >
                                   刷新详情
                                 </button>
@@ -2754,14 +2754,14 @@ const Assistant: React.FC<AssistantProps> = ({
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('bambook')}
-                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]' : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-colors duration-200 ${workspaceFileSource === 'bambook' ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]' : quietTextClass}`}
                           >
                             Bambook 内容
                           </button>
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('local')}
-                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]' : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-colors duration-200 ${workspaceFileSource === 'local' ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]' : quietTextClass}`}
                           >
                             本地文件
                           </button>
@@ -2769,7 +2769,7 @@ const Assistant: React.FC<AssistantProps> = ({
                         <button
                           type="button"
                           onClick={() => setIsWorkspaceFinderOpen(false)}
-                          className={`h-9 rounded-compact border px-3 text-xs font-light transition-all ${actionControlClass}`}
+                          className={`h-9 rounded-compact border px-3 text-xs font-light transition-colors duration-200 ${actionControlClass}`}
                         >
                           返回
                         </button>
@@ -2793,7 +2793,7 @@ const Assistant: React.FC<AssistantProps> = ({
                             <button
                               type="submit"
                               disabled={isWorkspaceSearching || isWorkspaceAppending || !workspaceFinderQuery.trim()}
-                              className={`h-10 rounded-compact border px-3 text-xs font-light transition-all disabled:opacity-45 ${actionControlClass}`}
+                              className={`h-10 rounded-compact border px-3 text-xs font-light transition-colors duration-200 disabled:opacity-45 ${actionControlClass}`}
                             >
                               搜索
                             </button>
@@ -2826,7 +2826,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                     key={`${item.entityType}:${item.id}`}
                                     type="button"
                                     onClick={() => openEntityInWorkspace(item)}
-                                    className={`block w-full rounded-compact border px-3 py-2 text-left transition-all ${actionControlClass}`}
+                                    className={`block w-full rounded-compact border px-3 py-2 text-left transition-colors duration-200 ${actionControlClass}`}
                                   >
                                     <div className={`text-[10px] font-light ${quietTextClass}`}>{getWorkspaceEntityTypeLabel(item.entityType)}</div>
                                     <div className={`mt-1 truncate text-sm font-light ${bodyTextClass}`}>{item.title}</div>
@@ -2843,7 +2843,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                       type="button"
                                       onClick={loadMoreWorkspaceEntities}
                                       disabled={isWorkspaceAppending}
-                                      className={`h-9 rounded-compact border px-4 text-xs font-light transition-all disabled:opacity-45 ${actionControlClass}`}
+                                      className={`h-9 rounded-compact border px-4 text-xs font-light transition-colors duration-200 disabled:opacity-45 ${actionControlClass}`}
                                     >
                                       {isWorkspaceAppending ? '加载中...' : '加载更多'}
                                     </button>
@@ -2862,7 +2862,7 @@ const Assistant: React.FC<AssistantProps> = ({
                           <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className={`h-12 rounded-field border px-5 text-sm font-light transition-all ${actionControlClass}`}
+                            className={`h-12 rounded-field border px-5 text-sm font-light transition-colors duration-200 ${actionControlClass}`}
                           >
                             选择本地文件
                           </button>
@@ -2875,14 +2875,14 @@ const Assistant: React.FC<AssistantProps> = ({
                         <button
                           type="button"
                           onClick={openWorkspaceFinder}
-                          className={`h-12 w-full rounded-field border px-4 text-sm font-light transition-all ${actionControlClass}`}
+                          className={`h-12 w-full rounded-field border px-4 text-sm font-light transition-colors duration-200 ${actionControlClass}`}
                         >
                           打开文件
                         </button>
                         <button
                           type="button"
                           onClick={() => openUrlInWorkspace()}
-                          className={`h-10 rounded-compact border px-4 text-xs font-light transition-all ${actionControlClass}`}
+                          className={`h-10 rounded-compact border px-4 text-xs font-light transition-colors duration-200 ${actionControlClass}`}
                         >
                           打开链接
                         </button>
@@ -2894,7 +2894,7 @@ const Assistant: React.FC<AssistantProps> = ({
           </div>
 
           {/* Center Column: Dialogue */}
-          <div className={`order-2 flex flex-col transition-all duration-300 ease-in-out overflow-hidden flex-1 min-w-[20rem] sm:min-w-[25rem] bg-[var(--recessed-bg-strong)]`}>
+          <div className={`order-2 flex flex-col transition-colors duration-200 ease-in-out overflow-hidden flex-1 min-w-[20rem] sm:min-w-[25rem] bg-[var(--recessed-bg-strong)]`}>
           <div
             className={`min-h-12 shrink-0 border-b px-4 py-1.5 flex items-center justify-between gap-2 ${panelDividerClass} ${isAgentFullscreen && !isHistoryOpen ? 'pl-16' : ''}`}
             style={isAgentFullscreen ? { WebkitAppRegion: 'drag' } as React.CSSProperties : { WebkitAppRegion: 'no-drag' } as React.CSSProperties}
@@ -2902,7 +2902,7 @@ const Assistant: React.FC<AssistantProps> = ({
             <div className="flex items-center gap-2 min-w-0 ml-1 no-drag">
               <button
                 onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-colors duration-200 ${actionControlClass}`}
                 title={isHistoryOpen ? "收起历史" : "展开历史"}
                 aria-label={isHistoryOpen ? "收起历史" : "展开历史"}
               >
@@ -2913,7 +2913,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={() => setIsWorkspaceOpen(!isWorkspaceOpen)}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isWorkspaceOpen ? 'text-[var(--os-vnext-brand-blue-strong)]' : ''}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-colors duration-200 ${actionControlClass} ${isWorkspaceOpen ? 'text-[var(--os-vnext-brand-blue-strong)]' : ''}`}
                 title={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
                 aria-label={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
               >
@@ -2922,7 +2922,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={toggleTTS}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isTTSEnabled ? 'text-[var(--os-vnext-brand-blue-strong)]' : ''}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-colors duration-200 ${actionControlClass} ${isTTSEnabled ? 'text-[var(--os-vnext-brand-blue-strong)]' : ''}`}
                 title={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
                 aria-label={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
               >
@@ -2933,7 +2933,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 onClick={() => setIsAgentFullscreen(!isAgentFullscreen)}
                 title={isAgentFullscreen ? "退出全屏 Agent" : "全屏 Agent"}
                 aria-label={isAgentFullscreen ? "退出全屏 Agent" : "全屏 Agent"}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-colors duration-200 ${actionControlClass}`}
               >
                 {isAgentFullscreen ? <Minimize2 size={16} strokeWidth={1.25} /> : <Maximize2 size={16} strokeWidth={1.25} />}
               </button>
@@ -2945,7 +2945,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={() => scrollMainToBottom('smooth')}
-                className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-light shadow-none transition-opacity border-[var(--border-c-default)] bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]`}
+                className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-light shadow-none transition-opacity border-[var(--border-c-default)] bg-[var(--recessed-bg)]/85 backdrop-blur-md backdrop-saturate-150 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--recessed-bg)]/95`}
                 aria-label="滚动到最新"
               >
                 ↓ 跳到最新
@@ -3083,7 +3083,7 @@ const Assistant: React.FC<AssistantProps> = ({
                           event.stopPropagation();
                           setAttachments(prev => prev.filter((_, idx) => idx !== i));
                         }}
-                        className={`absolute right-0 top-0 rounded-bl-xl p-0.5 bg-[var(--invert-bg)] text-[var(--invert-text)]`}
+                        className={`absolute right-0 top-0 rounded-bl-xl p-0.5 bg-[var(--recessed-bg)]/85 backdrop-blur-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--recessed-bg)]/95`}
                       >
                         <Plus size={14} className="rotate-45" />
                       </button>
@@ -3124,7 +3124,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`h-8 w-8 rounded-field border transition-all ${actionControlClass}`}
+                  className={`h-8 w-8 rounded-field border transition-colors duration-200 ${actionControlClass}`}
                   title="添加 PDF / 图片"
                 >
                   <Plus size={18} strokeWidth={1.25} />
@@ -3133,7 +3133,7 @@ const Assistant: React.FC<AssistantProps> = ({
                   type="button"
                   onClick={toggleVoiceInput}
                   disabled={isLoading}
-                  className={`h-8 w-8 rounded-field border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isVoiceRecording
+                  className={`h-8 w-8 rounded-field border transition-colors duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${isVoiceRecording
                     ? 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-secondary)]'
                     : actionControlClass}`}
                   title={isVoiceRecording ? '停止语音输入' : '本地语音输入'}
@@ -3169,9 +3169,9 @@ const Assistant: React.FC<AssistantProps> = ({
                   }}
                   disabled={!isLoading && (isVoiceRecording || (!input.trim() && attachments.length === 0))}
                   title={isLoading ? '停止当前任务' : '运行任务'}
-                  className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isLoading
+                  className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${isLoading
                     ? 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]'
-                    : 'bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]'}`}
+                    : 'bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)]'}`}
                 >
                   {isLoading ? <StopCircle size={16} /> : <Send size={16} />}
                 </button>

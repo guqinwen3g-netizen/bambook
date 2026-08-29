@@ -215,7 +215,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
             key={id}
             type="button"
             onClick={() => setView(id)}
-            className={`rounded-control px-3 py-1 text-xs font-light transition-all ${
+            className={`rounded-control px-3 py-1 text-xs font-light transition-colors duration-200 ${
               view === id
                 ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
                 : 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
@@ -383,7 +383,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                             type="button"
                             disabled={actionLoading === item.id}
                             onClick={() => handleDecide(item.id, 'approved')}
-                            className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
+                            className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
                             <CheckCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                             通过
@@ -392,7 +392,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                             type="button"
                             disabled={actionLoading === item.id}
                             onClick={() => handleDecide(item.id, 'rejected')}
-                            className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
+                            className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
                             <XCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                             驳回
@@ -428,7 +428,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                                     type="button"
                                     disabled={actionLoading === item.id || delegateForm.toUserId.trim().length === 0 || delegateForm.reason.trim().length < DELEGATE_REASON_MIN}
                                     onClick={() => handleDelegate(item.id)}
-                                    className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)] ${actionLoading === item.id || delegateForm.toUserId.trim().length === 0 || delegateForm.reason.trim().length < DELEGATE_REASON_MIN ? 'opacity-50' : ''}`}
+                                    className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)] ${actionLoading === item.id || delegateForm.toUserId.trim().length === 0 || delegateForm.reason.trim().length < DELEGATE_REASON_MIN ? 'opacity-50' : ''}`}
                                   >
                                     确认委派
                                   </button>
@@ -475,7 +475,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                                     type="button"
                                     disabled={actionLoading === item.id || bossReason.trim().length < BOSS_REASON_MIN}
                                     onClick={() => handleBossBypass(item.id)}
-                                    className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id || bossReason.trim().length < BOSS_REASON_MIN ? 'opacity-50' : ''}`}
+                                    className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id || bossReason.trim().length < BOSS_REASON_MIN ? 'opacity-50' : ''}`}
                                   >
                                     确认 BOSS 兜底特批
                                   </button>
@@ -712,7 +712,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
             key={s}
             type="button"
             onClick={() => setStatusFilter(s)}
-            className={`rounded-control px-3 py-1 text-xs font-light transition-all ${
+            className={`rounded-control px-3 py-1 text-xs font-light transition-colors duration-200 ${
               statusFilter === s
                 ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
                 : 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
@@ -877,7 +877,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
               type="button"
               disabled={submitting || !formValid}
               onClick={handleCreate}
-              className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)] ${submitting || !formValid ? 'opacity-50' : ''}`}
+              className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)] ${submitting || !formValid ? 'opacity-50' : ''}`}
             >
               {submitting ? '提交中…' : '提交例外申请'}
             </button>
@@ -999,7 +999,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
                             type="button"
                             disabled={actionLoading === exc.id}
                             onClick={() => handleWithdraw(exc.id)}
-                            className={`rounded-control px-3 py-1.5 text-xs font-light transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)] ${actionLoading === exc.id ? 'opacity-50 cursor-wait' : ''}`}
+                            className={`rounded-control px-3 py-1.5 text-xs font-light transition-colors duration-200 bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)] ${actionLoading === exc.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
                             撤回申请 Withdraw
                           </button>
@@ -1019,7 +1019,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
                                   type="button"
                                   disabled={actionLoading === exc.id || bossReason.trim().length < BOSS_REASON_MIN}
                                   onClick={() => handleBossBypass(exc.id)}
-                                  className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === exc.id || bossReason.trim().length < BOSS_REASON_MIN ? 'opacity-50' : ''}`}
+                                  className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === exc.id || bossReason.trim().length < BOSS_REASON_MIN ? 'opacity-50' : ''}`}
                                 >
                                   确认 BOSS 兜底特批
                                 </button>
@@ -1170,7 +1170,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
             key={s.id}
             type="button"
             onClick={() => setSection(s.id)}
-            className={`rounded-control px-3 py-1 text-xs font-light transition-all ${
+            className={`rounded-control px-3 py-1 text-xs font-light transition-colors duration-200 ${
               section === s.id
                 ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
                 : 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
@@ -1199,7 +1199,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                 key={f.id}
                 type="button"
                 onClick={() => setStatusFilter(f.id)}
-                className={`rounded-control px-3 py-1 text-xs font-light transition-all ${
+                className={`rounded-control px-3 py-1 text-xs font-light transition-colors duration-200 ${
                   statusFilter === f.id
                     ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
                     : 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
@@ -1333,7 +1333,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                                 type="button"
                                 disabled={actionLoading === instance.id}
                                 onClick={() => handleAction(instance.id, 'approve')}
-                                className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
+                                className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
                               >
                                 <CheckCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                                 通过
@@ -1342,7 +1342,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                                 type="button"
                                 disabled={actionLoading === instance.id}
                                 onClick={() => handleAction(instance.id, 'reject')}
-                                className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
+                                className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
                               >
                                 <XCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                                 驳回

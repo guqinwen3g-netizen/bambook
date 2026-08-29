@@ -1654,7 +1654,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       </aside>
 
       {/* 2. Email List (Middle Pane) */}
-      <div className={`flex flex-col border-r shrink-0 z-10 box-content transition-all duration-300 pointer-events-auto bg-transparent border-[var(--border-c-default)] ${isMobile ? 'w-full absolute inset-0' : 'w-[340px] 3xl:w-[390px] relative'}`}>
+      <div className={`flex flex-col border-r shrink-0 z-10 box-content transition-colors duration-300 pointer-events-auto bg-transparent border-[var(--border-c-default)] ${isMobile ? 'w-full absolute inset-0' : 'w-[340px] 3xl:w-[390px] relative'}`}>
         {/* Mobile Header for Folder Selection */}
         {isMobile && (
           <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-c-default)] bds-surface">
@@ -1697,7 +1697,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
               {/* Sort Dropdown */}
               <div className="relative group">
-                <div className="hover:text-[var(--accent-text)] cursor-pointer transition-all p-1 flex items-center justify-center">
+                <div className="hover:text-[var(--accent-text)] cursor-pointer transition-colors duration-200 p-1 flex items-center justify-center">
                   <div className="flex flex-col gap-[3px]">
                     <div className="w-[14px] h-[1.5px] bg-current"></div>
                     <div className="w-[10px] h-[1.5px] bg-current"></div>
@@ -1765,7 +1765,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
       {/* 3. Reading Pane (Right Pane) */}
       <div className={`
-          flex-col overflow-hidden min-w-0 pointer-events-auto transition-all duration-300 bg-transparent
+          flex-col overflow-hidden min-w-0 pointer-events-auto transition-colors duration-300 bg-transparent
           ${isMobile
           ? `fixed inset-0 z-[60] bg-background ${mobileView === 'detail' ? 'translate-x-0' : 'translate-x-full'}`
           : 'flex-1 relative z-0 flex'}
@@ -1901,7 +1901,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             </div>
 
             {/* Reading Content */}
-            <div className="flex-1 overflow-y-auto p-8 scroll-smooth">
+            <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
               <div className="max-w-4xl mx-auto">
                 <h1 className="text-2xl font-light mb-6 leading-tight text-[var(--text-primary)]">{selectedEmail.subject}</h1>
 
@@ -1970,7 +1970,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {selectedEmailAttachments.map((att, idx) => (
-                        <div key={idx} className="rdl-data-row flex items-center p-3 transition-all group cursor-pointer text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]"
+                        <div key={idx} className="rdl-data-row flex items-center p-3 transition-colors duration-200 group cursor-pointer text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]"
                           onClick={() => handleDownloadAttachment(selectedEmail, att)}
                         >
                           <div className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--text-tertiary)] shrink-0 group-hover:text-[var(--accent-text)] transition-colors">
@@ -2080,7 +2080,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         isComposing && (
           <div className="bds-modal-mask !absolute !z-[80] animate-in fade-in duration-300">
             <div className="bds-modal w-full overflow-hidden flex flex-col h-[80vh] animate-in zoom-in duration-300 !p-0" style={{ width: '56rem' }}>
-              <div className="px-8 py-5 flex items-center justify-between bg-[var(--recessed-bg)]">
+              <div className="px-6 py-5 flex items-center justify-between bg-[var(--recessed-bg)]">
                 <h3 className="text-lg font-light flex items-center gap-3 text-[var(--text-primary)]">
                   <span className="bds-iconbadge text-[var(--accent-text)]">
                     <SendHorizontal size={18} strokeWidth={1} />
@@ -2108,7 +2108,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-8 py-4 space-y-4 border-b border-[var(--border-c-default)]">
+                <div className="px-6 py-4 space-y-4 border-b border-[var(--border-c-default)]">
                   <div className="flex items-center gap-4">
                     <span className="text-xs font-light text-[var(--text-tertiary)] w-12 text-right">To:</span>
                     <input
@@ -2233,7 +2233,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   placeholder="Write your message..."
                 />
               </div>
-              <div className="px-8 py-5 flex justify-end gap-4 bg-[var(--recessed-bg)]">
+              <div className="px-6 py-5 flex justify-end gap-4 bg-[var(--recessed-bg)]">
                 <button
                   type="button"
                   onClick={() => setIsComposing(false)}

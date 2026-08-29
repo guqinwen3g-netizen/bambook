@@ -241,7 +241,7 @@ export function TraceabilityPanel({
               disabled={loading}
               className={cx(
                 'flex h-9 items-center gap-1.5 rounded-field px-4 text-xs font-light transition-colors',
-                'bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]',
+                'bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)]',
                 loading && 'opacity-50',
               )}
             >

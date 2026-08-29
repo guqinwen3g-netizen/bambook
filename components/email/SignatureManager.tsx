@@ -115,7 +115,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
   const fieldClass = `w-full px-3 py-2 rounded-control text-sm font-light outline-none border transition-colors bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
 
   return (
-    <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
+    <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
       <RdlSurface tone="panel" className="w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] animate-in zoom-in duration-300">
         {/* 头部 */}
         <div className="bds-pagehead shrink-0 backdrop-blur-md bg-[var(--recessed-bg)]">

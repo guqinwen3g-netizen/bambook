@@ -503,8 +503,8 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
   const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
-  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-all ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
-  const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all ${BAMBOOK_OS.controls.actionControl.bordered}`;
+  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-colors duration-200 ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
+  const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const brandIconCls = BAMBOOK_OS.tone.text.brandEmphasis;
   const primaryTextCls = 'text-[var(--text-primary)]';
   const secondaryTextCls = BAMBOOK_OS.tone.text.quiet;
@@ -514,7 +514,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const optionActiveCls = `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`;
   // SIDEBAR_HOVER/PRESS 的 DARK 与 LIGHT 版已坍缩为同一自适应配方，单类承载双主题
   const optionIdleCls = `border border-transparent bg-transparent shadow-none text-[var(--text-secondary)] ${SIDEBAR_HOVER_CLASS} ${SIDEBAR_PRESS_CLASS}`;
-  const uploadDropzoneCls = 'relative h-20 rounded-control border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
+  const uploadDropzoneCls = 'relative h-20 rounded-control border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all duration-200 border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
   const selectedWallpaperCls = 'border-[var(--os-vnext-brand-blue)] shadow-none';
   const idleWallpaperCls = 'border-[var(--border-c-subtle)] hover:border-[var(--border-c-default)]';
   const rangeCls = 'bambook-settings-range w-full appearance-none cursor-pointer';
@@ -739,7 +739,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`text-left rounded-control px-3 py-2.5 transition-all flex items-start gap-2 border ${BAMBOOK_OS.typography.weight.ui} ${on ? optionActiveCls : optionIdleCls}`}
+                  className={`text-left rounded-control px-3 py-2.5 transition-colors duration-200 flex items-start gap-2 border ${BAMBOOK_OS.typography.weight.ui} ${on ? optionActiveCls : optionIdleCls}`}
                 >
                   <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : SIDEBAR_IDLE_ICON_CLASS}`} />
                   <span>
@@ -754,7 +754,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               <button
                 type="button"
                 onClick={() => setDevOption('developerMode', !devOptions.developerMode)}
-                className="mt-1 flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-[var(--text-secondary)] transition-all"
+                className="mt-1 flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-[var(--text-secondary)] transition-[opacity,color] duration-200"
               >
                 <Wrench size={10} strokeWidth={1.5} />
                 {devOptions.developerMode ? '开发者选项已开启' : '开发者选项'}
@@ -792,7 +792,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           key={mode}
                           type="button"
                           onClick={() => handleUpdate('themeMode', mode)}
-                          className={`p-4 rounded-control border flex flex-col items-center gap-2 transition-all ${localConfig.themeMode === mode ? optionActiveCls : optionIdleCls}`}
+                          className={`p-4 rounded-control border flex flex-col items-center gap-2 transition-colors duration-200 ${localConfig.themeMode === mode ? optionActiveCls : optionIdleCls}`}
                         >
                           {mode === 'light' && <Sun size={24} strokeWidth={1.75} />}
                           {mode === 'dark' && <Moon size={24} strokeWidth={1.75} />}
@@ -846,7 +846,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                               return (
                                 <div
                                   key={preset.id}
-                                  className={`relative rounded-control border transition-all ${isSelected ? selectedWallpaperCls : idleWallpaperCls}`}
+                                  className={`relative rounded-control border transition-colors duration-200 ${isSelected ? selectedWallpaperCls : idleWallpaperCls}`}
                                 >
                                   <button
                                     type="button"
@@ -974,7 +974,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           key={m.id}
                           type="button"
                           onClick={() => handleUpdate('chatModelId', m.id)}
-                          className={`text-left p-4 rounded-control border transition-all ${modelId === m.id ? optionActiveCls : optionIdleCls}`}
+                          className={`text-left p-4 rounded-control border transition-colors duration-200 ${modelId === m.id ? optionActiveCls : optionIdleCls}`}
                         >
                           <div className={`text-sm font-light ${modelId === m.id ? 'text-current' : primaryTextCls}`}>{m.title}</div>
                           <div className={`text-[11px] mt-1 ${weakTextCls}`}>{m.sub}</div>
@@ -1087,7 +1087,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                             key={authMode.id}
                             type="button"
                             onClick={() => handleUpdate('sdkAuthMode', authMode.id)}
-                            className={`h-9 rounded-control text-xs font-light border transition-all ${localConfig.sdkAuthMode === authMode.id ? optionActiveCls : optionIdleCls}`}
+                            className={`h-9 rounded-control text-xs font-light border transition-colors duration-200 ${localConfig.sdkAuthMode === authMode.id ? optionActiveCls : optionIdleCls}`}
                           >
                             {authMode.name}
                           </button>
@@ -1248,7 +1248,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           type="button"
                           onClick={() => clearStorageArea(action.id)}
                           disabled={storageLoading}
-                          className={`rounded-control border p-3 text-left transition-all ${optionIdleCls} disabled:opacity-50`}
+                          className={`rounded-control border p-3 text-left transition-colors duration-200 ${optionIdleCls} disabled:opacity-50`}
                         >
                           <div className="flex items-center gap-2 text-xs font-light">
                             <Trash2 size={14} strokeWidth={1.5} />
@@ -1284,7 +1284,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                             />
                             {user && (
                               <label
-                                className={`absolute -bottom-1 -right-1 z-20 flex h-8 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-all duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} border-transparent bg-[var(--recessed-bg)] text-[var(--os-vnext-brand-blue-strong)]`}
+                                className={`absolute -bottom-1 -right-1 z-20 flex h-8 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-colors duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} border-transparent bg-[var(--recessed-bg)] text-[var(--os-vnext-brand-blue-strong)]`}
                                 aria-label="编辑头像"
                               >
                                 <Pencil size={14} strokeWidth={1.5} />
@@ -1355,7 +1355,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className={`p-4 rounded-control border text-left transition-all ${optionIdleCls}`}
+                          className={`p-4 rounded-control border text-left transition-colors duration-200 ${optionIdleCls}`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
@@ -1368,7 +1368,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className={`p-4 rounded-control border text-left transition-all bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]`}
+                          className={`p-4 rounded-control border text-left transition-colors duration-200 bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
@@ -1383,7 +1383,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       <button
                         type="button"
                         onClick={() => setAccountView('modify')}
-                        className={`w-full p-4 rounded-control border text-left transition-all ${optionIdleCls}`}
+                        className={`w-full p-4 rounded-control border text-left transition-colors duration-200 ${optionIdleCls}`}
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div>
@@ -1434,7 +1434,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           type="button"
                           onClick={handleChangePw}
                           disabled={pwLoading || !currentPw || !newPw || !confirmPw}
-                          className={`w-full ${actionControlCls} transition-all ${
+                          className={`w-full ${actionControlCls} transition-colors duration-200 ${
                             pwLoading || !currentPw || !newPw || !confirmPw
                               ? 'opacity-50'
                               : ''
@@ -1520,7 +1520,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                                 type="button"
                                 disabled={isCurrent || !!switchingAccount}
                                 onClick={() => handleQuickSwitch(acct.email)}
-                                className={`px-3 py-2 rounded-control border text-[11px] font-light transition-all ${
+                                className={`px-3 py-2 rounded-control border text-[11px] font-light transition-colors duration-200 ${
                                   isCurrent
                                     ? 'border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
                                     : 'border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'

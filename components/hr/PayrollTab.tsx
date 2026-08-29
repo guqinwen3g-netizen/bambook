@@ -184,7 +184,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
   };
 
   const subPillCls = (active: boolean) =>
-    `h-8 px-4 rounded-full text-[11px] font-light tracking-wide transition-all duration-200 ${
+    `h-8 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${
       active
         ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
         : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'

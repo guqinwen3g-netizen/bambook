@@ -255,7 +255,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
                   <button
                     key={kind}
                     onClick={() => setSelectedDocs(prev => ({ ...prev, [kind]: !prev[kind] }))}
-                    className={`flex flex-col items-start gap-2 p-3 rounded-card border text-left transition-all ${
+                    className={`flex flex-col items-start gap-2 p-3 rounded-card border text-left transition-colors duration-200 ${
                       selectedDocs[kind]
                         ? 'border-[var(--os-vnext-brand-blue)]/50 bg-[var(--os-vnext-brand-blue)]/10'
                         : 'border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)]'

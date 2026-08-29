@@ -301,7 +301,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               </div>
               <div className="h-1 overflow-hidden rounded-full" style={{ background: 'var(--gauge-track)' }}>
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-colors duration-200"
                   style={{ width: `${(b.count / maxCount) * 100}%`, background: STATUS_COLORS[b.status] ?? 'var(--text-quaternary)' }}
                 />
               </div>

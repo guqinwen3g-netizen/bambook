@@ -213,7 +213,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
                 type="button"
                 onClick={handleSendCode}
                 disabled={isSendingCode || cooldown > 0 || !email}
-                className={`shrink-0 px-3 rounded-full text-xs font-light transition-all whitespace-nowrap ${
+                className={`shrink-0 px-3 rounded-full text-xs font-light transition-colors duration-200 whitespace-nowrap ${
                   isSendingCode || cooldown > 0 || !email
                     ? 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] cursor-not-allowed'
                     : 'bg-[var(--accent-tint)] text-[var(--accent-text)] hover:bg-[var(--accent-tint-strong)] border border-[var(--accent-tint-strong)]'

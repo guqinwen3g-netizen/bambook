@@ -99,14 +99,14 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                 value={qaQuestion}
                 onChange={(e) => setQaQuestion(e.target.value)}
                 placeholder="向企业知识库提问，如：面料尾期验货的抽样标准是什么？"
-                className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
               />
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {QA_SUGGESTED_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     onClick={() => setQaQuestion(q)}
-                    className={`px-3 py-1.5 rounded-full border text-[10px] font-light tracking-wide transition-all border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
+                    className={`px-3 py-1.5 rounded-full border text-[10px] font-light tracking-wide transition-colors duration-200 border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
                   >
                     {q}
                   </button>
@@ -117,7 +117,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                 <button
                   onClick={handleAsk}
                   disabled={qaBusy || !qaQuestion.trim()}
-                  className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                  className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                 >
                   {qaBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1.25} />}
                   {qaBusy ? '检索回答中…' : '提问'}
@@ -153,7 +153,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                         <button
                           onClick={handleArchiveQa}
                           disabled={qaArchiving}
-                          className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                          className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                         >
                           {qaArchiving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} strokeWidth={1.25} />}
                           归档此问答

@@ -25,7 +25,7 @@ export interface HrTokens {
 
 export function hrTokens(isDarkMode: boolean): HrTokens {
   // P2 收口：主题分支坍缩为单写自适应类（浅色为基 + dark: 变体），isDarkMode 参数保留兼容调用方
-  const cardClass = 'rounded-inset border transition-all duration-300 border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
+  const cardClass = 'rounded-inset border transition-colors duration-300 border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
 
   const labelCls = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
 
@@ -33,11 +33,11 @@ export function hrTokens(isDarkMode: boolean): HrTokens {
 
   const selectCls = 'bds-select';
 
-  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-all duration-200 ${
+  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-colors duration-200 ${
     `${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`
   }`;
 
-  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-all duration-200 ${
+  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-colors duration-200 ${
     BAMBOOK_OS.controls.actionControl.bordered
   }`;
 

@@ -367,7 +367,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
   );
 
   const tabButtonClass = (tab: KbTab) =>
-    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === tab ? BAMBOOK_OS.controls.selectedSurface.base : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`;
+    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-colors duration-200 ${activeTab === tab ? BAMBOOK_OS.controls.selectedSurface.base : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`;
 
   return (
     <div className="w-full h-full flex flex-col bg-transparent overflow-hidden">
@@ -387,7 +387,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 className={`bds-input pl-9 pr-4 py-2 rounded-control text-xs w-64`}
               />
             </div>
-            <button onClick={() => setShowAddModal(true)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 transition-all text-[11px] font-light tracking-wide ${'bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'}`}>
+            <button onClick={() => setShowAddModal(true)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 transition-colors duration-200 text-[11px] font-light tracking-wide ${'bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'}`}>
               <Plus size={14} strokeWidth={1.5} /> 新增资产
             </button>
           </div>
@@ -410,12 +410,12 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         {activeTab === 'official' && (
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
             {filteredOfficial.map(item => (
-              <motion.div layout key={item.id} data-os-adaptive-container="1" onClick={() => setViewingItem(item)} className={`shrink-0 p-6 flex flex-col group relative overflow-hidden cursor-pointer ${BAMBOOK_OS.material.card} transition-all duration-300 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
-                <div className="absolute top-5 right-5 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                  <button onClick={(e) => { e.stopPropagation(); setEditingItem(item); }} className={`bds-btn bds-btn-icon sm border rounded-control transition-all ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <motion.div layout key={item.id} data-os-adaptive-container="1" onClick={() => setViewingItem(item)} className={`shrink-0 p-6 flex flex-col group relative overflow-hidden cursor-pointer ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
+                <div className="absolute top-5 right-5 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <button onClick={(e) => { e.stopPropagation(); setEditingItem(item); }} className={`bds-btn bds-btn-icon sm border rounded-control transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.base}`}>
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`bds-btn bds-btn-icon sm border rounded-control transition-all ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`bds-btn bds-btn-icon sm border rounded-control transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -444,13 +444,13 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         {activeTab === 'memory' && (
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
             {insights.map(insight => (
-              <motion.div layout key={insight.id} className={`shrink-0 p-6 flex flex-col ${BAMBOOK_OS.material.card} transition-all duration-300 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
+              <motion.div layout key={insight.id} className={`shrink-0 p-6 flex flex-col ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
                 <div className="flex-1">
                   <p className={`text-[14px] font-light leading-relaxed italic ${'text-[var(--text-secondary)]'}`}>"{insight.fact}"</p>
                 </div>
                 <div className={`mt-6 pt-4 border-t flex items-center justify-between border-[var(--border-c-default)]`}>
                   <span className={`text-[9px] font-light tracking-wide ${'text-[var(--text-link)]'}`}>{insight.importance} PRIORITY</span>
-                  <button onClick={() => handleSolidifyMemory(insight)} className={`bds-btn bds-btn-secondary rounded-full text-[10px] font-light transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
+                  <button onClick={() => handleSolidifyMemory(insight)} className={`bds-btn bds-btn-secondary rounded-full text-[10px] font-light transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                     固化入库
                   </button>
                 </div>
@@ -468,14 +468,14 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 value={qaQuestion}
                 onChange={(e) => setQaQuestion(e.target.value)}
                 placeholder="向知识库提问，如：面料尾期验货的抽样标准是什么？"
-                className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
               />
               <div className="mt-4 flex items-center justify-between">
                 <span className={`text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>向量检索知识语料 + LLM 流式回答，命中片段在下方列出</span>
                 <button
                   onClick={handleAsk}
                   disabled={qaBusy || !qaQuestion.trim()}
-                  className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                  className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                 >
                   {qaBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1.25} />}
                   {qaBusy ? '检索回答中…' : '提问'}
@@ -511,7 +511,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                         <button
                           onClick={handleArchiveQa}
                           disabled={qaArchiving}
-                          className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                          className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                         >
                           {qaArchiving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} strokeWidth={1.25} />}
                           归档此问答
@@ -547,7 +547,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
           <div className="mx-auto w-full max-w-5xl">
             <div className="mb-5 flex items-center justify-between">
               <span className={`text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>标准作业程序模板，可一键实例化为知识文档进入检索语料</span>
-              <button onClick={openNewSop} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <button onClick={openNewSop} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                 <Plus size={14} strokeWidth={1.5} /> 新建模板
               </button>
             </div>
@@ -562,7 +562,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             ) : (
               <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 justify-center content-start">
                 {sopTemplates.map(tpl => (
-                  <motion.div layout key={tpl.id} onClick={() => { setSopDetail(tpl); setSopInstantiatedMsg(''); setSopError(null); }} className={`shrink-0 p-6 flex flex-col cursor-pointer ${BAMBOOK_OS.material.card} transition-all duration-300 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
+                  <motion.div layout key={tpl.id} onClick={() => { setSopDetail(tpl); setSopInstantiatedMsg(''); setSopError(null); }} className={`shrink-0 p-6 flex flex-col cursor-pointer ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
                     <div className="mb-3 flex items-center gap-2">
                       <span className={`px-2.5 py-1 text-[9px] font-light tracking-wide rounded-full border ${BAMBOOK_OS.controls.actionControl.base}`}>{tpl.category}</span>
                       <span className={`text-[9px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>v{tpl.version}</span>
@@ -592,7 +592,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* 新增/编辑知识 Modal */}
       {(showAddModal || editingItem) && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-xl overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-12 py-8 border-b flex items-center justify-between ${'border-[var(--border-c-default)]'}`}>
               <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{editingItem ? '修正资产档案' : '录入新资产'}</h3>
@@ -605,7 +605,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   type="text"
                   value={editingItem ? editingItem.title : newItem.title}
                   onChange={(e) => editingItem ? setEditingItem({ ...editingItem, title: e.target.value }) : setNewItem({ ...newItem, title: e.target.value })}
-                  className={`w-full px-7 py-5 border rounded-full outline-none font-light transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                  className={`w-full px-7 py-5 border rounded-full outline-none font-light transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                   placeholder="如：Panda AW25 辅料质检协议"
                 />
               </div>
@@ -630,7 +630,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   rows={5}
                   value={editingItem ? editingItem.content : newItem.content}
                   onChange={(e) => editingItem ? setEditingItem({ ...editingItem, content: e.target.value }) : setNewItem({ ...newItem, content: e.target.value })}
-                  className={`w-full px-7 py-5 border rounded-full outline-none font-light resize-none leading-relaxed transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                  className={`w-full px-7 py-5 border rounded-full outline-none font-light resize-none leading-relaxed transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                   placeholder="请输入核心知识点内容..."
                 />
               </div>
@@ -643,7 +643,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 onClick={editingItem ? handleEditSave : handleAdd}
                 disabled={knowledgeBusy}
                 data-knowledge-busy={knowledgeBusy}
-                className={`px-10 py-4 text-[11px] font-light tracking-wide rounded-full flex items-center gap-3 border transition-all ${knowledgeBusy ? 'opacity-50 cursor-not-allowed' : BAMBOOK_OS.controls.actionControl.base}`}
+                className={`px-10 py-4 text-[11px] font-light tracking-wide rounded-full flex items-center gap-3 border transition-colors duration-200 ${knowledgeBusy ? 'opacity-50 cursor-not-allowed' : BAMBOOK_OS.controls.actionControl.base}`}
               >
                 <Save size={16} strokeWidth={1.5} /> {knowledgeBusy ? '同步中…' : editingItem ? '固化修正' : '确认存入并即时同步'}
               </button>
@@ -654,7 +654,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — 知识文档详情 + 实体关联 Modal */}
       {viewingItem && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
@@ -694,7 +694,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             </div>
             <div className={`px-10 py-5 shrink-0 flex items-center justify-between bg-[var(--recessed-bg)]`}>
               <span className={`text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>更新于 {new Date(viewingItem.updatedAt).toLocaleDateString()}</span>
-              <button onClick={() => { setEditingItem(viewingItem); setViewingItem(null); }} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <button onClick={() => { setEditingItem(viewingItem); setViewingItem(null); }} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                 <Edit2 size={14} /> 编辑
               </button>
             </div>
@@ -704,7 +704,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 详情 Modal */}
       {sopDetail && !sopShowNew && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
@@ -733,16 +733,16 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             <div className={`px-10 py-5 shrink-0 flex items-center justify-end gap-3 bg-[var(--recessed-bg)]`}>
               {sopInstantiatedMsg && <span className={`mr-auto text-[11px] font-light ${'text-[var(--success-text)]'}`}>{sopInstantiatedMsg}</span>}
               {sopError && <span className="mr-auto text-[11px] font-light text-[var(--danger-text)]">{sopError}</span>}
-              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
+              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
                 <Trash2 size={14} /> 删除
               </button>
-              <button onClick={() => openEditSop(sopDetail)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <button onClick={() => openEditSop(sopDetail)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                 <Edit2 size={14} /> 编辑
               </button>
               <button
                 onClick={() => handleInstantiateSop(sopDetail)}
                 disabled={sopBusy}
-                className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
               >
                 {sopBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} strokeWidth={1.25} />}
                 实例化入库
@@ -754,7 +754,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 新建/编辑 Modal */}
       {sopShowNew && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{sopEditing ? '编辑 SOP 模板' : '新建 SOP 模板'}</h3>
@@ -769,7 +769,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                     value={sopDraft.title}
                     onChange={(e) => setSopDraft({ ...sopDraft, title: e.target.value })}
                     placeholder="如：大货跟单标准流程"
-                    className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                    className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                   />
                 </div>
                 <div className="space-y-2">
@@ -790,13 +790,13 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   value={sopDraft.summary}
                   onChange={(e) => setSopDraft({ ...sopDraft, summary: e.target.value })}
                   placeholder="一句话说明适用范围与目标"
-                  className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                  className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-light text-[var(--text-quaternary)] tracking-wide ml-1">结构化步骤</label>
-                  <button onClick={() => setSopDraft({ ...sopDraft, steps: [...sopDraft.steps, { title: '' }] })} className={`bds-btn bds-btn sm rounded-full text-[10px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
+                  <button onClick={() => setSopDraft({ ...sopDraft, steps: [...sopDraft.steps, { title: '' }] })} className={`bds-btn bds-btn sm rounded-full text-[10px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                     + 添加步骤
                   </button>
                 </div>
@@ -813,17 +813,17 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                           value={step.title}
                           onChange={(e) => setSopDraft({ ...sopDraft, steps: sopDraft.steps.map((s, j) => (j === i ? { ...s, title: e.target.value } : s)) })}
                           placeholder="步骤标题"
-                          className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                          className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                         />
                         <input
                           type="text"
                           value={step.detail || ''}
                           onChange={(e) => setSopDraft({ ...sopDraft, steps: sopDraft.steps.map((s, j) => (j === i ? { ...s, detail: e.target.value } : s)) })}
                           placeholder="步骤细节（可选）"
-                          className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                          className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                         />
                       </div>
-                      <button onClick={() => setSopDraft({ ...sopDraft, steps: sopDraft.steps.filter((_, j) => j !== i) })} className={`shrink-0 p-1.5 rounded-control transition-all ${'text-[var(--text-quaternary)] hover:text-[var(--danger-text)]'}`}>
+                      <button onClick={() => setSopDraft({ ...sopDraft, steps: sopDraft.steps.filter((_, j) => j !== i) })} className={`shrink-0 p-1.5 rounded-control transition-colors duration-200 ${'text-[var(--text-quaternary)] hover:text-[var(--danger-text)]'}`}>
                         <X size={14} />
                       </button>
                     </div>
@@ -837,7 +837,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   value={sopDraft.content}
                   onChange={(e) => setSopDraft({ ...sopDraft, content: e.target.value })}
                   placeholder="适用范围、判定标准、责任要点等完整说明"
-                  className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                  className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                 />
               </div>
             </div>
@@ -846,7 +846,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               <button
                 onClick={handleSaveSop}
                 disabled={sopBusy}
-                className={`px-8 py-3 text-[11px] font-light tracking-wide rounded-full flex items-center gap-2 border transition-all disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                className={`px-8 py-3 text-[11px] font-light tracking-wide rounded-full flex items-center gap-2 border transition-colors duration-200 disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
               >
                 {sopBusy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} strokeWidth={1.5} />}
                 {sopEditing ? '保存修改' : '创建模板'}
@@ -858,7 +858,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 删除确认 */}
       {sopDeleteId && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
@@ -873,11 +873,11 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 <button
                   onClick={handleDeleteSop}
                   disabled={sopBusy}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all shadow-none ${sopBusy ? 'opacity-50 cursor-not-allowed ' : ''}bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 shadow-none ${sopBusy ? 'opacity-50 cursor-not-allowed ' : ''}bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]`}
                 >
                   {sopBusy ? '处理中…' : '确认删除'}
                 </button>
-                <button onClick={() => setSopDeleteId(null)} className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
+                <button onClick={() => setSopDeleteId(null)} className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                   取消
                 </button>
               </div>
@@ -888,7 +888,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* 知识删除确认 */}
       {deleteConfirmId && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
@@ -907,13 +907,13 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 <button
                   onClick={handleDelete}
                   disabled={knowledgeBusy}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all shadow-none ${knowledgeBusy ? 'opacity-50 cursor-not-allowed ' : ''}bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 shadow-none ${knowledgeBusy ? 'opacity-50 cursor-not-allowed ' : ''}bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]`}
                 >
                   {knowledgeBusy ? '同步中…' : '确认移除'}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmId(null)}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}
                 >
                   取消
                 </button>

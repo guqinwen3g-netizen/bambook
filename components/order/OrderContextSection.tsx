@@ -150,7 +150,7 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
                         disabled={!clickable}
                         onClick={() => stage.view && onNavigate?.(stage.view)}
                         title={item.secondary ? `${item.primary} · ${item.secondary}` : item.primary}
-                        className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-1.5 text-left text-xs font-light transition-all ${spec.rowPillSurface} ${clickable ? spec.rowPillHover : 'cursor-default'}`}
+                        className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-1.5 text-left text-xs font-light transition-colors duration-200 ${spec.rowPillSurface} ${clickable ? spec.rowPillHover : 'cursor-default'}`}
                       >
                         <span className="truncate font-normal">{item.primary}</span>
                         {item.secondary && (

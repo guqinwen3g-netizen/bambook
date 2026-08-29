@@ -130,7 +130,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
 
   return (
     <div
-      className={`mb-3 flex flex-col rounded-field border ${borderClass} overflow-hidden ${OS_MATERIAL.insetSurface} transition-all duration-300`}
+      className={`mb-3 flex flex-col rounded-field border ${borderClass} overflow-hidden ${OS_MATERIAL.insetSurface} transition-colors duration-200`}
     >
       <button
         type="button"

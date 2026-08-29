@@ -187,7 +187,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               {/* Back Button */}
               <button
                 onClick={handleBack}
-                className={`mb-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all duration-300 w-fit
+                className={`mb-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-colors duration-200 w-fit
                 bg-[var(--recessed-bg-strong)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--active-darken)]`}
               >
                 <ChevronRight size={14} className="rotate-180" />
@@ -231,7 +231,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         activeSpotlightOpacity={1}
                         className={`
                           group relative isolate overflow-hidden flex flex-col items-start text-left
-                          p-6 h-full rounded-card-lg transition-all duration-200 select-none
+                          p-6 h-full rounded-card-lg transition-colors duration-200 select-none
                           cursor-pointer hover:-translate-y-1
                           ${cardClass}
                         `}

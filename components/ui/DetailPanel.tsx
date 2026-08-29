@@ -682,7 +682,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         <button
                             onClick={onEdit}
                             className={`
-                h-9 px-3 rounded-control border flex items-center gap-2 text-xs font-light transition-all
+                h-9 px-3 rounded-control border flex items-center gap-2 text-xs font-light transition-colors duration-200
                 ${actionButtonClass}
               `}
                         >
@@ -894,7 +894,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                     <button
                         onClick={onDelete}
                         className={`
-              w-full h-9 rounded-control flex items-center justify-center gap-2 text-xs font-light uppercase tracking-wider transition-all
+              w-full h-9 rounded-control flex items-center justify-center gap-2 text-xs font-light uppercase tracking-wider transition-colors duration-200
               text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]
             `}
                     >

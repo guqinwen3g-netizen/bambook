@@ -211,7 +211,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).not.toContain('isDarkMode ? RELATIONS_FORM_QUIET_ACTION_DARK_CLASS');
     expect(productsSource).toContain('rounded-inset border p-4 flex items-center ${productFormNestedRowClass}');
     expect(productsSource).toContain('rounded-inset border p-4 space-y-3 ${productFormNestedRowClass}');
-    expect(productsSource).toContain('transition-all ${productFormQuietActionClass}');
+    expect(productsSource).toContain('transition-colors duration-200 ${productFormQuietActionClass}');
     expect(productsSource).not.toContain("bg-slate-50/50 border-slate-100");
     expect(productsSource).not.toContain('className="scroll-mt-28 p-5 space-y-6"');
     expect(productsSource).not.toContain('contentClassName="relative z-10 space-y-6"');

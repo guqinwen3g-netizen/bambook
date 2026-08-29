@@ -247,7 +247,7 @@ const PendingImageUploader: React.FC<{
         }}
         className={`
           relative cursor-pointer rounded-inset border-2 border-dashed
-          transition-all duration-200 py-6 px-4 text-center
+          transition-colors duration-200 py-6 px-4 text-center
           ${dragOver
             ? 'border-[var(--os-vnext-brand-blue-soft)]/60 bg-[var(--os-vnext-brand-blue-soft)]/10'
             : 'border-[var(--border-c-default)] hover:border-[var(--border-c-strong)] hover:bg-[var(--hover-darken)]'
@@ -787,12 +787,12 @@ const CertificationCheckboxes: React.FC<{
           onChange={e => setCustomInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="其他认证（回车添加）"
-          className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue-strong)]/40`}
+          className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-colors duration-200 bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue-strong)]/40`}
         />
         <button
           type="button"
           onClick={addCustom}
-          className={`px-4 py-3 text-xs rounded-full font-light transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-secondary)] border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
+          className={`px-4 py-3 text-xs rounded-full font-light transition-colors duration-200 bg-[var(--recessed-bg-strong)] text-[var(--text-secondary)] border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
         >
           添加
         </button>
@@ -2386,7 +2386,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     return formatMeasure(profile?.widthValue, profile?.widthUnit);
   };
 
-  const productFieldShellClass = `rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all`;
+  const productFieldShellClass = `rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-colors duration-200`;
   const productInputClass = `w-full h-9 px-3 ${productFieldShellClass} leading-none ${PRODUCT_FORM_FIELD_CLASS}`;
   const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass} leading-relaxed resize-none ${PRODUCT_FORM_FIELD_CLASS}`;
   const productLabelClass = `text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ml-1 ${PRODUCT_FORM_LABEL_CLASS}`;
@@ -3408,7 +3408,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 event.stopPropagation();
                                 setEditingSub(editableCategory);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-colors duration-200 ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`编辑${group.name}`}
                             >
                               <Edit2 size={14} strokeWidth={1.5} />
@@ -3419,7 +3419,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 event.stopPropagation();
                                 setDeleteSubId(editableCategory.id);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-colors duration-200 ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`删除${group.name}`}
                             >
                               <Trash2 size={14} strokeWidth={1.5} />
@@ -3513,7 +3513,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                           type="button"
                           onClick={() => loadPdmlRawFabrics(searchTerm, 'append')}
                           disabled={pdmlRawLoading}
-                          className={`h-9 px-5 rounded-control border text-xs font-light transition-all disabled:opacity-55 ${productActionButtonClass}`}
+                          className={`h-9 px-5 rounded-control border text-xs font-light transition-colors duration-200 disabled:opacity-55 ${productActionButtonClass}`}
                         >
                           {pdmlRawLoading ? '加载中' : `加载更多 ${Math.min(PDML_RAW_PAGE_SIZE, Math.max((pdmlRawTotal || 0) - pdmlRawFabrics.length, 0))} 条`}
                         </button>
@@ -3691,7 +3691,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       placeholder="搜索目录..."
                       value={sideSearchTerm}
                       onChange={(e) => setSideSearchTerm(e.target.value)}
-                      className={`w-full h-9 pl-9 pr-[4.35rem] rounded-control text-xs font-light border outline-none transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                      className={`w-full h-9 pl-9 pr-[4.35rem] rounded-control text-xs font-light border outline-none transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                     />
                     {sideSearchTerm && (
                       <button onClick={() => setSideSearchTerm('')} className={`absolute right-8 top-0 z-10 grid h-9 w-7 place-items-center p-0 leading-none transition-colors ${'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>
@@ -3874,7 +3874,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               type="button"
                               onClick={() => setDetailImageIndex(safeIndex - 1)}
                               aria-label="上一张"
-                              className={`absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-c-subtle)] text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm transition-all hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]`}
+                              className={`absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-c-subtle)] text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm transition-colors duration-200 hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]`}
                             >
                               <ChevronLeft size={16} strokeWidth={1.75} />
                             </button>
@@ -3884,7 +3884,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               type="button"
                               onClick={() => setDetailImageIndex(safeIndex + 1)}
                               aria-label="下一张"
-                              className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-c-subtle)] text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm transition-all hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]`}
+                              className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-c-subtle)] text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm transition-colors duration-200 hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]`}
                             >
                               <ChevronRight size={16} strokeWidth={1.75} />
                             </button>
@@ -3901,7 +3901,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                   type="button"
                                   onClick={() => setDetailImageIndex(idx)}
                                   aria-label={`查看第 ${idx + 1} 张`}
-                                  className={`shrink-0 h-[4.5rem] w-[4.5rem] rounded-control overflow-hidden border transition-all ${idx === safeIndex ? 'border-[var(--os-vnext-brand-blue)] shadow-none' : 'border-[var(--border-c-subtle)] opacity-70 hover:opacity-100'}`}
+                                  className={`shrink-0 h-[4.5rem] w-[4.5rem] rounded-control overflow-hidden border transition-colors duration-200 ${idx === safeIndex ? 'border-[var(--os-vnext-brand-blue)] shadow-none' : 'border-[var(--border-c-subtle)] opacity-70 hover:opacity-100'}`}
                                 >
                                   {src && <img src={src} className="h-full w-full object-cover" alt={img.fileName || `缩略图 ${idx + 1}`} draggable={false} />}
                                 </button>
@@ -4289,7 +4289,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         <>
           {(showAddSubModal || editingSub) && (
             <motion.div
-              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-slate-950/30`}
+              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-[var(--mask-bg)]`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -4338,13 +4338,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   <button
                     type="button"
                     onClick={() => { setshowAddSubModal(false); setEditingSub(null); }}
-                    className={`h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-all ${productActionButtonClass}`}
+                    className={`h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${productActionButtonClass}`}
                   >
                     取消
                   </button>
                   <button
                     type="submit"
-                    className={`h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-all ${productActionButtonClass}`}
+                    className={`h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${productActionButtonClass}`}
                   >
                     {editingSub ? '保存修正' : '确认新增'}
                   </button>
@@ -4384,7 +4384,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       <button
                         type="button"
                         onClick={() => setDeleteProdId(editingProd.id)}
-                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-secondary)] border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
+                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 border text-[var(--text-secondary)] border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                       >
                         <Trash2 size={14} strokeWidth={1.5} /> 归档
                       </button>
@@ -4423,7 +4423,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               key={section.id}
                               type="button"
                               onClick={() => document.getElementById(`product-form-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                              className={`w-full text-left rounded-full border px-3 py-3 transition-all group ${productActionButtonClass}`}
+                              className={`w-full text-left rounded-full border px-3 py-3 transition-colors duration-200 group ${productActionButtonClass}`}
                             >
                               <div className="flex items-center gap-3">
                                 <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>
@@ -4669,7 +4669,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 <button
                                   type="button"
                                   onClick={() => removeCompositionDraftRow(row.id)}
-                                  className={`h-9 rounded-full flex items-center justify-center transition-all ${productFormQuietActionClass}`}
+                                  className={`h-9 rounded-full flex items-center justify-center transition-colors duration-200 ${productFormQuietActionClass}`}
                                   aria-label="删除成分行"
                                 >
                                   <X size={16} />
@@ -4683,7 +4683,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               <button
                                 type="button"
                                 onClick={addCompositionDraftRow}
-                                className={`shrink-0 h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-all ${productFormQuietActionClass}`}
+                                className={`shrink-0 h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${productFormQuietActionClass}`}
                               >
                                 添加成分
                               </button>
@@ -4713,7 +4713,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       )}
 
       {(deleteSubId || deleteProdId) && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-subtle)]`}>
@@ -4728,13 +4728,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               <div className="flex flex-col gap-3 pt-4">
                 <button
                   onClick={deleteSubId ? handleDeleteSub : handleDeleteProduct}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] border border-[var(--border-c-subtle)]`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 bg-[var(--recessed-bg-strong)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] border border-[var(--border-c-subtle)]`}
                 >
                   确认{deleteSubId ? '移除' : '归档'}
                 </button>
                 <button
                   onClick={() => { setDeleteSubId(null); setDeleteProdId(null); }}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}
                 >
                   取消
                 </button>

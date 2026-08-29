@@ -119,7 +119,7 @@ export default function ImageUploader({
         onDrop={handleDrop}
         className={`
           relative cursor-pointer rounded-inset border-2 border-dashed
-          transition-all duration-200 py-6 px-4 text-center
+          transition-colors duration-200 py-6 px-4 text-center
           ${dragOver
             ? 'border-[var(--os-vnext-brand-blue-soft)]/60 bg-[var(--os-vnext-brand-blue-soft)]/10'
             : 'border-[var(--border-c-default)] hover:border-[var(--border-c-strong)] hover:bg-[var(--hover-darken)]'
@@ -163,7 +163,7 @@ export default function ImageUploader({
               key={img.id}
               className={`
                 relative group rounded-inset overflow-hidden border
-                transition-all duration-200
+                transition-colors duration-200
                 ${img.isPrimary
                   ? 'border-[var(--os-vnext-brand-blue-soft)]/50 ring-1 ring-[var(--os-vnext-brand-blue-soft)]/30'
                   : 'border-[var(--border-c-default)]'

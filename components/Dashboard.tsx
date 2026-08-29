@@ -765,11 +765,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         ? { gridTemplateColumns: `minmax(${DASHBOARD_EXPANDED_AI_MIN_WIDTH_PX}px, 0.92fr) minmax(${DASHBOARD_EXPANDED_MARKET_MIN_WIDTH_PX}px, 1.08fr)` }
         : undefined;
     const dashboardAiCardClass = useExpandedDashboardLayout
-        ? `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-all duration-300`
-        : `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-all duration-300`;
+        ? `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-colors duration-200`
+        : `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-colors duration-200`;
     const dashboardMarketHubClass = useExpandedDashboardLayout
-        ? 'h-full min-h-0 overflow-visible transition-all duration-300'
-        : 'col-start-1 col-span-4 row-start-1 h-full min-h-0 overflow-visible transition-all duration-300';
+        ? 'h-full min-h-0 overflow-visible transition-colors duration-200'
+        : 'col-start-1 col-span-4 row-start-1 h-full min-h-0 overflow-visible transition-colors duration-200';
     const dashboardBottomClass = useExpandedDashboardLayout
         ? 'dashboard-spatial-bottom w-full h-full min-h-0 grid gap-1.5 items-stretch'
         : 'dashboard-spatial-bottom col-span-12 row-start-2 grid grid-cols-12 gap-1.5 min-h-0 items-stretch';
@@ -777,11 +777,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         ? { gridTemplateColumns: `minmax(${DASHBOARD_EXPANDED_STATUS_MIN_WIDTH_PX}px, 0.62fr) minmax(${DASHBOARD_EXPANDED_PIPELINE_MIN_WIDTH_PX}px, 0.86fr) minmax(${DASHBOARD_EXPANDED_VELOCITY_MIN_WIDTH_PX}px, 1.72fr)` }
         : undefined;
     const dashboardStatusCardClass = useExpandedDashboardLayout
-        ? `${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-all duration-300`
-        : `col-start-5 col-span-2 row-start-1 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-all duration-300`;
+        ? `${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-colors duration-200`
+        : `col-start-5 col-span-2 row-start-1 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-colors duration-200`;
     const dashboardPipelineCardClass = useExpandedDashboardLayout
-        ? `min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-all duration-300`
-        : `col-start-2 row-start-2 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-all duration-300`;
+        ? `min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-colors duration-200`
+        : `col-start-2 row-start-2 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-colors duration-200`;
     const dashboardVelocityHubClass = useExpandedDashboardLayout
         ? 'min-w-0 w-full perspective-[1200px] h-full pointer-events-auto'
         : 'col-start-7 col-span-6 row-start-1 min-w-0 w-full perspective-[1200px] h-full pointer-events-auto';
@@ -811,7 +811,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                         <div className="flex w-full flex-row flex-wrap justify-between items-center gap-4">
                             <div className={`flex min-w-0 flex-1 items-center gap-4 text-[var(--text-primary)]`}>
                                 <h1
-                                    className="text-[26px] font-light tracking-tight whitespace-nowrap text-os-adaptive-title ![text-shadow:none] transition-all"
+                                    className="text-[26px] font-light tracking-tight whitespace-nowrap text-os-adaptive-title ![text-shadow:none] transition-colors duration-200"
                                 >
                                     Bambook Hub
                                     <span className="ml-2.5 align-middle text-[12px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
@@ -884,7 +884,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                             {/* LEFT PANEL: DATA METRICS */}
                             {/* Fixed Width Brick: 260px. Never shrinks, never grows. */}
                             <motion.div className={dashboardLeftClass} style={dashboardLeftStyle}>
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300 ${useExpandedDashboardLayout ? '' : 'order-2'}`}>
+                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-2'}`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Cognition</span>
                                     </div>
@@ -907,7 +907,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     </div>
                                 </CompiledDashboardCard>
 
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300 ${useExpandedDashboardLayout ? '' : 'order-1 col-span-2'}`}>
+                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-1 col-span-2'}`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Production</span>
                                     </div>
@@ -929,7 +929,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             {productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}
                                         </div>
                                         <div className="h-1 w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg-strong)]">
-                                            <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${outputPercent}%` }} />
+                                            <div className="h-full rounded-full transition-colors duration-200 bg-[var(--accent)]" style={{ width: `${outputPercent}%` }} />
                                         </div>
                                         </div>
                                         {!useExpandedDashboardLayout && (
@@ -941,14 +941,14 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
                                                 <div className="h-1 w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
-                                                    <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
+                                                    <div className="h-full rounded-full transition-colors duration-200 bg-[var(--accent)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 </CompiledDashboardCard>
 
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300 ${useExpandedDashboardLayout ? '' : 'order-3'}`}>
+                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-colors duration-200 ${useExpandedDashboardLayout ? '' : 'order-3'}`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Critical Analysis</span>
                                     </div>
@@ -1051,7 +1051,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             onClick={onRefreshBriefing}
                                             disabled={isBriefingLoading}
                                             data-ui-lab-wallpaper-contrast="muted"
-                                            className={`p-1.5 rounded-full transition-all duration-300 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}`}
+                                            className={`p-1.5 rounded-full transition-colors duration-200 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}`}
                                             title="Manual Sync"
                                         >
                                             <RefreshCw size={14} strokeWidth={1.25} className={isBriefingLoading ? "animate-spin" : ""} />
@@ -1155,13 +1155,13 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
 
                             {/* 3D Switching Velocity Hub (Rubik's Cube Style) */}
                             <div className={dashboardVelocityHubClass}>
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`relative w-full h-full ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col overflow-visible transition-all duration-300`}>
+                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`relative w-full h-full ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col overflow-visible transition-colors duration-200`}>
                                     {/* Header - Stays Fixed */}
                                     <div className="flex justify-between items-center px-5 pt-5 mb-1 z-20">
                                         <div className="flex items-center">
                                             <span
                                                 data-ui-lab-wallpaper-contrast="muted"
-                                                className={`${dashboardCardLabelClass} transition-all duration-500`}
+                                                className={`${dashboardCardLabelClass} transition-colors duration-200`}
                                                 title="13 calendar weeks (Mon–Sun, local). Quantity by order line; date: orderDate → PO date → client date → updated. Bars: this week vs prior week."
                                             >
                                                 Velocity Index
@@ -1173,7 +1173,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             <button
                                                 onClick={() => setActiveVelocity('fabric')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'fabric' ? 'brand' : 'muted'}
-                                                className={`text-[13px] font-normal transition-all duration-300 ${activeVelocity === 'fabric' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
+                                                className={`text-[13px] font-normal transition-colors duration-200 ${activeVelocity === 'fabric' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
                                             >
                                                 Fabric
                                             </button>
@@ -1181,7 +1181,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             <button
                                                 onClick={() => setActiveVelocity('garment')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'garment' ? 'brand' : 'muted'}
-                                                className={`text-[13px] font-normal transition-all duration-300 ${activeVelocity === 'garment' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
+                                                className={`text-[13px] font-normal transition-colors duration-200 ${activeVelocity === 'garment' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
                                             >
                                                 Garment
                                             </button>

@@ -229,7 +229,7 @@ const OrgNodeCard: React.FC<{
                 <button
                     onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
                     className={`
-              absolute -top-2 -right-2 z-30 p-1.5 rounded-control opacity-0 group-hover:opacity-100 transition-all
+              absolute -top-2 -right-2 z-30 p-1.5 rounded-control opacity-0 group-hover:opacity-100 transition-opacity duration-200
               ${metaEditClass} ${BAMBOOK_OS.controls.listRow.hover}
             `}
                     aria-label={`编辑${contact.name}`}
@@ -463,7 +463,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                 <button
                     onClick={onAddContact}
                     className={`
-            h-9 px-4 rounded-control border flex items-center gap-2 font-light text-xs transition-all
+            h-9 px-4 rounded-control border flex items-center gap-2 font-light text-xs transition-colors duration-200
             ${actionButtonClass}
           `}
                 >
@@ -495,7 +495,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current - ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-colors duration-200 ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="缩小组织架构"
                     >
                         <ZoomOut size={14} strokeWidth={1.5} />
@@ -506,7 +506,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                             updateZoom(1);
                             setPan({ x: 0, y: 0 });
                         }}
-                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
+                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-colors duration-200 ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="重置组织架构缩放"
                     >
                         <span className="inline-flex items-center gap-1">
@@ -517,7 +517,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current + ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-colors duration-200 ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="放大组织架构"
                     >
                         <ZoomIn size={14} strokeWidth={1.5} />
@@ -631,7 +631,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                 <button
                     onClick={onAddContact}
                     className={`
-            h-9 px-4 rounded-control flex items-center gap-2 font-light text-xs transition-all border
+            h-9 px-4 rounded-control flex items-center gap-2 font-light text-xs transition-colors duration-200 border
             ${actionButtonClass}
           `}
                 >

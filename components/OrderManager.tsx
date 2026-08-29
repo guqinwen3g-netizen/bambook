@@ -290,7 +290,7 @@ const OVERLAY_BOTTOM_MASK_STYLE: React.CSSProperties = {
 const OVERLAY_MAP_PANEL_CLASS = 'p-4 bambook-relations-form-map-panel';
 const OVERLAY_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel';
 /** Detail Map / Form Map 导航按钮与序号胶囊（token 墨色 + hover 反馈） */
-const OVERLAY_MAP_BUTTON_CLASS = `w-full text-left rounded-full border border-transparent px-3 py-3 transition-all ${TXT_SECONDARY} hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-subtle)] hover:text-[var(--text-primary)]`;
+const OVERLAY_MAP_BUTTON_CLASS = `w-full text-left rounded-full border border-transparent px-3 py-3 transition-colors duration-200 ${TXT_SECONDARY} hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-subtle)] hover:text-[var(--text-primary)]`;
 const OVERLAY_MAP_INDEX_CLASS = `border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] ${TXT_MUTED}`;
 /** 覆盖层头部 meta（编辑/查阅模式、录入标记等降级元信息） */
 const HEADER_META_CLASS = `shrink-0 text-[12px] font-light ${TXT_MUTED}`;
@@ -1345,7 +1345,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     <div
                       key={order.id}
                       onClick={() => handleOrderClick(order)}
-                      className={`relative p-5 bambook-card-glass overflow-hidden transition-all touch-active ${selectedOrder?.id === order.id ? 'ring-2 ring-[var(--accent)]' : ''}`}
+                      className={`relative p-5 bambook-card-glass overflow-hidden transition-colors duration-200 touch-active ${selectedOrder?.id === order.id ? 'ring-2 ring-[var(--accent)]' : ''}`}
                     >
                       {/* Quick Action Trigger */}
                       <button

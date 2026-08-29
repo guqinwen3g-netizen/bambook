@@ -149,7 +149,7 @@ export function NotificationCenterTrigger({
       type="button"
       onClick={toggle}
       aria-label={isOpen ? '关闭通知中心' : '打开通知中心'}
-      className={`relative flex shrink-0 items-center justify-center border ${sizeClass} ${pillClass} text-os-adaptive-primary transition-all duration-300
+      className={`relative flex shrink-0 items-center justify-center border ${sizeClass} ${pillClass} text-os-adaptive-primary transition-colors duration-200
         ${isOpen ? 'scale-90 opacity-80' : ''}
         ${className ?? ''}
       `}

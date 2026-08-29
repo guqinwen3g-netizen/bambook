@@ -291,7 +291,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const inlinePanelClass = 'rounded-control border border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
   const inlineRowClass = `rounded-compact bg-[var(--recessed-bg)]`;
   const subtleButtonCls = `h-8 px-2.5 rounded-field border inline-flex items-center justify-center gap-1 text-[10px] font-light transition-colors border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]`;
-  const navItemBaseClass = `flex items-center gap-2.5 px-3 h-9 rounded-full text-[11px] font-light tracking-wide transition-all duration-200`;
+  const navItemBaseClass = `flex items-center gap-2.5 px-3 h-9 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200`;
   const navItemActiveClass = 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]';
   const navItemIdleClass = 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]';
 

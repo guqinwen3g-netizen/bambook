@@ -1446,7 +1446,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                     <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>该分类还没有组织，点击下方按钮创建第一个</p>
                     <button
                       onClick={() => setShowAddModal(true)}
-                      className={`px-4 py-2 rounded-full text-xs font-light transition-all ${relationTableEmptyActionClass}`}
+                      className={`px-4 py-2 rounded-full text-xs font-light transition-colors duration-200 ${relationTableEmptyActionClass}`}
                     >
                       创建组织
                     </button>
@@ -1629,7 +1629,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         key={section.id}
                         type="button"
                         onClick={() => document.getElementById(`relation-form-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className={`w-full text-left rounded-full border px-3 py-3 transition-all group ${relationActionButtonClass}`}
+                        className={`w-full text-left rounded-full border px-3 py-3 transition-colors duration-200 group ${relationActionButtonClass}`}
                       >
                         <div className="flex items-center gap-3">
                           <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${relationFormMapIndexClass}`}>{idx + 1}</span>
@@ -1659,7 +1659,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           name="name"
                           defaultValue={editingItem?.name}
                           required
-                          className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                          className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                         />
                       </div>
 
@@ -1670,7 +1670,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       <input
                         name="role"
                         defaultValue={editingItem?.role}
-                        className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                        className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                       />
                     </div>
 
@@ -1682,7 +1682,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         <input
                           name="department"
                           defaultValue={editingItem?.department}
-                          className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                          className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                         />
                       </div>
                     )}
@@ -1691,11 +1691,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       <>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>中文名称</label>
-                          <input name="chineseName" defaultValue={editingItem?.chineseName || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="chineseName" defaultValue={editingItem?.chineseName || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>英文名称</label>
-                          <input name="englishName" defaultValue={editingItem?.englishName || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="englishName" defaultValue={editingItem?.englishName || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>信用 Tier</label>
@@ -1711,7 +1711,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>组织简介</label>
-                          <textarea name="summary" defaultValue={editingItem?.summary || ''} rows={2} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-all resize-none ${relationFormFieldClass}`} />
+                          <textarea name="summary" defaultValue={editingItem?.summary || ''} rows={2} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                       </>
                     )}
@@ -1727,7 +1727,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         type="text"
                         defaultValue={editingItem?.contactInfo}
                         placeholder="邮箱 | 电话"
-                        className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                        className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                       />
                     </div>
 
@@ -1739,7 +1739,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         <button
                           type="button"
                           onClick={addTagRow}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${relationFormIconAddClass}`}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200 ${relationFormIconAddClass}`}
                           aria-label="添加标签"
                         >
                           <Plus size={14} strokeWidth={1.8} />
@@ -1753,12 +1753,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                               value={row.value}
                               onChange={(event) => updateTagRow(row.id, event.target.value)}
                               placeholder={index === 0 ? 'VIP / 长期合作 / 优先供应商...' : '新增标签'}
-                              className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                              className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                             />
                             <button
                               type="button"
                               onClick={() => removeTagRow(row.id)}
-                              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${relationFormIconRemoveClass}`}
+                              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-200 ${relationFormIconRemoveClass}`}
                               aria-label="删除标签"
                             >
                               <X size={14} strokeWidth={1.8} />
@@ -1781,23 +1781,23 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>公司官网</label>
-                          <input name="website" defaultValue={editingItem?.website} placeholder="www.example.com" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="website" defaultValue={editingItem?.website} placeholder="www.example.com" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>联系电话</label>
-                          <input name="phone" defaultValue={editingItem?.phone} placeholder="+86 21 1234 5678" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="phone" defaultValue={editingItem?.phone} placeholder="+86 21 1234 5678" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>主联系对象</label>
-                          <input name="primaryContactName" defaultValue={editingItem?.primaryContactName || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="primaryContactName" defaultValue={editingItem?.primaryContactName || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>主联系邮箱</label>
-                          <input name="primaryContactEmail" type="email" defaultValue={editingItem?.primaryContactEmail || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="primaryContactEmail" type="email" defaultValue={editingItem?.primaryContactEmail || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>主联系电话</label>
-                          <input name="primaryContactPhone" defaultValue={editingItem?.primaryContactPhone || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="primaryContactPhone" defaultValue={editingItem?.primaryContactPhone || ''} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div className="col-span-2">
                           <div className="flex items-center justify-between gap-3 mb-2">
@@ -1805,7 +1805,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <button
                               type="button"
                               onClick={addBackupContactRow}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${relationFormIconAddClass}`}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200 ${relationFormIconAddClass}`}
                               aria-label="添加备用联系人"
                             >
                               <Plus size={14} strokeWidth={1.8} />
@@ -1819,33 +1819,33 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                                     value={row.name}
                                     onChange={(event) => updateBackupContactRow(row.id, { name: event.target.value })}
                                     placeholder={index === 0 ? '联系人姓名' : '新增联系人姓名'}
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.email}
                                     onChange={(event) => updateBackupContactRow(row.id, { email: event.target.value })}
                                     type="email"
                                     placeholder="邮箱"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.phone}
                                     onChange={(event) => updateBackupContactRow(row.id, { phone: event.target.value })}
                                     placeholder="电话"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.note}
                                     onChange={(event) => updateBackupContactRow(row.id, { note: event.target.value })}
                                     placeholder="备注"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                 </div>
                                 <div className="flex justify-end">
                                   <button
                                     type="button"
                                     onClick={() => removeBackupContactRow(row.id)}
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${relationFormIconCompactRemoveClass}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200 ${relationFormIconCompactRemoveClass}`}
                                     aria-label="删除备用联系人"
                                   >
                                     <X size={14} strokeWidth={1.8} />
@@ -1879,7 +1879,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <button
                               type="button"
                               onClick={handleReResolveCoords}
-                              className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-full transition-all ${relationFormQuietActionClass}`}
+                              className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-full transition-colors duration-200 ${relationFormQuietActionClass}`}
                               title="重新解析坐标"
                             >
                               <RefreshCw size={12} />
@@ -1889,15 +1889,15 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         )}
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>注册地址</label>
-                          <input name="officialAddress" defaultValue={editingItem?.officialAddress} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="officialAddress" defaultValue={editingItem?.officialAddress} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>Bill To / 账单地址</label>
-                          <textarea name="billingAddress" defaultValue={editingItem?.billingAddress} rows={2} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-all resize-none ${relationFormFieldClass}`} />
+                          <textarea name="billingAddress" defaultValue={editingItem?.billingAddress} rows={2} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>Ship To / 发货地址</label>
-                          <input name="shippingAddress" defaultValue={editingItem?.shippingAddress} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="shippingAddress" defaultValue={editingItem?.shippingAddress} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <div className="flex items-center justify-between gap-3 mb-2">
@@ -1905,7 +1905,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <button
                               type="button"
                               onClick={addShipToRow}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${relationFormIconAddClass}`}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200 ${relationFormIconAddClass}`}
                               aria-label="添加 Ship To"
                             >
                               <Plus size={14} strokeWidth={1.8} />
@@ -1919,31 +1919,31 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                                     value={row.contactName}
                                     onChange={(event) => updateShipToRow(row.id, { contactName: event.target.value })}
                                     placeholder={index === 0 ? '联系人' : '联系人'}
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.city}
                                     onChange={(event) => updateShipToRow(row.id, { city: event.target.value })}
                                     placeholder="城市"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.postcode}
                                     onChange={(event) => updateShipToRow(row.id, { postcode: event.target.value })}
                                     placeholder="邮编"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.phone}
                                     onChange={(event) => updateShipToRow(row.id, { phone: event.target.value })}
                                     placeholder="电话"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <input
                                     value={row.address}
                                     onChange={(event) => updateShipToRow(row.id, { address: event.target.value })}
                                     placeholder="详细地址"
-                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`w-full h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1951,12 +1951,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                                     value={row.note}
                                     onChange={(event) => updateShipToRow(row.id, { note: event.target.value })}
                                     placeholder="备注"
-                                    className={`flex-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                    className={`flex-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                                   />
                                   <button
                                     type="button"
                                     onClick={() => removeShipToRow(row.id)}
-                                    className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-all ${relationFormInlineDangerClass}`}
+                                    className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-colors duration-200 ${relationFormInlineDangerClass}`}
                                     aria-label="删除此 Ship To"
                                   >
                                     <X size={14} />
@@ -1968,11 +1968,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>工厂地址 (每行一个)</label>
-                          <textarea name="factoryAddresses" defaultValue={editingItem?.factoryAddresses?.join('\n')} rows={3} placeholder="浙江省宁波市XX区XX路XX号&#10;江苏省苏州市XX工业园" className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-all resize-none ${relationFormFieldClass}`} />
+                          <textarea name="factoryAddresses" defaultValue={editingItem?.factoryAddresses?.join('\n')} rows={3} placeholder="浙江省宁波市XX区XX路XX号&#10;江苏省苏州市XX工业园" className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>仓库地址</label>
-                          <input name="warehouseAddress" defaultValue={editingItem?.warehouseAddress} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="warehouseAddress" defaultValue={editingItem?.warehouseAddress} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                       </div>
                     </CompiledSurfacePanel>
@@ -2013,21 +2013,21 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>税号</label>
-                          <input name="taxId" defaultValue={editingItem?.taxId} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="taxId" defaultValue={editingItem?.taxId} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>信用额度 (USD)</label>
-                          <input name="creditLimit" type="number" defaultValue={editingItem?.creditLimit} placeholder="50000" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="creditLimit" type="number" defaultValue={editingItem?.creditLimit} placeholder="50000" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                           {/* D1 拍板方案二：档案侧信用额度仅作备注——订单信用门禁唯一真源为 CRM「信用额度」（CreditLimit 实体） */}
                           <p className="mt-1 ml-1 text-[10px] font-light text-[var(--text-tertiary)]">仅备注，不控制订单信用</p>
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>付款偏好说明</label>
-                          <input name="paymentPreference" defaultValue={editingItem?.paymentPreference} placeholder="偏好电汇，月结30天" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="paymentPreference" defaultValue={editingItem?.paymentPreference} placeholder="偏好电汇，月结30天" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>财务备注 / 付款详细信息</label>
-                          <textarea name="financialNotes" defaultValue={editingItem?.financialNotes || ''} rows={3} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-all resize-none ${relationFormFieldClass}`} />
+                          <textarea name="financialNotes" defaultValue={editingItem?.financialNotes || ''} rows={3} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                       </div>
                     </CompiledSurfacePanel>
@@ -2046,23 +2046,23 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>邮箱</label>
-                          <input name="email" type="email" defaultValue={editingItem?.email} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="email" type="email" defaultValue={editingItem?.email} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>座机电话</label>
-                          <input name="phone" defaultValue={editingItem?.phone} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="phone" defaultValue={editingItem?.phone} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>手机号码</label>
-                          <input name="mobile" defaultValue={editingItem?.mobile} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="mobile" defaultValue={editingItem?.mobile} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>微信号</label>
-                          <input name="wechat" defaultValue={editingItem?.wechat} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="wechat" defaultValue={editingItem?.wechat} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>WhatsApp</label>
-                          <input name="whatsapp" defaultValue={editingItem?.whatsapp} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input name="whatsapp" defaultValue={editingItem?.whatsapp} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`} />
                         </div>
                       </div>
                       {/* 其他联系方式（动态添加） */}
@@ -2072,7 +2072,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           <button
                             type="button"
                             onClick={addOtherContactRow}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${relationFormIconAddClass}`}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200 ${relationFormIconAddClass}`}
                             aria-label="添加其他联系方式"
                           >
                             <Plus size={14} strokeWidth={1.8} />
@@ -2085,18 +2085,18 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                                 value={row.type}
                                 onChange={(e) => updateOtherContactRow(row.id, { type: e.target.value })}
                                 placeholder="类型 (LinkedIn/Telegram/…)"
-                                className={`w-32 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                className={`w-32 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                               />
                               <input
                                 value={row.value}
                                 onChange={(e) => updateOtherContactRow(row.id, { value: e.target.value })}
                                 placeholder="账号/链接/号码"
-                                className={`flex-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
+                                className={`flex-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-colors duration-200 ${relationFormFieldClass}`}
                               />
                               <button
                                 type="button"
                                 onClick={() => removeOtherContactRow(row.id)}
-                                className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-all ${relationFormInlineDangerClass}`}
+                                className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-colors duration-200 ${relationFormInlineDangerClass}`}
                                 aria-label="删除"
                               >
                                 <X size={14} />
@@ -2138,7 +2138,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>个人备注</label>
-                          <textarea name="personalNote" defaultValue={editingItem?.personalNote} rows={2} placeholder="客户偏好、注意事项等..." className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-all resize-none ${relationFormFieldClass}`} />
+                          <textarea name="personalNote" defaultValue={editingItem?.personalNote} rows={2} placeholder="客户偏好、注意事项等..." className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                       </div>
                     </CompiledSurfacePanel>
@@ -2155,7 +2155,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                     defaultValue={editingItem?.preferences}
                     rows={3}
                     placeholder="交易偏好、合作注意事项等..."
-                    className={`w-full px-4 py-3 rounded-full border outline-none font-light transition-all resize-none ${relationFormFieldClass}`}
+                    className={`w-full px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`}
                   />
                 </CompiledSurfacePanel>
 
@@ -2174,7 +2174,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         const deleteTarget = relations.find(r => r.id === confirmDeleteId);
         const deletingOrganization = deleteTarget?.isOrganization ?? false;
         return (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-default)]`}>

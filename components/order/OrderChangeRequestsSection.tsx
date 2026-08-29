@@ -667,7 +667,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
             <div className="space-y-1.5">
               <span className={`ml-1 ${spec.subGroupMeta}`}>变更理由（≥{ORDER_CHANGE_REASON_MIN} 字，当前 {form.changeReason.trim().length} 字）</span>
               <textarea
-                className={`w-full resize-none rounded-inset border px-4 py-3 text-xs font-light leading-relaxed outline-none transition-all ${spec.insetSurface} ${spec.textPrimary} ${spec.subFieldFocus}`}
+                className={`w-full resize-none rounded-inset border px-4 py-3 text-xs font-light leading-relaxed outline-none transition-colors duration-200 ${spec.insetSurface} ${spec.textPrimary} ${spec.subFieldFocus}`}
                 rows={2}
                 value={form.changeReason}
                 onChange={(e) => setForm((p) => ({ ...p, changeReason: e.target.value }))}
@@ -677,7 +677,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
             <div className="space-y-1.5">
               <span className={`ml-1 ${spec.subGroupMeta}`}>影响说明（≥{ORDER_CHANGE_IMPACT_MIN} 字，当前 {form.impactSummary.trim().length} 字）</span>
               <textarea
-                className={`w-full resize-none rounded-inset border px-4 py-3 text-xs font-light leading-relaxed outline-none transition-all ${spec.insetSurface} ${spec.textPrimary} ${spec.subFieldFocus}`}
+                className={`w-full resize-none rounded-inset border px-4 py-3 text-xs font-light leading-relaxed outline-none transition-colors duration-200 ${spec.insetSurface} ${spec.textPrimary} ${spec.subFieldFocus}`}
                 rows={2}
                 value={form.impactSummary}
                 onChange={(e) => setForm((p) => ({ ...p, impactSummary: e.target.value }))}

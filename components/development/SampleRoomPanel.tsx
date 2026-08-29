@@ -779,7 +779,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                   </div>
                 )}
                 {devOptions.length > 0 && (
-                  <div className="absolute z-20 mt-1 w-full rounded-field border border-[var(--border-c-subtle)] bg-[var(--bg-elevated)] p-1 shadow-sm" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                  <div className="absolute z-20 mt-1 w-full rounded-field border border-[var(--border-c-subtle)] bg-[var(--bg-elevated)] p-1" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
                     {devOptions.map(d => (
                       <button
                         key={d.id}
