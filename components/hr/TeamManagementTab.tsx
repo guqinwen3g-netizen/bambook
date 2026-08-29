@@ -208,6 +208,13 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
   };
 
   const removeMember = async (team: TeamRow, userId: string) => {
+    if (busyId) return;
+    const memberName = personnel.find(u => u.id === userId)?.displayName || userId;
+    if (!(await bdsConfirm({
+      title: '移除成员',
+      body: `确认将「${memberName}」移出「${team.name}」？移出后其将失去该组共享数据的可见性。`,
+      confirmText: '移出',
+    }))) return;
     setBusyId(`rm-member-${userId}`);
     try {
       await apiService.hrSend(`teams/${team.id}/members/${userId}`, {}, 'DELETE');

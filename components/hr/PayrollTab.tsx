@@ -9,6 +9,7 @@ import {
   type PayrollRun, type PayrollRunDetail, type PayrollItem, type SalaryStructure,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import { bdsConfirm } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface PayrollTabProps {
@@ -121,6 +122,27 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Draft→Confirmed 与 Confirmed→Paid 均为单向状态机（无回退入口），动作前必须二次确认
+  const confirmRun = async () => {
+    if (!runDetail || busy) return;
+    if (!(await bdsConfirm({
+      title: '确认工资单',
+      body: `${runDetail.period} 批次共 ${runDetail.headcount} 人，合计实发 ${hrFormatMoney(runDetail.totalNet)}。确认后明细锁定，不可再调整。`,
+      confirmText: '确认工资单',
+    }))) return;
+    await runAction(() => hrService.confirmPayrollRun(runDetail.id), '确认失败');
+  };
+
+  const markRunPaid = async () => {
+    if (!runDetail || busy) return;
+    if (!(await bdsConfirm({
+      title: '标记发放',
+      body: `确认 ${runDetail.period} 批次（合计实发 ${hrFormatMoney(runDetail.totalNet)}）已实际发放？标记后进入「已发放」终态，不可回退。`,
+      confirmText: '标记发放',
+    }))) return;
+    await runAction(() => hrService.markPayrollPaid(runDetail.id), '发放登记失败');
   };
 
   const openEditItem = (item: PayrollItem) => {
@@ -286,11 +308,11 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                       {runDetail.status === 'Draft' && (
                         <>
                           <button disabled={busy} onClick={() => runAction(() => hrService.generatePayrollItems(runDetail.id), '生成明细失败')} className={t.subtleButtonCls}>生成明细</button>
-                          <button disabled={busy} onClick={() => runAction(() => hrService.confirmPayrollRun(runDetail.id), '确认失败')} className={t.primaryButtonCls}>确认</button>
+                          <button disabled={busy} onClick={confirmRun} className={t.primaryButtonCls}>确认</button>
                         </>
                       )}
                       {runDetail.status === 'Confirmed' && (
-                        <button disabled={busy} onClick={() => runAction(() => hrService.markPayrollPaid(runDetail.id), '发放登记失败')} className={t.primaryButtonCls}>标记发放</button>
+                        <button disabled={busy} onClick={markRunPaid} className={t.primaryButtonCls}>标记发放</button>
                       )}
                     </div>
                   </div>

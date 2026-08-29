@@ -14,6 +14,7 @@ import {
   type PerformanceCycle, type PerformanceReview, type ReviewGrade, type KpiItem,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import { bdsConfirm } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 /// HR 项目简化选项（HRManager 加载的 ProjectInfo 投影，仅传 id/name/code 用于 KPI 关联下拉）
@@ -224,7 +225,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
   };
 
   const closeCycle = async () => {
-    if (!selectedCycleId) return;
+    if (!selectedCycleId || busy) return;
+    const unconfirmed = reviews.filter(r => r.status !== 'Confirmed').length;
+    if (!(await bdsConfirm({
+      title: '关闭考核周期',
+      body: `关闭「${selectedCycle?.name || ''}」后不可再录入或修改评定${unconfirmed > 0 ? `；当前还有 ${unconfirmed} 条评定未终评确认` : ''}。确认关闭？`,
+      confirmText: '关闭周期',
+    }))) return;
     setBusy(true);
     setError('');
     try {

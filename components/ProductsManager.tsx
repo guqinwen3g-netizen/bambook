@@ -28,6 +28,7 @@ import {
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 import { PageHeader } from './ui/PageHeader';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { View } from '../types';
@@ -1004,6 +1005,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [pdmlRawMapping, setPdmlRawMapping] = useState(false);
   const [pdmlRawError, setPdmlRawError] = useState('');
   const [productWriteError, setProductWriteError] = useState('');
+  // 档案保存 in-flight 守卫：双击/连击提交会双写云端（无幂等键），保存期间禁用提交按钮
+  const [productSaving, setProductSaving] = useState(false);
   const [pdmlRawSyncedAt, setPdmlRawSyncedAt] = useState<number | null>(null);
   const [pdmlRawTotal, setPdmlRawTotal] = useState(0);
   const [pdmlRawHasMore, setPdmlRawHasMore] = useState(false);
@@ -2974,6 +2977,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (productSaving) return;
     if (!selectedMain || !selectedSubId) return;
     if (!validateCompositionBeforeSave()) return;
     const formData = new FormData(e.currentTarget);
@@ -3012,6 +3016,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     Object.assign(newItem, buildFabricRelatedDataFromForm(formData, id));
     const payload = { ...newItem, fabricProfile: newItem.fabricProfile || undefined, garmentProfile: newItem.garmentProfile || undefined, trimmingProfile: newItem.trimmingProfile || undefined };
     setProductWriteError('');
+    setProductSaving(true);
     try {
       ensureOnlineWrite();
       const persisted = await apiService.createProductAsset(payload as any, cloudEndpoint);
@@ -3031,11 +3036,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       setShowAddProdModal(false);
     } catch (error: any) {
       setProductWriteError(error?.message || String(error));
+    } finally {
+      setProductSaving(false);
     }
   };
 
   const handleEditProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (productSaving) return;
     if (!editingProd) return;
     if (!validateCompositionBeforeSave()) return;
 	    const formData = new FormData(e.currentTarget);
@@ -3089,6 +3097,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       compositionLines: updated.compositionLines,
     };
     setProductWriteError('');
+    setProductSaving(true);
     try {
       ensureOnlineWrite();
       const persisted = await apiService.updateProductAsset(updated.id, payload, cloudEndpoint);
@@ -3096,6 +3105,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       setEditingProd(null);
     } catch (error: any) {
       setProductWriteError(error?.message || String(error));
+    } finally {
+      setProductSaving(false);
     }
   };
 
@@ -3650,6 +3661,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       ))}
                     </div>
               </CompiledTableShell>
+            )}
+            {/* R3 总数诚实化：listAllProductAssets 循环全拉后客户端过滤，列表底部明示当前视图条数（虚拟滚动留 R8） */}
+            {!isPdmlRawView && currentProducts.length > 0 && (
+              <div className={`shrink-0 px-2 pt-2 text-center text-[10px] font-light ${productMutedTextClass}`}>
+                共 {currentProducts.length} 条档案
+              </div>
             )}
           </div>
         )}
@@ -4289,11 +4306,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     <button
                       type="submit"
                       form="product-fullscreen-form"
-                      disabled={!compositionTotalIsComplete}
+                      disabled={!compositionTotalIsComplete || productSaving}
                       data-ui-lab-wallpaper-contrast="primary"
-                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${compositionTotalIsComplete ? productActionButtonClass : 'bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)] border-transparent cursor-not-allowed'} flex items-center justify-center gap-2 disabled:cursor-not-allowed`}
+                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${compositionTotalIsComplete ? productActionButtonClass : 'bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)] border-transparent cursor-not-allowed'} flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      <Save size={14} strokeWidth={1.5} /> 保存资料
+                      <Save size={14} strokeWidth={1.5} /> {productSaving ? '保存中…' : '保存资料'}
                     </button>
                   </div>
                 </div>
@@ -4995,14 +5012,23 @@ export const ProductModuleSettingsWorkspace = ({
   };
 
   const deleteCategory = async (category: ProductSubCategory) => {
+    const productCount = productCountByCategory.get(category.id) || 0;
+    if (!(await bdsConfirm({
+      title: '删除分类',
+      body: `确认删除分类「${category.name}」？${productCount > 0 ? `该分类下 ${productCount} 个档案将失去此分类关联（档案本身不删除）。` : ''}`,
+      confirmText: '删除分类',
+    }))) return;
     const tombstone = { ...category, deletedAt: Date.now(), updatedAt: Date.now() };
-    onUpdateCategories(productCategories.map(item => item.id === category.id ? tombstone : item), tombstone);
+    const snapshot = productCategories;
+    onUpdateCategories(snapshot.map(item => item.id === category.id ? tombstone : item), tombstone);
     if (editingCategoryId === category.id) resetCategoryDraft();
     setStatusText('分类已删除');
     try {
       await apiService.deleteProductCategory(tombstone, cloudEndpoint);
     } catch (error: any) {
-      setStatusText(`本地已删除，云端同步失败：${error?.message || String(error)}`);
+      // 云端删除失败：回滚本地乐观更新，避免前后端分类口径漂移
+      onUpdateCategories(snapshot, category);
+      setStatusText(`分类删除失败：${error?.message || String(error)}`);
     }
   };
 

@@ -14,6 +14,7 @@ import { apiService } from '../../services/apiService';
 import { EmailSignature, EmailSignatureInput, SignatureLanguage } from '../../types';
 import { RdlSurface, RdlPill } from '../ui/RDLPrimitives';
 import { ErrorBanner } from '../ui/primitives/layoutPrimitives';
+import { bdsConfirm } from '../ui/BdsDialog';
 
 interface Props {
   isOpen: boolean;
@@ -99,6 +100,13 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
 
   const handleDelete = async (id: string) => {
     if (busy) return;
+    const target = items?.find(s => s.id === id);
+    if (!(await bdsConfirm({
+      title: '删除签名',
+      body: `确认删除签名「${target?.name || id}」？该操作不可恢复。`,
+      confirmText: '删除',
+      danger: true,
+    }))) return;
     setBusy(true);
     setError(null);
     try {

@@ -10,7 +10,7 @@ import {
   type AttendanceRecord, type AttendanceSummaryRow, type LeaveRequest, type LeaveType,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
-import { bdsPrompt } from '../ui/BdsDialog';
+import { bdsConfirm, bdsPrompt } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface AttendanceLeaveTabProps {
@@ -182,6 +182,15 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
   };
 
   const cancelLeave = async (id: string) => {
+    if (busy) return;
+    const target = leaveRequests.find(r => r.id === id);
+    if (!(await bdsConfirm({
+      title: '取消请假单',
+      body: target?.status === 'Approved'
+        ? `该请假单（${target.startDate} ~ ${target.endDate}）已批准，取消后不可恢复，需重新提单审批。确认取消？`
+        : '确认取消该请假单？',
+      confirmText: '取消请假单',
+    }))) return;
     setBusy(true);
     setError('');
     try {

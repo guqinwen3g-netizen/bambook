@@ -9,6 +9,7 @@ import {
   type TrainingCourse, type TrainingEnrollment, type EnrollmentStatus,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import { bdsConfirm } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface TrainingTabProps {
@@ -138,6 +139,14 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
   };
 
   const removeCourse = async (id: string) => {
+    if (busy) return;
+    const target = courses.find(c => c.id === id);
+    if (!(await bdsConfirm({
+      title: '删除课程',
+      body: `确认删除课程「${target?.title || id}」？该课程的全部报名与成绩记录将一并删除，不可恢复。`,
+      confirmText: '删除课程',
+      danger: true,
+    }))) return;
     setBusy(true);
     setError('');
     try {

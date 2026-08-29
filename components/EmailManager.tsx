@@ -1183,6 +1183,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   };
 
   const handleArchive = async (id: string) => {
+    // 轻确认（非 danger）：归档非删除，但当前应用无 Archive 箱视图，归档后应用内不可找回，
+    // 需经外部邮件客户端恢复——故保留一次确认拦截误点（删除/举报垃圾邮件走 danger 确认）
+    if (!(await bdsConfirm({ title: '归档邮件', body: '邮件将从当前列表移入 Archive 文件夹归档保存。' }))) return;
     const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
 
     // 1. Optimistic UI Update

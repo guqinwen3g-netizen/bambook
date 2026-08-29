@@ -102,6 +102,8 @@ interface BomManagerProps {
 
 const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
   const [boms, setBoms] = useState<BOM[]>([]);
+  // R3 总数诚实化：listBOMs 返回 total，limit:200 硬上限截断时须提示
+  const [bomTotal, setBomTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,6 +128,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
         limit: 200,
       });
       setBoms(result.items || []);
+      setBomTotal(typeof result.total === 'number' ? result.total : (result.items || []).length);
     } catch (e: any) {
       setError(e?.message || '加载 BOM 列表失败');
     } finally {
@@ -556,6 +559,13 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
             </div>
           )}
         </div>
+
+        {/* R3 总数诚实化：listBOMs limit:200 硬上限截断时显式提示，避免误以为当前列表即全量 */}
+        {!loading && boms.length > 0 && (
+          <div className="shrink-0 pt-2 text-center text-[10px] font-light" style={{ color: 'var(--text-quaternary)' }}>
+            共 {bomTotal} 条{bomTotal > boms.length ? `，当前仅显示前 ${boms.length} 条，请用状态/搜索缩小范围` : ''}
+          </div>
+        )}
 
         {/* ── 创建 BOM 弹窗 ── */}
         <AnimatePresence>
