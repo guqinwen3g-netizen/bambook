@@ -16,6 +16,8 @@ export interface DataHubSnapshot {
   paymentVouchers: PaymentVoucher[];
   shipments: Shipment[];
   developmentCases: DevelopmentCase[];
+  /** 列表分页元信息：orders 快照取首页（limit=500），total 供订单页「加载更多」判断截断 */
+  meta?: { ordersTotal?: number };
 }
 
 const DATA_CHANGE_ENTITIES = new Set<DataHubEntity>([
@@ -36,32 +38,50 @@ const requireArray = <T>(value: T[] | null, entity: DataHubEntity): T[] => {
   return value;
 };
 
+/**
+ * 快照循环拉全：发票/凭证/运单/开发案后端默认 50 截断（take 上限 200），
+ * 逐页拉取直至取尽，消除快照口径缺数。
+ */
+const SNAPSHOT_PAGE_SIZE = 200;
+const pullAllPages = async <T>(fetchPage: (limit: number, offset: number) => Promise<{ items: T[]; total: number }>): Promise<T[]> => {
+  const all: T[] = [];
+  let offset = 0;
+  for (let page = 0; page < 500; page += 1) {
+    const { items, total } = await fetchPage(SNAPSHOT_PAGE_SIZE, offset);
+    all.push(...items);
+    if (items.length === 0 || all.length >= total) break;
+    offset += items.length;
+  }
+  return all;
+};
+
 export const dataHubService = {
   async pullSnapshot(endpoint: string): Promise<DataHubSnapshot> {
-    const [orders, knowledge, insights, relations, products, productCategories, invoices, paymentVouchers, shipments, developmentCases] = await Promise.all([
-      apiService.listOrders(endpoint),
+    const [ordersPage, knowledge, insights, relations, products, productCategories, invoices, paymentVouchers, shipments, developmentCases] = await Promise.all([
+      apiService.listOrdersPage(endpoint, { limit: 500 }),
       apiService.fetchCloudData<KnowledgeItem[]>('/api/knowledge', endpoint),
       apiService.fetchCloudData<Insight[]>('/api/insights', endpoint),
       apiService.listRelations(endpoint),
       apiService.listProducts(endpoint),
       apiService.fetchCloudData<ProductSubCategory[]>('/api/product-categories', endpoint),
-      apiService.listInvoices(endpoint),
-      apiService.listPaymentVouchers(endpoint),
-      apiService.listShipments(endpoint),
-      apiService.listDevelopmentCases(endpoint),
+      pullAllPages((limit, offset) => apiService.listInvoicesPage(endpoint, { limit, offset })),
+      pullAllPages((limit, offset) => apiService.listPaymentVouchersPage(endpoint, { limit, offset })),
+      pullAllPages((limit, offset) => apiService.listShipmentsPage(endpoint, { limit, offset })),
+      pullAllPages((limit, offset) => apiService.listDevelopmentCasesPage(endpoint, { limit, offset })),
     ]);
 
     const snapshot: DataHubSnapshot = {
-      orders: Array.isArray(orders) ? orders : [],
+      orders: ordersPage.items,
+      meta: { ordersTotal: ordersPage.total },
       knowledge: requireArray(knowledge, 'knowledge'),
       insights: requireArray(insights, 'insights'),
       relations: Array.isArray(relations) ? relations : [],
       products: Array.isArray(products) ? products : [],
       productCategories: requireArray(productCategories, 'product-categories'),
-      invoices: Array.isArray(invoices) ? invoices : [],
-      paymentVouchers: Array.isArray(paymentVouchers) ? paymentVouchers : [],
-      shipments: Array.isArray(shipments) ? shipments : [],
-      developmentCases: Array.isArray(developmentCases) ? developmentCases : [],
+      invoices,
+      paymentVouchers,
+      shipments,
+      developmentCases,
     };
     return snapshot;
   },

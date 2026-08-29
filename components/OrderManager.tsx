@@ -117,6 +117,8 @@ function mergeSavedOrders(existing: Order[], saved: SavedOrderRow[]): Order[] {
 
 interface OrderManagerProps {
   orders: Order[];
+  /** 服务端订单总数（快照 meta 透传）；> orders.length 时列表底部出现「加载更多」 */
+  ordersTotal?: number | null;
   dirtyIds: Set<string>;
   setOrders: (o: Order[], modified?: Order) => void;
   onSyncComplete: (id: string) => void;
@@ -330,7 +332,7 @@ const ORDER_ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
   Alert: ['Pending', 'Confirmed', 'Production', 'Shipping'],
 };
 
-const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
+const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
   // Local state removed, using props
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTracePanel, setShowTracePanel] = useState(false);
@@ -353,6 +355,38 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   // REQ2-03：行保存（shipmentQuantity/tolerancePercent 变更）后自增，驱动溢短装视图重取
   const [toleranceRefreshKey, setToleranceRefreshKey] = useState(0);
   const [statusTimeline, setStatusTimeline] = useState<OrderStatusTransition[]>([]);
+  // R4：时间线加载失败可见化（区分「加载失败」与「无记录」）
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  // R5：防重三连——保存修改 / 状态推进 / 归档确认
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [statusTransitioning, setStatusTransitioning] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+
+  // R3：列表分页——快照首页 limit=500 可能截断；total 由 App 快照 meta 透传，底部「加载更多」按 offset 续拉
+  const [ordersTotalLocal, setOrdersTotalLocal] = useState<number | null>(ordersTotal ?? null);
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
+  useEffect(() => { setOrdersTotalLocal(ordersTotal ?? null); }, [ordersTotal]);
+  const handleLoadMoreOrders = useCallback(async () => {
+    if (loadingMoreOrders) return;
+    setLoadingMoreOrders(true);
+    try {
+      const page = await apiService.listOrdersPage(undefined, { limit: 500, offset: orders.length });
+      // 与 App 首屏装载同口径：后端行格式需 savedRowToOrder 转换（启发式判别）
+      const converted = page.items.map((r: any) => {
+        if (r.customer && !r.poNumber) return r as Order;
+        try { return savedRowToOrder(r); } catch { return r as Order; }
+      });
+      const existing = new Set(orders.map(o => o.id));
+      const fresh = converted.filter(o => !existing.has(o.id));
+      if (fresh.length > 0) setOrders([...orders, ...fresh]);
+      setOrdersTotalLocal(page.total);
+    } catch (e: any) {
+      bdsToast.danger(`加载更多订单失败：${e?.message ?? e}`);
+    } finally {
+      setLoadingMoreOrders(false);
+    }
+  }, [loadingMoreOrders, orders, setOrders]);
+  const hasMoreOrders = ordersTotalLocal != null && orders.length < ordersTotalLocal;
 
   // ── B8 订单确认书（OC）：A4 预览 + 生成 PDF（服务端模板，与采购/报价同款体验） ──
   const [ocPreviewOpen, setOcPreviewOpen] = useState(false);
@@ -396,18 +430,25 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
 
   // Load status timeline when selected order changes
   useEffect(() => {
-    if (!selectedOrder?.id) { setStatusTimeline([]); return; }
+    if (!selectedOrder?.id) { setStatusTimeline([]); setTimelineError(null); return; }
     (async () => {
       try {
         const timeline = await apiService.getOrderTimeline(selectedOrder.id!);
         setStatusTimeline(timeline);
-      } catch { /* ignore */ }
+        setTimelineError(null);
+      } catch (e: any) {
+        // R4：加载失败必须可见（不再静默为空），UI 区分「加载失败」与「暂无记录」
+        setStatusTimeline([]);
+        setTimelineError(`时间线加载失败：${e?.message ?? e}`);
+      }
     })();
   }, [selectedOrder?.id]);
 
   // Push order status forward with audit trail
   const handleStatusTransition = useCallback(async (toStatus: string, note?: string) => {
     if (!selectedOrder?.id) return;
+    if (statusTransitioning) return; // R5：连点 guard——状态机流转进行中拒绝并发推进
+    setStatusTransitioning(true);
     try {
       const updated = await apiService.transitionOrderStatus(selectedOrder.id, toStatus, 'desktop-user', note);
       const nextOrders = orders.map(o => o.id === updated.id ? updated : o);
@@ -417,12 +458,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       try {
         const timeline = await apiService.getOrderTimeline(selectedOrder.id!);
         setStatusTimeline(timeline);
+        setTimelineError(null);
       } catch { /* 时间线刷新失败非关键：状态已可见更新，保持静默 */ }
     } catch (e: any) {
       // IA 残留收口：推进失败必须用户可见（191.6 登记体验债），走 bdsToast 反馈
       bdsToast.danger(`状态推进失败：${e?.message ?? e}\n\n订单状态未变更，请稍后重试。`);
+    } finally {
+      setStatusTransitioning(false);
     }
-  }, [selectedOrder?.id, orders, setOrders, onSelectOrder]);
+  }, [selectedOrder?.id, orders, setOrders, onSelectOrder, statusTransitioning]);
 
   // 阶段 IA-3：订单详情下游动作区 —— prime 目标模块创建表单后跳转（复用后端 L1-L10 联动，前端补触发点）
   const handlePrimeProcurement = useCallback(() => {
@@ -817,6 +861,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
 
   const handleSaveEdit = async () => {
     if (!editForm) return;
+    if (isSavingEdit) return; // R5：防重——保存进行中拒绝重复提交
+    setIsSavingEdit(true);
+    try {
     if (selectedLineItem && editLineForm) {
       // Line-level patch: includes both fabric (common) fields AND
       // garment-specific fields (styleNo/colorName/sizeBreakdown/...)
@@ -967,6 +1014,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         document.getElementById('order-detail-changes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     }
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   // Auto-fill handler: when a Relation FK is selected, auto-fill related fields
@@ -990,6 +1040,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   // 失败不从本地列表移除，给用户可见反馈；成功后用后端返回的 order（含 deletedAt）更新状态。
   const handleDeleteOrder = async () => {
     if (!selectedOrder?.id) return;
+    if (isArchiving) return; // R5：归档进行中拒绝重复点击
+    setIsArchiving(true);
     try {
       // 成功：用后端返回的 order（含 deletedAt）更新本地状态，保持与后端一致
       // 不传 modified 第二参——本函数已直接调后端 DELETE，传 modified 会触发
@@ -1002,6 +1054,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     } catch (e: any) {
       bdsToast.danger(`订单删除失败：${e?.message ?? e}\n\n订单未从列表移除，请稍后重试。`);
       setShowDeleteConfirm(false);
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -1484,6 +1538,24 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         </CompiledMotionInteractiveCard>
                       );
                     })}
+                    {/* R3：分页页脚——快照首页 500 截断时可见「加载更多」；total 已知时恒显口径 */}
+                    {(hasMoreOrders || ordersTotalLocal != null) && (
+                      <div className={`flex shrink-0 items-center justify-center gap-3 border-t px-4 py-3 ${BORDER_SUBTLE_CLASS}`}>
+                        {ordersTotalLocal != null && (
+                          <span className={`text-[11px] font-light ${TXT_MUTED}`}>已加载 {orders.length} / 共 {ordersTotalLocal} 条</span>
+                        )}
+                        {hasMoreOrders && (
+                          <button
+                            type="button"
+                            onClick={() => void handleLoadMoreOrders()}
+                            disabled={loadingMoreOrders}
+                            className="bds-btn bds-btn-secondary"
+                          >
+                            {loadingMoreOrders ? '加载中…' : '加载更多'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CompiledTableShell>
                 </div>
@@ -1546,8 +1618,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 </button>
                 <div className={`h-4 w-px ${DIVIDER_CLASS}`}></div>
                 {isEditing ? (
-                  <button onClick={handleSaveEdit} className="bds-btn bds-btn-primary">
-                    <Save size={14} strokeWidth={1.5} />保存修改
+                  <button onClick={handleSaveEdit} disabled={isSavingEdit} className="bds-btn bds-btn-primary">
+                    <Save size={14} strokeWidth={1.5} />{isSavingEdit ? '保存中…' : '保存修改'}
                   </button>
                 ) : (
                   <button onClick={() => { setIsEditing(true); setEditForm(selectedOrder ? { ...selectedOrder } : null); setEditLineForm(selectedLineItem ? { ...selectedLineItem } : (selectedOrder?.lines?.[0] ? { ...selectedOrder.lines[0] } as Partial<OrderLineItem> : null)); }} className="bds-btn bds-btn-secondary">
@@ -1732,7 +1804,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             {ORDER_FLOW_STEPS.map((step, idx) => {
                               const isDone = !isAlert && idx < currentIdx;
                               const isCurrent = step === currentStatus;
-                              const isActionable = !isEditing && allowed.includes(step);
+                              const isActionable = !isEditing && !statusTransitioning && allowed.includes(step);
                               return (
                                 <React.Fragment key={step}>
                                   {idx > 0 && (
@@ -1755,7 +1827,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             <span className={`h-px w-4 shrink-0 ${STEP_CONNECTOR_PENDING_CLASS}`} />
                             <button
                               type="button"
-                              disabled={isEditing || (!isAlert && !allowed.includes('Alert'))}
+                              disabled={isEditing || statusTransitioning || (!isAlert && !allowed.includes('Alert'))}
                               onClick={() => !isAlert && handleStatusTransition('Alert')}
                               title={isAlert ? '异常中：点击左侧步骤恢复到对应阶段' : '标记为异常'}
                               className={`${isAlert ? 'bds-btn !min-w-24' : 'bds-btn bds-btn-outline !min-w-24'} ${isEditing ? 'cursor-not-allowed opacity-40' : ''}`}
@@ -1768,7 +1840,12 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         );
                       })()}
 
-                      {statusTimeline.length === 0 ? (
+                      {timelineError ? (
+                        <div className="bds-alert danger">
+                          <AlertCircle size={14} />
+                          <span className="text-xs font-light">{timelineError}——请返回列表重进或稍后重试。</span>
+                        </div>
+                      ) : statusTimeline.length === 0 ? (
                         <p className={`text-xs font-light ${TXT_MUTED}`}>暂无状态变更记录</p>
                       ) : (
                         <div className="space-y-3">
@@ -2241,12 +2318,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <div className="flex flex-col items-center gap-3 pt-4">
                 <button
                   onClick={handleDeleteOrder}
+                  disabled={isArchiving}
                   className="bds-btn bds-btn-danger min-w-32 px-6"
                 >
-                  确认归档
+                  {isArchiving ? '归档中…' : '确认归档'}
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isArchiving}
                   className="bds-btn bds-btn-ghost min-w-32 px-6"
                 >
                   取消

@@ -23,6 +23,9 @@ import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 // ── 阶段 IA-3：订单详情下游动作 prime（创建出运预填订单，与 Suppliers preview 同模式） ──
 const SHIPMENT_CREATE_PRIME_KEY = 'bambook_shipment_create_prime';
 
+/** R3：主列表服务端分页页大小（后端 /v1/shipping take 上限 200） */
+const SHIPMENT_LIST_PAGE_SIZE = 100;
+
 export interface ShipmentCreatePrime {
   orderId: string;
   customerName?: string;
@@ -376,8 +379,58 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   // 跨模块导航筛选（关系智库档案「关联业务 → 出运」入口）：挂载时消费一次
   const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
 
-  // Derive filtered list from App-level shipments (optimistic display from cache + dataHub)
+  // ── R3：主列表服务端分页（/v1/shipping limit=100 + offset + search + customerRelationId）──
+  // 搜索防抖 300ms 走服务端 ?search=；失败回退 props 客户端过滤（本地快照已循环拉全）并给可见错误。
+  const [serverList, setServerList] = useState<ShipmentType[] | null>(null);
+  const [serverTotal, setServerTotal] = useState<number | null>(null);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const listSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (listSearchTimerRef.current) clearTimeout(listSearchTimerRef.current); }, []);
+
+  const fetchShipmentPage = useCallback((offset: number) => apiService.listShipmentsPage(undefined, {
+    limit: SHIPMENT_LIST_PAGE_SIZE,
+    offset,
+    ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+    ...(selectedStatus !== 'all' ? { status: selectedStatus } : {}),
+    ...(navRelationFilter ? { customerRelationId: navRelationFilter.relationId } : {}),
+  }), [searchTerm, selectedStatus, navRelationFilter]);
+
+  // 防抖重置拉取：搜索/状态/导航筛选变更 → 300ms 后从第一页重拉
+  useEffect(() => {
+    if (listSearchTimerRef.current) clearTimeout(listSearchTimerRef.current);
+    setListLoading(true);
+    listSearchTimerRef.current = setTimeout(() => {
+      fetchShipmentPage(0)
+        .then(page => { setServerList(page.items); setServerTotal(page.total); setListError(null); })
+        .catch((e: any) => { setServerList(null); setServerTotal(null); setListError(`运单列表加载失败：${e?.message ?? e}`); })
+        .finally(() => setListLoading(false));
+    }, 300);
+    return () => { if (listSearchTimerRef.current) clearTimeout(listSearchTimerRef.current); };
+  }, [fetchShipmentPage]);
+
+  const handleLoadMoreShipments = useCallback(async () => {
+    if (listLoading || serverList == null) return;
+    setListLoading(true);
+    try {
+      const page = await fetchShipmentPage(serverList.length);
+      setServerList(prev => {
+        const base = prev ?? [];
+        const existing = new Set(base.map(s => s.id));
+        return [...base, ...page.items.filter(s => !existing.has(s.id))];
+      });
+      setServerTotal(page.total);
+    } catch (e: any) {
+      setListError(`加载更多运单失败：${e?.message ?? e}`);
+    } finally {
+      setListLoading(false);
+    }
+  }, [listLoading, serverList, fetchShipmentPage]);
+  const hasMoreShipments = serverList != null && serverTotal != null && serverList.length < serverTotal;
+
+  // Derive filtered list：服务端分页结果优先（已按 status/search/customerRelationId 过滤）；未就绪/失败时回退 App 快照客户端过滤
   const filteredShipments = useMemo(() => {
+    if (serverList != null) return serverList;
     let result = shipments;
     if (navRelationFilter) result = result.filter(s => s.customerRelationId === navRelationFilter.relationId);
     if (selectedStatus !== 'all') result = result.filter(s => s.status === selectedStatus);
@@ -391,39 +444,44 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       );
     }
     return result;
-  }, [shipments, selectedStatus, searchTerm, navRelationFilter]);
+  }, [shipments, serverList, selectedStatus, searchTerm, navRelationFilter]);
   const selectedShipment = filteredShipments.find(item => item.id === selectedId) || filteredShipments[0];
 
-  /** 运单台账 Excel 导出（当前筛选条件全量：状态/搜索镜像到服务端过滤） */
+  /** 运单台账 Excel 导出（当前筛选条件全量：状态/搜索/客户档案锚镜像到服务端过滤） */
   const handleExportXlsx = useCallback(async () => {
     setExportingXlsx(true);
     try {
       await apiService.exportShipmentsXlsx({
         ...(selectedStatus !== 'all' ? { status: selectedStatus } : {}),
         ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+        ...(navRelationFilter ? { customerRelationId: navRelationFilter.relationId } : {}),
       });
     } catch (e: any) {
       setErrorMessage(`台账导出失败：${e?.message || e}`);
     } finally {
       setExportingXlsx(false);
     }
-  }, [selectedStatus, searchTerm]);
+  }, [selectedStatus, searchTerm, navRelationFilter]);
 
   // F3 — 物流节点时间轴（选中运单时拉取；状态变更后随 selectedShipment.status 联动刷新）
   const [shipmentEvents, setShipmentEvents] = useState<ShipmentEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  // R4：时间轴加载失败内联可见（区分「加载失败」与「暂无节点记录」）
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const selectedShipmentId = selectedShipment?.id;
   const selectedShipmentStatus = selectedShipment?.status;
   useEffect(() => {
     if (!selectedShipmentId) {
       setShipmentEvents([]);
+      setEventsError(null);
       return;
     }
     let cancelled = false;
     setEventsLoading(true);
+    setEventsError(null);
     shipmentService.listShipmentEvents(selectedShipmentId)
       .then(items => { if (!cancelled) setShipmentEvents(items); })
-      .catch(() => { if (!cancelled) setShipmentEvents([]); /* 时间轴不可用时不阻断详情面板 */ })
+      .catch((e: any) => { if (!cancelled) { setShipmentEvents([]); setEventsError(`时间轴加载失败：${e?.message ?? e}`); } })
       .finally(() => { if (!cancelled) setEventsLoading(false); });
     return () => { cancelled = true; };
   }, [selectedShipmentId, selectedShipmentStatus]);
@@ -433,14 +491,18 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   const [packingCartons, setPackingCartons] = useState<ShipmentCarton[]>([]);
   const [packingLoading, setPackingLoading] = useState(false);
   const [packingRefreshKey, setPackingRefreshKey] = useState(0);
+  // R4：装箱明细加载失败内联可见（区分「加载失败」与「暂无装箱明细」）
+  const [packingError, setPackingError] = useState<string | null>(null);
   useEffect(() => {
     if (!selectedShipmentId) {
       setPackingLines([]);
       setPackingCartons([]);
+      setPackingError(null);
       return;
     }
     let cancelled = false;
     setPackingLoading(true);
+    setPackingError(null);
     Promise.all([
       shipmentService.listShipmentLines(selectedShipmentId),
       shipmentService.listShipmentCartons(selectedShipmentId),
@@ -448,7 +510,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       .then(([lines, cartons]) => {
         if (!cancelled) { setPackingLines(lines); setPackingCartons(cartons); }
       })
-      .catch(() => { if (!cancelled) { setPackingLines([]); setPackingCartons([]); /* 装箱明细不可用时不阻断详情面板 */ } })
+      .catch((e: any) => { if (!cancelled) { setPackingLines([]); setPackingCartons([]); setPackingError(`装箱明细加载失败：${e?.message ?? e}`); } })
       .finally(() => { if (!cancelled) setPackingLoading(false); });
     return () => { cancelled = true; };
   }, [selectedShipmentId, selectedShipmentStatus, packingRefreshKey]);
@@ -574,9 +636,12 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       if (editingShipment) {
         const persisted = await shipmentService.updateShipment(editingShipment.id, payload);
         setShipments(prev => prev.map(s => (s.id === persisted.id ? persisted : s)));
+        setServerList(prev => (prev ? prev.map(s => (s.id === persisted.id ? persisted : s)) : prev));
       } else {
         const persisted = await shipmentService.createShipment(payload);
         setShipments(prev => [persisted, ...prev]);
+        setServerList(prev => (prev ? [persisted, ...prev] : prev));
+        setServerTotal(prev => (prev != null ? prev + 1 : prev));
         setSelectedId(persisted.id);
       }
       setShowFormModal(false);
@@ -596,6 +661,8 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     try {
       await shipmentService.deleteShipment(shipment.id);
       setShipments(prev => prev.filter(s => s.id !== shipment.id));
+      setServerList(prev => (prev ? prev.filter(s => s.id !== shipment.id) : prev));
+      setServerTotal(prev => (prev != null && prev > 0 ? prev - 1 : prev));
       if (selectedId === shipment.id) setSelectedId(null);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -722,6 +789,16 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
             </div>
           )}
 
+          {/* R3/R4：列表加载失败可见化（已回退本地缓存口径），与「真空」区分 */}
+          {listError && !showFormModal && (
+            <div className="bds-alert warning shrink-0">
+              <span className="flex-1 min-w-0 break-words">{listError}——当前展示为本地缓存口径。</span>
+              <button type="button" onClick={() => setListError(null)} aria-label="关闭列表错误提示" className="mt-px shrink-0 hover:opacity-70">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {/* REQ2-20（DR-061）：旺季舱位预警——订舱提前期规则（旺季/平时）扫描无出运安排的订单 */}
           {bookingReminders && bookingReminders.items.length > 0 && (
             <div className="shrink-0 rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-4 py-3">
@@ -758,7 +835,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               <input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="运单号 / 收货方"
+                placeholder="运单号 / 客户 / 承运方（服务端搜索）"
                 className="bds-input sm pl-9"
               />
             </div>
@@ -883,10 +960,29 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                     </CompiledMotionInteractiveCard>
                   );
                 })}
-                {filteredShipments.length === 0 && (
+                {filteredShipments.length === 0 && !listLoading && (
                   <div className="bds-empty">
                     <div className="glyph"><Truck size={24} strokeWidth={1.5} /></div>
                     <div className="title">暂无匹配运单</div>
+                  </div>
+                )}
+                {/* R3：分页页脚——total 可见 + 加载更多（服务端 offset 续拉） */}
+                {(serverTotal != null || listLoading) && (
+                  <div className="flex shrink-0 items-center justify-center gap-3 border-t border-[var(--border-c-subtle)] px-4 py-3">
+                    {listLoading && <Loader2 size={14} className="animate-spin text-[var(--text-quaternary)]" />}
+                    {serverTotal != null && (
+                      <span className={cx('text-[11px] font-light', textSecondaryClass)}>已加载 {filteredShipments.length} / 共 {serverTotal} 票</span>
+                    )}
+                    {hasMoreShipments && (
+                      <button
+                        type="button"
+                        onClick={() => void handleLoadMoreShipments()}
+                        disabled={listLoading}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        加载更多
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1001,6 +1097,10 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                           <div className={cx('flex items-center gap-2 py-1 text-[10px]', textSecondaryClass)}>
                             <Loader2 size={14} className="animate-spin" />加载节点时间轴…
                           </div>
+                        ) : eventsError ? (
+                          <div className="bds-alert danger">
+                            <span className="text-[10px] font-light">{eventsError}</span>
+                          </div>
                         ) : shipmentEvents.length === 0 ? (
                           <div className={cx('py-1 text-[10px]', textSecondaryClass)}>暂无节点记录</div>
                         ) : (
@@ -1064,6 +1164,10 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         {packingLoading ? (
                           <div className={cx('mt-2 flex items-center gap-2 py-1 text-[10px]', textSecondaryClass)}>
                             <Loader2 size={14} className="animate-spin" />加载装箱明细…
+                          </div>
+                        ) : packingError ? (
+                          <div className="bds-alert danger mt-2">
+                            <span className="text-[10px] font-light">{packingError}</span>
                           </div>
                         ) : packingLines.length === 0 && packingCartons.length === 0 ? (
                           <div className={cx('mt-2 py-1 text-[10px]', textSecondaryClass)}>

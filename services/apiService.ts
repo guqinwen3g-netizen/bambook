@@ -755,9 +755,22 @@ export const apiService = {
    * 订单列表（V2 行级口径，DR-042 v2.2 L2 换锚）：可见性锚 = 宿主客户的跟进人 ∪ 团队共享 ∪ 管理角色。
    * 旧 V1 端点无行级过滤，已切换至 V2；客户转让后历史订单视野自动继承。
    */
-  async listOrders(endpoint?: string): Promise<Order[]> {
-    const data = await requestJson<{ ok: boolean; items: Order[]; total: number }>('/v2/orders?limit=500', { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+  async listOrders(endpoint?: string, params?: { limit?: number; offset?: number }): Promise<Order[]> {
+    const page = await this.listOrdersPage(endpoint, params);
+    return page.items;
+  },
+
+  /**
+   * 订单列表分页口径（V2，DR-042 v2.2）：透传 limit/offset 并返回 total，
+   * 供列表「加载更多」与截断提示使用；listOrders 保持数组返回不破坏既有调用方。
+   */
+  async listOrdersPage(endpoint?: string, params?: { limit?: number; offset?: number }): Promise<{ items: Order[]; total: number }> {
+    const query = new URLSearchParams();
+    query.set('limit', String(params?.limit ?? 500));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const data = await requestJson<{ ok: boolean; items: Order[]; total: number }>(`/v2/orders?${query.toString()}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async getOrderTimeline(orderId: string, endpoint?: string): Promise<OrderStatusTransition[]> {
@@ -791,9 +804,21 @@ export const apiService = {
     return Array.isArray(data.alerts) ? data.alerts : [];
   },
 
-  async listInvoices(endpoint?: string): Promise<Invoice[]> {
-    const data = await requestJson<{ items: Invoice[]; total: number }>('/v1/finance', { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+  async listInvoices(endpoint?: string, params?: { limit?: number; offset?: number; search?: string }): Promise<Invoice[]> {
+    const page = await this.listInvoicesPage(endpoint, params);
+    return page.items;
+  },
+
+  /** 发票列表分页口径（/v1/finance 后端默认 50 截断，上限 200）：透传 limit/offset/search 并返回 total */
+  async listInvoicesPage(endpoint?: string, params?: { limit?: number; offset?: number; search?: string }): Promise<{ items: Invoice[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    const data = await requestJson<{ items: Invoice[]; total: number }>(`/v1/finance${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   /** DR：发票详情——GET /v1/finance/:id，附带发票↔订单多对多 orderAllocations（含订单号/PO 快照）+ 附件 */
@@ -858,9 +883,21 @@ export const apiService = {
     return requestJson<Invoice>(`/v1/finance/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(input) });
   },
 
-  async listPaymentVouchers(endpoint?: string): Promise<PaymentVoucher[]> {
-    const data = await requestJson<{ items: PaymentVoucher[]; total: number }>('/v1/finance/vouchers', { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+  async listPaymentVouchers(endpoint?: string, params?: { limit?: number; offset?: number; search?: string }): Promise<PaymentVoucher[]> {
+    const page = await this.listPaymentVouchersPage(endpoint, params);
+    return page.items;
+  },
+
+  /** 付款凭证列表分页口径（/v1/finance/vouchers 后端默认 50 截断，上限 200）：透传 limit/offset/search 并返回 total */
+  async listPaymentVouchersPage(endpoint?: string, params?: { limit?: number; offset?: number; search?: string }): Promise<{ items: PaymentVoucher[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    const data = await requestJson<{ items: PaymentVoucher[]; total: number }>(`/v1/finance/vouchers${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   // ── Phase B2: 财务报表 API（账龄 / 对账单 / 汇率损益，只读）──
@@ -1071,9 +1108,22 @@ export const apiService = {
     return requestJson<BusinessCockpit>(`/v1/dashboard/cockpit${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
   },
 
-  async listShipments(endpoint?: string): Promise<Shipment[]> {
-    const data = await requestJson<{ items: Shipment[]; total: number }>('/v1/shipping', { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+  async listShipments(endpoint?: string, params?: { limit?: number; offset?: number; search?: string; customerRelationId?: string }): Promise<Shipment[]> {
+    const page = await this.listShipmentsPage(endpoint, params);
+    return page.items;
+  },
+
+  /** 运单列表分页口径（/v1/shipping 后端默认 50 截断，上限 200）：透传 limit/offset/search/customerRelationId 并返回 total */
+  async listShipmentsPage(endpoint?: string, params?: { limit?: number; offset?: number; search?: string; customerRelationId?: string }): Promise<{ items: Shipment[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    if (params?.search) query.set('search', params.search);
+    if (params?.customerRelationId) query.set('customerRelationId', params.customerRelationId);
+    const qs = query.toString();
+    const data = await requestJson<{ items: Shipment[]; total: number }>(`/v1/shipping${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   /** 出运制单数据装配（CI/PL/CO/BL 成套生成数据源，只读） */
@@ -2420,10 +2470,11 @@ export const apiService = {
 
   // ── 阶段 H H2: 季节性与趋势管理 Season & Trend Management API ──
   // Season 季度
-  async listSeasons(params?: { status?: string; search?: string }, endpoint?: string): Promise<{ items: Season[]; total: number }> {
+  async listSeasons(params?: { status?: string; search?: string; limit?: number }, endpoint?: string): Promise<{ items: Season[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.status) query.set('status', params.status);
     if (params?.search) query.set('search', params.search);
+    if (params?.limit != null) query.set('limit', String(params.limit));
     const qs = query.toString();
     const data = await requestJson<{ items: Season[]; total: number }>(`/v1/seasons${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
     return { items: data.items ?? [], total: data.total ?? 0 };
@@ -2899,9 +2950,12 @@ export const apiService = {
   },
 
   // ── 阶段 P2: 电子画册 LookbookCatalog API ──
-  async listLookbooks(params?: { status?: string }, endpoint?: string): Promise<LookbookCatalog[]> {
-    const qs = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
-    const data = await requestJson<{ items: LookbookCatalog[]; total?: number }>(`/v1/lookbooks${qs}`, { endpoint, method: 'GET' });
+  async listLookbooks(params?: { status?: string; limit?: number }, endpoint?: string): Promise<LookbookCatalog[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const data = await requestJson<{ items: LookbookCatalog[]; total?: number }>(`/v1/lookbooks${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
     return data.items ?? [];
   },
   async createLookbook(input: { title: string; description?: string | null }, endpoint?: string): Promise<LookbookCatalog> {
@@ -2941,9 +2995,20 @@ export const apiService = {
     await requestJson<{ ok: boolean }>(`/v1/fabric-recommendations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
-  async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {
-    const data = await requestJson<{ ok: boolean; cases: DevelopmentCase[]; total: number }>('/v1/development', { endpoint, method: 'GET' });
-    return Array.isArray(data.cases) ? data.cases : [];
+  async listDevelopmentCases(endpoint?: string, params?: { limit?: number; offset?: number }): Promise<DevelopmentCase[]> {
+    const page = await this.listDevelopmentCasesPage(endpoint, params);
+    return page.items;
+  },
+
+  /** 开发案列表分页口径（/v1/development 后端默认 50 截断，上限 200）：透传 limit/offset 并返回 total */
+  async listDevelopmentCasesPage(endpoint?: string, params?: { limit?: number; offset?: number }): Promise<{ items: DevelopmentCase[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const data = await requestJson<{ ok: boolean; cases: DevelopmentCase[]; total: number }>(`/v1/development${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.cases) ? data.cases : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   /**
@@ -2953,10 +3018,20 @@ export const apiService = {
    * bizScope='mine'：L2 业务口径（P1-001）——followedBy ∪ teamGranted，
    * 供 CRM 等业务页下拉使用，防止默认选中无权客户触发 403。
    */
-  async listRelations(endpoint?: string, params?: { bizScope?: 'mine' }): Promise<Relation[]> {
-    const qs = params?.bizScope === 'mine' ? '&bizScope=mine' : '';
-    const data = await requestJson<{ ok: boolean; items: Relation[]; total: number }>(`/v2/relations?limit=500${qs}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+  async listRelations(endpoint?: string, params?: { bizScope?: 'mine'; limit?: number; offset?: number }): Promise<Relation[]> {
+    const page = await this.listRelationsPage(endpoint, params);
+    return page.items;
+  },
+
+  /** 客户档案分页口径（V2 三层视野）：透传 limit/offset 并返回 total；listRelations 保持数组返回不破坏既有调用方 */
+  async listRelationsPage(endpoint?: string, params?: { bizScope?: 'mine'; limit?: number; offset?: number }): Promise<{ items: Relation[]; total: number }> {
+    const query = new URLSearchParams();
+    query.set('limit', String(params?.limit ?? 500));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    if (params?.bizScope === 'mine') query.set('bizScope', 'mine');
+    const data = await requestJson<{ ok: boolean; items: Relation[]; total: number }>(`/v2/relations?${query.toString()}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   /**
@@ -3100,6 +3175,10 @@ export const apiService = {
     };
   },
 
+  /**
+   * 产品资产全量拉取（循环分页直至取尽）：返回数组即全量集合——total 恒等于返回值 length
+   * （循环终止条件直接消费 listProductAssetsPage 回包的 total/hasMore）。
+   */
   async listAllProductAssets(
     endpoint?: string,
     params?: { mainCategory?: string; search?: string; pageSize?: number },
@@ -3115,7 +3194,7 @@ export const apiService = {
         offset,
       });
       all.push(...result.assets);
-      if (!result.hasMore || result.assets.length === 0) break;
+      if (!result.hasMore || result.assets.length === 0 || all.length >= result.total) break;
       offset += result.assets.length;
     }
     return all;
@@ -3466,12 +3545,18 @@ export const apiService = {
 
   // ========== ERP 知识文档（Prisma 真源） ==========
 
-  async listKnowledgeDocuments(endpoint?: string): Promise<KnowledgeDocumentRecord[]> {
+  /**
+   * ERP 知识文档列表：服务端当前全量返回（无分页参数），limit/offset 在客户端切片生效——
+   * 契约先行，后端支持服务端分页后此处无感切换。
+   */
+  async listKnowledgeDocuments(endpoint?: string, params?: { limit?: number; offset?: number }): Promise<KnowledgeDocumentRecord[]> {
     const data = await requestJson<{ ok: boolean; documents: KnowledgeDocumentRecord[] }>('/v1/knowledge-documents', {
       endpoint,
       method: 'GET',
     });
-    return Array.isArray(data.documents) ? data.documents.filter(d => d.origin === 'erp') : [];
+    const docs = (Array.isArray(data.documents) ? data.documents : []).filter(d => d.origin === 'erp');
+    const start = Math.max(params?.offset ?? 0, 0);
+    return params?.limit != null ? docs.slice(start, start + params.limit) : docs.slice(start);
   },
 
   async ingestKnowledgeText(input: { title: string; text: string; category: string; sourceType?: string; sourceUri?: string }, endpoint?: string): Promise<{ documentId: string; checksum: string; chunkCount: number; auditId: string }> {

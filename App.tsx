@@ -235,7 +235,10 @@ import {
   Globe,
   Users,
   Shirt,
-  Settings2
+  Settings2,
+  AlertTriangle,
+  RefreshCw,
+  X
 } from 'lucide-react';
 
 /**
@@ -354,6 +357,11 @@ const App: React.FC = () => {
   const [isProductModuleSettingsWorkspaceOpen, setIsProductModuleSettingsWorkspaceOpen] = useState(false);
   const [ordersReady, setOrdersReady] = useState(false);
   const [relationsReady, setRelationsReady] = useState(false);
+  // 数据中心快照错误可见化：拉取失败时全局横幅提示（可关闭/重试），不再静默降级为空列表
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [snapshotBannerDismissed, setSnapshotBannerDismissed] = useState(false);
+  // 订单列表 total（快照 meta 透传）：供 OrderManager「加载更多」判断截断
+  const [ordersTotal, setOrdersTotal] = useState<number | null>(null);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [dataHubMode, setDataHubMode] = useState<DataHubMode>('offline');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -507,12 +515,16 @@ const App: React.FC = () => {
   const applyDataHubSnapshot = useCallback((snapshot: DataHubSnapshot) => {
     const filterActive = <T extends { deletedAt?: number | null }>(rows: readonly T[]): T[] =>
       rows.filter(row => !row.deletedAt);
+    const incomingOrders = filterActive(snapshot.orders);
     setOrders(previous => {
-      const incoming = filterActive(snapshot.orders);
-      const next = incoming.length === 0 && previous.length > 0 ? previous : incoming;
+      const next = incomingOrders.length === 0 && previous.length > 0 ? previous : incomingOrders;
       void storageService.saveCachedOrders(next);
       return next;
     });
+    // 订单 total 口径与列表一致：快照非空（或后端确证为 0）时更新；空快照保留旧列表则不动 total
+    if (incomingOrders.length > 0 || snapshot.meta?.ordersTotal === 0) {
+      setOrdersTotal(typeof snapshot.meta?.ordersTotal === 'number' ? snapshot.meta.ordersTotal : null);
+    }
     setKnowledge(snapshot.knowledge);
     setInsights(snapshot.insights);
     setRelations(previous => {
@@ -584,9 +596,12 @@ const App: React.FC = () => {
       const snapshot = await dataHubService.pullSnapshot(endpoint);
       applyDataHubSnapshot(snapshot);
       setDataHubMode('online');
-    } catch (e) {
+      setSnapshotError(null);
+    } catch (e: any) {
       console.warn("[DataHub] silent sync failed:", e);
       setDataHubMode('degraded');
+      setSnapshotError(`数据中心快照同步失败：${e?.message ?? e}`);
+      setSnapshotBannerDismissed(false);
     } finally {
       setIsSyncing(false);
       updateSyncStatus('idle');
@@ -746,7 +761,7 @@ const App: React.FC = () => {
           setOrdersReady(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地订单缓存读取失败:', err?.message ?? err); });
     storageService.getCachedRelations()
       .then(cachedRelations => {
         if (cachedRelations.length > 0) {
@@ -754,39 +769,39 @@ const App: React.FC = () => {
           setRelationsReady(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地客户缓存读取失败:', err?.message ?? err); });
     storageService.getCachedProducts()
       .then(cachedProducts => {
         const normalizedProducts = normalizeProductAssets(cachedProducts);
         if (normalizedProducts.length > 0) setProducts(normalizedProducts.filter(product => !product.deletedAt));
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地产品缓存读取失败:', err?.message ?? err); });
     storageService.getCachedProductCategories()
       .then(cachedCategories => {
         const normalizedCategories = normalizeProductSubCategories(cachedCategories);
         if (normalizedCategories.length > 0) setProductCategories(normalizedCategories.filter(category => !category.deletedAt));
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地产品分类缓存读取失败:', err?.message ?? err); });
     storageService.getCachedInvoices()
       .then(cachedInvoices => {
         if (cachedInvoices.length > 0) setInvoices(cachedInvoices.filter(inv => !inv.deletedAt));
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地发票缓存读取失败:', err?.message ?? err); });
     storageService.getCachedPaymentVouchers()
       .then(cachedVouchers => {
         if (cachedVouchers.length > 0) setPaymentVouchers(cachedVouchers.filter(v => !v.deletedAt));
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地付款凭证缓存读取失败:', err?.message ?? err); });
     storageService.getCachedShipments()
       .then(cachedShipments => {
         if (cachedShipments.length > 0) setShipments(cachedShipments.filter(s => !s.deletedAt));
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地运单缓存读取失败:', err?.message ?? err); });
     storageService.getCachedDevelopmentCases()
       .then(cachedCases => {
         if (cachedCases.length > 0) setDevelopmentCases(cachedCases.filter(c => !c.deletedAt));
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[Snapshot] 本地开发案缓存读取失败:', err?.message ?? err); });
     checkConnection();
 
     // 关系智库数据源：Mac mini/Postgres API only.
@@ -817,7 +832,9 @@ const App: React.FC = () => {
         console.log(`[Orders] Loaded ${rows.length} orders from Bambook data hub`);
       })
       .catch((err: any) => {
-        console.log('[Orders] data hub load failed:', err?.message ?? err);
+        console.warn('[Orders] data hub load failed:', err?.message ?? err);
+        setSnapshotError(`订单装载失败：${err?.message ?? err}`);
+        setSnapshotBannerDismissed(false);
         setOrdersReady(true);
       });
 
@@ -1452,6 +1469,31 @@ const App: React.FC = () => {
       {/* 业务事件通知中心 — Provider 包裹 main，使 PageHeader 中的 Trigger 可通过 Context 获取状态 */}
       <NotificationCenter isDarkMode={isDarkMode} onOpenLink={handleNotificationOpenLink}>
       <main className={`app-main app-main-cover app-main-cover-flush flex flex-col min-w-0 overflow-hidden opacity-100 ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
+        {/* 数据中心快照失败全局横幅：加载失败可见化（可关闭/重试），区别于「真空」——失败时不再是静默空列表 */}
+        {snapshotError && !snapshotBannerDismissed && (
+          <div role="alert" className="bds-alert danger mx-6 mt-4 shrink-0 items-start">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span className="min-w-0 flex-1 break-words text-xs font-light">
+              {snapshotError}——当前展示可能为本地缓存或不完整数据，可点击重试重新拉取。
+            </span>
+            <button
+              type="button"
+              onClick={() => { setSnapshotBannerDismissed(false); checkConnection(); }}
+              className="bds-btn bds-btn-secondary shrink-0"
+            >
+              <RefreshCw size={14} className={isSyncing ? 'animate-spin' : undefined} />
+              重试
+            </button>
+            <button
+              type="button"
+              onClick={() => setSnapshotBannerDismissed(true)}
+              aria-label="关闭数据同步失败提示"
+              className="shrink-0 hover:opacity-70"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
         <div ref={mainViewportRef} className={`app-main-viewport flex-1 min-h-0 relative ${isFullBleedView ? 'overflow-visible' : ((activeView as string) === View.Emails ? 'overflow-hidden flex flex-col p-6' : 'overflow-y-auto scroll-smooth p-6')} ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
           <MainContentShell isFullBleedView={isFullBleedView} isEmails={(activeView as string) === View.Emails} isGlobeUnderlay={isGlobeUnderlay}>
 
@@ -1603,9 +1645,22 @@ const App: React.FC = () => {
             )}
             {activeView === View.Orders && (
               ordersReady
-                ? (
+                ? (orders.length === 0 && snapshotError
+                  ? (
+                    /* 加载失败 ≠ 真空：快照失败且无缓存时不渲染 OrderManager 空态，给可见失败 + 重试 */
+                    <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+                      <AlertTriangle size={20} strokeWidth={1.5} />
+                      <p className="text-sm font-light">订单加载失败：{snapshotError}</p>
+                      <button type="button" onClick={() => checkConnection()} className="bds-btn bds-btn-secondary">
+                        <RefreshCw size={14} className={isSyncing ? 'animate-spin' : undefined} />
+                        重试
+                      </button>
+                    </div>
+                  )
+                  : (
                   <OrderManager
                     orders={orders}
+                    ordersTotal={ordersTotal}
                     dirtyIds={new Set()}
                     setOrders={handleUpdateOrders}
                     onSyncComplete={() => { }}
@@ -1622,7 +1677,7 @@ const App: React.FC = () => {
                     onFullscreenOpenChange={setOrderFullscreenOpen}
                     onNavigate={handleViewChange}
                   />
-                )
+                  ))
                 : <div className="text-slate-500 dark:text-slate-400">订单正在读取数据中心...</div>
             )}
             {activeView === View.Emails && (
