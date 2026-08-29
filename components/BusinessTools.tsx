@@ -232,7 +232,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         className={`
                           group relative isolate overflow-hidden flex flex-col items-start text-left
                           p-6 h-full rounded-card-lg transition-colors duration-200 select-none
-                          cursor-pointer hover:-translate-y-1
+                          cursor-pointer
                           ${cardClass}
                         `}
                         data-glass-edge-mask
