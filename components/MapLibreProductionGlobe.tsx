@@ -1704,8 +1704,8 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     ? markerItems.some(item => item.id === tooltipTarget.id)
     : false;
   const mapOverlayControlClass = isDarkMode
-    ? 'bg-[rgba(13,27,42,0.34)] text-[var(--text-secondary)]'
-    : 'bg-[rgba(255,255,255,0.46)] text-[var(--os-vnext-brand-blue-strong)]'
+    ? 'bg-[rgba(13,27,42,0.34)] text-[var(--text-secondary)] backdrop-blur-md backdrop-saturate-150'
+    : 'bg-[rgba(255,255,255,0.46)] text-[var(--os-vnext-brand-blue-strong)] backdrop-blur-md backdrop-saturate-150'
   const mapOverlayHoverClass = isDarkMode
     ? 'hover:bg-[rgba(255,255,255,0.07)] hover:text-white'
     : 'hover:bg-[rgba(255,255,255,0.58)] hover:text-[var(--os-vnext-brand-blue-strong)]';

@@ -630,7 +630,7 @@ body.bambook-agent-pet-host #root {
        bundled locally via webfont-splitted) → Inter / Acherus fallback →
        PingFang SC / Microsoft YaHei (system CJK fallback if webfont fails). */
     --font-primary: 'Urbanist', 'HarmonyOS Sans SC', 'Inter', 'Acherus Grotesque', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
-    --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
 }
 
 body {
@@ -1362,10 +1362,12 @@ html:not(.dark) :where(.ui-lab-real-os-root, .bambook-os-root) .bambook-tertiary
    ========================================== */
 
 /* 等宽字体类 - 用于代码、控制台、时间戳 */
-.font-mono {
-    font-family: var(--font-mono) !important;
-    font-feature-settings: "liga" 0;
-    /* 禁用连字以保持代码清晰 */
+/* Tailwind utility 已足够，此处不再覆盖（删除 !important 避免压过 Tailwind utilities 层） */
+@layer utilities {
+    .font-mono {
+        font-feature-settings: "liga" 0;
+        /* 禁用连字以保持代码清晰 */
+    }
 }
 
 /* 数字等宽类 - 用于数据展示 */

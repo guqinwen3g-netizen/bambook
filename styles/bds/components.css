@@ -60,6 +60,9 @@
 .bds-btn.sm { height: var(--h-btn-sm); padding: var(--p-btn-sm); font-size: var(--text-xs); }
 .bds-btn.lg { height: var(--h-btn-lg); padding: var(--p-btn-lg); font-size: var(--text-base); }
 
+/* 别名：spec/守卫/代码三方对齐（与 .bds-btn.sm 等效） */
+.bds-btn-sm { height: var(--h-btn-sm); padding: var(--p-btn-sm); font-size: var(--text-xs); }
+
 /* 变体 — rimless：hover 只换底色，不加阴影。
    发光纪律：控件（button/switch/check）不发光；
    仅小型彩色状态元素（徽章/进度条/toast 图标）使用 --glow-* 自发光层。 */

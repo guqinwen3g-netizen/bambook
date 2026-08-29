@@ -2,7 +2,7 @@ const toolbarBaseRecipe = 'group w-full min-w-0 h-9 !rounded-2xl border-0 backdr
 const toolbarContentRecipe = 'relative z-10 h-full w-full flex flex-nowrap items-center gap-3 px-3';
 const toolbarAmbientRecipe = 'hidden';
 const toolbarSurfaceRecipe =
-  'glass-panel bambook-blue-white-surface bg-white/40 dark:bg-[#0a0f1d]/28';
+  'glass-panel bambook-blue-white-surface bg-white/40 dark:bg-[var(--bg-deep)]/28';
 const controlFrostRecipe =
   'backdrop-blur-[15px] backdrop-saturate-[104%] bg-[rgba(255,255,255,0.42)] dark:bg-[rgba(13,27,42,0.28)]';
 const controlFrostHoverRecipe = 'hover:bg-[rgba(255,255,255,0.52)] dark:hover:bg-[rgba(255,255,255,0.065)]';
@@ -15,9 +15,9 @@ const stateControlBaseRecipe =
 const toolbarControlBaseRecipe =
   `${controlFrostRecipe} !border-transparent shadow-none`;
 const stateControlInteractionRecipe =
-  `text-slate-500 dark:text-slate-400 ${controlFrostHoverRecipe} hover:text-[#0A2746] dark:hover:text-slate-50 hover:shadow-none ${controlFrostActiveRecipe} active:shadow-none`;
+  `text-slate-500 dark:text-slate-400 ${controlFrostHoverRecipe} hover:text-[var(--text-primary)] dark:hover:text-slate-50 hover:shadow-none ${controlFrostActiveRecipe} active:shadow-none`;
 const actionControlRecipe =
-  `${controlFrostRecipe} !border-transparent text-slate-500 dark:text-slate-400 shadow-none ${controlFrostHoverRecipe} hover:text-[#0A2746] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`;
+  `${controlFrostRecipe} !border-transparent text-slate-500 dark:text-slate-400 shadow-none ${controlFrostHoverRecipe} hover:text-[var(--text-primary)] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`;
 // 自适应选中面：视觉真源在 os-vnext.css `.bambook-selected-surface`（基类浅色 + .dark 翻转）。
 const selectedSurfaceRecipe = 'bambook-selected-surface';
 // 注意：flat-experimental.css 的护栏规则会对 class 同时含 "rounded" 与
@@ -114,10 +114,10 @@ export const BAMBOOK_OS = {
     },
   },
   radius: {
-    panel: 'rounded-[24px]',
-    card: 'rounded-3xl',
-    control: 'rounded-[18px]',
-    compactControl: 'rounded-2xl',
+    panel: 'rounded-card',
+    card: 'rounded-card-lg',
+    control: 'rounded-control',
+    compactControl: 'rounded-compact',
   },
   typography: {
     weight: {
@@ -158,7 +158,7 @@ export const BAMBOOK_OS = {
     stackLoose: 'space-y-4',
   },
   material: {
-    panelBase: 'rounded-[24px] border-0 backdrop-blur-[15px] backdrop-saturate-[104%]',
+    panelBase: 'rounded-card border-0 backdrop-blur-[15px] backdrop-saturate-[104%]',
     glassColor: 'bambook-dashboard-glass-color',
     nestedSurface: 'bambook-nested-surface',
     card: compactCardRecipe,
@@ -190,8 +190,8 @@ export const BAMBOOK_OS = {
       base: selectedSurfaceRecipe,
     },
     navigationRow: {
-      base: 'min-h-16 rounded-2xl border px-4 py-3 text-left transition-[background,color,box-shadow,transform,border-color] duration-200',
-      compact: 'h-12 rounded-2xl border px-4 text-left transition-[background,color,box-shadow,transform,border-color] duration-200',
+      base: 'min-h-16 rounded-field border px-4 py-3 text-left transition-[background,color,box-shadow,transform,border-color] duration-200',
+      compact: 'h-12 rounded-field border px-4 text-left transition-[background,color,box-shadow,transform,border-color] duration-200',
       icon: 'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center transition-colors',
       title: 'block text-sm font-light tracking-tight',
       desc: 'mt-1 block text-xs font-light leading-snug',

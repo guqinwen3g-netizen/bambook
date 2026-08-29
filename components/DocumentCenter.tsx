@@ -492,7 +492,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
 
   // ── 样式 ──
   const cardClass = `rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)] ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'bds-input w-full';
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -932,7 +932,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
     return () => { cancelled = true; };
   }, []);
 
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'bds-input w-full';
   const inputCls = `${fieldClass} py-1.5`;
   const labelClass = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 

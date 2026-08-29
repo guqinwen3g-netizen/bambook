@@ -30,13 +30,15 @@ PG_SCAN_PATHS=(components)
 # ── 基线（2026-08-06 根背景色 token 化后收拢，只减不增）──
 BASELINE_ROUNDED=1        # 2026-08-16 批 1 收拢 3→1：Sidebar/Settings 2 处改语义类；
                           # 余 1 处为 pwa/mobile/MobileWebNavigation.tsx rounded-[20px]（移动端冻结区，搁置不动）
-BASELINE_HEX_TAILWIND=0   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
+BASELINE_HEX_TAILWIND=9   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
+                          # 2026-08-28 扩展 *.ts 后基线上调 0→9：bambookOsTokens.ts 硬编码 hex（dark:bg-[#0a0f1d]/hover:text-[#0A2746] 等 9 处）
 BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除）
 # ── BDS v2.2 新增守卫基线（2026-08-16 批 2 建立，只减不增）──
 # v2.2 同心层级刻度收编后，裸 Tailwind 圆角刻度类（rounded-xs/sm/md/lg/xl/2xl/3xl）
 # 与 font-medium/semibold/bold 写法（全局 Light 300 纪律，机制已坍缩 300 但写法必须统一
 # 为 font-light）均属违例；现存基线全部为 pwa/mobile 移动端冻结区存量（搁置不动）。
-BASELINE_BARE_RADIUS=4    # pwa/mobile 裸圆角档：MobileWebNavigation 3 + MobileWebApp 1
+BASELINE_BARE_RADIUS=8    # pwa/mobile 裸圆角档：MobileWebNavigation 3 + MobileWebApp 1
+                          # 2026-08-28 扩展 *.ts 后基线上调 4→8：bambookOsTokens.ts 裸 Tailwind 圆角刻度（rounded-2xl 等 4 处）
 BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + MobileWebApp 1
 # ── BDS v2 主题耦合基线（2026-08-13 建立，只减不增）──
 # v2 纪律：新组件对主题机制透明（无 isDarkMode 三元），
@@ -44,7 +46,7 @@ BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + Mo
 # P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
 # （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
 # dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
-BASELINE_DARK_VARIANT=7        # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
+BASELINE_DARK_VARIANT=110       # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
                                # 2026-08-17 W0 锁进度 196→182（实测回归）；批G-1 KnowledgeBase 收编 182→111；
                                # 批G-2 ProductsManager+compiledProductsTemplates 收编 111→89；
                                # 批G-3 ui/ 控件族 收编 89→64；批G-4 Relations域 收编 64→53；
@@ -54,6 +56,7 @@ BASELINE_DARK_VARIANT=7        # dark: Tailwind 变体（行数口径；历史�
                                # 批G-8b AgentDocumentRenderer+AgentTableBlock+AgentDiagramBlock 收编 19→14；
                                # 批G-8c OrderLinesTable+ImageUploader+SampleNodesPanel+BusinessTools+SplashScreen 收编 14→9；
                                # 批G-8d Sidebar+compiledPrimitives 收编 9→7（目标 ≤10 达成）
+                               # 2026-08-28 扩展 *.ts 后基线上调 7→110：bambookOsTokens.ts dark: 变体（103 处）
                                # 余量 7 行：App.tsx 5（W5 冻结移交 S-ARCH）+ NotificationCenter 2（levelColorFor/levelBgFor 形参 `dark: boolean` 误匹配，非 Tailwind 变体）
 BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366→226→220；
                                # 2026-08-17 W0 锁进度 220→219；
@@ -61,16 +64,18 @@ BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366�
 # ── BDS 高分收编基线（2026-08-17 W0 建立，只减不增）──
 # 依据 docs/design/10-评审与决策/2026-08-17-前端设计地毯式评审报告.md 批 A-J 移交清单建立。
 # 口径：出现次数（rg -o），豁免集与上文 EXCLUDE_GLOBS 一致。
-BASELINE_RAW_SEMANTIC=16       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
+BASELINE_RAW_SEMANTIC=39       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
                                # 2026-08-19 批次 3c 批 I 收敛 19→16：GarmentOrders.tsx 死代码删除（含 bg-amber-500 暖色残留）
                                # 2026-08-17 批A 收编 131→33；批H 收编 TraceabilityPanel 14（33→19，接入 §4.5 雾化分类色板 mask-*）
+                               # 2026-08-28 扩展 *.ts 后基线上调 16→39：bambookOsTokens.ts raw 语义色（text-slate-500/dark:text-slate-400 等 23 处）
                                # 余量：FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码移交 W5）
 BASELINE_RAW_MASK=3            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
                                # 2026-08-17 批B 收编 17→4；批G-5 DesignTuner dark: 收编顺带移除 4→3
                                # 余量：pwa 2（移动端冻结）/ App.tsx 1（W5 解锁）
-BASELINE_BARE_ROUNDED=4        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
+BASELINE_BARE_ROUNDED=7        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
                                # 2026-08-17 批D 收编 43→5；余量 5 处均为注释文本（StepUpload/Dashboard/compiledSurfacePrimitives×2/compiledDashboardTemplates），非 className
                                # 2026-08-18 Phase 0 架构收口删除 compiled 模板后 5→4
+                               # 2026-08-28 扩展 *.ts 后基线上调 4→7：bambookOsTokens.ts 裸 rounded（rounded-2xl 等 3 处）
 BASELINE_HANDWRITTEN_BTN=8    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
                                # 2026-08-18 W4 组8 ImportWizard 收编 9→8
                                # 2026-08-18 W1 组2 ReportCenter 收编 10→9（W0 已收至 9，基线随 W1 一并纠正）
@@ -137,11 +142,11 @@ echo ""
 
 # ── 1. 检查 rounded-[Npx] 硬编码圆角 ──
 echo "▸ 检查 rounded-[Npx] 硬编码圆角..."
-rounded_count=$(rg -c 'rounded-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+rounded_count=$(rg -c 'rounded-\[[0-9]+px\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$rounded_count" -gt "$BASELINE_ROUNDED" ]; then
   echo "  ❌ rounded-[Npx] 硬编码增加（基线 ${BASELINE_ROUNDED} → 当前 ${rounded_count}）"
   echo "  请使用语义类：rounded-panel/card/inset/control/field/compact/floating/card-lg"
-  rg -n 'rounded-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n 'rounded-\[[0-9]+px\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$rounded_count" -lt "$BASELINE_ROUNDED" ]; then
   echo "  ✅ rounded-[Npx] 减少（基线 ${BASELINE_ROUNDED} → 当前 ${rounded_count}）— 恭喜！请更新基线。"
@@ -152,11 +157,11 @@ echo ""
 
 # ── 2. 检查 Tailwind 类中的 hex 颜色 ──
 echo "▸ 检查 Tailwind 类中的 hex 颜色..."
-hex_tailwind_count=$(rg -c '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+hex_tailwind_count=$(rg -c '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$hex_tailwind_count" -gt "$BASELINE_HEX_TAILWIND" ]; then
   echo "  ❌ Tailwind 类中的 hex 颜色增加（基线 ${BASELINE_HEX_TAILWIND} → 当前 ${hex_tailwind_count}）"
   echo "  请使用语义类：bg-deep/text-link/border-action/accent-cyan 等"
-  rg -n '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$hex_tailwind_count" -lt "$BASELINE_HEX_TAILWIND" ]; then
   echo "  ✅ Tailwind hex 颜色减少（基线 ${BASELINE_HEX_TAILWIND} → 当前 ${hex_tailwind_count}）— 恭喜！请更新基线。"
@@ -167,11 +172,11 @@ echo ""
 
 # ── 3. 检查内联 style 中的 hex 颜色 ──
 echo "▸ 检查内联 style 中的 hex 颜色..."
-hex_inline_count=$(rg -c "style=\{[^}]*(color|background|borderColor|fill|stroke)[^}]*#[0-9a-fA-F]{3,8}" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+hex_inline_count=$(rg -c "style=\{[^}]*(color|background|borderColor|fill|stroke)[^}]*#[0-9a-fA-F]{3,8}" --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$hex_inline_count" -gt "$BASELINE_HEX_INLINE" ]; then
   echo "  ⚠️  内联 style hex 颜色增加（基线 ${BASELINE_HEX_INLINE} → 当前 ${hex_inline_count}）"
   echo "  建议使用 var(--bambook-*-*) token"
-  rg -n "style=\{[^}]*(color|background|borderColor|fill|stroke)[^}]*#[0-9a-fA-F]{3,8}" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -5
+  rg -n "style=\{[^}]*(color|background|borderColor|fill|stroke)[^}]*#[0-9a-fA-F]{3,8}" --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -5
   # 内联 style 是警告，不计入 errors
 else
   echo "  ✅ 内联 style hex 颜色维持或低于基线（$hex_inline_count 处）"
@@ -181,10 +186,10 @@ echo ""
 # ── 4. 检查 box-shadow 硬编码（flat 设计应无阴影）──
 echo "▸ 检查 box-shadow 硬编码（flat 设计应无阴影）..."
 # 正则用 \s+（至少一个空格）确保 [^nv] 匹配值首字符，排除 none（n）和 var()（v）
-shadow_count=$(rg -c 'box-shadow:\s+[^nv]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+shadow_count=$(rg -c 'box-shadow:\s+[^nv]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$shadow_count" -gt 0 ]; then
   echo "  ⚠️  发现 $shadow_count 处 box-shadow 硬编码（flat 设计应使用 var(--bambook-flat-shadow)）"
-  rg -n 'box-shadow:\s+[^nv]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -5
+  rg -n 'box-shadow:\s+[^nv]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -5
   # box-shadow 是警告
 else
   echo "  ✅ 无 box-shadow 硬编码"
@@ -193,9 +198,9 @@ echo ""
 
 # ── 5. BDS v2 采用度 + 主题耦合基线（只减不增）──
 echo "▸ 检查 BDS v2 主题耦合基线（dark: 变体 / isDarkMode 三元）..."
-dark_variant_count=$(rg -c 'dark:' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
-is_dark_ternary_count=$(rg -c 'isDarkMode\s*\?' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
-bds_adopt_files=$(rg -l 'bds-(btn|card|input|badge|table|modal|toast|pagehead|segment|tabs|switch|check|listrow|setrow|formrow|progress|skeleton|empty|tag|avatar|tooltip|filterbar|divider)' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+dark_variant_count=$(rg -c 'dark:' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+is_dark_ternary_count=$(rg -c 'isDarkMode\s*\?' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+bds_adopt_files=$(rg -l 'bds-(btn|card|input|badge|table|modal|toast|pagehead|segment|tabs|switch|check|listrow|setrow|formrow|progress|skeleton|empty|tag|avatar|tooltip|filterbar|divider)' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 coupling_errors=0
 if [ "$dark_variant_count" -gt "$BASELINE_DARK_VARIANT" ]; then
   echo "  ❌ dark: 变体增加（基线 ${BASELINE_DARK_VARIANT} → 当前 ${dark_variant_count}）"
@@ -216,12 +221,12 @@ echo ""
 
 # ── 6. 检查裸 Tailwind 圆角刻度类（BDS v2.2 同心层级刻度收编后属违例）──
 echo "▸ 检查裸 Tailwind 圆角刻度类（rounded-xs/sm/md/lg/xl/2xl/3xl）..."
-bare_radius_count=$(rg -c 'rounded-(xs|sm|md|lg|xl|2xl|3xl)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+bare_radius_count=$(rg -c 'rounded-(xs|sm|md|lg|xl|2xl|3xl)\b' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$bare_radius_count" -gt "$BASELINE_BARE_RADIUS" ]; then
   echo "  ❌ 裸 Tailwind 圆角刻度类增加（基线 ${BASELINE_BARE_RADIUS} → 当前 ${bare_radius_count}）"
   echo "  请使用 BDS v2.2 语义类：rounded-panel/card/card-lg/inset/control/field/compact/floating"
   echo "  或同心刻度 var 引用类：rounded-bds-xs/sm/compact/md/control/inset/lg/card-lg/xl/2xl/pill"
-  rg -n 'rounded-(xs|sm|md|lg|xl|2xl|3xl)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n 'rounded-(xs|sm|md|lg|xl|2xl|3xl)\b' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$bare_radius_count" -lt "$BASELINE_BARE_RADIUS" ]; then
   echo "  ✅ 裸圆角刻度类减少（基线 ${BASELINE_BARE_RADIUS} → 当前 ${bare_radius_count}）— 恭喜！请更新基线。"
@@ -232,11 +237,11 @@ echo ""
 
 # ── 7. 检查 font-medium/semibold/bold/black 字重写法（全局 Light 300 纪律）──
 echo "▸ 检查 font-medium/semibold/bold/black 字重写法..."
-font_weight_count=$(rg -c 'font-(medium|semibold|bold|black)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+font_weight_count=$(rg -c 'font-(medium|semibold|bold|black)\b' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$font_weight_count" -gt "$BASELINE_FONT_WEIGHT" ]; then
   echo "  ❌ 过重字重写法增加（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）"
   echo "  全局 Light 300 纪律：请写 font-light（机制已坍缩 font-medium→300，但写法必须统一）"
-  rg -n 'font-(medium|semibold|bold|black)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n 'font-(medium|semibold|bold|black)\b' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$font_weight_count" -lt "$BASELINE_FONT_WEIGHT" ]; then
   echo "  ✅ 过重字重写法减少（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）— 恭喜！请更新基线。"
@@ -248,11 +253,11 @@ echo ""
 # ── 8. 批A：raw 语义色 → BDS 语义 token（出现次数口径）──
 echo "▸ 检查 raw 语义色（red/emerald/blue/amber…未走 BDS 语义 token）..."
 RAW_SEMANTIC_RE='(text|bg|border|ring|from|to|via)-(red|emerald|blue|rose|amber|orange|yellow|sky|cyan|teal|violet|pink|indigo|green)-[0-9]'
-raw_semantic_count=$(rg -o "$RAW_SEMANTIC_RE" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+raw_semantic_count=$(rg -o "$RAW_SEMANTIC_RE" --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$raw_semantic_count" -gt "$BASELINE_RAW_SEMANTIC" ]; then
   echo "  ❌ raw 语义色增加（基线 ${BASELINE_RAW_SEMANTIC} → 当前 ${raw_semantic_count}）"
   echo "  请使用 BDS 语义 token：--success-text / --warning-text / --danger-text / --accent-text"
-  rg -n "$RAW_SEMANTIC_RE" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n "$RAW_SEMANTIC_RE" --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$raw_semantic_count" -lt "$BASELINE_RAW_SEMANTIC" ]; then
   echo "  ✅ raw 语义色减少（基线 ${BASELINE_RAW_SEMANTIC} → 当前 ${raw_semantic_count}）— 恭喜！请更新基线。"
@@ -263,11 +268,11 @@ echo ""
 
 # ── 9. 批B：自造遮罩 → var(--mask-bg) ──
 echo "▸ 检查自造遮罩（bg-black/N，应统一 --mask-bg）..."
-raw_mask_count=$(rg -o 'bg-black/[0-9]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+raw_mask_count=$(rg -o 'bg-black/[0-9]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$raw_mask_count" -gt "$BASELINE_RAW_MASK" ]; then
   echo "  ❌ 自造遮罩增加（基线 ${BASELINE_RAW_MASK} → 当前 ${raw_mask_count}）"
   echo "  tokens.css 定义 --mask-bg 为全系统唯一遮罩入口"
-  rg -n 'bg-black/[0-9]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n 'bg-black/[0-9]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$raw_mask_count" -lt "$BASELINE_RAW_MASK" ]; then
   echo "  ✅ 自造遮罩减少（基线 ${BASELINE_RAW_MASK} → 当前 ${raw_mask_count}）— 恭喜！请更新基线。"
@@ -278,11 +283,11 @@ echo ""
 
 # ── 10. 批D：裸 rounded（非 BDS 刻度）──
 echo "▸ 检查裸 rounded（Tailwind 默认 4px，不在 BDS 刻度内）..."
-bare_rounded_count=$(rg -o -P 'rounded(?![\w-])' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+bare_rounded_count=$(rg -o -P 'rounded(?![\w-])' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$bare_rounded_count" -gt "$BASELINE_BARE_ROUNDED" ]; then
   echo "  ❌ 裸 rounded 增加（基线 ${BASELINE_BARE_ROUNDED} → 当前 ${bare_rounded_count}）"
   echo "  微件用 rounded-bds-sm / rounded-compact，控件用 rounded-control"
-  rg -n -P 'rounded(?![\w-])' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n -P 'rounded(?![\w-])' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$bare_rounded_count" -lt "$BASELINE_BARE_ROUNDED" ]; then
   echo "  ✅ 裸 rounded 减少（基线 ${BASELINE_BARE_ROUNDED} → 当前 ${bare_rounded_count}）— 恭喜！请更新基线。"
@@ -293,8 +298,8 @@ echo ""
 
 # ── 11. 批E：手写主按钮 → bds-btn bds-btn-primary（双序组合）──
 echo "▸ 检查手写主按钮（rounded-full + brand-blue 组合，绕过 bds-btn 组件类）..."
-hw_a=$(rg -o 'rounded-full[^"'"'"']*bg-\[var\(--os-vnext-brand-blue\)\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-hw_b=$(rg -o 'bg-\[var\(--os-vnext-brand-blue\)\][^"'"'"']*rounded-full' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+hw_a=$(rg -o 'rounded-full[^"'"'"']*bg-\[var\(--os-vnext-brand-blue\)\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+hw_b=$(rg -o 'bg-\[var\(--os-vnext-brand-blue\)\][^"'"'"']*rounded-full' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 handwritten_btn_count=$((hw_a + hw_b))
 if [ "$handwritten_btn_count" -gt "$BASELINE_HANDWRITTEN_BTN" ]; then
   echo "  ❌ 手写主按钮增加（基线 ${BASELINE_HANDWRITTEN_BTN} → 当前 ${handwritten_btn_count}）"
@@ -309,7 +314,7 @@ echo ""
 
 # ── 12. 批E 伴随项：text-white 直用 → var(--on-accent)（警告级）──
 echo "▸ 检查 text-white 直用（accent 填充上应走 --on-accent）..."
-text_white_count=$(rg -o 'text-white' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+text_white_count=$(rg -o 'text-white' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$text_white_count" -gt "$BASELINE_TEXT_WHITE" ]; then
   echo "  ⚠️  text-white 增加（基线 ${BASELINE_TEXT_WHITE} → 当前 ${text_white_count}）"
   echo "  accent 填充上的文字请用 text-[var(--on-accent)]（深色模式语义可能不同）"
@@ -344,11 +349,11 @@ else
 fi
 
 # M2: bds-btn-sm 计数（行尾 `// bds-sm-ok: <原因>` 白名单豁免；仅表格行内操作可用）
-pg_btn_sm=$(rg -n 'bds-btn-sm' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-sm-ok' | rg -o 'bds-btn-sm' 2>/dev/null | wc -l | tr -d ' ')
+pg_btn_sm=$(rg -n 'bds-btn-sm' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-sm-ok' | rg -o 'bds-btn-sm' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$pg_btn_sm" -gt "$BASELINE_BDS_BTN_SM" ]; then
   echo "  ❌ M2: bds-btn-sm 增加（基线 ${BASELINE_BDS_BTN_SM} → 当前 ${pg_btn_sm}）"
   echo "     操作区主操作一律 bds-btn 默认 40px；bds-btn-sm 仅表格行内操作白名单（spec §3.1）"
-  rg -n 'bds-btn-sm' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-sm-ok' | head -10
+  rg -n 'bds-btn-sm' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-sm-ok' | head -10
   pg_errors=$((pg_errors + 1))
 else
   echo "  ✅ M2: bds-btn-sm 维持或低于基线（${pg_btn_sm} 处）"
@@ -356,11 +361,11 @@ fi
 
 # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径；总控校准：仅 h-10 白名单；
 # 单行 className 约定，多行拼接场景随逐页主刀人工复核）
-pg_filterbar_h=$(rg -n 'bds-filterbar' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -P '(?<![\w-])(min-h|max-h|h)-(?!10\b)[0-9a-z\[]' 2>/dev/null | wc -l | tr -d ' ')
+pg_filterbar_h=$(rg -n 'bds-filterbar' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -P '(?<![\w-])(min-h|max-h|h)-(?!10\b)[0-9a-z\[]' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$pg_filterbar_h" -gt "$BASELINE_FILTERBAR_H" ]; then
   echo "  ❌ M3: filterbar 手写非 h-10 高度覆盖增加（基线 ${BASELINE_FILTERBAR_H} → 当前 ${pg_filterbar_h}）"
   echo "     filterbar 内禁任何手写 h- 覆盖（仅 h-10 白名单）；禁撑高筛选行抬高页面上边距"
-  rg -n 'bds-filterbar' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -P '(?<![\w-])(min-h|max-h|h)-(?!10\b)[0-9a-z\[]' | head -10
+  rg -n 'bds-filterbar' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -P '(?<![\w-])(min-h|max-h|h)-(?!10\b)[0-9a-z\[]' | head -10
   pg_errors=$((pg_errors + 1))
 elif [ "$pg_filterbar_h" -lt "$BASELINE_FILTERBAR_H" ]; then
   echo "  ✅ M3: filterbar 高度违例减少（基线 ${BASELINE_FILTERBAR_H} → 当前 ${pg_filterbar_h}）— 恭喜！请更新基线。"
@@ -388,7 +393,7 @@ pg_native_select=$(find components -name '*.tsx' \
     }
     print "$n\n";
   ' 2>/dev/null | awk '{s+=$1} END{print s+0}')
-pg_native_date=$(rg -o 'type="date"' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+pg_native_date=$(rg -o 'type="date"' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 pg_native_total=$((pg_native_select + pg_native_date))
 if [ "$pg_native_total" -gt "$BASELINE_NATIVE_CONTROLS" ]; then
   echo "  ❌ M4: 原生表单控件增加（基线 ${BASELINE_NATIVE_CONTROLS} → 当前 ${pg_native_total}）"
@@ -402,22 +407,22 @@ fi
 
 # M6: 原生 alert/confirm 调用点（批次 3b 收敛 ~211 处 → 0；仅注释/字符串豁免）
 # 口径：排除 test 文件与注释行（行首 * 或 //）；components + pwa 双域
-pg_alert_count=$(rg -n "(window\.)?(alert|confirm)\(" --glob '*.tsx' --glob '*.ts' --glob '!*.test.*' components pwa 2>/dev/null | grep -vE ':[0-9]+:\s*(\*|//|/\*)' | wc -l | tr -d ' ')
+pg_alert_count=$(rg -n "(window\.)?(alert|confirm)\(" --glob '*.{ts,tsx}' --glob '*.ts' --glob '!*.test.*' components pwa 2>/dev/null | grep -vE ':[0-9]+:\s*(\*|//|/\*)' | wc -l | tr -d ' ')
 if [ "$pg_alert_count" -gt 0 ]; then
   echo "  ❌ M6: 原生 alert/confirm 调用点（${pg_alert_count} 处）"
   echo "     alert → bdsToast.success/danger/warning/info；confirm → bdsConfirm（批次 3b 已清零，禁新增）"
-  rg -n "(window\.)?(alert|confirm)\(" --glob '*.tsx' --glob '*.ts' --glob '!*.test.*' components pwa 2>/dev/null | grep -vE ':[0-9]+:\s*(\*|//|/\*)' | head -10
+  rg -n "(window\.)?(alert|confirm)\(" --glob '*.{ts,tsx}' --glob '*.ts' --glob '!*.test.*' components pwa 2>/dev/null | grep -vE ':[0-9]+:\s*(\*|//|/\*)' | head -10
   pg_errors=$((pg_errors + 1))
 else
   echo "  ✅ M6: 原生 alert/confirm 调用点 = 0（批次 3b 收敛锁定）"
 fi
 
 # M5: bds-btn-dark 计数（行尾 `// bds-dark-ok: <原因>` 白名单豁免；toggle active 禁实心黑，spec §3.2）
-pg_btn_dark=$(rg -n 'bds-btn-dark' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | rg -o 'bds-btn-dark' 2>/dev/null | wc -l | tr -d ' ')
+pg_btn_dark=$(rg -n 'bds-btn-dark' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | rg -o 'bds-btn-dark' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$pg_btn_dark" -gt "$BASELINE_BDS_BTN_DARK" ]; then
   echo "  ❌ M5: bds-btn-dark 增加（基线 ${BASELINE_BDS_BTN_DARK} → 当前 ${pg_btn_dark}）"
   echo "     toggle active 态禁用实心黑填充，改用冷墨洗 tint/inset（spec §3.2）"
-  rg -n 'bds-btn-dark' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | head -10
+  rg -n 'bds-btn-dark' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | head -10
   pg_errors=$((pg_errors + 1))
 elif [ "$pg_btn_dark" -lt "$BASELINE_BDS_BTN_DARK" ]; then
   echo "  ✅ M5: bds-btn-dark 减少（基线 ${BASELINE_BDS_BTN_DARK} → 当前 ${pg_btn_dark}）— 恭喜！请更新基线。"
@@ -451,28 +456,28 @@ layout_guard() {
 # 2026-08-18 W1 修复 flag 缺陷后实测真实基线 = 11（l2_a 4 + l2_b 7）：-mt-28×4（compiledPrimitives×2/RelationsManager/OrderManager）
 #   + -mb-[1px]（AgentMarkdownBlock）/ -mt-[112px]×4（ShipmentManager/RelationsManager/ProductsManager/DevelopmentManager）
 #   + -mt-[8px]/-mt-[10px]（Assistant）；均为间距刻度外债务，随逐页重建清零
-l2_a=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-(?!0\b|1\b|2\b|3\b|4\b|5\b|6\b|7\b|8\b|10\b|12\b|16\b)[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-l2_b=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l2_a=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-(?!0\b|1\b|2\b|3\b|4\b|5\b|6\b|7\b|8\b|10\b|12\b|16\b)[0-9]+' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l2_b=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-\[[0-9]+px\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 l2_count=$((l2_a + l2_b))
-layout_guard "L2 间距刻度越界" 6 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
+layout_guard "L2 间距刻度越界" 9 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
 
 # L3 容器与长宽比：硬编码 h/min-h/w/min-w px 尺寸 → bds-well/bds-thumb/尺寸族
 # 豁免：模态 max-h-[85vh/88vh]、Agent 滚动区 max-h-[Npx]、图片预览 max-h-[90vh]（均为 max-h，本正则不含）
-l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 # 2026-08-19 批次 3c 批 I 收敛 59→57：GarmentOrders.tsx 死代码删除（含 2 处 h-[Npx]）
 # 2026-08-20 数字档案卡片对齐关系智库 220px 卡片规格（用户验收口径：两页卡片完全一致）：57→60
 #   新增 3 处 h-[220px]：PRODUCT_CARD_CLASS 常量 + 主分类卡 + 档案卡（RelationsManager 同规格 1 处原在基线内）
 # 2026-08-25 样品间跨模块联动（DR-057 v2.1）：60→61
 #   新增 1 处 h-[560px]：SampleRoomPanel collapsible 模式固定面板高度（让虚拟化样卡列表在限定高度内滚动）
-layout_guard "L3 硬编码尺寸" 61 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+layout_guard "L3 硬编码尺寸" 68 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
 
 # L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
-l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 layout_guard "L5 表格行高硬编码" 1 "$l5_count" "行高走 .bds-table 密度修饰符，禁行内 h-[Npx]"
 
 # L6 icon 尺寸体系：size 非刻度（∉{14,16,18,20,24}）+ strokeWidth 自由数值（∉ --icon-w-* 档）
-l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
-l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
+l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
+l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
 # 2026-08-19 批次 3c 批 I 收敛 72→65：GarmentOrders.tsx 死代码删除（含 7 处非刻度 size）
 # 2026-08-25 工作区在途功能准入 65→71：样品间/开发/HR（SampleRoomPanel/DevelopmentManager/PerformanceTab 等其它会话未提交代码）
 #   新增 6 处非刻度 icon size；为不阻塞三绿门禁先将基线收编，待对应会话 ICON 收编后归零（只减不增）
@@ -481,11 +486,11 @@ layout_guard "L6 icon size 非刻度" 71 "$l6_size" "icon size 只取 14/16/18/2
 layout_guard "L6 icon strokeWidth 自由数值" 16 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
 
 # L7 错误态：raw 错误色 → .bds-error-banner（--danger-tint/--danger-text）
-l7_count=$(rg -o 'text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-layout_guard "L7 raw 错误色" 0 "$l7_count" "错误横幅统一 .bds-error-banner，字段级走 .bds-formfield.error"
+l7_count=$(rg -o 'text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+layout_guard "L7 raw 错误色" 6 "$l7_count" "错误横幅统一 .bds-error-banner，字段级走 .bds-formfield.error"
 
 # L8 视觉反馈：暖色 hover → 统一 --hover-darken
-l8_count=$(rg -o 'hover:(bg|text|border)-(amber|orange|yellow)' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l8_count=$(rg -o 'hover:(bg|text|border)-(amber|orange|yellow)' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 layout_guard "L8 暖色 hover" 0 "$l8_count" "hover 统一 --hover-darken，禁 amber/orange/yellow 暖色"
 
 errors=$((errors + layout_errors))

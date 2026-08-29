@@ -40,8 +40,8 @@ const TRACKA_QUALITY_SEMANTIC: Record<TrackADataQuality, StatusSemantic> = {
   benchmark_only: 'neutral',
 };
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
-const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
+const inputClass = "bds-input w-full";
+const actionButtonClass = "bds-btn bds-btn-secondary flex items-center gap-1 px-2.5 py-1 text-xs";
 
 function parseNum(raw: string): number | null {
   const n = Number(raw);

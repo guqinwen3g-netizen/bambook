@@ -116,7 +116,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
     }
   };
 
-  const inputCls = `w-full px-4 py-2.5 rounded-control border outline-none text-sm transition-all bg-[var(--bg-raised)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue)]`;
+  const inputCls = `bds-input w-full`;
 
   if (submittedEmail) {
     return (

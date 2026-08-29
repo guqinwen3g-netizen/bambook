@@ -104,7 +104,7 @@ const OrderPreview: React.FC<{
   const card = 'bds-surface border border-[var(--border-c-default)]';
   const labelCls = 'text-[var(--text-tertiary)]';
   const valueCls = 'text-[var(--text-primary)]';
-  const inputBase = `w-full bg-transparent border rounded-full text-sm text-[var(--text-primary)] focus:border-[var(--os-vnext-brand-blue)] border-[rgba(100,116,139,0.40)] focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;
+  const inputBase = `w-full bg-transparent border rounded-full text-sm text-[var(--text-primary)] focus:border-[var(--border-c-strong)] border-[var(--border-c-default)] focus:outline-none focus:ring-1 focus:ring-[var(--border-c-strong)]/40`;
   const inputCls = `${inputBase} h-10 px-4`;
   const cellInputCls = `${inputBase} px-3 py-1`;
 

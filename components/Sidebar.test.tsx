@@ -32,7 +32,7 @@ describe('Sidebar reveal material system', () => {
     expect(SIDEBAR_HARMONY_PANEL_CLASS).toBe('');
     expect(SIDEBAR_AMBIENT_CLASS).toBe('');
 
-    expect(BAMBOOK_OS.material.panelBase).toContain('rounded-[24px]');
+    expect(BAMBOOK_OS.material.panelBase).toContain('rounded-card');
     expect(BAMBOOK_OS.material.panelBase).toContain('backdrop-blur-[15px]');
     expect(BAMBOOK_OS.material.panelBase).toContain('backdrop-saturate-[104%]');
     expect(source).toContain('className="app-sidebar absolute left-0 top-0 bottom-0 z-10');
