@@ -212,13 +212,16 @@ export const reportService = {
     return data.run;
   },
 
-  async listRuns(definitionId?: string, limit = 50, endpoint?: string): Promise<ReportRun[]> {
+  /** R3：运行历史分页（后端支持 limit/offset 并返回 total；旧服务端无 total 时回退为本页条数） */
+  async listRuns(definitionId?: string, options?: { limit?: number; offset?: number }, endpoint?: string): Promise<{ runs: ReportRun[]; total: number }> {
     const query = new URLSearchParams();
     if (definitionId) query.set('definitionId', definitionId);
-    query.set('limit', String(limit));
+    query.set('limit', String(options?.limit ?? 50));
+    if (options?.offset) query.set('offset', String(options.offset));
     const res = await fetch(buildUrl(`/runs?${query.toString()}`, endpoint), { headers: headers() });
-    const data = await parseOrThrow<{ runs: ReportRun[] }>(res, 'listRuns failed');
-    return Array.isArray(data.runs) ? data.runs : [];
+    const data = await parseOrThrow<{ runs: ReportRun[]; total?: number }>(res, 'listRuns failed');
+    const runs = Array.isArray(data.runs) ? data.runs : [];
+    return { runs, total: typeof data.total === 'number' ? data.total : runs.length };
   },
 
   async getRun(id: string, endpoint?: string): Promise<ReportRun> {

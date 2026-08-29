@@ -69,6 +69,7 @@ import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
+import { BdsDialog } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
 
@@ -79,6 +80,9 @@ export type { TabId as CustomsTabId };
 
 /** 阶段 IA-2：制单工具 tab（本地工具面板，不走列表数据拉取/搜索/状态筛选）；Wave A1：贸易单据台账收口单据中心，入口卡同例 */
 const TOOL_TAB_IDS: ReadonlySet<TabId> = new Set(['tradeDocuments', 'docGenerator', 'docTemplates']);
+
+/** R3 分页：四类单据列表每页条数（offset 追加加载，徽章显服务端 total） */
+const LIST_PAGE_SIZE = 200;
 
 const CUSTOMS_TYPES: Array<{ id: CustomsType; label: string }> = [
   { id: 'Export', label: '出口' },
@@ -205,6 +209,12 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const [hsCodes, setHsCodes] = useState<HsCode[]>([]);
   const [lettersOfCredit, setLettersOfCredit] = useState<LetterOfCredit[]>([]);
   const [taxRefunds, setTaxRefunds] = useState<TaxRefund[]>([]);
+  // R3：服务端 total（tab 徽章 + 加载更多判定），不再以 items.length 冒充全量
+  const [declTotal, setDeclTotal] = useState(0);
+  const [hsTotal, setHsTotal] = useState(0);
+  const [lcTotal, setLcTotal] = useState(0);
+  const [trTotal, setTrTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -233,68 +243,79 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // ── 拉取数据 ──
-  const fetchDeclarations = useCallback(async () => {
-    setLoading(true);
+  // ── 拉取数据（R3：offset>0 为「加载更多」追加页，否则为首屏替换） ──
+  const fetchDeclarations = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listCustomsDeclarations({
         search: searchQuery || undefined,
         status: statusFilter || undefined,
-        limit: 200,
+        limit: LIST_PAGE_SIZE,
+        offset,
       });
-      setDeclarations(result.items);
+      setDeclarations(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
+      setDeclTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [searchQuery, statusFilter]);
 
-  const fetchHsCodes = useCallback(async () => {
-    setLoading(true);
+  const fetchHsCodes = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
-      const result = await apiService.listHsCodes({ search: searchQuery || undefined, limit: 200 });
-      setHsCodes(result.items);
+      const result = await apiService.listHsCodes({ search: searchQuery || undefined, limit: LIST_PAGE_SIZE, offset });
+      setHsCodes(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
+      setHsTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [searchQuery]);
 
-  const fetchLettersOfCredit = useCallback(async () => {
-    setLoading(true);
+  const fetchLettersOfCredit = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listLettersOfCredit({
         search: searchQuery || undefined,
         status: statusFilter || undefined,
-        limit: 200,
+        limit: LIST_PAGE_SIZE,
+        offset,
       });
-      setLettersOfCredit(result.items);
+      setLettersOfCredit(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
+      setLcTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [searchQuery, statusFilter]);
 
-  const fetchTaxRefunds = useCallback(async () => {
-    setLoading(true);
+  const fetchTaxRefunds = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listTaxRefunds({
         search: searchQuery || undefined,
         status: statusFilter || undefined,
-        limit: 200,
+        limit: LIST_PAGE_SIZE,
+        offset,
       });
-      setTaxRefunds(result.items);
+      setTaxRefunds(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
+      setTrTotal(result.total);
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [searchQuery, statusFilter]);
 
@@ -319,10 +340,10 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const taxRefundStatusInfo = (s: TaxRefundStatus) => TAX_REFUND_STATUSES.find(d => d.id === s) || TAX_REFUND_STATUSES[0];
 
   const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; count?: number }> = [
-    { id: 'declarations', label: '报关单', icon: <FileCheck size={16} strokeWidth={1.75} />, count: declarations.length },
-    { id: 'hsCodes', label: 'HS 编码库', icon: <BookOpen size={16} strokeWidth={1.75} />, count: hsCodes.length },
-    { id: 'lettersOfCredit', label: '信用证', icon: <CreditCard size={16} strokeWidth={1.75} />, count: lettersOfCredit.length },
-    { id: 'taxRefunds', label: '出口退税', icon: <Receipt size={16} strokeWidth={1.75} />, count: taxRefunds.length },
+    { id: 'declarations', label: '报关单', icon: <FileCheck size={16} strokeWidth={1.75} />, count: declTotal },
+    { id: 'hsCodes', label: 'HS 编码库', icon: <BookOpen size={16} strokeWidth={1.75} />, count: hsTotal },
+    { id: 'lettersOfCredit', label: '信用证', icon: <CreditCard size={16} strokeWidth={1.75} />, count: lcTotal },
+    { id: 'taxRefunds', label: '出口退税', icon: <Receipt size={16} strokeWidth={1.75} />, count: trTotal },
     { id: 'tradeDocuments', label: '贸易单据', icon: <FileText size={16} strokeWidth={1.75} /> },
     { id: 'docGenerator', label: '出运制单', icon: <Layers size={16} strokeWidth={1.75} /> },
     { id: 'docTemplates', label: '单据模板', icon: <LayoutTemplate size={16} strokeWidth={1.75} /> },
@@ -458,21 +479,28 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
     }
   }, []);
 
+  // R5：删除前 BdsDialog 确认（替代直发请求；参照 DocumentCenter 删除确认模式）
+  const [deleteTarget, setDeleteTarget] = useState<{ tab: TabId; id: string; label: string } | null>(null);
+
   const handleDelete = useCallback(async (tab: TabId, id: string) => {
+    setDeleteTarget(null);
     setActionLoading(`del_${id}`);
     try {
       if (tab === 'declarations') {
         await apiService.deleteCustomsDeclaration(id);
         setDeclarations(prev => prev.filter(d => d.id !== id));
+        setDeclTotal(prev => Math.max(0, prev - 1));
       } else if (tab === 'hsCodes') {
         await apiService.deleteHsCode(id);
         setHsCodes(prev => prev.map(h => (h.id === id ? { ...h, isActive: false } : h)));
       } else if (tab === 'lettersOfCredit') {
         await apiService.deleteLetterOfCredit(id);
         setLettersOfCredit(prev => prev.filter(d => d.id !== id));
+        setLcTotal(prev => Math.max(0, prev - 1));
       } else if (tab === 'taxRefunds') {
         await apiService.deleteTaxRefund(id);
         setTaxRefunds(prev => prev.filter(d => d.id !== id));
+        setTrTotal(prev => Math.max(0, prev - 1));
       }
     } catch (e: any) {
       setError(`删除失败：${e?.message || e}`);
@@ -480,6 +508,19 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       setActionLoading(null);
     }
   }, []);
+
+  // R3：加载更多（当前 tab 已加载数 < 服务端 total 时显示，offset 追加）
+  const renderLoadMore = (loadedCount: number, total: number, load: (offset: number) => Promise<void>) => {
+    if (loadedCount <= 0 || loadedCount >= total) return null;
+    return (
+      <div className="flex justify-center pt-2">
+        <button onClick={() => void load(loadedCount)} disabled={loadingMore} className="bds-btn bds-btn-secondary">
+          {loadingMore && <Loader2 size={14} className="animate-spin" />}
+          加载更多（已显示 {loadedCount} / 共 {total} 条）
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -654,7 +695,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                   </button>
                                 )}
                                 {(decl.status === 'Draft' || decl.status === 'Cancelled') && (
-                                  <button onClick={() => handleDelete('declarations', decl.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger">
+                                  <button onClick={() => setDeleteTarget({ tab: 'declarations', id: decl.id, label: decl.declarationNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger">
                                     <Trash2 size={14} strokeWidth={1.75} />删除
                                   </button>
                                 )}
@@ -675,6 +716,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                       );
                     })
                   )}
+                  {renderLoadMore(declarations.length, declTotal, fetchDeclarations)}
                 </motion.div>
               )}
 
@@ -722,7 +764,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                     <Pencil size={14} strokeWidth={1.75} />
                                   </button>
                                   {hc.isActive && (
-                                    <button onClick={() => handleDelete('hsCodes', hc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger bds-btn-icon" title="停用">
+                                    <button onClick={() => setDeleteTarget({ tab: 'hsCodes', id: hc.id, label: hc.code })} disabled={!!actionLoading} className="bds-btn bds-btn-danger bds-btn-icon" title="停用">
                                       <Trash2 size={14} strokeWidth={1.75} />
                                     </button>
                                   )}
@@ -734,6 +776,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                       </table>
                     </div>
                   )}
+                  {renderLoadMore(hsCodes.length, hsTotal, fetchHsCodes)}
                 </motion.div>
               )}
 
@@ -798,7 +841,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             <button onClick={() => handleToggleLcTimeline(lc.id)} className="bds-btn bds-btn-secondary">
                               <History size={14} strokeWidth={1.75} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
                             </button>
-                            {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => handleDelete('lettersOfCredit', lc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
+                            {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => setDeleteTarget({ tab: 'lettersOfCredit', id: lc.id, label: lc.lcNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                           </div>
                           {/* G2：不符点内联录入（确认后流转 Discrepant 并落节点留痕） */}
                           {lcDiscrepancyId === lc.id && (
@@ -867,6 +910,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                       );
                     })
                   )}
+                  {renderLoadMore(lettersOfCredit.length, lcTotal, fetchLettersOfCredit)}
                 </motion.div>
               )}
 
@@ -923,7 +967,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             )}
                             {tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">确认到账</button>}
                             {tr.status === 'Rejected' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Draft')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">退回草稿</button>}
-                            {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => handleDelete('taxRefunds', tr.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
+                            {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => setDeleteTarget({ tab: 'taxRefunds', id: tr.id, label: tr.refundNumber })} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                             <button onClick={() => handleToggleTrVat(tr.id)} className="bds-btn bds-btn-secondary">
                               <Receipt size={14} strokeWidth={1.75} />{trVatId === tr.id ? '收起专票勾稽' : '专票勾稽'}
                             </button>
@@ -982,6 +1026,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                       );
                     })
                   )}
+                  {renderLoadMore(taxRefunds.length, trTotal, fetchTaxRefunds)}
                 </motion.div>
               )}
 
@@ -1039,6 +1084,22 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
             if (activeTab === 'taxRefunds') fetchTaxRefunds();
           }}
         />
+      )}
+
+      {/* R5：删除/停用确认（BdsDialog 声明式，替代直发请求；对齐 DocumentCenter 删除确认模式） */}
+      {deleteTarget && (
+        <BdsDialog
+          title={deleteTarget.tab === 'hsCodes' ? '停用 HS 编码' : '删除确认'}
+          danger
+          confirmLabel={deleteTarget.tab === 'hsCodes' ? '停用' : '删除'}
+          loading={actionLoading === `del_${deleteTarget.id}`}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void handleDelete(deleteTarget.tab, deleteTarget.id)}
+        >
+          {deleteTarget.tab === 'hsCodes'
+            ? `确认停用 HS 编码 ${deleteTarget.label}？（软停用，记录保留可恢复）`
+            : `确认删除${deleteTarget.tab === 'declarations' ? '报关单' : deleteTarget.tab === 'lettersOfCredit' ? '信用证' : '退税申报单'} ${deleteTarget.label}？`}
+        </BdsDialog>
       )}
     </div>
   );

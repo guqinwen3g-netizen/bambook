@@ -102,6 +102,8 @@ interface Skin {
 const DELEGATE_REASON_MIN = 10;
 const BOSS_REASON_MIN = 30;
 const EXCEPTION_REASON_MIN = 30;
+/** R3：例外/工作流实例单页上限（达到上限时显示截断提示，引导用筛选收窄） */
+const LIST_PAGE_LIMIT = 100;
 
 // ══════════════════════════════════════════════════════════════════
 // 审批单分区（/v1/approvals + /v1/approvals-kernel）
@@ -390,9 +392,9 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           </button>
                           <button
                             type="button"
-                            disabled={actionLoading === item.id}
+                            disabled={actionLoading === item.id || !(decideNote[item.id] ?? '').trim()}
                             onClick={() => handleDecide(item.id, 'rejected')}
-                            className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
+                            className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id || !(decideNote[item.id] ?? '').trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <XCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                             驳回
@@ -583,7 +585,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
     try {
       const list = await exceptionService.listExceptions({
         status: statusFilter === 'all' ? undefined : statusFilter,
-        limit: 100,
+        limit: LIST_PAGE_LIMIT,
       });
       setItems(list);
     } catch (e: any) {
@@ -1062,6 +1064,8 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
 export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
   const [section, setSection] = useState<'approvals' | 'exceptions' | 'workflows'>('approvals');
   const [instances, setInstances] = useState<WorkflowInstance[]>([]);
+  // R3：工作流实例服务端 total（截断提示用）
+  const [instancesTotal, setInstancesTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<WorkflowInstanceStatus | 'all'>('running');
@@ -1099,8 +1103,9 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
     setError(null);
     try {
       const params = statusFilter === 'all' ? {} : { status: statusFilter };
-      const { items } = await apiService.listWorkflowInstances({ ...params, limit: 100 });
+      const { items, total } = await apiService.listWorkflowInstances({ ...params, limit: LIST_PAGE_LIMIT });
       setInstances(items);
+      setInstancesTotal(total);
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
@@ -1362,6 +1367,12 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                   </div>
                 );
               })}
+              {/* R3：截断提示（已加载 < 服务端 total 即还有更多，引导用状态筛选收窄） */}
+              {instances.length < instancesTotal && (
+                <div className={`rounded-control px-4 py-2 text-xs font-light ${weakText} bg-[var(--recessed-bg)]`}>
+                  已显示 {instances.length} / 共 {instancesTotal} 条实例，更多请用状态筛选收窄范围
+                </div>
+              )}
             </div>
           )}
         </div>

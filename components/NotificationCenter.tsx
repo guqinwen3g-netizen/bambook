@@ -191,7 +191,10 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
   const [isOpen, setIsOpen] = useState(false);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [items, setItems] = useState<NotificationItem[]>([]);
+  // R3：服务端 total + 追加加载（limit 50/页，「加载更多」按钮 offset 拉取）
+  const [itemsTotal, setItemsTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // D2: 偏好面板视图 + 类型目录
   const [view, setView] = useState<'list' | 'prefs' | 'approvals'>('list');
@@ -228,17 +231,19 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
     }
   }, [endpoint]);
 
-  // ── 获取列表 ──
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
+  // ── 获取列表（R3：offset>0 为「加载更多」追加页，否则为首屏替换） ──
+  const fetchItems = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
-      const { items: list } = await apiService.listNotifications({ limit: 50, endpoint });
-      setItems(list);
+      const { items: list, total } = await apiService.listNotifications({ limit: 50, offset, endpoint });
+      setItems(prev => (offset > 0 ? [...prev, ...list] : list));
+      setItemsTotal(total);
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [endpoint]);
 
@@ -860,7 +865,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
                   <div className={`text-sm font-light ${ui.muted}`}>{error}</div>
                   <button
                     type="button"
-                    onClick={fetchItems}
+                    onClick={() => fetchItems()}
                     className={`mt-1 rounded-control px-3 py-1.5 text-xs font-light text-link hover:bg-[var(--active-darken)]`}
                   >
                     重试
@@ -1016,6 +1021,19 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
                       </div>
                     );
                   })}
+                  {/* R3：加载更多（已加载 < 服务端 total 时显示，offset 追加） */}
+                  {items.length < itemsTotal && (
+                    <div className="flex justify-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => fetchItems(items.length)}
+                        disabled={loadingMore}
+                        className={`rounded-control px-4 py-1.5 text-xs font-light transition-colors ${ui.ghostBtn} disabled:opacity-50`}
+                      >
+                        {loadingMore ? '加载中…' : `加载更多（已显示 ${items.length} / 共 ${itemsTotal} 条）`}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

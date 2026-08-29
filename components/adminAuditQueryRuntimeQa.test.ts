@@ -117,14 +117,16 @@ describe('runtime QA [AdminPanel UI]: fetchAuditLogs query string', () => {
     expect(ADMIN_SRC).toMatch(/f\.createdFrom\.trim\(\)\) params\.set/);
     expect(ADMIN_SRC).toMatch(/f\.createdTo\.trim\(\)\) params\.set/);
   });
-  it('无筛选时走 audit-logs 无 query string', () => {
-    expect(ADMIN_SRC).toMatch(/qs \? `audit-logs\?\$\{qs\}` : 'audit-logs'/);
+  it('R3：始终显式携带 limit/offset 分页参数（替代旧「无筛选无 query」行为）', () => {
+    expect(ADMIN_SRC).toMatch(/params\.set\('limit', String\(AUDIT_PAGE_SIZE\)\)/);
+    expect(ADMIN_SRC).toMatch(/if \(offset > 0\) params\.set\('offset', String\(offset\)\)/);
   });
-  it('成功消费后端 logs（不本地伪造）', () => {
+  it('成功消费后端 logs + total（不本地伪造）', () => {
     expect(ADMIN_SRC).toMatch(/setAuditLogs\(d\.logs \|\| \[\]\)/);
+    expect(ADMIN_SRC).toMatch(/setAuditTotal\(typeof d\.total === 'number' \? d\.total : \(d\.logs \|\| \[\]\)\.length\)/);
   });
-  it('只有无筛选时才 writeAdminPanelCache（筛选结果不污染默认缓存）', () => {
-    expect(ADMIN_SRC).toMatch(/if \(!qs\) writeAdminPanelCache\('audit-logs', d\)/);
+  it('只有无筛选首页才 writeAdminPanelCache（筛选/翻页结果不污染默认缓存）', () => {
+    expect(ADMIN_SRC).toMatch(/if \(offset === 0 && !hasFilter\) writeAdminPanelCache\('audit-logs', d\)/);
   });
   it('失败时 setAuditFilterError 显示后端错误（不伪成功）', () => {
     expect(ADMIN_SRC).toMatch(/catch \(e: any\)[\s\S]*?setAuditFilterError\(e\?\.message/);

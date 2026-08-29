@@ -102,6 +102,8 @@ const KNOWLEDGE_SCOPES = ['company', 'department', 'team', 'private'] as const;
 const ACCESS_LEVELS = ['read', 'write', 'admin', 'none'] as const;
 const TOOL_ACCESS_LEVELS = ['execute', 'read', 'admin', 'none'] as const;
 const RISK_MODES = ['direct', 'approval', 'disabled'] as const;
+/** R3：系统日志每页条数（与后端 entityQuery 默认 limit=100 对齐，显式传参翻页） */
+const AUDIT_PAGE_SIZE = 100;
 
 const formatRoleLabel = (role: string) => ROLE_LABELS[role as typeof AVAILABLE_ROLES[number]] || role;
 const formatPermissionLabel = (scope: string) => PERMISSION_LABELS[scope] || scope;
@@ -213,6 +215,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const [approvals, setApprovals] = useState<any[]>(() => readAdminPanelCache().approvals?.approvals || []);
   const [suggestions, setSuggestions] = useState<any[]>(() => readAdminPanelCache().approvals?.suggestions || []);
   const [auditLogs, setAuditLogs] = useState<any[]>(() => readAdminPanelCache()['audit-logs']?.logs || []);
+  // R3：系统日志分页（后端 entityQuery 默认截 100 并返回 total；limit/offset + 共 N 条翻页）
+  const [auditTotal, setAuditTotal] = useState<number>(() => readAdminPanelCache()['audit-logs']?.total ?? 0);
+  const [auditOffset, setAuditOffset] = useState(0);
   // task_mr1ncdp9: audit query filter state（只发非空字段到 query string）
   const [auditFilter, setAuditFilter] = useState({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' });
   const [auditFilterError, setAuditFilterError] = useState('');
@@ -322,8 +327,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   }, []);
 
   // task_mr1ncdp9: audit-logs 带筛选 query string（只发非空字段，消费后端 contract）
-  const fetchAuditLogs = async (filter?: typeof auditFilter) => {
+  // R3：limit/offset 分页（后端默认截 100 且返回 total），翻页保持当前筛选
+  const fetchAuditLogs = async (filter?: typeof auditFilter, offset = 0) => {
     const f = filter || auditFilter;
+    const hasFilter = Boolean(f.targetType.trim() || f.targetId.trim() || f.action.trim() || f.actorId.trim() || f.createdFrom.trim() || f.createdTo.trim());
     const params = new URLSearchParams();
     if (f.targetType.trim()) params.set('targetType', f.targetType.trim());
     if (f.targetId.trim()) params.set('targetId', f.targetId.trim());
@@ -332,13 +339,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     // invalid date 不前端伪造成功，交给后端 fail closed
     if (f.createdFrom.trim()) params.set('createdFrom', f.createdFrom.trim());
     if (f.createdTo.trim()) params.set('createdTo', f.createdTo.trim());
-    const qs = params.toString();
+    params.set('limit', String(AUDIT_PAGE_SIZE));
+    if (offset > 0) params.set('offset', String(offset));
     try {
-      const d = await fetchAdmin(qs ? `audit-logs?${qs}` : 'audit-logs');
+      const d = await fetchAdmin(`audit-logs?${params.toString()}`);
       setAuditLogs(d.logs || []);
+      setAuditTotal(typeof d.total === 'number' ? d.total : (d.logs || []).length);
+      setAuditOffset(offset);
       setAuditFilterError('');
-      // 只有无筛选时才缓存，避免筛选结果污染默认缓存
-      if (!qs) writeAdminPanelCache('audit-logs', d);
+      // 只有无筛选首页才缓存，避免筛选/翻页结果污染默认缓存
+      if (offset === 0 && !hasFilter) writeAdminPanelCache('audit-logs', d);
     } catch (e: any) {
       // 筛选区显示后端 INVALID_DATE_RANGE/INVALID_PAGINATION 错误（不伪成功）
       setAuditFilterError(e?.message || String(e));
@@ -370,7 +380,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
       setApprovals(data.approvals || []);
       setSuggestions(data.suggestions || []);
     }
-    if (tab === 'audit-logs') setAuditLogs(data.logs || []);
+    if (tab === 'audit-logs') {
+      setAuditLogs(data.logs || []);
+      setAuditTotal(typeof data.total === 'number' ? data.total : (data.logs || []).length);
+    }
     if (tab === 'knowledge-acl') {
       setKnowledgeAcls(data.acls || []);
       setKbDocuments(data.documents || []);
@@ -1254,7 +1267,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       className={`rounded-control border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}>刷新</button>
                   </div>
                   {auditFilterError && <div className="text-xs text-[var(--text-tertiary)]">{auditFilterError}</div>}
-                  <span className={sectionTitleClass}>{auditLogs.length} 条日志</span>
+                  {/* R3：共 N 条 + 翻页（后端返回 total；翻页保持当前筛选） */}
+                  <div className="flex items-center gap-2">
+                    <span className={sectionTitleClass}>共 {auditTotal} 条日志</span>
+                    {auditTotal > AUDIT_PAGE_SIZE && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <button
+                          disabled={auditOffset === 0}
+                          onClick={() => fetchAuditLogs(undefined, Math.max(0, auditOffset - AUDIT_PAGE_SIZE))}
+                          className={`rounded-control border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)] disabled:opacity-40`}
+                        >上一页</button>
+                        <span className="text-[var(--text-tertiary)]">第 {Math.floor(auditOffset / AUDIT_PAGE_SIZE) + 1} / {Math.ceil(auditTotal / AUDIT_PAGE_SIZE)} 页</span>
+                        <button
+                          disabled={auditOffset + AUDIT_PAGE_SIZE >= auditTotal}
+                          onClick={() => fetchAuditLogs(undefined, auditOffset + AUDIT_PAGE_SIZE)}
+                          className={`rounded-control border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)] disabled:opacity-40`}
+                        >下一页</button>
+                      </div>
+                    )}
+                  </div>
                   {auditLogs.map((l: any) => (
                     <div key={l.id} className={`flex items-center gap-3 p-2 text-xs ${inlineRowClass}`}>
                       <span className="font-mono text-[10px] text-[var(--text-tertiary)]">{new Date(l.createdAt).toLocaleString()}</span>
@@ -1473,6 +1504,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   <span className={p.riskMode === 'disabled' ? dangerChipCls : p.riskMode === 'approval' ? neutralChipCls : brandChipCls}>{formatRiskModeLabel(p.riskMode)}</span>
                                   <button disabled={actionBusyId !== null} onClick={async () => {
                                     if (actionBusyId) return;
+                                    // R5：移除授权前确认（对齐本文件 knowledge-acl 删除确认模式）
+                                    if (!(await bdsConfirm({ title: '确认移除授权', body: `确认移除「${formatRoleLabel(p.roleName)}」对工具 ${t.name} 的授权？移除后该角色将无法再调用此工具。`, danger: true }))) return;
                                     setActionBusyId(`toolperm:${p.id}`);
                                     try { await postAdmin(`tool-permissions/${p.id}`, {}, 'DELETE'); await loadTab('tool-perms'); } catch (e: any) { setLoadError(e.message); }
                                     finally { setActionBusyId(null); }

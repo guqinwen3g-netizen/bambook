@@ -64,6 +64,9 @@ const MODULE_TABS: Array<{ id: ModuleTab; label: string; icon: LucideIcon }> = [
   { id: 'runs', label: '运行历史 Runs', icon: Play },
 ];
 
+/** R3：运行历史每页条数（offset 追加加载，列表显服务端 total） */
+const RUNS_PAGE_SIZE = 100;
+
 const AGG_LABELS: Record<ReportMetricAgg, string> = {
   sum: '合计',
   avg: '均值',
@@ -213,6 +216,9 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
   const [datasets, setDatasets] = useState<ReportDatasetSpec[]>([]);
   const [definitions, setDefinitions] = useState<ReportDefinition[]>([]);
   const [runs, setRuns] = useState<ReportRun[]>([]);
+  // R3：运行历史分页（服务端 total + 「加载更多」offset 追加）
+  const [runsTotal, setRunsTotal] = useState(0);
+  const [runsLoadingMore, setRunsLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [designer, setDesigner] = useState<DesignerState>(EMPTY_DESIGNER);
@@ -245,11 +251,12 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
       const [ds, defs, rs] = await Promise.all([
         reportService.listDatasets(),
         reportService.listDefinitions(),
-        reportService.listRuns(undefined, 100),
+        reportService.listRuns(undefined, { limit: RUNS_PAGE_SIZE }),
       ]);
       setDatasets(ds);
       setDefinitions(defs);
-      setRuns(rs);
+      setRuns(rs.runs);
+      setRunsTotal(rs.total);
       setDesigner(prev => (prev.datasetKey || ds.length === 0 ? prev : { ...prev, datasetKey: ds[0].key }));
     } catch (e: any) {
       setError(`加载失败：${e?.message || e}`);
@@ -316,10 +323,11 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
       await reportService.runDefinition(def.id);
       const [defs, rs] = await Promise.all([
         reportService.listDefinitions(),
-        reportService.listRuns(undefined, 100),
+        reportService.listRuns(undefined, { limit: RUNS_PAGE_SIZE }),
       ]);
       setDefinitions(defs);
-      setRuns(rs);
+      setRuns(rs.runs);
+      setRunsTotal(rs.total);
     } catch (e: any) {
       setError(`运行失败：${e?.message || e}`);
     } finally {
@@ -448,13 +456,29 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
                 <RunsPanel
                   isDarkMode={isDarkMode}
                   runs={runs}
+                  runsTotal={runsTotal}
+                  runsLoadingMore={runsLoadingMore}
                   definitions={definitions}
                   cardClass={cardClass}
                   fieldClass={fieldClass}
                   textSecondary={textSecondary}
                   onDrill={handleDrill}
                   onRefresh={async (definitionId) => {
-                    setRuns(await reportService.listRuns(definitionId || undefined, 100));
+                    const rs = await reportService.listRuns(definitionId || undefined, { limit: RUNS_PAGE_SIZE });
+                    setRuns(rs.runs);
+                    setRunsTotal(rs.total);
+                  }}
+                  onLoadMore={async (definitionId) => {
+                    setRunsLoadingMore(true);
+                    try {
+                      const rs = await reportService.listRuns(definitionId || undefined, { limit: RUNS_PAGE_SIZE, offset: runs.length });
+                      setRuns(prev => [...prev, ...rs.runs]);
+                      setRunsTotal(rs.total);
+                    } catch (e: any) {
+                      setError(`加载更多失败：${e?.message || e}`);
+                    } finally {
+                      setRunsLoadingMore(false);
+                    }
                   }}
                   onError={setError}
                 />
@@ -979,16 +1003,21 @@ function SavedPanel(props: SavedPanelProps) {
 interface RunsPanelProps {
   isDarkMode: boolean;
   runs: ReportRun[];
+  /** R3：服务端运行记录总数（加载更多判定） */
+  runsTotal: number;
+  runsLoadingMore: boolean;
   definitions: ReportDefinition[];
   cardClass: string;
   fieldClass: string;
   textSecondary: string;
   onDrill: (input: DrillRequest['input'], row: Record<string, string | number | null>) => void;
   onRefresh: (definitionId: string) => Promise<void>;
+  /** R3：加载更多（offset = 已加载条数，追加合并） */
+  onLoadMore: (definitionId: string) => Promise<void>;
   onError: (msg: string | null) => void;
 }
 
-function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textSecondary, onDrill, onRefresh, onError }: RunsPanelProps) {
+function RunsPanel({ isDarkMode, runs, runsTotal, runsLoadingMore, definitions, cardClass, fieldClass, textSecondary, onDrill, onRefresh, onLoadMore, onError }: RunsPanelProps) {
   const [filterDefId, setFilterDefId] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ReportRun | null>(null);
@@ -1179,6 +1208,21 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* R3：加载更多（已加载 < 服务端 total 时显示，offset 追加） */}
+      {runs.length > 0 && runs.length < runsTotal && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => void onLoadMore(filterDefId)}
+            disabled={runsLoadingMore}
+            className="h-8 px-4 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)] disabled:opacity-50"
+          >
+            {runsLoadingMore && <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />}
+            加载更多（已显示 {runs.length} / 共 {runsTotal} 条）
+          </button>
         </div>
       )}
     </div>

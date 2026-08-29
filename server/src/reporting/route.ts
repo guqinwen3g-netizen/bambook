@@ -235,24 +235,31 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
     res.json(serialize(result.data));
   });
 
-  // ── 运行历史 ──
+  // ── 运行历史（R3：补 offset 分页 + total，前端「加载更多」消费） ──
   router.get('/runs', requireReportsRead, async (req: Request, res: Response) => {
     try {
       const definitionId = typeof req.query.definitionId === 'string' ? req.query.definitionId : undefined;
       const limitRaw = Number(req.query.limit);
       const take = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 200) : 50;
-      const runs = await (prisma as any).reportRun.findMany({
-        where: definitionId ? { definitionId } : {},
-        orderBy: { createdAt: 'desc' },
-        take,
-        select: {
-          id: true, definitionId: true, definitionName: true, status: true, trigger: true,
-          idempotencyKey: true, rowCount: true, error: true,
-          startedAt: true, finishedAt: true, createdAt: true,
-          // 列表不携带 rows 快照（可能很大），详情接口单独取
-        },
-      });
-      res.json(serialize({ runs }));
+      const offsetRaw = Number(req.query.offset);
+      const skip = Number.isFinite(offsetRaw) && offsetRaw > 0 ? Math.floor(offsetRaw) : 0;
+      const where = definitionId ? { definitionId } : {};
+      const [runs, total] = await Promise.all([
+        (prisma as any).reportRun.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take,
+          skip,
+          select: {
+            id: true, definitionId: true, definitionName: true, status: true, trigger: true,
+            idempotencyKey: true, rowCount: true, error: true,
+            startedAt: true, finishedAt: true, createdAt: true,
+            // 列表不携带 rows 快照（可能很大），详情接口单独取
+          },
+        }),
+        (prisma as any).reportRun.count({ where }),
+      ]);
+      res.json(serialize({ runs, total }));
     } catch (err: any) {
       res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
     }

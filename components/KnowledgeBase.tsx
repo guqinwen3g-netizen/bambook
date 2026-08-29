@@ -365,6 +365,8 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       k.content.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+  // R3：文档总数诚实提示（listKnowledgeDocuments 当前全量拉取无分页；后续分页化后以服务端 total 替换本计数口径）
+  const officialTotal = knowledge.reduce((n, k) => n + (k.deletedAt ? 0 : 1), 0);
 
   const tabButtonClass = (tab: KbTab) =>
     `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-colors duration-200 ${activeTab === tab ? BAMBOOK_OS.controls.selectedSurface.base : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`;
@@ -408,6 +410,11 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto py-4">
         {activeTab === 'official' && (
+          <>
+            {/* R3：诚实计数——列表为全量拉取，明示文档总数；搜索时追加匹配数 */}
+            <div className="mb-3 text-center text-[11px] font-light tracking-wide text-[var(--text-quaternary)]">
+              文档共 {officialTotal} 条{searchTerm.trim() ? `，当前匹配 ${filteredOfficial.length} 条` : ''}
+            </div>
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
             {filteredOfficial.map(item => (
               <motion.div layout key={item.id} data-os-adaptive-container="1" onClick={() => setViewingItem(item)} className={`shrink-0 p-6 flex flex-col group relative overflow-hidden cursor-pointer ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
@@ -439,6 +446,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
             )}
           </motion.div>
+          </>
         )}
 
         {activeTab === 'memory' && (

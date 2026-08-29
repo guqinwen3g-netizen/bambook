@@ -16,6 +16,7 @@ import {
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 import { requestOsAdaptiveContrastRefresh } from './ui/osAdaptiveContrast';
 import UserAvatar from './ui/UserAvatar';
 import { resolvePublicAssetUrl } from '../utils/publicAssets';
@@ -682,7 +683,14 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
     void refreshStorageReport();
   }, [activeTab]);
 
+  // R5：清理/重置前 bdsConfirm 确认（本地数据不可恢复，danger 语义）
   const clearStorageArea = async (kind: 'business' | 'email' | 'preferences') => {
+    const meta = kind === 'business'
+      ? { title: '确认清理业务缓存', body: '将移除本机的庞大原始库与行情快照缓存，不影响云端业务数据。', confirmText: '清理' }
+      : kind === 'email'
+        ? { title: '确认清理邮箱缓存', body: '将移除本机的邮箱列表与正文缓存，重新打开邮箱时会重新拉取。', confirmText: '清理' }
+        : { title: '确认重置本机偏好', body: '主题、页面、布局状态将恢复默认，不影响云端业务数据。', confirmText: '重置' };
+    if (!(await bdsConfirm({ title: meta.title, body: meta.body, confirmText: meta.confirmText, danger: true }))) return;
     setStorageLoading(true);
     setStorageMsg(null);
     try {

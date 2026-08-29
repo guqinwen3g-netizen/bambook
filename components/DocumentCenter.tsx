@@ -58,6 +58,9 @@ import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 
 // ==================== 常量 ====================
 
+/** R3 分页：单据列表每页条数（offset 追加加载，工具栏显服务端 total） */
+const DOCS_PAGE_SIZE = 200;
+
 const DOC_TYPES: Array<{ id: TradeDocumentType; label: string }> = [
   { id: 'CommercialInvoice', label: '商业发票' },
   { id: 'PackingList', label: '装箱单' },
@@ -234,6 +237,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   const [docs, setDocs] = useState<TradeDocument[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
@@ -271,9 +275,9 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TradeDocument | null>(null);
 
-  // ── 数据拉取 ──
-  const fetchDocs = useCallback(async () => {
-    setLoading(true);
+  // ── 数据拉取（R3：offset>0 为「加载更多」追加页；选择集修剪仅在首屏刷新时执行） ──
+  const fetchDocs = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listTradeDocuments({
@@ -281,20 +285,24 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
         status: statusFilter || undefined,
         domain: domainFilter || undefined,
         search: searchQuery || undefined,
-        limit: 200,
+        limit: DOCS_PAGE_SIZE,
+        offset,
       });
-      setDocs(result.items);
+      setDocs(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
       setTotal(result.total);
-      // 筛选切换后清掉不在当前列表的选中项（选择集与列表保持一致）
-      setSelectedIds(prev => {
-        const visible = new Set(result.items.map(d => d.id));
-        const next = new Set([...prev].filter(id => visible.has(id)));
-        return next.size === prev.size ? prev : next;
-      });
+      // 筛选切换后清掉不在当前列表的选中项（选择集与列表保持一致；追加页不修剪，避免误清跨页选择）
+      if (offset === 0) {
+        setSelectedIds(prev => {
+          const visible = new Set(result.items.map(d => d.id));
+          const next = new Set([...prev].filter(id => visible.has(id)));
+          return next.size === prev.size ? prev : next;
+        });
+      }
     } catch (e: any) {
       setError(`加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [typeFilter, statusFilter, domainFilter, searchQuery]);
 
@@ -800,6 +808,16 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                 );
               })}
             </motion.div>
+          )}
+
+          {/* R3：加载更多（已加载 < 服务端 total 时显示，offset 追加） */}
+          {!loading && docs.length > 0 && docs.length < total && (
+            <div className="flex justify-center pt-3">
+              <button onClick={() => void fetchDocs(docs.length)} disabled={loadingMore} className="bds-btn bds-btn-secondary">
+                {loadingMore && <Loader2 size={14} className="animate-spin" />}
+                加载更多（已显示 {docs.length} / 共 {total} 份）
+              </button>
+            </div>
           )}
         </div>
       </div>
