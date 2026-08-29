@@ -11,7 +11,7 @@ import {
   MoreHorizontal, CornerUpLeft, Reply, Forward, Plus, ChevronDown,
   Clock, CheckCircle2, ShieldAlert, ShieldCheck, Filter, List,
   ReplyAll, MoreVertical, PanelLeftClose, PanelLeft, PenLine,
-  Tags, CalendarPlus, Search
+  Tags, CalendarPlus, Search, Printer
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { emailSyncService } from '../services/emailSyncService';
@@ -33,6 +33,9 @@ import { EmailEditor } from './email/EmailEditor';
 import SignatureManager from './email/SignatureManager';
 import { cleanHtmlSnippet } from '../utils/emailUtils';
 import { bdsConfirm } from './ui/BdsDialog';
+import { bdsToast } from './ui/bdsToast';
+import { hasPermission } from '../services/authService';
+import { printHtmlDocument, escapeHtml } from './tools/printDocument';
 
 
 interface EmailProps {
@@ -82,6 +85,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   // State
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  // R678-②⑨：同步/加载失败 error state（非静默路径可见，UI 可重试）
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [erpSyncBusy, setErpSyncBusy] = useState(false);
   const [erpSyncResult, setErpSyncResult] = useState<string | null>(null);
   const [erpSyncError, setErpSyncError] = useState<string | null>(null);
@@ -124,6 +129,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // R678-③：搜索框 ref（⌘+Shift+F 真实快捷键聚焦目标）
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Use Ref to always have the latest currentBox in async closures (prevents UI leakage)
   const currentBoxRef = useRef(currentBox);
@@ -368,6 +375,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
     // Silent mode: no loading spinners
     if (!silent) {
+      setSyncError(null);
       if (isLoadMore) setIsLoadingMore(true);
       else {
         if (logicalBox === currentBox) setIsSyncing(true);
@@ -565,10 +573,15 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         //   setSelectedId(newEmails[0].id);
         // }
       } else {
-        console.error('同步失败: ' + (json.error || '未知错误'));
+        // R678-②：同步失败非静默提示（手动刷新/切箱可见，可重试）
+        const syncFailMsg = json.error || '未知错误';
+        console.error('同步失败: ' + syncFailMsg);
+        if (!silent) setSyncError(`同步失败：${syncFailMsg}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Sync error:', e);
+      // R678-②：断网/异常零提示修复 — error state + UI 重试入口
+      if (!silent) setSyncError(`同步异常：${e?.message || '网络连接失败，请检查网络后重试'}`);
     } finally {
       // Only clear loading states if not silent
       if (!silent) {
@@ -724,8 +737,12 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       if (json?.ok && Array.isArray(json.items)) {
         setEmails(json.items.map(mapDbEmailToUi));
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载发件箱失败', e);
+      // R678-⑨：发件箱加载失败零提示修复（仅当用户正在查看发件箱时展示，可重试）
+      if (currentBoxRef.current === 'Outbox') {
+        setSyncError(`发件箱加载失败：${e?.message || '网络异常'}`);
+      }
     }
   };
 
@@ -745,6 +762,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     // Reset filters to avoid conflicts (e.g. Unread Folder + Read Filter = Empty)
     setFilterType('All');
     setSearchTerm('');
+    setSyncError(null);
 
     // L2：发件箱（Outbox）是 DB-backed 文件夹 — 无本地缓存，直接拉 ERP DB
     if (box === 'Outbox') {
@@ -823,8 +841,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       a.download = att.filename || 'download';
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch (e: any) {
       console.error('附件下载失败', e);
+      // R678-⑨：附件下载失败给出可见反馈（原仅 console.error）
+      bdsToast.danger(`附件下载失败：${e?.message || '网络异常，请稍后重试'}`);
     }
   };
 
@@ -991,7 +1011,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         });
         const detail = await detailRes.json();
         if (detail?.ok && detail.data) {
-          setEmails(prev => [detail.data, ...prev]);
+          // R678-⑥：仅当新邮件归属当前视图文件夹才插入列表（避免在 INBOX 等视图混入 Outbox/Sent 记录）；
+          // 且 DB 行先经 mapDbEmailToUi 归一为 UI 形状——原始行无 sender/date 字段，直接插入会让列表渲染崩溃
+          const uiEmail = mapDbEmailToUi(detail.data);
+          const belongsToCurrentBox =
+            (currentBoxRef.current === 'Outbox' && uiEmail.mailbox === 'Outbox') ||
+            (currentBoxRef.current === 'Sent Messages' && uiEmail.mailbox === 'Sent');
+          if (belongsToCurrentBox) setEmails(prev => [detail.data, ...prev].map(e => (e === detail.data ? uiEmail : e)));
         }
       } catch { /* best-effort refresh */ }
       if (!sendResult.ok || !sendResult.data) {
@@ -1005,6 +1031,22 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     } finally {
       setIsSending(false);
     }
+  };
+
+  /** R678-⑦：Discard/关闭写邮件弹窗统一清空表单（原仅关弹窗，To/Subject/Body/模板变量残留） */
+  const resetComposeState = () => {
+    setComposeTo('');
+    setComposeSubject('');
+    setComposeBody('');
+    setActiveTemplate(null);
+    setTemplateVars({});
+    setTemplatePickerOpen(false);
+    setSignaturePickerOpen(false);
+  };
+
+  const handleDiscardCompose = () => {
+    resetComposeState();
+    setIsComposing(false);
   };
 
   const handleSendNew = async () => {
@@ -1035,7 +1077,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         });
         const detail = await detailRes.json();
         if (detail?.ok && detail.data) {
-          setEmails(prev => [detail.data, ...prev]);
+          // R678-⑥：仅当新邮件归属当前视图文件夹才插入列表（避免在 INBOX 等视图混入 Outbox/Sent 记录）；
+          // 且 DB 行先经 mapDbEmailToUi 归一为 UI 形状——原始行无 sender/date 字段，直接插入会让列表渲染崩溃
+          const uiEmail = mapDbEmailToUi(detail.data);
+          const belongsToCurrentBox =
+            (currentBoxRef.current === 'Outbox' && uiEmail.mailbox === 'Outbox') ||
+            (currentBoxRef.current === 'Sent Messages' && uiEmail.mailbox === 'Sent');
+          if (belongsToCurrentBox) setEmails(prev => [detail.data, ...prev].map(e => (e === detail.data ? uiEmail : e)));
         }
       } catch { /* best-effort refresh */ }
       if (!sendResult.ok || !sendResult.data) {
@@ -1043,12 +1091,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         setOutboxError(`已存发件箱但发送失败：${reason}（可到发件箱重试）`);
       }
       setIsComposing(false);
-      setComposeTo('');
-      setComposeSubject('');
-      setComposeBody('');
-      setActiveTemplate(null);
-      setTemplateVars({});
-      setTemplatePickerOpen(false);
+      resetComposeState();
     } catch (e: any) {
       setOutboxError(e?.message || '邮件创建失败，请稍后重试');
     } finally {
@@ -1167,7 +1210,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       const email = emails.find(e => e.id === id);
       if (!email || !emailConfig.email || !email.uid) return;
 
-      await fetch(emailApiUrl('/email/move'), {
+      const res = await fetch(emailApiUrl('/email/move'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1177,8 +1220,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           toBox: 'Trash'
         })
       });
-    } catch (e) {
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.status !== 'success') throw new Error(json?.error || `HTTP ${res.status}`);
+      // R678-⑨：删除成功可见反馈（原零提示）
+      bdsToast.success('已移入垃圾箱');
+    } catch (e: any) {
       console.error("Failed to sync delete (move to trash)", e);
+      bdsToast.danger(`删除失败：服务器未确认（${e?.message || '网络异常'}），刷新后邮件可能恢复`);
     }
   };
 
@@ -1201,7 +1249,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       const email = emails.find(e => e.id === id);
       if (!email || !emailConfig.email || !email.uid) return;
 
-      await fetch(emailApiUrl('/email/move'), {
+      const res = await fetch(emailApiUrl('/email/move'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1211,8 +1259,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           toBox: 'Archive'
         })
       });
-    } catch (e) {
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.status !== 'success') throw new Error(json?.error || `HTTP ${res.status}`);
+      // R678-⑨：归档成功可见反馈（原零提示）
+      bdsToast.success('已归档');
+    } catch (e: any) {
       console.error("Failed to sync archive (move to Archive)", e);
+      bdsToast.danger(`归档失败：服务器未确认（${e?.message || '网络异常'}），刷新后邮件可能恢复`);
     }
   };
 
@@ -1266,7 +1319,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       const email = emails.find(e => e.id === id);
       if (!email || !emailConfig.email || !email.uid) return;
 
-      await fetch(emailApiUrl('/email/move'), {
+      const res = await fetch(emailApiUrl('/email/move'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1276,8 +1329,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           toBox: 'Spams'
         })
       });
-    } catch (e) {
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.status !== 'success') throw new Error(json?.error || `HTTP ${res.status}`);
+      // R678-⑨：举报垃圾邮件成功可见反馈（原零提示）
+      bdsToast.success('已举报为垃圾邮件');
+    } catch (e: any) {
       console.error("Failed to sync spam (move to junk)", e);
+      bdsToast.danger(`举报失败：服务器未确认（${e?.message || '网络异常'}），刷新后邮件可能恢复`);
     }
   };
 
@@ -1341,6 +1399,47 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     setIsReplying(true);
   };
 
+  /**
+   * R678-④：邮件打印 — 真链路 window.print()（Electron 打印对话框可另存 PDF）。
+   * 复用 components/tools/printDocument.ts 单据打印基座（doc-* 类体系 + BASE_PRINT_STYLES）；
+   * 正文 HTML 经 DOMPurify 消毒（与阅读面板同口径），纯文本正文转 <br> 保行。
+   */
+  const handlePrintEmail = () => {
+    if (!selectedEmail) return;
+    if (selectedEmailBody === null) {
+      bdsToast.info('正文加载中，加载完成后再打印');
+      return;
+    }
+    const rawBody = selectedEmailBody || '';
+    const looksLikeHtml = /<[a-z][\s\S]*>/i.test(rawBody);
+    const bodyHtml = looksLikeHtml
+      ? DOMPurify.sanitize(rawBody)
+      : escapeHtml(rawBody || '(无正文)').replace(/\n/g, '<br>');
+    const attachmentLines = (selectedEmailAttachments || [])
+      .map(att => `<li>${escapeHtml(att.filename || 'attachment')}</li>`)
+      .join('');
+    printHtmlDocument({
+      title: selectedEmail.subject || 'Email',
+      htmlBody: `
+        <div class="doc-header">
+          <div class="doc-title-block">
+            <h1>${escapeHtml(selectedEmail.subject || '(No Subject)')}</h1>
+            <div class="subtitle">Email Message</div>
+          </div>
+          <div class="doc-meta">
+            <div class="doc-no">${escapeHtml(formatFullTime(selectedEmail.date))}</div>
+          </div>
+        </div>
+        <div class="doc-section">
+          <div class="doc-section-title">From</div>
+          <div>${escapeHtml(selectedEmail.sender)}</div>
+        </div>
+        <div class="doc-section">${bodyHtml}</div>
+        ${attachmentLines ? `<div class="doc-section"><div class="doc-section-title">Attachments</div><ul>${attachmentLines}</ul></div>` : ''}
+      `,
+    });
+  };
+
   const selectedEmail = emails.find(e => e.id === selectedId);
 
   // C8：从 IMAP uid 取 DB 覆盖层（含 DB id / labels / 客户与订单链接），与 EmailList 提取口径一致
@@ -1387,6 +1486,44 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     }
   };
 
+  // R6：删除/归档/举报/移动/标记为邮箱写操作（IMAP 变更 + ERP 写端点），
+  // 按角色权限矩阵 emails:write 门控——无权限角色（如只读/财务）隐藏这些按钮
+  const canWriteEmails = hasPermission('emails:write');
+
+  /** 签名管理弹窗关闭（关闭后重置加载标记，下次 Compose 重新拉取） */
+  const closeSignatureManager = () => { setSignatureManagerOpen(false); setSignaturesLoaded(false); };
+
+  // R678-③：搜索框真实快捷键 ⌘+Shift+F / Ctrl+Shift+F 聚焦搜索（placeholder 宣称与实现一致）
+  useEffect(() => {
+    const onSearchHotkey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', onSearchHotkey);
+    return () => window.removeEventListener('keydown', onSearchHotkey);
+  }, []);
+
+  // R678-⑧：自建弹层 Esc 关闭（顶层优先：签名管理 > 邮箱设置 > 写邮件 > 回复）；
+  // BdsDialog（role=dialog aria-modal）自行处理 Esc，此处避让防双关
+  useEffect(() => {
+    const anyOpen = signatureManagerOpen || isConfiguring || isComposing || isReplying;
+    if (!anyOpen) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      if (signatureManagerOpen) { closeSignatureManager(); return; }
+      if (isConfiguring) { setIsConfiguring(false); return; }
+      if (isComposing) { handleDiscardCompose(); return; }
+      if (isReplying) { setIsReplying(false); }
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signatureManagerOpen, isConfiguring, isComposing, isReplying]);
+
   // Filtered & Sorted emails
   const displayEmails = React.useMemo(() => {
     let result = emails.filter(e => {
@@ -1403,8 +1540,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       if (filterType === 'Unread' && e.isRead) return false;
       if (filterType === 'Read' && !e.isRead) return false;
       if (filterType === 'Has Attachment' && (!e.attachments || e.attachments.length === 0)) return false;
-      if (filterType === 'Follow-ups' && !e.isStarred) return false;
-      if (filterType === 'Completed' && !e.isRead) return false; // Approximation
+      // R678-⑤：筛选名实相符 —「Flagged」对应星标 isStarred（原「Follow-ups」名不符实）；
+      // 原「Completed」与「Read」同为 isRead 语义重复，已移除
+      if (filterType === 'Flagged' && !e.isStarred) return false;
 
       // 3. Search term
       if (!searchTerm) return true;
@@ -1689,8 +1827,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     { id: 'Default', label: 'Default Sort' },
                     { id: 'Date', label: 'Date' },
                     { id: 'From', label: 'From' },
-                    { id: 'Subject', label: 'Subject' },
-                    { id: 'Size', label: 'Mail size' }
+                    { id: 'Subject', label: 'Subject' }
                   ].map(s => (
                     <button
                       key={s.id}
@@ -1717,6 +1854,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
+                ref={searchInputRef}
                 type="text"
                 className="bds-input sm pl-9"
                 placeholder="Search (⌘ + Shift + F)"
@@ -1725,6 +1863,21 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
               />
             </div>
         </div>
+
+        {/* R678-②⑨：同步/加载失败可见提示（可重试；silent 后台同步不写此 state） */}
+        {syncError && (
+          <div className="px-5 py-2 flex items-center gap-2 border-b text-xs border-[var(--border-c-default)]" style={{ color: 'var(--danger-text)' }}>
+            <AlertCircle size={14} strokeWidth={1} className="shrink-0" />
+            <span className="flex-1 truncate">{syncError}</span>
+            <button
+              type="button"
+              onClick={() => { setSyncError(null); handleSync(currentBox, false); }}
+              className="shrink-0 underline underline-offset-2"
+            >
+              重试
+            </button>
+          </div>
+        )}
 
         <EmailList
           emails={displayEmails}
@@ -1775,40 +1928,50 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary">
                   <Forward size={14} strokeWidth={1} className="text-[var(--accent)]" /> Forward
                 </button>
-                <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
-
-                <button type="button" onClick={() => handleDelete(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Delete"><Trash2 size={16} /></button>
-                <button type="button" onClick={() => handleArchive(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Archive"><Archive size={16} strokeWidth={1} /></button>
-                <button type="button" onClick={() => handleSpam(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Report Spam"><ShieldAlert size={16} strokeWidth={1} /></button>
-
-                <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
-
-                <button
-                  type="button"
-                  onClick={() => handleToggleStar(selectedId!, selectedEmail.isStarred ?? false)}
-                  className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isStarred ? 'text-[var(--danger)]' : ''}`}
-                  title="Tag Flagged (Standard)"
-                >
-                  <Flag size={16} strokeWidth={1} className={selectedEmail.isStarred ? 'fill-red-400' : ''} />
+                {/* R678-④：打印（window.print 真链路，只读操作不受 emails:write 门控） */}
+                <button type="button" onClick={handlePrintEmail} className="bds-btn bds-btn-ghost bds-btn-icon" title="Print">
+                  <Printer size={16} strokeWidth={1} />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleToggleImportant(selectedId!, !!selectedEmail.isImportant)}
-                  className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isImportant ? 'text-[var(--accent)]' : ''}`}
-                  title="Tag Important"
-                >
-                  <Star size={16} strokeWidth={1} className={selectedEmail.isImportant ? 'fill-accent-cyan/50' : ''} />
-                </button>
+                {/* R6：删除/归档/举报/标记为邮箱写操作（emails:write），无权限角色隐藏 */}
+                {canWriteEmails && (
+                  <>
+                    <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
 
-                <button
-                  type="button"
-                  onClick={() => handleToggleRead(selectedId!, selectedEmail.isRead)}
-                  className={`bds-btn bds-btn-ghost bds-btn-icon ${!selectedEmail.isRead ? 'text-[var(--accent)]' : ''}`}
-                  title={selectedEmail.isRead ? "Mark Unread" : "Mark Read"}
-                >
-                  <Mail size={16} strokeWidth={1} />
-                </button>
+                    <button type="button" onClick={() => handleDelete(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Delete"><Trash2 size={16} /></button>
+                    <button type="button" onClick={() => handleArchive(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Archive"><Archive size={16} strokeWidth={1} /></button>
+                    <button type="button" onClick={() => handleSpam(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Report Spam"><ShieldAlert size={16} strokeWidth={1} /></button>
+
+                    <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStar(selectedId!, selectedEmail.isStarred ?? false)}
+                      className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isStarred ? 'text-[var(--danger)]' : ''}`}
+                      title="Tag Flagged (Standard)"
+                    >
+                      <Flag size={16} strokeWidth={1} className={selectedEmail.isStarred ? 'fill-red-400' : ''} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleImportant(selectedId!, !!selectedEmail.isImportant)}
+                      className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isImportant ? 'text-[var(--accent)]' : ''}`}
+                      title="Tag Important"
+                    >
+                      <Star size={16} strokeWidth={1} className={selectedEmail.isImportant ? 'fill-accent-cyan/50' : ''} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRead(selectedId!, selectedEmail.isRead)}
+                      className={`bds-btn bds-btn-ghost bds-btn-icon ${!selectedEmail.isRead ? 'text-[var(--accent)]' : ''}`}
+                      title={selectedEmail.isRead ? "Mark Unread" : "Mark Read"}
+                    >
+                      <Mail size={16} strokeWidth={1} />
+                    </button>
+                  </>
+                )}
 
                 {/* C8 邮件深化：智能分类 + 一键建跟进（仅已同步邮件有 DB id 可操作） */}
                 {selectedIntentInfo?.id && (
@@ -1849,16 +2012,19 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 )}
               </div>
 
-              <div className="flex gap-2 relative group">
-                <button type="button" className="bds-btn bds-btn-ghost bds-btn-icon" title="Move to folder"><MoreHorizontal size={16} strokeWidth={1} /></button>
-                <div className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-2 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
-                  <div className="px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Move to</div>
-                  <button onClick={() => handleMoveToFolder(selectedId!, 'INBOX')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Inbox</button>
-                  <button onClick={() => handleMoveToFolder(selectedId!, 'Sent Messages')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Sent Items</button>
-                  <button onClick={() => handleMoveToFolder(selectedId!, 'Drafts')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Drafts</button>
-                  <button onClick={() => handleMoveToFolder(selectedId!, 'Trash')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Deleted</button>
+              {/* R6：移动到文件夹为邮箱写操作（emails:write），无权限角色隐藏 */}
+              {canWriteEmails && (
+                <div className="flex gap-2 relative group">
+                  <button type="button" className="bds-btn bds-btn-ghost bds-btn-icon" title="Move to folder"><MoreHorizontal size={16} strokeWidth={1} /></button>
+                  <div className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-2 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
+                    <div className="px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Move to</div>
+                    <button onClick={() => handleMoveToFolder(selectedId!, 'INBOX')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Inbox</button>
+                    <button onClick={() => handleMoveToFolder(selectedId!, 'Sent Messages')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Sent Items</button>
+                    <button onClick={() => handleMoveToFolder(selectedId!, 'Drafts')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Drafts</button>
+                    <button onClick={() => handleMoveToFolder(selectedId!, 'Trash')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Deleted</button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Reading Content */}
@@ -2222,7 +2388,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       {/* 阶段 P3b：签名管理弹窗（关闭后重置加载标记，下次 Compose 重新拉取） */}
       <SignatureManager
         isOpen={signatureManagerOpen}
-        onClose={() => { setSignatureManagerOpen(false); setSignaturesLoaded(false); }}
+        onClose={closeSignatureManager}
         isDarkMode={isDarkMode}
       />
       {/* Settings Modal */}
