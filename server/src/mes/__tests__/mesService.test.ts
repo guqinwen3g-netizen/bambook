@@ -38,16 +38,19 @@ function makePrisma(overrides: Record<string, any> = {}) {
       update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
       findFirst: overrides.wsFindFirst ?? vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
     productionPlan: {
       create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data, deletedAt: null })),
       update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
       findFirst: overrides.planFindFirst ?? vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
     workHour: {
       create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
       delete: vi.fn().mockResolvedValue({}),
     },
     pieceRateRule: {
@@ -55,11 +58,13 @@ function makePrisma(overrides: Record<string, any> = {}) {
       update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
       findFirst: overrides.ruleFindFirst ?? vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
     pieceRateRecord: {
       create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
       findFirst: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
       update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
       delete: vi.fn().mockResolvedValue({}),
     },
@@ -72,6 +77,7 @@ function makePrisma(overrides: Record<string, any> = {}) {
       update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, lines: [] })),
       findFirst: overrides.osoFindFirst ?? vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
       findUnique: vi.fn().mockImplementation(async () => lastCreatedOSO ?? { id: 'oso_1', orderNumber: 'OSO-001', lines: [] }),
     },
     outsourcingLine: {
@@ -188,9 +194,15 @@ describe('MesService', () => {
 
     it('lists work stations by type', async () => {
       prisma.workStation.findMany.mockResolvedValue([{ id: 'ws_1', type: 'Sewing' }]);
+      prisma.workStation.count.mockResolvedValue(1);
       const service = createMesService(prisma);
-      const list = await service.listWorkStations({ type: 'Sewing' });
-      expect(list).toHaveLength(1);
+      const { items, total } = await service.listWorkStations({ type: 'Sewing' });
+      expect(items).toHaveLength(1);
+      expect(total).toBe(1);
+      // 缺省不传 limit → 不分页（向后兼容全量返回）
+      expect(prisma.workStation.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.any(Number) }),
+      );
     });
   });
 
@@ -538,6 +550,73 @@ describe('MesService', () => {
       await expect(
         service.updateOutsourcingOrder('oso_1', { quantity: 2000 }, 'user_1'),
       ).rejects.toThrow('仅 Draft 可编辑');
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // R678 列表分页（limit/offset → take/skip + total 真实计数）
+  // ══════════════════════════════════════════════════════════════
+  describe('列表分页 limit/offset', () => {
+    it('limit/offset 透传为 take/skip，total 来自 count（排产）', async () => {
+      prisma.productionPlan.findMany.mockResolvedValue([{ id: 'pp_1' }]);
+      prisma.productionPlan.count.mockResolvedValue(42);
+      const service = createMesService(prisma);
+      const { items, total } = await service.listProductionPlans({ status: 'Draft', limit: 20, offset: 40 });
+      expect(items).toHaveLength(1);
+      expect(total).toBe(42);
+      expect(prisma.productionPlan.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 20, skip: 40 }),
+      );
+      expect(prisma.productionPlan.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({ status: 'Draft' }),
+      });
+    });
+
+    it('limit 越界收敛到 [1,500]；offset 负数归零（工时）', async () => {
+      const service = createMesService(prisma);
+      await service.listWorkHours({ limit: 9999, offset: -5 });
+      expect(prisma.workHour.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 500, skip: 0 }),
+      );
+      await service.listWorkHours({ limit: 0 });
+      expect(prisma.workHour.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ take: 1, skip: 0 }),
+      );
+    });
+
+    it('缺省 limit → 不带 take/skip（工位/计件规则/计件记录/外协 全量返回兼容）', async () => {
+      const service = createMesService(prisma);
+      await service.listWorkStations();
+      expect(prisma.workStation.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.any(Number) }),
+      );
+      await service.listPieceRateRules();
+      expect(prisma.pieceRateRule.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.any(Number) }),
+      );
+      await service.listPieceRateRecords();
+      expect(prisma.pieceRateRecord.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.any(Number) }),
+      );
+      await service.listOutsourcingOrders();
+      expect(prisma.outsourcingOrder.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ take: expect.any(Number) }),
+      );
+    });
+
+    it('外协 limit/offset 透传 + total 来自 count', async () => {
+      prisma.outsourcingOrder.findMany.mockResolvedValue([{ id: 'oso_1' }]);
+      prisma.outsourcingOrder.count.mockResolvedValue(7);
+      const service = createMesService(prisma);
+      const { items, total } = await service.listOutsourcingOrders({ supplierId: 'rel_1', limit: 3, offset: 6 });
+      expect(items).toHaveLength(1);
+      expect(total).toBe(7);
+      expect(prisma.outsourcingOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 3, skip: 6 }),
+      );
+      expect(prisma.outsourcingOrder.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({ supplierId: 'rel_1', deletedAt: null }),
+      });
     });
   });
 });

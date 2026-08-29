@@ -10,6 +10,8 @@ import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusToke
 import { formatYmd } from '../lib/dateFormat';
 import { productionService } from '../services/productionService';
 import type { OutsourcingProgress } from '../services/productionService';
+import { hasPermission } from '../services/authService';
+import { bdsToast } from './ui/bdsToast';
 
 const cx = (...args: any[]) => args.filter(Boolean).join(' ');
 
@@ -100,6 +102,9 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
 
   // ── 统一规范真源（orderUiSpec）：玻璃面板 + inset 子区块，与详情页所有面板同构 ──
   const spec = createOrderUiSpec(isDarkMode);
+  // R6：推进/双签/检查/验货均为写操作（后端 production:write scope 门）——
+  // 无权限：按钮隐藏；表单控件（ToggleSwitch/验货录入）disabled 保只读视图
+  const canWrite = hasPermission('production:write');
   const textPrimary = spec.textPrimary;
   const textSecondary = spec.textMuted;
   const surfaceClass = spec.insetSurface;
@@ -137,6 +142,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
     try {
       const stage = await productionService.advanceStage(orderId, stageKey);
       setStages(prev => prev.map(s => s.stageKey === stageKey ? stage : s));
+      bdsToast.success(`已推进到「${STAGE_LABELS[stageKey] || stageKey}」`);
     } catch (e: any) {
       setError(e?.message || '阶段推进失败');
     }
@@ -262,7 +268,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                     </span>
                   )}
                 </div>
-                {canAdvance && (
+                {canWrite && canAdvance && (
                   <button
                     onClick={() => handleAdvance(stage.stageKey)}
                     disabled={advancing === stage.stageKey}
@@ -331,12 +337,14 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
         return (
           <div className={cx('rounded-inset border p-4', surfaceClass)}>
             <div className={cx('mb-3', spec.subGroupTitle)}>产前样双签确认</div>
+            {canWrite ? (
             <div className="grid grid-cols-2 gap-3 justify-items-center">
               <button
                 onClick={async () => {
                   try {
                     const updated = await productionService.signStage(orderId, 'pp_sample_approved', 'production');
                     setStages(prev => prev.map(s => s.id === updated.id ? updated : s));
+                    bdsToast.success('生产部签字完成');
                   } catch (e: any) { setError(e?.message || '签字失败'); }
                 }}
                 className={cx(
@@ -352,6 +360,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   try {
                     const updated = await productionService.signStage(orderId, 'pp_sample_approved', 'business');
                     setStages(prev => prev.map(s => s.id === updated.id ? updated : s));
+                    bdsToast.success('业务部签字完成');
                   } catch (e: any) { setError(e?.message || '签字失败'); }
                 }}
                 className={cx(
@@ -363,6 +372,19 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 业务部 {ppStage.signedByBusiness ? '已签' : '签字'}
               </button>
             </div>
+            ) : (
+            /* R6：无 production:write — 双签入口隐藏，签署状态降级为只读徽标 */
+            <div className="grid grid-cols-2 gap-3 justify-items-center">
+              <span className={cx(spec.btnBase, ppStage.signedByProduction ? signedChipCls : spec.btnGhost, 'pointer-events-none')}>
+                {ppStage.signedByProduction ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                生产部 {ppStage.signedByProduction ? '已签' : '未签'}
+              </span>
+              <span className={cx(spec.btnBase, ppStage.signedByBusiness ? signedChipCls : spec.btnGhost, 'pointer-events-none')}>
+                {ppStage.signedByBusiness ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                业务部 {ppStage.signedByBusiness ? '已签' : '未签'}
+              </span>
+            </div>
+            )}
           </div>
         );
       })()}
@@ -388,6 +410,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                     checked={on}
                     isDarkMode={isDarkMode}
                     ariaLabel={label}
+                    disabled={!canWrite}
                     onChange={() => handleChecklistToggle(field)}
                   />
                   <span className={cx('text-xs font-light', textPrimary)}>{label}</span>
@@ -422,6 +445,8 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
             </div>
           </div>
 
+          {/* R6：验货报告录入区整体 fieldset 门禁（无 production:write 全部控件 disabled，保只读视图） */}
+          <fieldset disabled={!canWrite} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货日期</label>
@@ -556,6 +581,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                       checked={inspection.approvedByBusiness}
                       isDarkMode={isDarkMode}
                       ariaLabel="业务部批准发货"
+                      disabled={!canWrite}
                       onChange={(next) => handleInspectionSave('approvedByBusiness', next)}
                     />
                     <span className={textPrimary}>业务部批准发货</span>
@@ -564,6 +590,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
               )}
             </div>
           )}
+          </fieldset>
         </div>
       )}
       </div>

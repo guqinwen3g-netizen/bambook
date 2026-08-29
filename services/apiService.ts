@@ -1817,13 +1817,17 @@ export const apiService = {
   // ════════════════════════════════════════
 
   // ── 工位 WorkStation ──
-  async listWorkStations(params?: { type?: string; isActive?: boolean }, endpoint?: string): Promise<WorkStation[]> {
+  // R678：MES list 统一 { items, total } 返回 + 可选 limit/offset 透传（不传则后端全量返回）
+  async listWorkStations(params?: { type?: string; isActive?: boolean; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: WorkStation[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.type) query.set('type', params.type);
     if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
     const qs = query.toString();
-    const data = await requestJson<{ items: WorkStation[] }>(`/v1/mes/work-stations${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await requestJson<{ items: WorkStation[]; total?: number }>(`/v1/mes/work-stations${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async getWorkStation(id: string, endpoint?: string): Promise<WorkStation | null> {
@@ -1855,7 +1859,7 @@ export const apiService = {
   },
 
   // ── 排产 ProductionPlan ──
-  async listProductionPlans(params?: { orderId?: string; workStationId?: string; status?: string; processType?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<ProductionPlan[]> {
+  async listProductionPlans(params?: { orderId?: string; workStationId?: string; status?: string; processType?: string; dateFrom?: string; dateTo?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: ProductionPlan[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.orderId) query.set('orderId', params.orderId);
     if (params?.workStationId) query.set('workStationId', params.workStationId);
@@ -1863,9 +1867,12 @@ export const apiService = {
     if (params?.processType) query.set('processType', params.processType);
     if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
     if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
     const qs = query.toString();
-    const data = await requestJson<{ items: ProductionPlan[] }>(`/v1/mes/plans${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await requestJson<{ items: ProductionPlan[]; total?: number }>(`/v1/mes/plans${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async getProductionPlan(id: string, endpoint?: string): Promise<ProductionPlan | null> {
@@ -1900,15 +1907,18 @@ export const apiService = {
   },
 
   // ── 工时 WorkHour ──
-  async listWorkHours(params?: { productionPlanId?: string; employeeId?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<WorkHour[]> {
+  async listWorkHours(params?: { productionPlanId?: string; employeeId?: string; dateFrom?: string; dateTo?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: WorkHour[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.productionPlanId) query.set('productionPlanId', params.productionPlanId);
     if (params?.employeeId) query.set('employeeId', params.employeeId);
     if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
     if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
     const qs = query.toString();
-    const data = await requestJson<{ items: WorkHour[] }>(`/v1/mes/work-hours${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await requestJson<{ items: WorkHour[]; total?: number }>(`/v1/mes/work-hours${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async getWorkHourSummary(params?: { productionPlanId?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<WorkHourSummary[]> {
@@ -1931,14 +1941,17 @@ export const apiService = {
   },
 
   // ── 计件规则 PieceRateRule ──
-  async listPieceRateRules(params?: { processType?: string; productAssetId?: string; isActive?: boolean }, endpoint?: string): Promise<PieceRateRule[]> {
+  async listPieceRateRules(params?: { processType?: string; productAssetId?: string; isActive?: boolean; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: PieceRateRule[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.processType) query.set('processType', params.processType);
     if (params?.productAssetId) query.set('productAssetId', params.productAssetId);
     if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
     const qs = query.toString();
-    const data = await requestJson<{ items: PieceRateRule[] }>(`/v1/mes/piece-rate-rules${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await requestJson<{ items: PieceRateRule[]; total?: number }>(`/v1/mes/piece-rate-rules${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async createPieceRateRule(input: PieceRateRuleInput, endpoint?: string): Promise<PieceRateRule> {
@@ -1956,7 +1969,7 @@ export const apiService = {
   },
 
   // ── 计件记录 PieceRateRecord ──
-  async listPieceRateRecords(params?: { pieceRateRuleId?: string; productionPlanId?: string; employeeId?: string; status?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<PieceRateRecord[]> {
+  async listPieceRateRecords(params?: { pieceRateRuleId?: string; productionPlanId?: string; employeeId?: string; status?: string; dateFrom?: string; dateTo?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: PieceRateRecord[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.pieceRateRuleId) query.set('pieceRateRuleId', params.pieceRateRuleId);
     if (params?.productionPlanId) query.set('productionPlanId', params.productionPlanId);
@@ -1964,9 +1977,12 @@ export const apiService = {
     if (params?.status) query.set('status', params.status);
     if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
     if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
     const qs = query.toString();
-    const data = await requestJson<{ items: PieceRateRecord[] }>(`/v1/mes/piece-rate-records${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await requestJson<{ items: PieceRateRecord[]; total?: number }>(`/v1/mes/piece-rate-records${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async getPieceRateSummary(params?: { employeeId?: string; status?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<PieceRateSummary[]> {
@@ -1995,15 +2011,18 @@ export const apiService = {
   },
 
   // ── 外协 OutsourcingOrder ──
-  async listOutsourcingOrders(params?: { supplierId?: string; orderId?: string; status?: string; processType?: string }, endpoint?: string): Promise<OutsourcingOrder[]> {
+  async listOutsourcingOrders(params?: { supplierId?: string; orderId?: string; status?: string; processType?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: OutsourcingOrder[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.supplierId) query.set('supplierId', params.supplierId);
     if (params?.orderId) query.set('orderId', params.orderId);
     if (params?.status) query.set('status', params.status);
     if (params?.processType) query.set('processType', params.processType);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
     const qs = query.toString();
-    const data = await requestJson<{ items: OutsourcingOrder[] }>(`/v1/mes/outsourcing${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await requestJson<{ items: OutsourcingOrder[]; total?: number }>(`/v1/mes/outsourcing${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: typeof data.total === 'number' ? data.total : items.length };
   },
 
   async getOutsourcingOrder(id: string, endpoint?: string): Promise<OutsourcingOrder | null> {

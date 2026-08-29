@@ -35,8 +35,11 @@ import {
   StopCircle,
   PackageCheck,
   Download,
+  Search,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
+import { bdsToast } from './ui/bdsToast';
 import {
   WorkStation,
   WorkStationInput,
@@ -67,8 +70,9 @@ import { bdsConfirm } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
 
-// R3：MES 各 Tab 渲染上限（apiService MES list 签名无 limit/offset 参数、后端 mesRoute
-// 无分页返回全量 total=items.length——组件层截断诚实化：全量取回但仅渲染前 N 条并显式提示）
+// R678：MES 各 Tab 服务端真分页（apiService/后端 mesRoute 已支持 limit/offset + total 真实计数），
+// 每页 200 条 + 「加载更多」追加；MES_LIST_RENDER_LIMIT 退化为客户端渲染上限兜底（防一次性渲染过多卡片）。
+const MES_PAGE_SIZE = 200;
 const MES_LIST_RENDER_LIMIT = 200;
 
 const WS_TYPES: Array<{ id: WorkStationType; label: string }> = [
@@ -125,6 +129,27 @@ const UNITS = ['PC', 'SET', 'YD', 'M', 'KG', 'PCS'];
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
+// R678③：弹层表单初始值工厂（打开时重置，防上次取消残留带入下次）
+const initialPlanForm = (): ProductionPlanInput => ({
+  planNumber: '', workStationId: '', processType: 'Sewing', plannedQuantity: 0, unit: 'PC',
+  plannedStartDate: todayStr(), plannedEndDate: todayStr(), priority: 'Normal',
+});
+const initialWsForm = (): WorkStationInput => ({
+  code: '', name: '', type: 'Sewing', capacityPerDay: undefined, capacityUnit: 'PC', location: '', manager: '',
+});
+const initialWhForm = (): WorkHourInput => ({
+  productionPlanId: '', workDate: todayStr(), hours: 0, overtimeHours: 0,
+});
+const initialRuleForm = (): PieceRateRuleInput => ({
+  code: '', name: '', processType: 'Sewing', unit: 'PC', ratePerUnit: 0, effectiveFrom: todayStr(),
+});
+const initialRecordForm = (): PieceRateRecordInput => ({
+  pieceRateRuleId: '', workDate: todayStr(), quantity: 0, unit: 'PC',
+});
+const initialOsoForm = (): OutsourcingOrderInput => ({
+  orderNumber: '', supplierId: '', processType: 'Sewing', quantity: 0, unit: 'PC', unitPrice: 0, currency: 'CNY',
+});
+
 function statusLabel<T extends { id: string; label: string }>(list: T[], id: string): string {
   return list.find(s => s.id === id)?.label ?? id;
 }
@@ -152,13 +177,44 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── 各 Tab 数据 ──
+  // ── 各 Tab 数据（R678：服务端真分页，total 为后端真实计数） ──
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
+  const [plansTotal, setPlansTotal] = useState(0);
   const [workStations, setWorkStations] = useState<WorkStation[]>([]);
+  const [workStationsTotal, setWorkStationsTotal] = useState(0);
   const [workHours, setWorkHours] = useState<WorkHour[]>([]);
+  const [workHoursTotal, setWorkHoursTotal] = useState(0);
   const [pieceRateRules, setPieceRateRules] = useState<PieceRateRule[]>([]);
+  const [pieceRateRulesTotal, setPieceRateRulesTotal] = useState(0);
   const [pieceRateRecords, setPieceRateRecords] = useState<PieceRateRecord[]>([]);
+  const [pieceRateRecordsTotal, setPieceRateRecordsTotal] = useState(0);
   const [outsourcingOrders, setOutsourcingOrders] = useState<OutsourcingOrder[]>([]);
+  const [outsourcingTotal, setOutsourcingTotal] = useState(0);
+  const [loadingMoreTab, setLoadingMoreTab] = useState<TabId | null>(null);
+
+  // R678④：各 Tab 搜索 + 关键状态筛选（客户端过滤已加载条目）
+  const [searchQuery, setSearchQuery] = useState('');
+  const [planStatusFilter, setPlanStatusFilter] = useState('');
+  const [wsTypeFilter, setWsTypeFilter] = useState('');
+  const [osoStatusFilter, setOsoStatusFilter] = useState('');
+  const [ruleActiveFilter, setRuleActiveFilter] = useState<'' | 'active' | 'inactive'>('');
+  const [recordStatusFilter, setRecordStatusFilter] = useState('');
+
+  // R678⑤：外协供应商下拉数据源（Relation 档案，供应商口径与采购域一致）
+  const [supplierOptions, setSupplierOptions] = useState<Array<{ id: string; label: string }>>([]);
+  useEffect(() => {
+    apiService.listRelations().then((list) => {
+      setSupplierOptions(
+        list
+          .filter((r) => !r.deletedAt && (r.type === 'Supplier' || r.category === 'Supplier'))
+          .map((r) => ({ id: r.id, label: r.englishName || r.chineseName || r.name })),
+      );
+    }).catch(() => {});
+  }, []);
+  const supplierNameById = useMemo(() => new Map(supplierOptions.map((s) => [s.id, s.label])), [supplierOptions]);
+
+  // R6：写操作权限门（production:write；无权限隐藏创建/删除/流转按钮，只读可用）
+  const canWrite = hasPermission('production:write');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,12 +224,15 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
 
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支（仅透传 PageHeader 等） ──
 
-  // ── 拉取数据 ──
-  const fetchPlans = useCallback(async () => {
+  // ── 拉取数据（R678：offset=0 重置首屏；>0 加载更多追加；total 后端真实计数） ──
+  const fetchPlans = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMoreTab('plans');
     try {
-      const data = await apiService.listProductionPlans();
-      setPlans(data);
+      const r = await apiService.listProductionPlans({ limit: MES_PAGE_SIZE, offset });
+      setPlans(prev => (offset === 0 ? r.items : [...prev, ...r.items]));
+      setPlansTotal(r.total);
     } catch (e: any) { setError(e?.message || '加载排产失败'); }
+    finally { if (offset > 0) setLoadingMoreTab(null); }
   }, []);
 
   /** 生产计划台账 Excel 导出（全量，与列表口径一致） */
@@ -188,39 +247,54 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     }
   }, []);
 
-  const fetchWorkStations = useCallback(async () => {
+  const fetchWorkStations = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMoreTab('workStations');
     try {
-      const data = await apiService.listWorkStations();
-      setWorkStations(data);
+      const r = await apiService.listWorkStations({ limit: MES_PAGE_SIZE, offset });
+      setWorkStations(prev => (offset === 0 ? r.items : [...prev, ...r.items]));
+      setWorkStationsTotal(r.total);
     } catch (e: any) { setError(e?.message || '加载工位失败'); }
+    finally { if (offset > 0) setLoadingMoreTab(null); }
   }, []);
 
-  const fetchWorkHours = useCallback(async () => {
+  const fetchWorkHours = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMoreTab('workHours');
     try {
-      const data = await apiService.listWorkHours();
-      setWorkHours(data);
+      const r = await apiService.listWorkHours({ limit: MES_PAGE_SIZE, offset });
+      setWorkHours(prev => (offset === 0 ? r.items : [...prev, ...r.items]));
+      setWorkHoursTotal(r.total);
     } catch (e: any) { setError(e?.message || '加载工时失败'); }
+    finally { if (offset > 0) setLoadingMoreTab(null); }
   }, []);
 
-  const fetchPieceRateRules = useCallback(async () => {
+  const fetchPieceRateRules = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMoreTab('pieceRateRules');
     try {
-      const data = await apiService.listPieceRateRules();
-      setPieceRateRules(data);
+      const r = await apiService.listPieceRateRules({ limit: MES_PAGE_SIZE, offset });
+      setPieceRateRules(prev => (offset === 0 ? r.items : [...prev, ...r.items]));
+      setPieceRateRulesTotal(r.total);
     } catch (e: any) { setError(e?.message || '加载计件规则失败'); }
+    finally { if (offset > 0) setLoadingMoreTab(null); }
   }, []);
 
-  const fetchPieceRateRecords = useCallback(async () => {
+  const fetchPieceRateRecords = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMoreTab('pieceRateRecords');
     try {
-      const data = await apiService.listPieceRateRecords();
-      setPieceRateRecords(data);
+      const r = await apiService.listPieceRateRecords({ limit: MES_PAGE_SIZE, offset });
+      setPieceRateRecords(prev => (offset === 0 ? r.items : [...prev, ...r.items]));
+      setPieceRateRecordsTotal(r.total);
     } catch (e: any) { setError(e?.message || '加载计件记录失败'); }
+    finally { if (offset > 0) setLoadingMoreTab(null); }
   }, []);
 
-  const fetchOutsourcing = useCallback(async () => {
+  const fetchOutsourcing = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMoreTab('outsourcing');
     try {
-      const data = await apiService.listOutsourcingOrders();
-      setOutsourcingOrders(data);
+      const r = await apiService.listOutsourcingOrders({ limit: MES_PAGE_SIZE, offset });
+      setOutsourcingOrders(prev => (offset === 0 ? r.items : [...prev, ...r.items]));
+      setOutsourcingTotal(r.total);
     } catch (e: any) { setError(e?.message || '加载外协订单失败'); }
+    finally { if (offset > 0) setLoadingMoreTab(null); }
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -294,45 +368,38 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
   }, [fetchPieceRateRecords]);
 
   // ════════════════════════════════════════
-  // 创建表单状态
+  // 创建表单状态（R678③：打开时重置为初始值，防上次取消残留带入下次）
   // ════════════════════════════════════════
 
   // 排产表单
   const [showPlanForm, setShowPlanForm] = useState(false);
-  const [planForm, setPlanForm] = useState<ProductionPlanInput>({
-    planNumber: '', workStationId: '', processType: 'Sewing', plannedQuantity: 0, unit: 'PC',
-    plannedStartDate: todayStr(), plannedEndDate: todayStr(), priority: 'Normal',
-  });
+  const [planForm, setPlanForm] = useState<ProductionPlanInput>(initialPlanForm);
+  const openPlanForm = useCallback(() => { setPlanForm(initialPlanForm()); setShowPlanForm(true); }, []);
 
   // 工位表单
   const [showWsForm, setShowWsForm] = useState(false);
-  const [wsForm, setWsForm] = useState<WorkStationInput>({
-    code: '', name: '', type: 'Sewing', capacityPerDay: undefined, capacityUnit: 'PC', location: '', manager: '',
-  });
+  const [wsForm, setWsForm] = useState<WorkStationInput>(initialWsForm);
+  const openWsForm = useCallback(() => { setWsForm(initialWsForm()); setShowWsForm(true); }, []);
 
   // 工时表单
   const [showWhForm, setShowWhForm] = useState(false);
-  const [whForm, setWhForm] = useState<WorkHourInput>({
-    productionPlanId: '', workDate: todayStr(), hours: 0, overtimeHours: 0,
-  });
+  const [whForm, setWhForm] = useState<WorkHourInput>(initialWhForm);
+  const openWhForm = useCallback(() => { setWhForm(initialWhForm()); setShowWhForm(true); }, []);
 
   // 计件规则表单
   const [showRuleForm, setShowRuleForm] = useState(false);
-  const [ruleForm, setRuleForm] = useState<PieceRateRuleInput>({
-    code: '', name: '', processType: 'Sewing', unit: 'PC', ratePerUnit: 0, effectiveFrom: todayStr(),
-  });
+  const [ruleForm, setRuleForm] = useState<PieceRateRuleInput>(initialRuleForm);
+  const openRuleForm = useCallback(() => { setRuleForm(initialRuleForm()); setShowRuleForm(true); }, []);
 
   // 计件记录表单
   const [showRecordForm, setShowRecordForm] = useState(false);
-  const [recordForm, setRecordForm] = useState<PieceRateRecordInput>({
-    pieceRateRuleId: '', workDate: todayStr(), quantity: 0, unit: 'PC',
-  });
+  const [recordForm, setRecordForm] = useState<PieceRateRecordInput>(initialRecordForm);
+  const openRecordForm = useCallback(() => { setRecordForm(initialRecordForm()); setShowRecordForm(true); }, []);
 
   // 外协表单
   const [showOsoForm, setShowOsoForm] = useState(false);
-  const [osoForm, setOsoForm] = useState<OutsourcingOrderInput>({
-    orderNumber: '', processType: 'Sewing', quantity: 0, unit: 'PC', unitPrice: 0, currency: 'CNY',
-  });
+  const [osoForm, setOsoForm] = useState<OutsourcingOrderInput>(initialOsoForm);
+  const openOsoForm = useCallback(() => { setOsoForm(initialOsoForm()); setShowOsoForm(true); }, []);
 
   // ── 提交处理 ──
   const submitPlan = async () => {
@@ -342,8 +409,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     setActionLoading('submit:plan');
     try {
       await apiService.createProductionPlan(planForm);
+      bdsToast.success(`排产单 ${planForm.planNumber} 已创建`);
       setShowPlanForm(false);
-      setPlanForm({ planNumber: '', workStationId: '', processType: 'Sewing', plannedQuantity: 0, unit: 'PC', plannedStartDate: todayStr(), plannedEndDate: todayStr(), priority: 'Normal' });
+      setPlanForm(initialPlanForm());
       await fetchPlans();
     } catch (e: any) { setError(e?.message || '创建排产失败'); }
     finally { setActionLoading(null); }
@@ -354,8 +422,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     setActionLoading('submit:ws');
     try {
       await apiService.createWorkStation(wsForm);
+      bdsToast.success(`工位 ${wsForm.name} 已创建`);
       setShowWsForm(false);
-      setWsForm({ code: '', name: '', type: 'Sewing', capacityPerDay: undefined, capacityUnit: 'PC', location: '', manager: '' });
+      setWsForm(initialWsForm());
       await fetchWorkStations();
     } catch (e: any) { setError(e?.message || '创建工位失败'); }
     finally { setActionLoading(null); }
@@ -366,8 +435,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     setActionLoading('submit:wh');
     try {
       await apiService.createWorkHour(whForm);
+      bdsToast.success('工时记录已创建');
       setShowWhForm(false);
-      setWhForm({ productionPlanId: '', workDate: todayStr(), hours: 0, overtimeHours: 0 });
+      setWhForm(initialWhForm());
       await fetchWorkHours();
     } catch (e: any) { setError(e?.message || '创建工时失败'); }
     finally { setActionLoading(null); }
@@ -378,8 +448,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     setActionLoading('submit:rule');
     try {
       await apiService.createPieceRateRule(ruleForm);
+      bdsToast.success(`计件规则 ${ruleForm.code} 已创建`);
       setShowRuleForm(false);
-      setRuleForm({ code: '', name: '', processType: 'Sewing', unit: 'PC', ratePerUnit: 0, effectiveFrom: todayStr() });
+      setRuleForm(initialRuleForm());
       await fetchPieceRateRules();
     } catch (e: any) { setError(e?.message || '创建计件规则失败'); }
     finally { setActionLoading(null); }
@@ -390,8 +461,9 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     setActionLoading('submit:record');
     try {
       await apiService.createPieceRateRecord(recordForm);
+      bdsToast.success('计件记录已创建');
       setShowRecordForm(false);
-      setRecordForm({ pieceRateRuleId: '', workDate: todayStr(), quantity: 0, unit: 'PC' });
+      setRecordForm(initialRecordForm());
       await fetchPieceRateRecords();
     } catch (e: any) { setError(e?.message || '创建计件记录失败'); }
     finally { setActionLoading(null); }
@@ -401,9 +473,11 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     if (!osoForm.orderNumber || osoForm.quantity <= 0 || osoForm.unitPrice <= 0) { setError('请填写外协单号、数量、单价'); return; }
     setActionLoading('submit:oso');
     try {
-      await apiService.createOutsourcingOrder(osoForm);
+      // supplierId 空串归一为 undefined（后端 ?? null 落库，防空串入档）
+      await apiService.createOutsourcingOrder({ ...osoForm, supplierId: osoForm.supplierId || undefined });
+      bdsToast.success(`外协订单 ${osoForm.orderNumber} 已创建`);
       setShowOsoForm(false);
-      setOsoForm({ orderNumber: '', processType: 'Sewing', quantity: 0, unit: 'PC', unitPrice: 0, currency: 'CNY' });
+      setOsoForm(initialOsoForm());
       await fetchOutsourcing();
     } catch (e: any) { setError(e?.message || '创建外协失败'); }
     finally { setActionLoading(null); }
@@ -414,7 +488,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     const plan = plans.find(p => p.id === id);
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除排产单「${plan?.planNumber || id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:plan:${id}`);
-    try { await apiService.deleteProductionPlan(id); await fetchPlans(); }
+    try { await apiService.deleteProductionPlan(id); bdsToast.success(`排产单 ${plan?.planNumber || id} 已删除`); await fetchPlans(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
@@ -422,7 +496,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     const ws = workStations.find(w => w.id === id);
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除工位「${ws?.name || ws?.code || id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:ws:${id}`);
-    try { await apiService.deleteWorkStation(id); await fetchWorkStations(); }
+    try { await apiService.deleteWorkStation(id); bdsToast.success(`工位 ${ws?.name || ws?.code || id} 已删除`); await fetchWorkStations(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
@@ -430,7 +504,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     const rule = pieceRateRules.find(r => r.id === id);
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除计件规则「${rule ? `${rule.code} ${rule.name}` : id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:rule:${id}`);
-    try { await apiService.deletePieceRateRule(id); await fetchPieceRateRules(); }
+    try { await apiService.deletePieceRateRule(id); bdsToast.success(`计件规则 ${rule?.code || id} 已删除`); await fetchPieceRateRules(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
@@ -438,7 +512,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     const rec = pieceRateRecords.find(r => r.id === id);
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除计件记录（${rec?.employeeName || rec?.employeeId || '未知员工'} · ${rec?.workDate || '—'}）？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:record:${id}`);
-    try { await apiService.deletePieceRateRecord(id); await fetchPieceRateRecords(); }
+    try { await apiService.deletePieceRateRecord(id); bdsToast.success('计件记录已删除'); await fetchPieceRateRecords(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
@@ -446,27 +520,85 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     const oso = outsourcingOrders.find(o => o.id === id);
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除外协订单「${oso?.orderNumber || id}」？此操作不可恢复。`, danger: true }))) return;
     setActionLoading(`del:oso:${id}`);
-    try { await apiService.deleteOutsourcingOrder(id); await fetchOutsourcing(); }
+    try { await apiService.deleteOutsourcingOrder(id); bdsToast.success(`外协订单 ${oso?.orderNumber || id} 已删除`); await fetchOutsourcing(); }
     catch (e: any) { setError(e?.message || '删除失败'); }
     finally { setActionLoading(null); }
   };
 
   // ── 跨模块导航筛选：外协订单按供应商 relation 过滤 ──
-  const visibleOutsourcing = useMemo(
+  const navFilteredOutsourcing = useMemo(
     () => navRelationFilter
       ? outsourcingOrders.filter(oso => oso.supplierId === navRelationFilter.relationId)
       : outsourcingOrders,
     [outsourcingOrders, navRelationFilter],
   );
 
+  // ── R678④：各 Tab 搜索 + 状态筛选（客户端过滤已加载条目；footer 计数仍展示服务端真实 total） ──
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredPlans = useMemo(() => plans.filter((p) => {
+    if (planStatusFilter && p.status !== planStatusFilter) return false;
+    if (!searchLower) return true;
+    return [p.planNumber, p.orderId, p.assignedTo, p.workStation?.name]
+      .some((v) => (v ?? '').toLowerCase().includes(searchLower));
+  }), [plans, planStatusFilter, searchLower]);
+  const filteredWorkStations = useMemo(() => workStations.filter((w) => {
+    if (wsTypeFilter && w.type !== wsTypeFilter) return false;
+    if (!searchLower) return true;
+    return [w.code, w.name, w.manager, w.location]
+      .some((v) => (v ?? '').toLowerCase().includes(searchLower));
+  }), [workStations, wsTypeFilter, searchLower]);
+  const visibleOutsourcing = useMemo(() => navFilteredOutsourcing.filter((o) => {
+    if (osoStatusFilter && o.status !== osoStatusFilter) return false;
+    if (!searchLower) return true;
+    return [o.orderNumber, o.description, o.supplierId ? supplierNameById.get(o.supplierId) : null]
+      .some((v) => (v ?? '').toLowerCase().includes(searchLower));
+  }), [navFilteredOutsourcing, osoStatusFilter, searchLower, supplierNameById]);
+  const filteredWorkHours = useMemo(() => workHours.filter((wh) => {
+    if (!searchLower) return true;
+    return [wh.employeeName, wh.employeeId, wh.productionPlanId, wh.workDate, wh.notes]
+      .some((v) => (v ?? '').toLowerCase().includes(searchLower));
+  }), [workHours, searchLower]);
+  const filteredPieceRateRules = useMemo(() => pieceRateRules.filter((r) => {
+    if (ruleActiveFilter === 'active' && !r.isActive) return false;
+    if (ruleActiveFilter === 'inactive' && r.isActive) return false;
+    if (!searchLower) return true;
+    return [r.code, r.name]
+      .some((v) => (v ?? '').toLowerCase().includes(searchLower));
+  }), [pieceRateRules, ruleActiveFilter, searchLower]);
+  const filteredPieceRateRecords = useMemo(() => pieceRateRecords.filter((r) => {
+    if (recordStatusFilter && r.status !== recordStatusFilter) return false;
+    if (!searchLower) return true;
+    return [r.employeeName, r.employeeId, r.pieceRateRule?.name, r.pieceRateRule?.code, r.workDate]
+      .some((v) => (v ?? '').toLowerCase().includes(searchLower));
+  }), [pieceRateRecords, recordStatusFilter, searchLower]);
+
+  /** 是否有客户端筛选生效（生效时 footer 显式提示「筛选仅作用于已加载条目」） */
+  const filterActive = searchLower !== ''
+    || (activeTab === 'plans' && planStatusFilter !== '')
+    || (activeTab === 'workStations' && wsTypeFilter !== '')
+    || (activeTab === 'outsourcing' && osoStatusFilter !== '')
+    || (activeTab === 'pieceRateRules' && ruleActiveFilter !== '')
+    || (activeTab === 'pieceRateRecords' && recordStatusFilter !== '');
+
   const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; count?: number }> = [
-    { id: 'plans', label: '排产', icon: <CalendarClock size={12} />, count: plans.length },
-    { id: 'workStations', label: '工位', icon: <Cog size={12} />, count: workStations.length },
-    { id: 'outsourcing', label: '外协', icon: <Send size={12} />, count: navRelationFilter ? visibleOutsourcing.length : outsourcingOrders.length },
-    { id: 'workHours', label: '工时', icon: <Clock size={12} />, count: workHours.length },
-    { id: 'pieceRateRules', label: '计件规则', icon: <Award size={12} />, count: pieceRateRules.length },
-    { id: 'pieceRateRecords', label: '计件记录', icon: <Award size={12} />, count: pieceRateRecords.length },
+    { id: 'plans', label: '排产', icon: <CalendarClock size={12} />, count: plansTotal },
+    { id: 'workStations', label: '工位', icon: <Cog size={12} />, count: workStationsTotal },
+    { id: 'outsourcing', label: '外协', icon: <Send size={12} />, count: navRelationFilter ? visibleOutsourcing.length : outsourcingTotal },
+    { id: 'workHours', label: '工时', icon: <Clock size={12} />, count: workHoursTotal },
+    { id: 'pieceRateRules', label: '计件规则', icon: <Award size={12} />, count: pieceRateRulesTotal },
+    { id: 'pieceRateRecords', label: '计件记录', icon: <Award size={12} />, count: pieceRateRecordsTotal },
   ];
+
+  /** R678④：Tab 工具栏搜索框（各 Tab 共用 searchQuery，切 Tab 清空） + 关键状态筛选插槽 */
+  const renderTabToolbarExtras = (statusFilterSlot?: React.ReactNode) => (
+    <>
+      <div className="relative flex-1 max-w-xs">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索..." className="bds-input sm pl-9" />
+      </div>
+      {statusFilterSlot}
+    </>
+  );
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -480,8 +612,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
             <button onClick={refreshAll} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新全部">
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
-            {activeTab === 'plans' && (
-              <button onClick={() => setShowPlanForm(true)} className="bds-btn bds-btn-primary">
+            {activeTab === 'plans' && canWrite && (
+              <button onClick={openPlanForm} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>新增排产</span>
               </button>
             )}
@@ -492,28 +624,28 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                 <span>导出台账</span>
               </button>
             )}
-            {activeTab === 'workStations' && (
-              <button onClick={() => setShowWsForm(true)} className="bds-btn bds-btn-primary">
+            {activeTab === 'workStations' && canWrite && (
+              <button onClick={openWsForm} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>新增工位</span>
               </button>
             )}
-            {activeTab === 'outsourcing' && (
-              <button onClick={() => setShowOsoForm(true)} className="bds-btn bds-btn-primary">
+            {activeTab === 'outsourcing' && canWrite && (
+              <button onClick={openOsoForm} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>新增外协</span>
               </button>
             )}
-            {activeTab === 'workHours' && (
-              <button onClick={() => setShowWhForm(true)} className="bds-btn bds-btn-primary">
+            {activeTab === 'workHours' && canWrite && (
+              <button onClick={openWhForm} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>记录工时</span>
               </button>
             )}
-            {activeTab === 'pieceRateRules' && (
-              <button onClick={() => setShowRuleForm(true)} className="bds-btn bds-btn-primary">
+            {activeTab === 'pieceRateRules' && canWrite && (
+              <button onClick={openRuleForm} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>新增规则</span>
               </button>
             )}
-            {activeTab === 'pieceRateRecords' && (
-              <button onClick={() => setShowRecordForm(true)} className="bds-btn bds-btn-primary">
+            {activeTab === 'pieceRateRecords' && canWrite && (
+              <button onClick={openRecordForm} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>新增计件</span>
               </button>
             )}
@@ -523,10 +655,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
         <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
-          {/* Tab 切换（BDS 分段控制器） */}
+          {/* Tab 切换（BDS 分段控制器；切 Tab 清空搜索词防串扰） */}
           <div className="bds-segment mb-4 flex-wrap">
             {tabs.map(t => (
-              <button key={t.id} onClick={() => setActiveTab(t.id)} className={`seg ${activeTab === t.id ? 'active' : ''}`}>
+              <button key={t.id} onClick={() => { setActiveTab(t.id); setSearchQuery(''); }} className={`seg ${activeTab === t.id ? 'active' : ''}`}>
                 {t.icon}<span>{t.label}</span>
                 {t.count != null && t.count > 0 && (
                   <span className="ml-1 text-[10px] opacity-60">{t.count}</span>
@@ -549,24 +681,32 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'plans' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowPlanForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增排产</span>
-                </button>
+                {canWrite && (
+                  <button onClick={openPlanForm} className="bds-btn bds-btn-primary">
+                    <Plus size={14} /><span>新增排产</span>
+                  </button>
+                )}
                 <button onClick={() => refreshTab('plans')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:plans' ? 'animate-spin' : ''} />
                 </button>
+                {renderTabToolbarExtras(
+                  <select value={planStatusFilter} onChange={(e) => setPlanStatusFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
+                    <option value="">全部状态</option>
+                    {PLAN_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>,
+                )}
               </div>
 
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                 </div>
-              ) : plans.length === 0 ? (
-                <EmptyState icon={<CalendarClock size={24} />} text="暂无排产单" />
+              ) : filteredPlans.length === 0 ? (
+                <EmptyState icon={<CalendarClock size={24} />} text={filterActive ? '无符合筛选条件的排产单' : '暂无排产单'} />
               ) : (
                 <>
                 <div className="space-y-2">
-                  {plans.slice(0, MES_LIST_RENDER_LIMIT).map((plan, i) => {
+                  {filteredPlans.slice(0, MES_LIST_RENDER_LIMIT).map((plan, i) => {
                     const semantic = statusSemanticOf(PLAN_STATUSES, plan.status);
                     const progress = Number(plan.plannedQuantity) > 0
                       ? Math.min(100, Math.round((Number(plan.actualQuantity) / Number(plan.plannedQuantity)) * 100))
@@ -609,6 +749,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                           {expandedId === plan.id && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                               <div className="p-4" style={{ borderTop: 'var(--border-subtle)' }}>
+                                {canWrite && (
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {plan.status === 'Draft' && (
                                     <>
@@ -630,6 +771,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                                     </>
                                   )}
                                 </div>
+                                )}
                                 {plan.notes && <div className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>{plan.notes}</div>}
                               </div>
                             </motion.div>
@@ -639,7 +781,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     );
                   })}
                 </div>
-                <TruncationHint total={plans.length} />
+                <TruncationHint loaded={filteredPlans.length} />
+                <ListPager loaded={plans.length} total={plansTotal} loading={loadingMoreTab === 'plans'} filterActive={filterActive} onMore={() => fetchPlans(plans.length)} />
                 </>
               )}
 
@@ -687,20 +830,28 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'workStations' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowWsForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增工位</span>
-                </button>
+                {canWrite && (
+                  <button onClick={openWsForm} className="bds-btn bds-btn-primary">
+                    <Plus size={14} /><span>新增工位</span>
+                  </button>
+                )}
                 <button onClick={() => refreshTab('workStations')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:workStations' ? 'animate-spin' : ''} />
                 </button>
+                {renderTabToolbarExtras(
+                  <select value={wsTypeFilter} onChange={(e) => setWsTypeFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
+                    <option value="">全部类型</option>
+                    {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>,
+                )}
               </div>
 
-              {workStations.length === 0 ? (
-                <EmptyState icon={<Cog size={24} />} text="暂无工位" />
+              {filteredWorkStations.length === 0 ? (
+                <EmptyState icon={<Cog size={24} />} text={filterActive ? '无符合筛选条件的工位' : '暂无工位'} />
               ) : (
                 <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {workStations.slice(0, MES_LIST_RENDER_LIMIT).map((ws, i) => (
+                  {filteredWorkStations.slice(0, MES_LIST_RENDER_LIMIT).map((ws, i) => (
                     <motion.div key={ws.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} className="bds-card">
                       <div className="flex items-start justify-between">
                         <div className="min-w-0">
@@ -713,9 +864,11 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                             {statusLabel(WS_TYPES, ws.type)} · {ws.isActive ? '启用' : '停用'}
                           </div>
                         </div>
-                        <button onClick={() => deleteWs(ws.id)} disabled={actionLoading === `del:ws:${ws.id}`} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
-                          <Trash2 size={14} />
-                        </button>
+                        {canWrite && (
+                          <button onClick={() => deleteWs(ws.id)} disabled={actionLoading === `del:ws:${ws.id}`} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                       {ws.capacityPerDay != null && (
                         <div className="text-[10px] mt-2" style={{ color: 'var(--text-quaternary)' }}>
@@ -727,7 +880,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     </motion.div>
                   ))}
                 </div>
-                <TruncationHint total={workStations.length} />
+                <TruncationHint loaded={filteredWorkStations.length} />
+                <ListPager loaded={workStations.length} total={workStationsTotal} loading={loadingMoreTab === 'workStations'} filterActive={filterActive} onMore={() => fetchWorkStations(workStations.length)} />
                 </>
               )}
 
@@ -762,19 +916,27 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'outsourcing' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowOsoForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增外协</span>
-                </button>
+                {canWrite && (
+                  <button onClick={openOsoForm} className="bds-btn bds-btn-primary">
+                    <Plus size={14} /><span>新增外协</span>
+                  </button>
+                )}
                 <button onClick={() => refreshTab('outsourcing')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:outsourcing' ? 'animate-spin' : ''} />
                 </button>
+                {renderTabToolbarExtras(
+                  <select value={osoStatusFilter} onChange={(e) => setOsoStatusFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
+                    <option value="">全部状态</option>
+                    {OUTSOURCING_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>,
+                )}
                 {navRelationFilter && (
                   <NavRelationFilterChip filter={navRelationFilter} label="外协订单" onClear={() => setNavRelationFilter(null)} />
                 )}
               </div>
 
               {visibleOutsourcing.length === 0 ? (
-                <EmptyState icon={<Send size={24} />} text={navRelationFilter ? '该供应商暂无外协订单' : '暂无外协订单'} />
+                <EmptyState icon={<Send size={24} />} text={navRelationFilter ? '该供应商暂无外协订单' : filterActive ? '无符合筛选条件的外协订单' : '暂无外协订单'} />
               ) : (
                 <>
                 <div className="space-y-2">
@@ -793,6 +955,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                             </div>
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                               {statusLabel(OUTSOURCING_PROCESS_TYPES, oso.processType)}
+                              {oso.supplierId ? ` · ${supplierNameById.get(oso.supplierId) ?? oso.supplierId}` : ''}
                               {oso.description ? ` · ${oso.description}` : ''}
                               {oso.plannedDeliveryDate ? ` · 交期 ${oso.plannedDeliveryDate}` : ''}
                             </div>
@@ -809,6 +972,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                           {expandedId === oso.id && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                               <div className="p-4" style={{ borderTop: 'var(--border-subtle)' }}>
+                                {canWrite && (
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {oso.status === 'Draft' && (
                                     <>
@@ -827,6 +991,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                                     <ActionButton onClick={() => transitionOutsourcing(oso.id, 'Received')} loading={actionLoading === `oso:${oso.id}`} icon={<PackageCheck size={12} />}>到货验收</ActionButton>
                                   )}
                                 </div>
+                                )}
                                 {oso.lines && oso.lines.length > 0 && (
                                   <div className="mt-3 space-y-1">
                                     <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>行明细</div>
@@ -846,7 +1011,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     );
                   })}
                 </div>
-                <TruncationHint total={visibleOutsourcing.length} />
+                <TruncationHint loaded={visibleOutsourcing.length} />
+                <ListPager loaded={outsourcingOrders.length} total={outsourcingTotal} loading={loadingMoreTab === 'outsourcing'} filterActive={filterActive} onMore={() => fetchOutsourcing(outsourcingOrders.length)} />
                 </>
               )}
 
@@ -854,6 +1020,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                 <CreateFormModal title="新增外协订单" onClose={() => setShowOsoForm(false)} onSubmit={submitOso} loading={actionLoading === 'submit:oso'}>
                   <FormField label="外协单号">
                     <input className="bds-input sm" value={osoForm.orderNumber} onChange={e => setOsoForm({ ...osoForm, orderNumber: e.target.value })} placeholder="OSO-2026-001" />
+                  </FormField>
+                  {/* R678⑤：供应商下拉（Relation 档案供应商口径，与采购域一致；落 supplierId 入图可追溯） */}
+                  <FormField label="供应商">
+                    <select className="bds-select sm" value={osoForm.supplierId ?? ''} onChange={e => setOsoForm({ ...osoForm, supplierId: e.target.value || undefined })}>
+                      <option value="">不指定供应商</option>
+                      {supplierOptions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
                   </FormField>
                   <FormField label="工序类型">
                     <select className="bds-select sm" value={osoForm.processType} onChange={e => setOsoForm({ ...osoForm, processType: e.target.value as OutsourcingProcessType })}>
@@ -886,20 +1059,23 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'workHours' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowWhForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>记录工时</span>
-                </button>
+                {canWrite && (
+                  <button onClick={openWhForm} className="bds-btn bds-btn-primary">
+                    <Plus size={14} /><span>记录工时</span>
+                  </button>
+                )}
                 <button onClick={() => refreshTab('workHours')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:workHours' ? 'animate-spin' : ''} />
                 </button>
+                {renderTabToolbarExtras()}
               </div>
 
-              {workHours.length === 0 ? (
-                <EmptyState icon={<Clock size={24} />} text="暂无工时记录" />
+              {filteredWorkHours.length === 0 ? (
+                <EmptyState icon={<Clock size={24} />} text={filterActive ? '无符合筛选条件的工时记录' : '暂无工时记录'} />
               ) : (
                 <>
                 <div className="space-y-2">
-                  {workHours.slice(0, MES_LIST_RENDER_LIMIT).map((wh, i) => (
+                  {filteredWorkHours.slice(0, MES_LIST_RENDER_LIMIT).map((wh, i) => (
                     <motion.div key={wh.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }} className="bds-card flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
                       <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />
                       <div className="flex-1 min-w-0">
@@ -916,7 +1092,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     </motion.div>
                   ))}
                 </div>
-                <TruncationHint total={workHours.length} />
+                <TruncationHint loaded={filteredWorkHours.length} />
+                <ListPager loaded={workHours.length} total={workHoursTotal} loading={loadingMoreTab === 'workHours'} filterActive={filterActive} onMore={() => fetchWorkHours(workHours.length)} />
                 </>
               )}
 
@@ -949,20 +1126,29 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'pieceRateRules' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowRuleForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增规则</span>
-                </button>
+                {canWrite && (
+                  <button onClick={openRuleForm} className="bds-btn bds-btn-primary">
+                    <Plus size={14} /><span>新增规则</span>
+                  </button>
+                )}
                 <button onClick={() => refreshTab('pieceRateRules')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRules' ? 'animate-spin' : ''} />
                 </button>
+                {renderTabToolbarExtras(
+                  <select value={ruleActiveFilter} onChange={(e) => setRuleActiveFilter(e.target.value as '' | 'active' | 'inactive')} className="bds-select sm" style={{ maxWidth: 140 }}>
+                    <option value="">全部状态</option>
+                    <option value="active">生效中</option>
+                    <option value="inactive">已停用</option>
+                  </select>,
+                )}
               </div>
 
-              {pieceRateRules.length === 0 ? (
-                <EmptyState icon={<Award size={24} />} text="暂无计件规则" />
+              {filteredPieceRateRules.length === 0 ? (
+                <EmptyState icon={<Award size={24} />} text={filterActive ? '无符合筛选条件的计件规则' : '暂无计件规则'} />
               ) : (
                 <>
                 <div className="space-y-2">
-                  {pieceRateRules.slice(0, MES_LIST_RENDER_LIMIT).map((rule, i) => (
+                  {filteredPieceRateRules.slice(0, MES_LIST_RENDER_LIMIT).map((rule, i) => (
                     <motion.div key={rule.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }} className="bds-card flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
                       <Award size={14} style={{ color: 'var(--text-tertiary)' }} />
                       <div className="flex-1 min-w-0">
@@ -979,13 +1165,16 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                       <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                         {formatNum(Number(rule.ratePerUnit))} <span className="text-xs opacity-60">CNY/{rule.unit}</span>
                       </div>
-                      <button onClick={() => deleteRule(rule.id)} disabled={actionLoading === `del:rule:${rule.id}`} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
-                        <Trash2 size={14} />
-                      </button>
+                      {canWrite && (
+                        <button onClick={() => deleteRule(rule.id)} disabled={actionLoading === `del:rule:${rule.id}`} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </motion.div>
                   ))}
                 </div>
-                <TruncationHint total={pieceRateRules.length} />
+                <TruncationHint loaded={filteredPieceRateRules.length} />
+                <ListPager loaded={pieceRateRules.length} total={pieceRateRulesTotal} loading={loadingMoreTab === 'pieceRateRules'} filterActive={filterActive} onMore={() => fetchPieceRateRules(pieceRateRules.length)} />
                 </>
               )}
 
@@ -1025,14 +1214,20 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                 <button onClick={() => refreshTab('pieceRateRecords')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRecords' ? 'animate-spin' : ''} />
                 </button>
+                {renderTabToolbarExtras(
+                  <select value={recordStatusFilter} onChange={(e) => setRecordStatusFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
+                    <option value="">全部状态</option>
+                    {PIECE_RATE_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>,
+                )}
               </div>
 
-              {pieceRateRecords.length === 0 ? (
-                <EmptyState icon={<Award size={24} />} text="暂无计件记录" />
+              {filteredPieceRateRecords.length === 0 ? (
+                <EmptyState icon={<Award size={24} />} text={filterActive ? '无符合筛选条件的计件记录' : '暂无计件记录'} />
               ) : (
                 <>
                 <div className="space-y-2">
-                  {pieceRateRecords.slice(0, MES_LIST_RENDER_LIMIT).map((rec, i) => {
+                  {filteredPieceRateRecords.slice(0, MES_LIST_RENDER_LIMIT).map((rec, i) => {
                     const semantic = statusSemanticOf(PIECE_RATE_STATUSES, rec.status);
                     return (
                       <motion.div key={rec.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.01 }} className="bds-card flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
@@ -1053,13 +1248,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                           <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>{formatNum(Number(rec.quantity))} {rec.unit} × {formatNum(Number(rec.ratePerUnit))}</div>
                         </div>
                         <div className="flex flex-col gap-1">
-                          {rec.status === 'Pending' && (
+                          {canWrite && rec.status === 'Pending' && (
                             <>
                               <ActionButton onClick={() => transitionPieceRate(rec.id, 'Confirmed')} loading={actionLoading === `prr:${rec.id}`} icon={<CheckCircle2 size={11} />}>确认</ActionButton>
                               <ActionButton onClick={() => deleteRecord(rec.id)} loading={actionLoading === `del:record:${rec.id}`} icon={<Trash2 size={11} />} danger>删</ActionButton>
                             </>
                           )}
-                          {rec.status === 'Confirmed' && (
+                          {canWrite && rec.status === 'Confirmed' && (
                             <ActionButton onClick={() => transitionPieceRate(rec.id, 'Paid')} loading={actionLoading === `prr:${rec.id}`} icon={<CheckCircle2 size={11} />}>支付</ActionButton>
                           )}
                         </div>
@@ -1067,7 +1262,8 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     );
                   })}
                 </div>
-                <TruncationHint total={pieceRateRecords.length} />
+                <TruncationHint loaded={filteredPieceRateRecords.length} />
+                <ListPager loaded={pieceRateRecords.length} total={pieceRateRecordsTotal} loading={loadingMoreTab === 'pieceRateRecords'} filterActive={filterActive} onMore={() => fetchPieceRateRecords(pieceRateRecords.length)} />
                 </>
               )}
 
@@ -1111,13 +1307,26 @@ const EmptyState: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, t
   </div>
 );
 
-// R3：超出渲染上限时的显式截断提示（total = 后端返回全量条数）
-const TruncationHint: React.FC<{ total: number }> = ({ total }) =>
-  total > MES_LIST_RENDER_LIMIT ? (
+// R678：渲染上限兜底提示（服务端分页为主；已加载条目超出渲染上限时显式披露）
+const TruncationHint: React.FC<{ loaded: number }> = ({ loaded }) =>
+  loaded > MES_LIST_RENDER_LIMIT ? (
     <div className="text-center text-[11px] py-2" style={{ color: 'var(--text-tertiary)' }}>
-      共 {total} 条，仅显示前 {MES_LIST_RENDER_LIMIT} 条
+      已加载 {loaded} 条，仅渲染前 {MES_LIST_RENDER_LIMIT} 条（可用搜索缩小范围）
     </div>
   ) : null;
+
+// R678：服务端真分页 footer（total 为后端 count 真实计数；加载更多按 offset 追加）
+const ListPager: React.FC<{ loaded: number; total: number; loading: boolean; filterActive: boolean; onMore: () => void }> = ({ loaded, total, loading, filterActive, onMore }) => (
+  <div className="flex items-center justify-center gap-3 pt-3 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+    <span>已加载 {loaded} / 共 {total} 条{filterActive ? '（搜索/筛选仅作用于已加载条目）' : ''}</span>
+    {loaded < total && (
+      <button onClick={onMore} disabled={loading} className="bds-btn bds-btn-ghost">
+        {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+        <span>{loading ? '加载中...' : '加载更多'}</span>
+      </button>
+    )}
+  </div>
+);
 
 const ActionButton: React.FC<{
   onClick: () => void;

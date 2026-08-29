@@ -110,6 +110,20 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
   const toggleFailItem = (item: string) =>
     setFormFailItems(prev => (prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]));
 
+  // R678⑧：登记委托弹层关闭时重置表单（原取消仅 setShowCreate(false)，重开残留上次输入）
+  const closeCreate = useCallback(() => {
+    setShowCreate(false);
+    setFormItems([]); setFormAgency('sgs'); setFormSent(''); setFormExpected(''); setFormNotes('');
+  }, []);
+
+  /** R678⑧：表单 Enter 提交（input 内回车触发；textarea/按钮不触发，防误提交） */
+  const enterToSubmit = (submit: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    if (!(e.target instanceof HTMLInputElement)) return;
+    e.preventDefault();
+    submit();
+  };
+
   const submitCreate = useCallback(async () => {
     if (acting) return;
     if (formItems.length === 0) { bdsToast.warning('请至少选择一个测试项目。'); return; }
@@ -405,13 +419,13 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
       })}
 
       {/* 登记委托 BottomSheet */}
-      <BottomSheet isOpen={showCreate} onClose={() => setShowCreate(false)} title="登记测试委托">
-        <div className="space-y-4 px-6 py-5">
+      <BottomSheet isOpen={showCreate} onClose={closeCreate} title="登记测试委托">
+        <div className="space-y-4 px-6 py-5" onKeyDown={enterToSubmit(submitCreate)}>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>测试项目 *</label>
             <div className="flex flex-wrap gap-1.5">
-              {TEST_ITEMS.map(t => (
-                <button key={t} type="button" onClick={() => toggleFormItem(t)} className={chipCls(formItems.includes(t))}>
+              {TEST_ITEMS.map((t, i) => (
+                <button key={t} type="button" autoFocus={i === 0} onClick={() => toggleFormItem(t)} className={chipCls(formItems.includes(t))}>
                   {TEST_ITEM_LABELS[t]}
                 </button>
               ))}
@@ -442,7 +456,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
             <input value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="样品描述 / 客户特殊要求" className="bds-input sm w-full" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="bds-btn bds-btn-ghost">取消</button>
+            <button type="button" onClick={closeCreate} className="bds-btn bds-btn-ghost">取消</button>
             <button type="button" disabled={acting !== null} onClick={submitCreate} className="bds-btn bds-btn-primary">
               {acting === 'create' ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} strokeWidth={1.5} />}登记
             </button>
@@ -452,7 +466,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
 
       {/* 结论登记 BottomSheet */}
       <BottomSheet isOpen={concludeFor !== null} onClose={() => setConcludeFor(null)} title={`登记结论 · ${concludeFor?.trNo ?? ''}`}>
-        <div className="space-y-4 px-6 py-5">
+        <div className="space-y-4 px-6 py-5" onKeyDown={enterToSubmit(submitConclude)}>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>结论 *</label>
             <div className="flex gap-1.5">
@@ -463,7 +477,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
           <div className="flex flex-wrap gap-3">
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>报告编号</label>
-              <input value={formReportNo} onChange={e => setFormReportNo(e.target.value)} placeholder="如 SGS-RPT-001" className="bds-input sm w-56" />
+              <input autoFocus value={formReportNo} onChange={e => setFormReportNo(e.target.value)} placeholder="如 SGS-RPT-001" className="bds-input sm w-56" />
             </div>
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>报告日期</label>
@@ -515,12 +529,12 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
 
       {/* 追加整改 BottomSheet */}
       <BottomSheet isOpen={addCaFor !== null} onClose={() => setAddCaFor(null)} title={`追加整改 · ${addCaFor?.trNo ?? ''}`}>
-        <div className="space-y-4 px-6 py-5">
+        <div className="space-y-4 px-6 py-5" onKeyDown={enterToSubmit(submitAddCa)}>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>失败项 *</label>
             <div className="flex flex-wrap gap-1.5">
-              {(addCaFor?.failItems ?? []).map(t => (
-                <button key={t} type="button" onClick={() => setCaFailItem(t)} className={chipCls(caFailItem === t)}>
+              {(addCaFor?.failItems ?? []).map((t, i) => (
+                <button key={t} type="button" autoFocus={i === 0} onClick={() => setCaFailItem(t)} className={chipCls(caFailItem === t)}>
                   {TEST_ITEM_LABELS[t] ?? t}
                 </button>
               ))}
@@ -545,10 +559,10 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
 
       {/* 整改闭环 BottomSheet */}
       <BottomSheet isOpen={closeCa !== null} onClose={() => setCloseCa(null)} title="整改闭环">
-        <div className="space-y-4 px-6 py-5">
+        <div className="space-y-4 px-6 py-5" onKeyDown={enterToSubmit(submitCloseCa)}>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>闭环说明</label>
-            <input value={closeNote} onChange={e => setCloseNote(e.target.value)} placeholder="如：复测通过 pH 6.8" className="bds-input sm w-full" />
+            <input autoFocus value={closeNote} onChange={e => setCloseNote(e.target.value)} placeholder="如：复测通过 pH 6.8" className="bds-input sm w-full" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => setCloseCa(null)} className="bds-btn bds-btn-ghost">取消</button>

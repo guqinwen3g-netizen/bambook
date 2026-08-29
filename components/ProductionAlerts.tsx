@@ -52,7 +52,22 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
 
   useEffect(() => { fetchAlerts(); const t = setInterval(fetchAlerts, 60000); return () => clearInterval(t); }, [fetchAlerts]);
 
-  if (loading) return null;
+  // R678⑥：loading 不再 return null 完全隐藏——渲染紧凑骨架占位条（与加载后面板同构单条高度，防布局跳动）
+  if (loading) {
+    return (
+      <div
+        className="mb-3 rounded-card border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] p-3 animate-pulse"
+        aria-hidden="true"
+        data-testid="production-alerts-skeleton"
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-3.5 w-3.5 rounded-full bg-[var(--hover-darken)]" />
+          <div className="h-3 w-44 rounded-full bg-[var(--hover-darken)]" />
+          <div className="ml-auto h-3 w-8 rounded-full bg-[var(--hover-darken)]" />
+        </div>
+      </div>
+    );
+  }
   if (alerts.length === 0 && !loadError) return null;
 
   if (loadError) {

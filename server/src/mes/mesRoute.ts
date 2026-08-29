@@ -3,7 +3,7 @@
  *
  * 端点：
  *   ── 工位 WorkStation ──
- *   GET    /work-stations                — 工位列表（支持 type/isActive 过滤）
+ *   GET    /work-stations                — 工位列表（支持 type/isActive 过滤 + limit/offset 分页）
  *   GET    /work-stations/:id            — 工位详情（含最近 10 条排产）
  *   GET    /work-stations/:id/utilization — 工位利用率（?startDate=&endDate=）
  *   POST   /work-stations                — 创建工位
@@ -11,7 +11,7 @@
  *   DELETE /work-stations/:id            — 软删除工位
  *
  *   ── 排产 ProductionPlan ──
- *   GET    /plans                        — 排产列表（支持 orderId/workStationId/status/processType/date 过滤）
+ *   GET    /plans                        — 排产列表（支持 orderId/workStationId/status/processType/date 过滤 + limit/offset 分页）
  *   GET    /plans/:id                    — 排产详情（含工位 + 工时）
  *   POST   /plans                        — 创建排产单
  *   PUT    /plans/:id                    — 更新排产单（仅 Draft）
@@ -104,6 +104,19 @@ function errStatus(msg: string, fallback = 400): number {
   return fallback;
 }
 
+/**
+ * R678：list 端点分页查询参数解析（limit/offset 均为可选，向后兼容）。
+ * 非法值（非数字）按缺省处理；收敛规则在 service 层 pageArgs（limit [1,500] / offset ≥0）。
+ */
+function parsePageQuery(req: Request): { limit?: number; offset?: number } {
+  const rawLimit = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
+  const rawOffset = req.query.offset !== undefined ? Number(req.query.offset) : undefined;
+  return {
+    limit: rawLimit !== undefined && Number.isFinite(rawLimit) ? rawLimit : undefined,
+    offset: rawOffset !== undefined && Number.isFinite(rawOffset) ? rawOffset : undefined,
+  };
+}
+
 export function createMesRouter(options: MesRouterOptions): Router {
   const router = Router();
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
@@ -150,11 +163,12 @@ export function createMesRouter(options: MesRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { type, isActive } = req.query;
-      const items = await service.listWorkStations({
+      const { items, total } = await service.listWorkStations({
         type: type as string | undefined,
         isActive: isActive === undefined ? undefined : isActive === 'true',
+        ...parsePageQuery(req),
       });
-      res.json({ items, total: items.length });
+      res.json({ items, total });
     } catch (e: any) {
       logger.error('[MesRoute] GET work-stations failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list work stations' });
@@ -241,15 +255,17 @@ export function createMesRouter(options: MesRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { orderId, workStationId, status, processType, dateFrom, dateTo } = req.query;
-      const items = await service.listProductionPlans({
+      const filters = {
         orderId: orderId as string | undefined,
         workStationId: workStationId as string | undefined,
         status: status as string | undefined,
         processType: processType as string | undefined,
         dateFrom: dateFrom as string | undefined,
         dateTo: dateTo as string | undefined,
-      });
+      };
       if (req.query.format === 'xlsx') {
+        // 台账导出为全量口径（不走分页）
+        const { items } = await service.listProductionPlans(filters);
         const sheet: XlsxSheet = {
           name: '生产计划台账',
           columnLabels: ['排产单号', '关联订单', '工序', '工序顺序', '工位', '状态', '优先级', '计划数量', '实际数量', '单位', '计划开工', '计划完工', '实际开工', '实际完工', '负责人', '创建时间'],
@@ -277,7 +293,8 @@ export function createMesRouter(options: MesRouterOptions): Router {
         res.set(xlsxDownloadHeaders(`生产计划台账_${today}.xlsx`)).send(buildXlsx([sheet]));
         return;
       }
-      res.json({ items, total: items.length });
+      const { items, total } = await service.listProductionPlans({ ...filters, ...parsePageQuery(req) });
+      res.json({ items, total });
     } catch (e: any) {
       logger.error('[MesRoute] GET plans failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list production plans' });
@@ -377,13 +394,14 @@ export function createMesRouter(options: MesRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { productionPlanId, employeeId, dateFrom, dateTo } = req.query;
-      const items = await service.listWorkHours({
+      const { items, total } = await service.listWorkHours({
         productionPlanId: productionPlanId as string | undefined,
         employeeId: employeeId as string | undefined,
         dateFrom: dateFrom as string | undefined,
         dateTo: dateTo as string | undefined,
+        ...parsePageQuery(req),
       });
-      res.json({ items, total: items.length });
+      res.json({ items, total });
     } catch (e: any) {
       logger.error('[MesRoute] GET work-hours failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list work hours' });
@@ -442,12 +460,13 @@ export function createMesRouter(options: MesRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { processType, productAssetId, isActive } = req.query;
-      const items = await service.listPieceRateRules({
+      const { items, total } = await service.listPieceRateRules({
         processType: processType as string | undefined,
         productAssetId: productAssetId as string | undefined,
         isActive: isActive === undefined ? undefined : isActive === 'true',
+        ...parsePageQuery(req),
       });
-      res.json({ items, total: items.length });
+      res.json({ items, total });
     } catch (e: any) {
       logger.error('[MesRoute] GET piece-rate-rules failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list piece rate rules' });
@@ -503,15 +522,16 @@ export function createMesRouter(options: MesRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { pieceRateRuleId, productionPlanId, employeeId, status, dateFrom, dateTo } = req.query;
-      const items = await service.listPieceRateRecords({
+      const { items, total } = await service.listPieceRateRecords({
         pieceRateRuleId: pieceRateRuleId as string | undefined,
         productionPlanId: productionPlanId as string | undefined,
         employeeId: employeeId as string | undefined,
         status: status as string | undefined,
         dateFrom: dateFrom as string | undefined,
         dateTo: dateTo as string | undefined,
+        ...parsePageQuery(req),
       });
-      res.json({ items, total: items.length });
+      res.json({ items, total });
     } catch (e: any) {
       logger.error('[MesRoute] GET piece-rate-records failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list piece rate records' });
@@ -587,13 +607,14 @@ export function createMesRouter(options: MesRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { supplierId, orderId, status, processType } = req.query;
-      const items = await service.listOutsourcingOrders({
+      const { items, total } = await service.listOutsourcingOrders({
         supplierId: supplierId as string | undefined,
         orderId: orderId as string | undefined,
         status: status as string | undefined,
         processType: processType as string | undefined,
+        ...parsePageQuery(req),
       });
-      res.json({ items, total: items.length });
+      res.json({ items, total });
     } catch (e: any) {
       logger.error('[MesRoute] GET outsourcing failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list outsourcing orders' });

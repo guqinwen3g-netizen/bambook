@@ -41,7 +41,9 @@ describe('C18 · resolveBlockAction 阻塞动作推导', () => {
 
 describe('C18 · 看板卡片阻塞入口（源码契约）', () => {
   it('卡片渲染「标记阻塞 / 解除阻塞」按钮，stopPropagation 不触发卡片跳转', () => {
-    expect(source).toContain("const blockAction = resolveBlockAction(item.stages, item.currentStageKey);");
+    // R6：写入口带 production:write 权限门（无权限 blockAction=null 不渲染按钮）
+    expect(source).toContain("const blockAction = canWrite ? resolveBlockAction(item.stages, item.currentStageKey) : null;");
+    expect(source).toContain("hasPermission('production:write')");
     expect(source).toContain("{blockAction.blocked ? '标记阻塞' : '解除阻塞'}");
     expect(source).toContain("event.stopPropagation(); void handleToggleBlock(item);");
   });

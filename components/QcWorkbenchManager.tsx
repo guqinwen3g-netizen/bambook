@@ -203,7 +203,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function ModalShell({ title, onClose, onSubmit, children }: { title: string; onClose: () => void; onSubmit?: () => void; children: React.ReactNode }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -222,11 +222,16 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>{title}</h3>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon" title="关闭">
+          <button type="button" onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon" title="关闭">
             <X size={16} />
           </button>
         </div>
-        {children}
+        {/* R678⑧：传 onSubmit 时包裹 form——input 内 Enter 触发提交（隐式提交，按钮 type=submit） */}
+        {onSubmit ? (
+          <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+            {children}
+          </form>
+        ) : children}
       </motion.div>
     </motion.div>
   );
@@ -389,6 +394,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     setUpdatingId(a.id);
     try {
       await apiService.startQcAssignment(a.id);
+      bdsToast.success(`任务 ${a.order?.poNumber || a.orderId} 已开始`);
       await loadWorkbench();
     } catch (e: any) {
       bdsToast.danger(`开始任务失败：${e?.message || e}`);
@@ -408,6 +414,8 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       await loadWorkbench();
       if (payload.report) {
         bdsToast.success(`任务已完成，${completingAssignment.inspectionType === 'final' ? '终期' : '中期'}验货报告已生成`);
+      } else {
+        bdsToast.success('任务已完成');
       }
     } catch (e: any) {
       bdsToast.danger(`完成任务失败：${e?.message || e}`);
@@ -422,6 +430,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     setUpdatingId(a.id);
     try {
       await apiService.cancelQcAssignment(a.id);
+      bdsToast.success(`任务 ${label} 已取消`);
       await loadWorkbench();
     } catch (e: any) {
       bdsToast.danger(`取消任务失败：${e?.message || e}`);
@@ -435,6 +444,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除订单「${label}」的验货任务？该操作不可恢复。`, danger: true }))) return;
     try {
       await apiService.deleteQcAssignment(a.id);
+      bdsToast.success(`任务 ${label} 已删除`);
       await loadWorkbench();
     } catch (e: any) {
       bdsToast.danger(`删除失败：${e?.message || e}`);
@@ -446,6 +456,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     setCreating(true);
     try {
       await apiService.createQcAssignment(input);
+      bdsToast.success('验货任务已创建');
       setShowForm(false);
       await loadWorkbench();
     } catch (e: any) {
@@ -540,7 +551,8 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
           {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
           <span>导出台账</span>
         </button>
-        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>共 {totalCount} 项任务</span>
+        {/* R678⑧：completed 列后端口径披露（qcService：仅近 30 天且按 completedAt 降序限 20 条），避免把列计数误读为全量 */}
+        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }} title="已完成列仅显示近 30 天内完成的前 20 条">共 {totalCount} 项任务（已完成列仅近 30 天前 20 条）</span>
       </div>
 
       {/* 看板三列 */}
@@ -773,7 +785,7 @@ function AssignmentForm({
     return () => { cancelled = true; };
   }, [initialOrderId]);
 
-  const filteredOrders = useMemo(() => {
+  const matchedOrders = useMemo(() => {
     const q = orderQuery.trim().toLowerCase();
     if (!q) return [];
     return orders
@@ -781,9 +793,10 @@ function AssignmentForm({
         (o.poNumber || '').toLowerCase().includes(q)
         || (o.customer || '').toLowerCase().includes(q)
         || (o.product || '').toLowerCase().includes(q)
-        || o.id.toLowerCase().includes(q))
-      .slice(0, 10);
+        || o.id.toLowerCase().includes(q));
   }, [orders, orderQuery]);
+  // R678⑧：全量订单客户端过滤的截断披露——仅展示前 10 条并显式提示（防误以为无更多匹配）
+  const filteredOrders = useMemo(() => matchedOrders.slice(0, 10), [matchedOrders]);
 
   const handleSubmit = () => {
     if (!selectedOrder) {
@@ -805,7 +818,7 @@ function AssignmentForm({
   };
 
   return (
-    <ModalShell title="新建验货任务" onClose={onClose}>
+    <ModalShell title="新建验货任务" onClose={onClose} onSubmit={handleSubmit}>
       {/* 订单搜索选择器 */}
       <Field label="订单 *">
         {selectedOrder ? (
@@ -814,6 +827,7 @@ function AssignmentForm({
               {selectedOrder.poNumber || selectedOrder.id} · {selectedOrder.customer} · {selectedOrder.product}
             </span>
             <button
+              type="button"
               onClick={() => setSelectedOrder(null)}
               className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
               title="重新选择"
@@ -827,9 +841,19 @@ function AssignmentForm({
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
                 type="text"
+                autoFocus
                 placeholder="搜索 PO 号 / 客户 / 产品..."
                 value={orderQuery}
                 onChange={(e) => setOrderQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter 快捷选中首个匹配（并阻断表单隐式提交——未选订单时提交只会触发警告 toast）
+                  if (e.key === 'Enter' && filteredOrders.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedOrder(filteredOrders[0]);
+                    setOrderQuery('');
+                  }
+                }}
                 className="bds-input sm pl-9"
               />
               {ordersLoading && (
@@ -841,6 +865,7 @@ function AssignmentForm({
                 <div className="bds-listrows">
                   {filteredOrders.map((o) => (
                     <button
+                      type="button"
                       key={o.id}
                       onClick={() => { setSelectedOrder(o); setOrderQuery(''); }}
                       className="bds-listrow w-full text-left"
@@ -851,6 +876,11 @@ function AssignmentForm({
                     </button>
                   ))}
                 </div>
+                {matchedOrders.length > filteredOrders.length && (
+                  <div className="text-[11px] px-2 py-1" style={{ color: 'var(--text-tertiary)' }}>
+                    匹配 {matchedOrders.length} 条，仅显示前 {filteredOrders.length} 条，请继续输入缩小范围
+                  </div>
+                )}
               </div>
             )}
             {!ordersLoading && orders.length === 0 && (
@@ -903,10 +933,10 @@ function AssignmentForm({
         <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
+        <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} disabled={saving} className="bds-btn bds-btn-primary">
+        <button type="submit" disabled={saving} className="bds-btn bds-btn-primary">
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           {saving ? '保存中...' : '保存'}
         </button>
@@ -1075,7 +1105,7 @@ function CompleteAssignmentForm({
   };
 
   return (
-    <ModalShell title={`完成验货任务 ${assignment.order?.poNumber || assignment.orderId}`} onClose={onClose}>
+    <ModalShell title={`完成验货任务 ${assignment.order?.poNumber || assignment.orderId}`} onClose={onClose} onSubmit={handleSubmit}>
       <div className="bds-card flat mb-3 text-xs" style={{ padding: 'var(--space-2) var(--space-3)', color: 'var(--text-tertiary)' }}>
         {INSPECTION_TYPE_LABELS[assignment.inspectionType] || assignment.inspectionType}验货 · {assignment.order ? `${assignment.order.customer} · ${assignment.order.product}` : assignment.orderId}
       </div>
@@ -1114,7 +1144,7 @@ function CompleteAssignmentForm({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Field label="检验总数 *">
-              <input type="number" min={1} step={1} className="bds-input" value={form.totalUnits} onChange={(e) => patchForm({ totalUnits: e.target.value })} placeholder="如 500" />
+              <input type="number" min={1} step={1} autoFocus className="bds-input" value={form.totalUnits} onChange={(e) => patchForm({ totalUnits: e.target.value })} placeholder="如 500" />
             </Field>
             <Field label="合格数 *">
               <input type="number" min={0} step={1} className="bds-input" value={form.passedUnits} onChange={(e) => patchForm({ passedUnits: e.target.value })} placeholder="如 490" />
@@ -1162,17 +1192,18 @@ function CompleteAssignmentForm({
           <input
             className="bds-input"
             value={reportId}
+            autoFocus
             onChange={(e) => setReportId(e.target.value)}
             placeholder="可选，完成后关联 InspectionReport"
           />
         </Field>
       )}
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost">
+        <button type="button" onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
-          onClick={handleSubmit}
+          type="submit"
           disabled={saving}
           className="bds-btn bds-btn-primary"
         >
@@ -1226,6 +1257,7 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
       } else {
         await apiService.createQcLocation(input);
       }
+      bdsToast.success(id ? `驻地 ${input.name} 已更新` : `驻地 ${input.name} 已创建`);
       setShowForm(false);
       setEditingLocation(null);
       await loadLocations();
@@ -1240,6 +1272,7 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除驻地「${location.name}」？`, danger: true }))) return;
     try {
       await apiService.deleteQcLocation(location.id);
+      bdsToast.success(`驻地 ${location.name} 已删除`);
       await loadLocations();
     } catch (e: any) {
       // 后端拒绝（如仍有验货任务引用）时直接展示后端错误消息
@@ -1379,7 +1412,7 @@ function LocationForm({
   };
 
   return (
-    <ModalShell title={location ? `编辑驻地 ${location.name}` : '新建驻地'} onClose={onClose}>
+    <ModalShell title={location ? `编辑驻地 ${location.name}` : '新建驻地'} onClose={onClose} onSubmit={handleSubmit}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="驻地代码 *">
           <input
@@ -1388,13 +1421,14 @@ function LocationForm({
             onChange={(e) => setCode(e.target.value)}
             placeholder="wenzhou"
             disabled={!!location}
+            autoFocus={!location}
           />
           {!location && (
             <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>如 wenzhou / suzhou，创建后不可修改</div>
           )}
         </Field>
         <Field label="驻地名称 *">
-          <input className="bds-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="温州驻场" />
+          <input className="bds-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="温州驻场" autoFocus={!!location} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1416,10 +1450,10 @@ function LocationForm({
         <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
+        <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} disabled={saving} className="bds-btn bds-btn-primary">
+        <button type="submit" disabled={saving} className="bds-btn bds-btn-primary">
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           {saving ? '保存中...' : '保存'}
         </button>
@@ -1471,6 +1505,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
       } else {
         await apiService.createBusinessLine(input as BusinessLineInput);
       }
+      bdsToast.success(id ? `业务线 ${input.name} 已更新` : `业务线 ${input.name} 已创建`);
       setShowForm(false);
       setEditingLine(null);
       await loadLines();
@@ -1485,6 +1520,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
     setTogglingId(line.id);
     try {
       await apiService.updateBusinessLine(line.id, { isActive: !line.isActive });
+      bdsToast.success(`业务线 ${line.name} 已${line.isActive ? '停用' : '启用'}`);
       await loadLines();
     } catch (e: any) {
       bdsToast.danger(`更新业务线状态失败：${e?.message || e}`);
@@ -1497,6 +1533,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除业务线「${line.code} ${line.name}」？`, danger: true }))) return;
     try {
       await apiService.deleteBusinessLine(line.id);
+      bdsToast.success(`业务线 ${line.name} 已删除`);
       await loadLines();
     } catch (e: any) {
       // 后端拒绝（如仍有订单引用）时直接展示后端错误消息
@@ -1678,7 +1715,7 @@ function BusinessLineForm({
   };
 
   return (
-    <ModalShell title={line ? `编辑业务线 ${line.code}` : '新建业务线'} onClose={onClose}>
+    <ModalShell title={line ? `编辑业务线 ${line.code}` : '新建业务线'} onClose={onClose} onSubmit={handleSubmit}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="业务线代码 *">
           <input
@@ -1687,13 +1724,14 @@ function BusinessLineForm({
             onChange={(e) => setCode(e.target.value)}
             placeholder="fabric"
             disabled={!!line}
+            autoFocus={!line}
           />
           {!line && (
             <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>如 fabric / garment / capsule，创建后不可修改</div>
           )}
         </Field>
         <Field label="业务线名称 *">
-          <input className="bds-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="面料大货" />
+          <input className="bds-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="面料大货" autoFocus={!!line} />
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -1723,10 +1761,10 @@ function BusinessLineForm({
         <textarea className="bds-input bds-textarea" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
+        <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} disabled={saving} className="bds-btn bds-btn-primary">
+        <button type="submit" disabled={saving} className="bds-btn bds-btn-primary">
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           {saving ? '保存中...' : '保存'}
         </button>
@@ -1816,7 +1854,7 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
     loadOrders();
   }, [loadOrders]);
 
-  const filteredOrders = useMemo(() => {
+  const matchedOrders = useMemo(() => {
     const q = orderQuery.trim().toLowerCase();
     if (!q) return [];
     return orders
@@ -1824,9 +1862,10 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
         (o.poNumber || '').toLowerCase().includes(q)
         || (o.customer || '').toLowerCase().includes(q)
         || (o.product || '').toLowerCase().includes(q)
-        || o.id.toLowerCase().includes(q))
-      .slice(0, 10);
+        || o.id.toLowerCase().includes(q));
   }, [orders, orderQuery]);
+  // R678⑧：全量订单客户端过滤的截断披露——仅展示前 10 条并显式提示
+  const filteredOrders = useMemo(() => matchedOrders.slice(0, 10), [matchedOrders]);
 
   const chain = selectedOrder ? resolveOrderChain(selectedOrder) : null;
 
@@ -1887,6 +1926,11 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
                     </button>
                   ))}
                 </div>
+                {matchedOrders.length > filteredOrders.length && (
+                  <div className="text-[11px] px-2 py-1" style={{ color: 'var(--text-tertiary)' }}>
+                    匹配 {matchedOrders.length} 条，仅显示前 {filteredOrders.length} 条，请继续输入缩小范围
+                  </div>
+                )}
               </div>
             )}
             {!ordersLoading && ordersLoadFailed && (
@@ -2003,6 +2047,7 @@ function GarmentChainView({ order }: { order: Order }) {
       } else {
         await qcService.reviewGarmentSample(order.id, input);
       }
+      bdsToast.success(directReject ? '已直接打回工厂重做' : '服装链评审已提交');
       setOpinion('');
       setDefectSummary('');
       setRejectReason('');
@@ -2472,6 +2517,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
     setSigningKey(`${reportId}:${role}`);
     try {
       await qcService.signReport(reportId, role);
+      bdsToast.success(role === 'qc' ? 'QC 签署完成' : '业务签署完成');
       await load();
     } catch (e: any) {
       bdsToast.danger(`签署失败：${e?.message || e}`);

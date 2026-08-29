@@ -39,6 +39,8 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { hasPermission } from '../services/authService';
+import { bdsToast } from './ui/bdsToast';
 import SampleRoomPanel from './development/SampleRoomPanel';
 import {
   Warehouse,
@@ -137,6 +139,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   // B5 运营域报表：库存台账 Excel 导出（当前筛选全量）
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  // R6：写操作权限门（inventory:write；无权限隐藏新增物料/仓库/库存变动入口，只读可用）
+  const canWrite = hasPermission('inventory:write');
 
   const handleExportXlsx = useCallback(async () => {
     setExportingXlsx(true);
@@ -155,14 +159,19 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     }
   }, [warehouseFilter, categoryFilter, searchQuery, lowStockOnly]);
 
-  // 创建仓库表单
+  // 创建仓库表单（R678③：打开时重置表单 state + 错误，防上次取消残留带入下次）
   const [showWarehouseForm, setShowWarehouseForm] = useState(false);
   const [warehouseForm, setWarehouseForm] = useState<WarehouseInput>({
     code: '', name: '', type: 'Main', address: '', manager: '', phone: '', notes: '',
   });
   const [warehouseFormError, setWarehouseFormError] = useState<string | null>(null);
+  const openWarehouseForm = useCallback(() => {
+    setWarehouseForm({ code: '', name: '', type: 'Main', address: '', manager: '', phone: '', notes: '' });
+    setWarehouseFormError(null);
+    setShowWarehouseForm(true);
+  }, []);
 
-  // 创建物料表单
+  // 创建物料表单（R678③：打开时重置；仓库缺省首选仓库）
   const [showItemForm, setShowItemForm] = useState(false);
   const [itemForm, setItemForm] = useState<InventoryItemInput>({
     warehouseId: '', materialCode: '', description: '', category: 'Fabric',
@@ -170,6 +179,15 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     unitCost: undefined, minStock: undefined, maxStock: undefined, notes: '',
   });
   const [itemFormError, setItemFormError] = useState<string | null>(null);
+  const openItemForm = useCallback(() => {
+    setItemForm({
+      warehouseId: warehouses[0]?.id || '', materialCode: '', description: '', category: 'Fabric',
+      specification: '', batchNumber: '', locationCode: '', quantity: 0, unit: 'YD',
+      unitCost: undefined, minStock: undefined, maxStock: undefined, notes: '',
+    });
+    setItemFormError(null);
+    setShowItemForm(true);
+  }, [warehouses]);
 
   // 库存变动表单
   const [movementTargetId, setMovementTargetId] = useState<string | null>(null);
@@ -260,6 +278,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     setActionLoading('create-warehouse');
     try {
       await apiService.createWarehouse(warehouseForm);
+      bdsToast.success(`仓库 ${warehouseForm.name} 已创建`);
       setShowWarehouseForm(false);
       setWarehouseForm({ code: '', name: '', type: 'Main', address: '', manager: '', phone: '', notes: '' });
       await fetchWarehouses();
@@ -279,6 +298,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     setActionLoading('create-item');
     try {
       await apiService.createInventoryItem(itemForm);
+      bdsToast.success(`物料 ${itemForm.description} 已创建`);
       setShowItemForm(false);
       setItemForm({
         warehouseId: warehouses[0]?.id || '', materialCode: '', description: '', category: 'Fabric',
@@ -326,6 +346,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
         referenceId,
         referenceType: referenceId ? 'Manual' : movementForm.referenceType,
       });
+      bdsToast.success('库存变动已执行');
       setMovementTargetId(null);
       setMovementForm({
         itemId: '', type: 'Inbound', quantity: 0, reason: '', referenceId: '',
@@ -354,12 +375,12 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
         subtitle="Inventory"
         isDarkMode={isDarkMode}
         actions={
-          activeTab === 'items' ? (
-            <button onClick={() => setShowItemForm(true)} className="bds-btn bds-btn-primary">
+          activeTab === 'items' && canWrite ? (
+            <button onClick={openItemForm} className="bds-btn bds-btn-primary">
               <Plus size={14} /><span>新增物料</span>
             </button>
-          ) : activeTab === 'warehouses' ? (
-            <button onClick={() => setShowWarehouseForm(true)} className="bds-btn bds-btn-primary">
+          ) : activeTab === 'warehouses' && canWrite ? (
+            <button onClick={openWarehouseForm} className="bds-btn bds-btn-primary">
               <Plus size={14} /><span>新增仓库</span>
             </button>
           ) : undefined
@@ -586,12 +607,14 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                   )}
                                 </AnimatePresence>
 
-                                {/* 操作按钮 */}
+                                {/* 操作按钮（R6：库存变动为写操作，无 inventory:write 隐藏入口） */}
+                                {canWrite && (
                                 <div className="flex items-center gap-2 pt-2 flex-wrap">
                                   <button onClick={() => { setMovementTargetId(movementTargetId === item.id ? null : item.id); setMovementError(null); setMovementForm({ ...movementForm, type: 'Inbound', quantity: 0 }); }} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
                                     <ArrowDownToLine size={14} /><span>{movementTargetId === item.id ? '收起' : '库存变动'}</span>
                                   </button>
                                 </div>
+                                )}
                               </div>
                             </motion.div>
                           )}

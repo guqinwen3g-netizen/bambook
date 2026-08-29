@@ -135,6 +135,24 @@ export interface OutsourcingLineInput {
 
 const now = (): bigint => BigInt(Date.now());
 
+/** 列表分页参数（R678：六 list 端点 limit/offset + total 真实计数） */
+export interface MesListPage {
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * 分页参数归一为 Prisma take/skip：
+ *   - limit 缺省 → 不分页（向后兼容：返回全量，total = items.length 由 count 兜底）
+ *   - limit 提供 → 收敛 [1, 500]；offset 缺省/负数 → 0
+ */
+function pageArgs(opts: MesListPage): { take?: number; skip?: number } {
+  if (opts.limit == null || !Number.isFinite(opts.limit)) return {};
+  const take = Math.min(Math.max(Math.floor(opts.limit), 1), 500);
+  const skip = opts.offset != null && Number.isFinite(opts.offset) ? Math.max(0, Math.floor(opts.offset)) : 0;
+  return { take, skip };
+}
+
 function generateWorkStationId(): string {
   return `WS_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -326,15 +344,20 @@ export function createMesService(prisma: PrismaClient) {
     logger.info('[MesService] work station soft-deleted', { id, actorId });
   }
 
-  async function listWorkStations(opts: { type?: string; isActive?: boolean } = {}) {
+  async function listWorkStations(opts: { type?: string; isActive?: boolean } & MesListPage = {}) {
     const where: Record<string, unknown> = { deletedAt: null };
     if (opts.type) where.type = opts.type;
     if (opts.isActive !== undefined) where.isActive = opts.isActive;
 
-    return prisma.workStation.findMany({
-      where,
-      orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-    });
+    const [items, total] = await Promise.all([
+      prisma.workStation.findMany({
+        where,
+        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+        ...pageArgs(opts),
+      }),
+      prisma.workStation.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async function getWorkStation(id: string) {
@@ -491,7 +514,7 @@ export function createMesService(prisma: PrismaClient) {
     processType?: string;
     dateFrom?: string;
     dateTo?: string;
-  } = {}) {
+  } & MesListPage = {}) {
     const where: Record<string, unknown> = { deletedAt: null };
     if (opts.orderId) where.orderId = opts.orderId;
     if (opts.workStationId) where.workStationId = opts.workStationId;
@@ -503,11 +526,16 @@ export function createMesService(prisma: PrismaClient) {
       if (opts.dateTo) (where.plannedEndDate as Record<string, unknown>).lte = opts.dateTo;
     }
 
-    return prisma.productionPlan.findMany({
-      where,
-      include: { workStation: { select: { code: true, name: true, type: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [items, total] = await Promise.all([
+      prisma.productionPlan.findMany({
+        where,
+        include: { workStation: { select: { code: true, name: true, type: true } } },
+        orderBy: { createdAt: 'desc' },
+        ...pageArgs(opts),
+      }),
+      prisma.productionPlan.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async function getProductionPlan(id: string) {
@@ -620,7 +648,7 @@ export function createMesService(prisma: PrismaClient) {
     return wh;
   }
 
-  async function listWorkHours(opts: { productionPlanId?: string; employeeId?: string; dateFrom?: string; dateTo?: string } = {}) {
+  async function listWorkHours(opts: { productionPlanId?: string; employeeId?: string; dateFrom?: string; dateTo?: string } & MesListPage = {}) {
     const where: Record<string, unknown> = {};
     if (opts.productionPlanId) where.productionPlanId = opts.productionPlanId;
     if (opts.employeeId) where.employeeId = opts.employeeId;
@@ -630,10 +658,15 @@ export function createMesService(prisma: PrismaClient) {
       if (opts.dateTo) (where.workDate as Record<string, unknown>).lte = opts.dateTo;
     }
 
-    return prisma.workHour.findMany({
-      where,
-      orderBy: { workDate: 'desc' },
-    });
+    const [items, total] = await Promise.all([
+      prisma.workHour.findMany({
+        where,
+        orderBy: { workDate: 'desc' },
+        ...pageArgs(opts),
+      }),
+      prisma.workHour.count({ where }),
+    ]);
+    return { items, total };
   }
 
   /** 工时汇总：按员工聚合 */
@@ -766,16 +799,21 @@ export function createMesService(prisma: PrismaClient) {
     logger.info('[MesService] piece rate rule soft-deleted', { id, actorId });
   }
 
-  async function listPieceRateRules(opts: { processType?: string; productAssetId?: string; isActive?: boolean } = {}) {
+  async function listPieceRateRules(opts: { processType?: string; productAssetId?: string; isActive?: boolean } & MesListPage = {}) {
     const where: Record<string, unknown> = { deletedAt: null };
     if (opts.processType) where.processType = opts.processType;
     if (opts.productAssetId) where.productAssetId = opts.productAssetId;
     if (opts.isActive !== undefined) where.isActive = opts.isActive;
 
-    return prisma.pieceRateRule.findMany({
-      where,
-      orderBy: [{ isActive: 'desc' }, { effectiveFrom: 'desc' }],
-    });
+    const [items, total] = await Promise.all([
+      prisma.pieceRateRule.findMany({
+        where,
+        orderBy: [{ isActive: 'desc' }, { effectiveFrom: 'desc' }],
+        ...pageArgs(opts),
+      }),
+      prisma.pieceRateRule.count({ where }),
+    ]);
+    return { items, total };
   }
 
   // ────────────────────────────────────────────────────────────
@@ -839,7 +877,7 @@ export function createMesService(prisma: PrismaClient) {
     status?: string;
     dateFrom?: string;
     dateTo?: string;
-  } = {}) {
+  } & MesListPage = {}) {
     const where: Record<string, unknown> = {};
     if (opts.pieceRateRuleId) where.pieceRateRuleId = opts.pieceRateRuleId;
     if (opts.productionPlanId) where.productionPlanId = opts.productionPlanId;
@@ -851,11 +889,16 @@ export function createMesService(prisma: PrismaClient) {
       if (opts.dateTo) (where.workDate as Record<string, unknown>).lte = opts.dateTo;
     }
 
-    return prisma.pieceRateRecord.findMany({
-      where,
-      include: { pieceRateRule: { select: { code: true, name: true, processType: true } } },
-      orderBy: { workDate: 'desc' },
-    });
+    const [items, total] = await Promise.all([
+      prisma.pieceRateRecord.findMany({
+        where,
+        include: { pieceRateRule: { select: { code: true, name: true, processType: true } } },
+        orderBy: { workDate: 'desc' },
+        ...pageArgs(opts),
+      }),
+      prisma.pieceRateRecord.count({ where }),
+    ]);
+    return { items, total };
   }
 
   /** 计件状态流转：Pending → Confirmed → Paid */
@@ -1089,18 +1132,23 @@ export function createMesService(prisma: PrismaClient) {
     orderId?: string;
     status?: string;
     processType?: string;
-  } = {}) {
+  } & MesListPage = {}) {
     const where: Record<string, unknown> = { deletedAt: null };
     if (opts.supplierId) where.supplierId = opts.supplierId;
     if (opts.orderId) where.orderId = opts.orderId;
     if (opts.status) where.status = opts.status;
     if (opts.processType) where.processType = opts.processType;
 
-    return prisma.outsourcingOrder.findMany({
-      where,
-      include: { lines: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [items, total] = await Promise.all([
+      prisma.outsourcingOrder.findMany({
+        where,
+        include: { lines: true },
+        orderBy: { createdAt: 'desc' },
+        ...pageArgs(opts),
+      }),
+      prisma.outsourcingOrder.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async function getOutsourcingOrder(id: string) {

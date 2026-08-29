@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, Ban, CalendarClock, Loader2, RefreshCw, Search } from 'lucide-react';
 import { productionService, ProductionBoardItem } from '../services/productionService';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import { bdsToast } from './ui/bdsToast';
 import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -96,6 +97,8 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
   const [blockedOnly, setBlockedOnly] = useState(false);
   // C18：阻塞标记提交中的订单 id（防双击）
   const [blockPendingId, setBlockPendingId] = useState<string | null>(null);
+  // R6：阻塞标记为写操作（POST /block 后端 production:write scope 门），无权限隐藏入口
+  const canWrite = hasPermission('production:write');
   const scrollRef = React.useRef<HTMLDivElement>(null);
   // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐，与 ScrollEdgeFades 原参数同口径）
   useStaticEdgeMask(scrollRef, { topFadeEnd: 12, bottomFade: 12 });
@@ -261,8 +264,8 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                     <div className="flex flex-col gap-2">
                       {columnItems.map(item => {
                         const o = item.order;
-                        // C18：当前阶段阻塞动作（全部完成/无阶段 → null 不渲染入口）
-                        const blockAction = resolveBlockAction(item.stages, item.currentStageKey);
+                        // C18：当前阶段阻塞动作（全部完成/无阶段 → null 不渲染入口；R6：无 production:write 隐藏写入口）
+                        const blockAction = canWrite ? resolveBlockAction(item.stages, item.currentStageKey) : null;
                         return (
                           <div
                             key={o.id}
