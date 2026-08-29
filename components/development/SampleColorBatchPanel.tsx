@@ -32,6 +32,7 @@ import {
 import BottomSheet from '../ui/BottomSheet';
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
+import { hasPermission } from '../../services/authService';
 import { printHtmlDocument, escapeHtml } from '../tools/printDocument';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -102,6 +103,9 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
   const [colorCodeMap, setColorCodeMap] = useState<Map<string, ColorCardRow>>(new Map());
   const colorSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // R6 权限门：登记/客户判定/删除为 sample:color_batch:write（后端 scope 门同源），无权限只读
+  const canWrite = hasPermission('sample:color_batch:write');
+
   const scopeParams = stage === 'lab_dip' ? { developmentCaseId } : { orderId };
 
   const load = useCallback(async () => {
@@ -168,6 +172,17 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
     }
   }, []);
 
+  /** 登记表单重置（登记成功 / 取消 / 关闭弹层三入口共用，避免取消后残留脏数据） */
+  const resetCreateForm = useCallback(() => {
+    setFormDyeLotNo(''); setFormRating(4); setFormDefects([]); setFormBatchNo(''); setFormNotes('');
+    setFormColorCard(null); setColorSearch(''); setColorSuggestions([]); setColorHistory(null);
+  }, []);
+
+  const closeCreate = useCallback(() => {
+    setShowCreate(false);
+    resetCreateForm();
+  }, [resetCreateForm]);
+
   const submitCreate = useCallback(async () => {
     if (acting) return;
     const dyeLotNo = formDyeLotNo.trim();
@@ -187,15 +202,14 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
       });
       bdsToast.success(`打色批次 ${r.batch?.batchCode ?? ''} 已登记。`);
       setShowCreate(false);
-      setFormDyeLotNo(''); setFormRating(4); setFormDefects([]); setFormBatchNo(''); setFormNotes('');
-      setFormColorCard(null); setColorSearch(''); setColorSuggestions([]); setColorHistory(null);
+      resetCreateForm();
       await load();
     } catch (e: any) {
       bdsToast.danger(`登记失败：${e?.message || e}`);
     } finally {
       setActing(null);
     }
-  }, [acting, stage, developmentCaseId, orderId, formDyeLotNo, formRating, formDefects, formBatchNo, formNotes, formColorCard, load]);
+  }, [acting, stage, developmentCaseId, orderId, formDyeLotNo, formRating, formDefects, formBatchNo, formNotes, formColorCard, load, resetCreateForm]);
 
   /** 客户判定（通过可设封样基准；疵点自动入供应商质量分——后端联动） */
   const submitFeedback = useCallback(async (batch: SampleColorBatchRow, status: 'approved' | 'rejected' | 'needs_recast', asSealed = false) => {
@@ -306,9 +320,11 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
           <button type="button" onClick={exportEvidence} disabled={acting !== null} className="bds-btn bds-btn-ghost">
             <Printer size={14} strokeWidth={1.5} />导出证据链
           </button>
-          <button type="button" onClick={() => setShowCreate(true)} className="bds-btn bds-btn-secondary">
-            <Plus size={14} strokeWidth={1.5} />登记{stage === 'lab_dip' ? '打色' : '缸差'}
-          </button>
+          {canWrite && (
+            <button type="button" onClick={() => setShowCreate(true)} className="bds-btn bds-btn-secondary">
+              <Plus size={14} strokeWidth={1.5} />登记{stage === 'lab_dip' ? '打色' : '缸差'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -349,8 +365,8 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
             {b.customerFeedbackNote && (
               <div className={cx('mt-1 truncate text-[11px] font-light', textSecondary)}>客户意见：{b.customerFeedbackNote}</div>
             )}
-            {/* 判定操作区（pending / needs_recast 可判定；终态只读） */}
-            {(b.customerStatus === 'pending' || b.customerStatus === 'needs_recast') && (
+            {/* 判定操作区（pending / needs_recast 可判定；终态只读；R6 无写权限只读） */}
+            {canWrite && (b.customerStatus === 'pending' || b.customerStatus === 'needs_recast') && (
               <div className="mt-2 flex items-center gap-2">
                 <button type="button" disabled={acting === b.id} onClick={() => submitFeedback(b, 'approved', true)}
                   className="bds-btn bds-btn-ghost">
@@ -374,8 +390,8 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
         ))}
       </div>
 
-      {/* 登记弹窗（A5 ≤2min：缸号 + 评级必填；色号可选 REQ2-09） */}
-      <BottomSheet isOpen={showCreate} onClose={() => setShowCreate(false)} title={stage === 'lab_dip' ? '登记打色批次' : '登记缸差记录'}>
+      {/* 登记弹窗（A5 ≤2min：缸号 + 评级必填；色号可选 REQ2-09）；关闭/取消统一重置表单 */}
+      <BottomSheet isOpen={showCreate} onClose={closeCreate} title={stage === 'lab_dip' ? '登记打色批次' : '登记缸差记录'}>
         <div className="space-y-4 px-6 py-5">
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>缸号 *</label>
@@ -510,7 +526,7 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="bds-btn bds-btn-ghost">取消</button>
+            <button type="button" onClick={closeCreate} className="bds-btn bds-btn-ghost">取消</button>
             <button type="button" onClick={submitCreate} disabled={acting === 'create'} className="bds-btn bds-btn-primary">
               {acting === 'create' && <Loader2 size={14} className="animate-spin" />}登记
             </button>

@@ -22,12 +22,14 @@ import BottomSheet from '../ui/BottomSheet';
 import { bdsToast } from '../ui/bdsToast';
 import { bdsConfirm } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import RelationCombobox from '../ui/RelationCombobox';
 import { sampleRoomService, SampleCardItemView } from '../../services/sampleRoomService';
 import { apiService } from '../../services/apiService';
 import { primeCrossModuleNav } from '../../services/crossModuleNav';
 import { developmentService } from '../../services/developmentService';
+import { hasPermission } from '../../services/authService';
 import { View } from '../../types';
-import type { Warehouse, ProductAssetDetail } from '../../types';
+import type { Warehouse, ProductAssetDetail, Relation } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -73,7 +75,7 @@ const EMPTY_ITEM_FORM = {
 const EMPTY_LOAN_FORM = {
   loanType: 'borrow' as 'borrow' | 'viewing',
   loanQuantity: '1',
-  borrowerName: '', relationId: '', dueDate: '', conditionNote: '',
+  borrowerName: '', relationId: '', relationName: '', dueDate: '', conditionNote: '',
 };
 const EMPTY_ADJUST_FORM = {
   newQuantity: '', newMinStock: '', newMaxStock: '', reason: '',
@@ -94,9 +96,13 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   const [items, setItems] = useState<SampleCardItemView[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // error 双显分离：listError 仅列表区（加载失败），sheetError 仅弹层（登记/借出/盘点校验与提交失败）
+  const [listError, setListError] = useState('');
+  const [sheetError, setSheetError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  // 搜索 300ms 防抖（逐击键发请求 → 停顿后才请求；Enter 立即冲刷）
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -112,6 +118,41 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   const [devQuery, setDevQuery] = useState('');
   const [devOptions, setDevOptions] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [devCasePicked, setDevCasePicked] = useState<string>('');
+  // R678：订单手输 ID → 搜索下拉（复用 devQuery 300ms 防抖模式）
+  const [orderQuery, setOrderQuery] = useState('');
+  const [orderOptions, setOrderOptions] = useState<Array<{ id: string; poNumber: string; customer: string }>>([]);
+  const [orderPicked, setOrderPicked] = useState<string>('');
+
+  // R678：看样客户 RelationCombobox 数据源（关系智库，与开发/订单表单同通道）
+  const [relations, setRelations] = useState<Relation[]>([]);
+  useEffect(() => {
+    apiService.listRelations().then(setRelations).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (!orderQuery.trim()) { setOrderOptions([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        // apiService.listOrdersPage 不透传 search 参数（分页口径仅 limit/offset），
+        // 此处直取 V2 列表端点（routeV2 支持 search 模糊：订单号/客户/品名/合同号）
+        const qs = new URLSearchParams({ search: orderQuery.trim(), limit: '5' });
+        const base = apiService.getStoredConfig().cloudEndpoint;
+        const res = await fetch(apiService.buildApiUrl(`/v2/orders?${qs.toString()}`, base), { headers: apiService.getAuthHeaders() });
+        const data = await res.json().catch(() => ({}));
+        const rows = Array.isArray(data.items) ? data.items : [];
+        if (!cancelled) setOrderOptions(rows.map((o: any) => ({ id: o.id, poNumber: o.poNumber || o.id, customer: o.customer || '' })));
+      } catch {
+        if (!cancelled) setOrderOptions([]);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [orderQuery]);
 
   useEffect(() => {
     if (!paQuery.trim()) { setPaOptions([]); return; }
@@ -173,11 +214,11 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   // ── 列表 ──
   const reload = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setListError('');
     try {
       const data = await sampleRoomService.listItems({
         status: statusFilter || undefined,
-        search: searchTerm.trim() || undefined,
+        search: debouncedSearch || undefined,
         warehouseId: warehouseFilter || undefined,
         devCaseId: devCaseId || undefined,
         orderId: orderId || undefined,
@@ -188,11 +229,11 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       setItems(data.items);
       setTotal(data.total);
     } catch (e: any) {
-      setError(e.message || '样品间数据加载失败');
+      setListError(e.message || '样品间数据加载失败');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm, warehouseFilter, devCaseId, orderId, productAssetId, lowStockOnly]);
+  }, [statusFilter, debouncedSearch, warehouseFilter, devCaseId, orderId, productAssetId, lowStockOnly]);
 
   useEffect(() => {
     if (expanded) reload();
@@ -235,15 +276,19 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   }, [onNavigate]);
 
   const handleCreateItem = async () => {
-    if (!itemForm.name.trim() || itemSaving) return;
+    if (itemSaving) return;
+    if (!itemForm.name.trim()) {
+      setSheetError('样卡名称必填');
+      return;
+    }
     const minNum = itemForm.minStock === '' ? null : Number(itemForm.minStock);
     const maxNum = itemForm.maxStock === '' ? null : Number(itemForm.maxStock);
     if (minNum != null && maxNum != null && minNum > maxNum) {
-      setError('最低库存不可大于最高库存');
+      setSheetError('最低库存不可大于最高库存');
       return;
     }
     setItemSaving(true);
-    setError('');
+    setSheetError('');
     try {
       const item = await sampleRoomService.createItem({
         name: itemForm.name.trim(),
@@ -271,12 +316,15 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       setDevQuery('');
       setDevOptions([]);
       setDevCasePicked('');
+      setOrderQuery('');
+      setOrderOptions([]);
+      setOrderPicked('');
       setPaQuery('');
       setPaOptions([]);
       await reload();
       openQr(item);
     } catch (e: any) {
-      setError(e.message || '样卡登记失败');
+      setSheetError(e.message || '样卡登记失败');
     } finally {
       setItemSaving(false);
     }
@@ -294,22 +342,26 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   };
 
   const handleCreateLoan = async () => {
-    if (!loanTarget || !loanForm.borrowerName.trim() || loanSaving) return;
+    if (!loanTarget || loanSaving) return;
+    if (!loanForm.borrowerName.trim()) {
+      setSheetError(loanForm.loanType === 'borrow' ? '请填写借用人' : '请填写看样联系人');
+      return;
+    }
     if (loanForm.loanType === 'viewing' && !loanForm.relationId.trim()) {
-      setError('看样登记需选择客户');
+      setSheetError('看样登记需选择客户');
       return;
     }
     const qty = Number(loanForm.loanQuantity) || 1;
     if (qty < 1) {
-      setError('借出数量至少为 1');
+      setSheetError('借出数量至少为 1');
       return;
     }
     if (qty > Number(loanTarget.availableQty)) {
-      setError(`借出数量不可超过可用库存（${loanTarget.availableQty}）`);
+      setSheetError(`借出数量不可超过可用库存（${loanTarget.availableQty}）`);
       return;
     }
     setLoanSaving(true);
-    setError('');
+    setSheetError('');
     try {
       const dueAt = loanForm.loanType === 'borrow' && loanForm.dueDate
         ? new Date(loanForm.dueDate).getTime()
@@ -326,7 +378,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       setLoanForm({ ...EMPTY_LOAN_FORM });
       await reload();
     } catch (e: any) {
-      setError(e.message || '借出/看样登记失败');
+      setSheetError(e.message || '借出/看样登记失败');
     } finally {
       setLoanSaving(false);
     }
@@ -335,18 +387,18 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   const handleAdjust = async () => {
     if (!adjustTarget || adjustSaving) return;
     setAdjustSaving(true);
-    setError('');
+    setSheetError('');
     try {
       const newQty = adjustForm.newQuantity === '' ? undefined : Number(adjustForm.newQuantity);
       const newMin = adjustForm.newMinStock === '' ? null : Number(adjustForm.newMinStock);
       const newMax = adjustForm.newMaxStock === '' ? null : Number(adjustForm.newMaxStock);
       if (newQty != null && newQty < 0) {
-        setError('数量不可为负');
+        setSheetError('数量不可为负');
         setAdjustSaving(false);
         return;
       }
       if (newMin != null && newMax != null && newMin > newMax) {
-        setError('最低库存不可大于最高库存');
+        setSheetError('最低库存不可大于最高库存');
         setAdjustSaving(false);
         return;
       }
@@ -361,7 +413,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       setAdjustForm({ ...EMPTY_ADJUST_FORM });
       await reload();
     } catch (e: any) {
-      setError(e.message || '盘点失败');
+      setSheetError(e.message || '盘点失败');
     } finally {
       setAdjustSaving(false);
     }
@@ -397,7 +449,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
   const openLoanSheet = (item: SampleCardItemView) => {
     setLoanTarget(item);
     setLoanForm({ ...EMPTY_LOAN_FORM });
-    setError('');
+    setSheetError('');
   };
 
   const openAdjustSheet = (item: SampleCardItemView) => {
@@ -408,7 +460,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       newMaxStock: item.maxStock != null ? String(item.maxStock) : '',
       reason: '',
     });
-    setError('');
+    setSheetError('');
   };
 
   const openItemSheet = () => {
@@ -421,11 +473,17 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
     setDevQuery('');
     setDevOptions([]);
     setDevCasePicked(devCaseId ? `预过滤 ${devCaseId.slice(-8)}` : '');
+    setOrderQuery('');
+    setOrderOptions([]);
+    setOrderPicked(orderId ? `预过滤 ${orderId.slice(-8)}` : '');
     setPaQuery('');
     setPaOptions([]);
     setShowItemSheet(true);
-    setError('');
+    setSheetError('');
   };
+
+  // R6 权限门：样品间写操作（登记/借出/看样/归还/盘点/退役）统一 sample:room:write，无权限只读
+  const canWrite = hasPermission('sample:room:write');
 
   // ── 渲染 ──
   const headerStats = (
@@ -497,15 +555,15 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       )}
 
       {(expanded || !collapsible) && (
-        <div className={cx('flex flex-col min-h-0', collapsible ? 'mt-2 h-[560px]' : 'flex-1 min-h-0')}>
+        <div className={cx('flex flex-col min-h-0', collapsible ? 'mt-2 h-[clamp(320px,60vh,720px)]' : 'flex-1 min-h-0')}>
           {/* 工具行：搜索 + 状态筛选 + 仓库筛选 + 低库存 + 登记 */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <div className="relative min-w-0 flex-1 max-w-64">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
               <input
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') reload(); }}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') setDebouncedSearch(searchInput.trim()); }}
                 placeholder="样卡名 / 编号 / 架位"
                 className="bds-input pl-9 h-9 text-xs"
               />
@@ -524,12 +582,21 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
               <input type="checkbox" checked={lowStockOnly} onChange={e => setLowStockOnly(e.target.checked)} />
               仅低库存
             </label>
-            <button type="button" className="bds-btn bds-btn-primary h-9 text-xs" onClick={openItemSheet}>
-              <Plus size={14} />登记样卡
-            </button>
+            {canWrite && (
+              <button type="button" className="bds-btn bds-btn-primary h-9 text-xs" onClick={openItemSheet}>
+                <Plus size={14} />登记样卡
+              </button>
+            )}
           </div>
 
-          {error && <div className="bds-alert danger text-xs shrink-0">{error}</div>}
+          {/* limit=2000 截断提示：超出时引导用搜索/筛选缩小范围 */}
+          {total > items.length && (
+            <div className="text-[10px] font-light text-[var(--text-tertiary)] shrink-0 px-1 pt-1">
+              已加载前 {items.length} 条（共 {total} 条，单次上限 2000），请用搜索/筛选缩小范围
+            </div>
+          )}
+
+          {listError && <div className="bds-alert danger text-xs shrink-0">{listError}</div>}
           {loading && <div className="text-xs font-light text-[var(--text-tertiary)] px-1 py-3 shrink-0">加载中...</div>}
 
           {/* 样卡列表 — 虚拟化紧凑表格（react-virtuoso，承载万级样卡） */}
@@ -676,22 +743,22 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                             <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="二维码打印" onClick={() => openQr(item)}>
                               <QrCode size={14} />二维码
                             </button>
-                            {item.status !== 'retired' && (
+                            {canWrite && item.status !== 'retired' && (
                               <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="盘点" onClick={() => openAdjustSheet(item)}>
                                 <ClipboardCheck size={14} />盘点
                               </button>
                             )}
-                            {item.status === 'in_stock' && Number(item.availableQty) > 0 && (
+                            {canWrite && item.status === 'in_stock' && Number(item.availableQty) > 0 && (
                               <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => openLoanSheet(item)}>
                                 借出/看样
                               </button>
                             )}
-                            {item.status === 'borrowed' && item.activeLoan && (
+                            {canWrite && item.status === 'borrowed' && item.activeLoan && (
                               <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => handleReturn(item)}>
                                 <RotateCcw size={14} />归还
                               </button>
                             )}
-                            {item.status !== 'retired' && (
+                            {canWrite && item.status !== 'retired' && (
                               <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="退役" onClick={() => handleRetire(item)}>
                                 <Archive size={14} />退役
                               </button>
@@ -711,7 +778,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       {/* 登记样卡 BottomSheet */}
       {showItemSheet && (
         <BottomSheet isOpen onClose={() => !itemSaving && setShowItemSheet(false)} title="登记样卡" isDarkMode={isDarkMode}>
-          <div className="space-y-4 px-6 py-5">
+          <form className="space-y-4 px-6 py-5" onSubmit={(e) => { e.preventDefault(); void handleCreateItem(); }}>
             <div>
               <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">样卡名称 *</label>
               <input value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))} placeholder="面料名 / 色卡名 / 成衣款名" className="bds-input sm w-full" />
@@ -760,7 +827,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 <input value={itemForm.colorCardCode} onChange={e => setItemForm(f => ({ ...f, colorCardCode: e.target.value }))} placeholder="如 19-4052 TCX" className="bds-input sm w-full" />
               </div>
             </div>
-            {/* v2 软关联（DR-057 v2.1：产品档案/开发单搜索选择，订单保留 ID 直输） */}
+            {/* v2 软关联（DR-057 v2.1 搜索选择化：产品档案/开发单/订单均下拉搜索，无手输 ID） */}
             <div className="grid grid-cols-3 gap-3">
               <div className="relative">
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联开发单（可选）</label>
@@ -799,9 +866,42 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                   </div>
                 )}
               </div>
-              <div>
-                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联订单 ID（可选）</label>
-                <input value={itemForm.orderId} onChange={e => setItemForm(f => ({ ...f, orderId: e.target.value }))} placeholder="订单 ID" className="bds-input sm w-full" />
+              <div className="relative">
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联订单（可选）</label>
+                <input
+                  value={orderQuery}
+                  onChange={(e) => {
+                    setOrderQuery(e.target.value);
+                    if (!e.target.value.trim()) setItemForm(f => ({ ...f, orderId: '' }));
+                  }}
+                  placeholder="搜索订单号 / 客户"
+                  className="bds-input sm w-full"
+                />
+                {itemForm.orderId && !orderOptions.length && (
+                  <div className="mt-1 truncate text-[10px] font-light" style={{ color: 'var(--success-text)' }}>
+                    已选 · {orderPicked || itemForm.orderId.slice(-8)}
+                  </div>
+                )}
+                {orderOptions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-field border border-[var(--border-c-subtle)] bg-[var(--bg-elevated)] p-1" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                    {orderOptions.map(o => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => {
+                          setItemForm(f => ({ ...f, orderId: o.id }));
+                          setOrderQuery(o.customer ? `${o.poNumber} · ${o.customer}` : o.poNumber);
+                          setOrderPicked(o.poNumber);
+                          setOrderOptions([]);
+                        }}
+                        className="w-full rounded-compact px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
+                      >
+                        <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{o.poNumber}</div>
+                        <div className="truncate text-[10px] font-light text-[var(--text-tertiary)]">{o.customer || o.id}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="relative">
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">关联产品档案（可选）</label>
@@ -849,21 +949,21 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
             <div className="text-[10px] font-light leading-relaxed text-[var(--text-tertiary)]">
               登记后自动生成样卡编号（SC-日期-序号）并弹出二维码，打印贴卡即用；扫码按编号直达样卡。
             </div>
-            {error && <div className="bds-alert danger">{error}</div>}
+            {sheetError && <div className="bds-alert danger">{sheetError}</div>}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" disabled={itemSaving} onClick={() => setShowItemSheet(false)} className="bds-btn bds-btn-ghost">取消</button>
-              <button type="button" disabled={itemSaving || !itemForm.name.trim()} onClick={handleCreateItem} className="bds-btn bds-btn-primary">
+              <button type="submit" disabled={itemSaving || !itemForm.name.trim()} className="bds-btn bds-btn-primary">
                 {itemSaving ? '登记中...' : '登记并出二维码'}
               </button>
             </div>
-          </div>
+          </form>
         </BottomSheet>
       )}
 
       {/* 借出/看样 BottomSheet */}
       {loanTarget && (
         <BottomSheet isOpen onClose={() => !loanSaving && setLoanTarget(null)} title={`借出 / 看样 · ${loanTarget.code}`} isDarkMode={isDarkMode}>
-          <div className="space-y-4 px-6 py-5">
+          <form className="space-y-4 px-6 py-5" onSubmit={(e) => { e.preventDefault(); void handleCreateLoan(); }}>
             {/* 库存摘要 */}
             <div className="rounded-inset px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
               可用 {loanTarget.availableQty} / 总 {loanTarget.quantity}{loanTarget.unit ? ` ${loanTarget.unit}` : ''}
@@ -901,8 +1001,16 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
             </div>
             {loanForm.loanType === 'viewing' && (
               <div>
-                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">看样客户（Relation ID）*</label>
-                <input value={loanForm.relationId} onChange={e => setLoanForm(f => ({ ...f, relationId: e.target.value }))} placeholder="客户 Relation ID（REL-xxx）" className="bds-input sm w-full" />
+                <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">看样客户 *</label>
+                <RelationCombobox
+                  value={loanForm.relationName}
+                  relationId={loanForm.relationId || undefined}
+                  relations={relations}
+                  filterCategories={['Customer']}
+                  placeholder="从关系智库搜索客户"
+                  isDarkMode={isDarkMode}
+                  onChange={({ name, relationId }) => setLoanForm(f => ({ ...f, relationName: name, relationId: relationId ?? '' }))}
+                />
                 <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">看样即看即还（不占借出状态），记录挂客户档案。</div>
               </div>
             )}
@@ -913,21 +1021,21 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">逾期（超过预计归还日未还）在列表标红提醒。</div>
               </div>
             )}
-            {error && <div className="bds-alert danger">{error}</div>}
+            {sheetError && <div className="bds-alert danger">{sheetError}</div>}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" disabled={loanSaving} onClick={() => setLoanTarget(null)} className="bds-btn bds-btn-ghost">取消</button>
-              <button type="button" disabled={loanSaving || !loanForm.borrowerName.trim()} onClick={handleCreateLoan} className="bds-btn bds-btn-primary">
+              <button type="submit" disabled={loanSaving || !loanForm.borrowerName.trim() || (loanForm.loanType === 'viewing' && !loanForm.relationId)} className="bds-btn bds-btn-primary">
                 {loanSaving ? '登记中...' : loanForm.loanType === 'borrow' ? '确认借出' : '登记看样'}
               </button>
             </div>
-          </div>
+          </form>
         </BottomSheet>
       )}
 
       {/* 盘点 BottomSheet */}
       {adjustTarget && (
         <BottomSheet isOpen onClose={() => !adjustSaving && setAdjustTarget(null)} title={`盘点 · ${adjustTarget.code}`} isDarkMode={isDarkMode}>
-          <div className="space-y-4 px-6 py-5">
+          <form className="space-y-4 px-6 py-5" onSubmit={(e) => { e.preventDefault(); void handleAdjust(); }}>
             <div className="rounded-inset px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
               当前 · 总 {adjustTarget.quantity} · 可用 {adjustTarget.availableQty}{adjustTarget.unit ? ` ${adjustTarget.unit}` : ''} · 在借 {Number(adjustTarget.quantity) - Number(adjustTarget.availableQty)}
             </div>
@@ -952,14 +1060,14 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
             <div className="text-[10px] font-light leading-relaxed text-[var(--text-tertiary)]">
               盘点只改总量；在借数量自动保留。新总数量不可小于当前在借数量（{Number(adjustTarget.quantity) - Number(adjustTarget.availableQty)}）。
             </div>
-            {error && <div className="bds-alert danger">{error}</div>}
+            {sheetError && <div className="bds-alert danger">{sheetError}</div>}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" disabled={adjustSaving} onClick={() => setAdjustTarget(null)} className="bds-btn bds-btn-ghost">取消</button>
-              <button type="button" disabled={adjustSaving} onClick={handleAdjust} className="bds-btn bds-btn-primary">
+              <button type="submit" disabled={adjustSaving} className="bds-btn bds-btn-primary">
                 {adjustSaving ? '盘点中...' : '确认盘点'}
               </button>
             </div>
-          </div>
+          </form>
         </BottomSheet>
       )}
 

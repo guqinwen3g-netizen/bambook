@@ -104,7 +104,9 @@ describe('SampleRoomPanel REQ2-16（DR-057）', () => {
     expect(devSource).toContain("import { primeFinanceInvoiceFocus } from './FinanceManager'");
     expect(devSource).toContain('if (selectedCase.sampleInvoiceId) {');
     expect(devSource).toContain('primeFinanceInvoiceFocus(selectedCase.sampleInvoiceId);');
-    expect(devSource).toContain("updateField('sampleInvoiceId', e.target.value)");
+    // R678：发票 ID 手输 → finance 列表接口搜索下拉（300ms 防抖，选中快照发票号）
+    expect(devSource).toContain("apiService.listInvoicesPage(undefined, { search: invQuery.trim(), limit: 6 })");
+    expect(devSource).toContain("updateField('sampleInvoiceId', inv.id)");
   });
 
   it('发票↔开发单双向闭环（DR-057 v2.1 扩展）：发票详情反查引用开发单 + 可点击直达', () => {

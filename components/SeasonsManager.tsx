@@ -59,6 +59,7 @@ import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
+import { hasPermission } from '../services/authService';
 
 // ==================== 常量 ====================
 
@@ -187,26 +188,35 @@ interface SeasonsManagerProps {
 
 export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>('seasons');
+  // Tab 保活：首次访问才挂载（visited 惰性），切走仅隐藏不卸载——列表筛选/展开/详情选中状态保留
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<ModuleTab>>(() => new Set<ModuleTab>(['seasons']));
+  useEffect(() => {
+    setVisitedTabs(prev => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
+  }, [activeTab]);
 
   // ── H2/V9：无状态依赖的新建类主操作统一收 PageHeader（ref 注册模式，同 PricingManager） ──
-  const newActionRef = useRef<(() => void) | null>(null);
+  // 保活后三个面板并存，改为每 Tab 独立槽位注册，按 activeTab 分发（避免后挂载者覆盖活跃 Tab 动作）
+  const newActionRefs = useRef<Record<ModuleTab, (() => void) | null>>({ seasons: null, trends: null, shows: null });
   const NEW_ACTION_LABEL: Record<ModuleTab, string> = {
     seasons: '新建季度',
     trends: '新建标签',
     shows: '新建展会',
   };
 
+  // R6 权限门：季度/趋势标签/展会/线索写操作均为 seasons:write（后端 seasonRoute 系列 scope 门同源）
+  const canWrite = hasPermission('seasons:write');
+
   return (
     <div className="h-full flex flex-col">
       <PageHeader
         title="季节性与趋势"
         subtitle="Season & Trend Management"
-        actions={
-          <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
+        actions={canWrite ? (
+          <button onClick={() => newActionRefs.current[activeTab]?.()} className="bds-btn bds-btn-primary">
             <Plus size={14} />
             <span>{NEW_ACTION_LABEL[activeTab]}</span>
           </button>
-        }
+        ) : undefined}
       />
 
       {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
@@ -229,22 +239,18 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
         </div>
       </div>
 
-      {/* Tab 内容（切换即重挂载，保证数据新鲜） */}
+      {/* Tab 内容（保活：已访问面板常驻，切换仅 hidden 显隐，状态不丢） */}
       <div className="flex-1 min-h-0 px-7 py-5">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
-            className="h-full min-h-0"
-          >
-            {activeTab === 'seasons' && <SeasonsPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
-            {activeTab === 'trends' && <TrendsPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
-            {activeTab === 'shows' && <ShowsPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
-          </motion.div>
-        </AnimatePresence>
+        {MODULE_TABS.map((tab) => {
+          if (!visitedTabs.has(tab.id)) return null;
+          return (
+            <div key={tab.id} className={activeTab === tab.id ? 'h-full min-h-0' : 'hidden'}>
+              {tab.id === 'seasons' && <SeasonsPanel canWrite={canWrite} registerNewAction={(fn) => { newActionRefs.current.seasons = fn; }} />}
+              {tab.id === 'trends' && <TrendsPanel canWrite={canWrite} registerNewAction={(fn) => { newActionRefs.current.trends = fn; }} />}
+              {tab.id === 'shows' && <ShowsPanel canWrite={canWrite} registerNewAction={(fn) => { newActionRefs.current.shows = fn; }} />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -254,7 +260,7 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
 
 // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
 
-function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
+function SeasonsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolean; registerNewAction?: (fn: (() => void) | null) => void }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -350,8 +356,10 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
     try {
       if (id) {
         await apiService.updateSeason(id, input as SeasonPatch);
+        bdsToast.success('季度已更新');
       } else {
         await apiService.createSeason(input as SeasonInput);
+        bdsToast.success('季度已创建');
       }
       setShowForm(false);
       setEditingSeason(null);
@@ -367,6 +375,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除季度「${season.code} ${season.name}」？关联的趋势标签与展会将保留但失去季度归属。`, danger: true }))) return;
     try {
       await apiService.deleteSeason(season.id);
+      bdsToast.success(`季度 ${season.code} 已删除`);
       if (selectedId === season.id) setSelectedId(null);
       await refreshAll();
     } catch (e: any) {
@@ -380,6 +389,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
     try {
       const data = await apiService.generateSeasonReview(selectedId);
       setReview(data);
+      bdsToast.success('季度回顾已生成');
     } catch (e: any) {
       bdsToast.danger(`生成季度回顾失败：${e?.message || e}`);
     } finally {
@@ -515,22 +525,24 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
                   </div>
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  onClick={() => { setEditingSeason(detail ?? selectedSeason); setShowForm(true); }}
-                  className="bds-btn bds-btn-secondary"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  编辑季度
-                </button>
-                <button
-                  onClick={() => handleDelete(detail ?? selectedSeason)}
-                  className="bds-btn bds-btn-danger ml-auto"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  删除
-                </button>
-              </div>
+              {canWrite && (
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => { setEditingSeason(detail ?? selectedSeason); setShowForm(true); }}
+                    className="bds-btn bds-btn-secondary"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    编辑季度
+                  </button>
+                  <button
+                    onClick={() => handleDelete(detail ?? selectedSeason)}
+                    className="bds-btn bds-btn-danger ml-auto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    删除
+                  </button>
+                </div>
+              )}
               {(detail?.notes || selectedSeason.notes) && (
                 <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap bds-inset" style={{ color: 'var(--text-secondary)' }}>
                   {detail?.notes || selectedSeason.notes}
@@ -576,14 +588,16 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
                   {review && (
                     <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>生成于 {formatDateTime(review.generatedAt)}</span>
                   )}
-                  <button
-                    onClick={handleGenerateReview}
-                    disabled={generatingReview}
-                    className="bds-btn bds-btn-secondary ml-auto"
-                  >
-                    {generatingReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
-                    {review ? '重新生成回顾' : '生成季度回顾'}
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={handleGenerateReview}
+                      disabled={generatingReview}
+                      className="bds-btn bds-btn-secondary ml-auto"
+                    >
+                      {generatingReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
+                      {review ? '重新生成回顾' : '生成季度回顾'}
+                    </button>
+                  )}
                 </div>
                 {review ? (
                   <div className="space-y-3">
@@ -685,7 +699,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
 
 // ==================== 趋势 Panel ====================
 
-function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
+function TrendsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolean; registerNewAction?: (fn: (() => void) | null) => void }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [tags, setTags] = useState<TrendTag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -744,8 +758,10 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
     try {
       if (tagId) {
         await apiService.updateTrendTag(tagId, input);
+        bdsToast.success('趋势标签已更新');
       } else {
         await apiService.createTrendTag(input);
+        bdsToast.success('趋势标签已创建');
       }
       setShowForm(false);
       setEditingTag(null);
@@ -761,6 +777,7 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除趋势标签「${tag.name}」？关联面料将一并解除。`, danger: true }))) return;
     try {
       await apiService.deleteTrendTag(tag.id);
+      bdsToast.success(`趋势标签「${tag.name}」已删除`);
       if (expandedId === tag.id) setExpandedId(null);
       await loadTags();
     } catch (e: any) {
@@ -771,6 +788,7 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
   const handleLinkFabric = async (tagId: string, fabricId: string, note?: string) => {
     try {
       await apiService.linkTrendFabric(tagId, { fabricId, note: note || null });
+      bdsToast.success('已关联面料');
       await loadTags();
     } catch (e: any) {
       bdsToast.danger(`关联面料失败：${e?.message || e}`);
@@ -780,6 +798,7 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
   const handleUnlinkFabric = async (tagId: string, fabricId: string) => {
     try {
       await apiService.unlinkTrendFabric(tagId, fabricId);
+      bdsToast.success('已移除关联面料');
       await loadTags();
     } catch (e: any) {
       bdsToast.danger(`移除关联面料失败：${e?.message || e}`);
@@ -861,20 +880,24 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
                       <ArrowRight className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                       {expanded ? '收起面料' : '展开面料'}
                     </button>
-                    <button
-                      onClick={() => { setEditingTag(tag); setShowForm(true); }}
-                      className="bds-btn bds-btn-ghost bds-btn-icon"
-                      title="编辑"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(tag)}
-                      className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
-                      title="删除"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canWrite && (
+                      <button
+                        onClick={() => { setEditingTag(tag); setShowForm(true); }}
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
+                        title="编辑"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {canWrite && (
+                      <button
+                        onClick={() => handleDelete(tag)}
+                        className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
+                        title="删除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <AnimatePresence>
@@ -904,21 +927,25 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
                                       {link.note ? ` · ${link.note}` : ''}
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => handleUnlinkFabric(tag.id, link.fabricId)}
-                                    className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
-                                    title="移除关联"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
+                                  {canWrite && (
+                                    <button
+                                      onClick={() => handleUnlinkFabric(tag.id, link.fabricId)}
+                                      className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
+                                      title="移除关联"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>
                           )}
-                          <FabricLinker
-                            linkedFabricIds={links.map((l) => l.fabricId)}
-                            onLink={(fabricId, note) => handleLinkFabric(tag.id, fabricId, note)}
-                          />
+                          {canWrite && (
+                            <FabricLinker
+                              linkedFabricIds={links.map((l) => l.fabricId)}
+                              onLink={(fabricId, note) => handleLinkFabric(tag.id, fabricId, note)}
+                            />
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -1041,7 +1068,7 @@ function FabricLinker({
 
 // ==================== 展会 Panel ====================
 
-function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
+function ShowsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolean; registerNewAction?: (fn: (() => void) | null) => void }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [shows, setShows] = useState<TradeShow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1149,8 +1176,10 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
     try {
       if (showId) {
         await apiService.updateTradeShow(showId, { ...input, status });
+        bdsToast.success('展会已更新');
       } else {
         await apiService.createTradeShow(input);
+        bdsToast.success('展会已创建');
       }
       setShowForm(false);
       setEditingShow(null);
@@ -1166,6 +1195,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除展会「${show.name}」？其下线索将一并删除。`, danger: true }))) return;
     try {
       await apiService.deleteTradeShow(show.id);
+      bdsToast.success(`展会「${show.name}」已删除`);
       if (selectedId === show.id) setSelectedId(null);
       await refreshAll();
     } catch (e: any) {
@@ -1181,8 +1211,10 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
     try {
       if (leadId) {
         await apiService.updateTradeShowLead(leadId, { ...input, status });
+        bdsToast.success('线索已更新');
       } else {
         await apiService.addTradeShowLead(selectedId, input);
+        bdsToast.success('线索已录入');
       }
       setShowLeadForm(false);
       setEditingLead(null);
@@ -1197,6 +1229,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
   const handleLeadStatus = async (lead: TradeShowLead, status: TradeShowLeadStatus) => {
     try {
       await apiService.updateTradeShowLead(lead.id, { status });
+      bdsToast.success(`线索状态已更新为「${LEAD_STATUS_LABELS[status]}」`);
       await loadDetail();
     } catch (e: any) {
       bdsToast.danger(`更新线索状态失败：${e?.message || e}`);
@@ -1207,6 +1240,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
     if (!(await bdsConfirm({ title: '确认删除', body: `确认删除线索「${lead.customerName}」？`, danger: true }))) return;
     try {
       await apiService.deleteTradeShowLead(lead.id);
+      bdsToast.success('线索已删除');
       await loadDetail();
     } catch (e: any) {
       bdsToast.danger(`删除线索失败：${e?.message || e}`);
@@ -1219,6 +1253,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
     setConverting(true);
     try {
       await apiService.convertTradeShowLead(convertingLead.id, relationId);
+      bdsToast.success(`线索「${convertingLead.customerName}」已转化为客户`);
       setConvertingLead(null);
       await loadDetail();
     } catch (e: any) {
@@ -1359,29 +1394,31 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
                 {selectedShow.boothNo && <span>展位 {selectedShow.boothNo}</span>}
                 {selectedShow.attendees != null && <span>接待 {selectedShow.attendees} 人</span>}
               </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  onClick={() => { setEditingShow(detail ?? selectedShow); setShowForm(true); }}
-                  className="bds-btn bds-btn-secondary"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  编辑展会
-                </button>
-                <button
-                  onClick={() => { setEditingLead(null); setShowLeadForm(true); }}
-                  className="bds-btn bds-btn-secondary"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  新增线索
-                </button>
-                <button
-                  onClick={() => handleDeleteShow(detail ?? selectedShow)}
-                  className="bds-btn bds-btn-danger ml-auto"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  删除
-                </button>
-              </div>
+              {canWrite && (
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => { setEditingShow(detail ?? selectedShow); setShowForm(true); }}
+                    className="bds-btn bds-btn-secondary"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    编辑展会
+                  </button>
+                  <button
+                    onClick={() => { setEditingLead(null); setShowLeadForm(true); }}
+                    className="bds-btn bds-btn-secondary"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    新增线索
+                  </button>
+                  <button
+                    onClick={() => handleDeleteShow(detail ?? selectedShow)}
+                    className="bds-btn bds-btn-danger ml-auto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    删除
+                  </button>
+                </div>
+              )}
               {(detail?.notes || selectedShow.notes) && (
                 <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap bds-inset" style={{ color: 'var(--text-secondary)' }}>
                   {detail?.notes || selectedShow.notes}
@@ -1468,6 +1505,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
                               <select
                                 value={lead.status}
                                 onChange={(e) => handleLeadStatus(lead, e.target.value as TradeShowLeadStatus)}
+                                disabled={!canWrite}
                                 className="bds-select"
                                 style={{
                                   width: 'auto',
@@ -1485,7 +1523,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
                             <td style={{ color: 'var(--text-tertiary)' }}>{formatDate(lead.nextFollowUpAt)}</td>
                             <td>
                               <div className="flex items-center gap-0.5 justify-end">
-                                {lead.status !== 'Converted' && (
+                                {canWrite && lead.status !== 'Converted' && (
                                   <button
                                     onClick={() => setConvertingLead(lead)}
                                     className="bds-btn bds-btn-ghost bds-btn-icon"
@@ -1494,20 +1532,24 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
                                     <ArrowRight className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => { setEditingLead(lead); setShowLeadForm(true); }}
-                                  className="bds-btn bds-btn-ghost bds-btn-icon"
-                                  title="编辑"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteLead(lead)}
-                                  className="bds-btn bds-btn-ghost bds-btn-icon"
-                                  title="删除"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                {canWrite && (
+                                  <button
+                                    onClick={() => { setEditingLead(lead); setShowLeadForm(true); }}
+                                    className="bds-btn bds-btn-ghost bds-btn-icon"
+                                    title="编辑"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {canWrite && (
+                                  <button
+                                    onClick={() => handleDeleteLead(lead)}
+                                    className="bds-btn bds-btn-ghost bds-btn-icon"
+                                    title="删除"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1557,6 +1599,15 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
 // ==================== 表单组件 ====================
 
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  // Esc 关闭：与遮罩点击同语义（统一走 onClose；与 BottomSheet 的 Esc 行为对齐）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

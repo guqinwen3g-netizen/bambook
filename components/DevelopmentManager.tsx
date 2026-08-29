@@ -24,6 +24,7 @@ import type {
   SampleType,
   ProductAssetDetail,
   Relation,
+  Invoice,
 } from '../types';
 import { View } from '../types';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
@@ -33,6 +34,7 @@ import { primeQuotationCreateFromDevCase } from './QuotationManager';
 import { primeFinanceInvoiceFocus } from './FinanceManager';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
+import { hasPermission } from '../services/authService';
 
 interface DevelopmentManagerProps {
   isDarkMode: boolean;
@@ -345,27 +347,67 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
     setPaDropdownOpen(false);
   }, [updateField]);
 
+  // ── R678 样品发票搜索（发票号手输 ID → finance 列表接口搜索下拉，300ms 防抖）──
+  const [invQuery, setInvQuery] = useState('');
+  const [invResults, setInvResults] = useState<Invoice[]>([]);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invDropdownOpen, setInvDropdownOpen] = useState(false);
+  /** 已关联发票的显示标签（选中时快照发票号；编辑既有单据时回退 ID 尾段） */
+  const [invPickedLabel, setInvPickedLabel] = useState('');
+
+  useEffect(() => {
+    if (!invQuery.trim()) { setInvResults([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setInvLoading(true);
+      try {
+        const { items } = await apiService.listInvoicesPage(undefined, { search: invQuery.trim(), limit: 6 });
+        if (!cancelled) setInvResults(items);
+      } catch { if (!cancelled) setInvResults([]); }
+      finally { if (!cancelled) setInvLoading(false); }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [invQuery]);
+
+  const selectInvoice = useCallback((inv: Invoice) => {
+    updateField('sampleInvoiceId', inv.id);
+    setInvPickedLabel(`${inv.invoiceNumber}${inv.customerName ? ` · ${inv.customerName}` : ''}`);
+    setInvQuery('');
+    setInvResults([]);
+    setInvDropdownOpen(false);
+  }, [updateField]);
+
+  const resetInvoiceSearch = useCallback(() => {
+    setInvQuery('');
+    setInvResults([]);
+    setInvDropdownOpen(false);
+    setInvPickedLabel('');
+  }, []);
+
   const openCreateModal = useCallback(() => {
     setEditingCase(null);
     setForm({ ...EMPTY_FORM });
     setFormErrorMessage(null);
+    resetInvoiceSearch();
     setIsFormModalOpen(true);
-  }, []);
+  }, [resetInvoiceSearch]);
 
   const openEditModal = useCallback(() => {
     if (!selectedCase) return;
     setEditingCase(selectedCase);
     setForm(buildInitialForm(selectedCase));
     setFormErrorMessage(null);
+    resetInvoiceSearch();
     setIsFormModalOpen(true);
-  }, [selectedCase]);
+  }, [selectedCase, resetInvoiceSearch]);
 
   const closeFormModal = useCallback(() => {
     setIsFormModalOpen(false);
     setEditingCase(null);
     setFormErrorMessage(null);
     setForm({ ...EMPTY_FORM });
-  }, []);
+    resetInvoiceSearch();
+  }, [resetInvoiceSearch]);
 
   const handleFormSubmit = useCallback(async (input: DevelopmentCaseCreateInput | DevelopmentCaseUpdateInput) => {
     if (isSubmitting) return;
@@ -375,9 +417,11 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       if (editingCase) {
         const updated = await developmentService.updateDevelopmentCase(editingCase.id, input as DevelopmentCaseUpdateInput);
         setCases(prev => prev.map(c => (c.id === updated.id ? updated : c)));
+        bdsToast.success(`开发单 ${updated.code} 已更新`);
       } else {
         const created = await developmentService.createDevelopmentCase(input as DevelopmentCaseCreateInput);
         setCases(prev => [created, ...prev]);
+        bdsToast.success(`开发单 ${created.code} 已创建`);
       }
       closeFormModal();
     } catch (err: any) {
@@ -463,6 +507,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       await developmentService.deleteDevelopmentCase(deletedId);
       setCases(prev => prev.filter(c => c.id !== deletedId));
       setSelectedCaseId(null);
+      bdsToast.success(`开发单 ${selectedCase.code} 已删除`);
     } catch (err: any) {
       bdsToast.danger(`删除失败：${err?.message || err}`);
     }
@@ -505,12 +550,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
   const textPrimaryClass = 'text-[var(--text-primary)]';
   const textSecondaryClass = 'text-[var(--text-tertiary)]';
 
-  const statusItems = [
-    { label: '开发中', value: cases.filter(item => item.stage === 'developing').length },
-    { label: '待寄样', value: cases.filter(item => item.stage === 'shipping').length },
-    { label: '待反馈', value: cases.filter(item => item.stage === 'feedback').length },
-    { label: '已确认', value: cases.filter(item => item.stage === 'approved').length },
-  ];
+  // R6 权限门：开发单新建/编辑/删除/评审/转订单均为 products:write（development 域写），无权限隐藏写按钮
+  const canWrite = hasPermission('products:write');
+
   const inspectorRows = selectedCase
     ? [
         { label: '负责人', value: selectedCase.owner || '—' },
@@ -562,14 +604,16 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               <RefreshCw size={14} className={cx(isRefreshing && 'animate-spin')} />
               刷新
             </button>
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus size={14} />
-              新建开发单
-            </button>
+            {canWrite && (
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="bds-btn bds-btn-primary"
+              >
+                <Plus size={14} />
+                新建开发单
+              </button>
+            )}
           </div>
         )}
       />
@@ -789,8 +833,8 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             发起报价
                           </button>
                         )}
-                        {/* C13 5A 样衣评审入口：仅 5A 重点样衣显示（评审通过后方可进入寄出阶段，后端门禁兜底） */}
-                        {(selectedCase as any).sampleCategory === '5a' && (
+                        {/* C13 5A 样衣评审入口：仅 5A 重点样衣显示（评审通过后方可进入寄出阶段，后端门禁兜底）；R6 写权限门 */}
+                        {canWrite && (selectedCase as any).sampleCategory === '5a' && (
                           <>
                             <button
                               type="button"
@@ -814,22 +858,26 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             </button>
                           </>
                         )}
-                        <button
-                          type="button"
-                          onClick={openEditModal}
-                          className="bds-btn bds-btn-secondary"
-                        >
-                          <Pencil size={14} />
-                          编辑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDelete}
-                          className="bds-btn bds-btn-danger"
-                        >
-                          <Trash2 size={14} />
-                          删除
-                        </button>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={openEditModal}
+                            className="bds-btn bds-btn-secondary"
+                          >
+                            <Pencil size={14} />
+                            编辑
+                          </button>
+                        )}
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={handleDelete}
+                            className="bds-btn bds-btn-danger"
+                          >
+                            <Trash2 size={14} />
+                            删除
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -854,7 +902,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     <div className="mt-4">
                       <SampleColorBatchPanel key={`color-${selectedCase.id}`} stage="lab_dip" developmentCaseId={selectedCase.id} isDarkMode={isDarkMode} />
                     </div>
-                    {selectedCase.stage === 'approved' && !selectedCase.linkedOrderId && (
+                    {canWrite && selectedCase.stage === 'approved' && !selectedCase.linkedOrderId && (
                       <button
                         type="button"
                         onClick={async () => {
@@ -1342,13 +1390,46 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">关联样品发票 ID（可选，用于发票详情直达）</label>
-                  <input
-                    value={form.sampleInvoiceId}
-                    onChange={(e) => updateField('sampleInvoiceId', e.target.value)}
-                    placeholder="发票管理中的发票 ID；填写后「样品发票」按钮直达该发票详情"
-                    className="bds-input"
-                  />
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">关联样品发票（可选，用于发票详情直达）</label>
+                  {/* R678：手输发票 ID → 发票搜索下拉（finance 列表接口 search，与产品资产搜索同模式） */}
+                  {form.sampleInvoiceId ? (
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="bds-badge info text-[10px]">已关联</span>
+                      <span className="text-xs font-light text-[var(--text-primary)] truncate flex-1">{invPickedLabel || `发票 ${form.sampleInvoiceId.slice(-8)}`}</span>
+                      <button type="button" onClick={() => { updateField('sampleInvoiceId', ''); resetInvoiceSearch(); }} className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0">
+                        取消关联
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
+                      <input
+                        value={invQuery}
+                        onChange={(e) => { setInvQuery(e.target.value); setInvDropdownOpen(true); }}
+                        onFocus={() => setInvDropdownOpen(true)}
+                        onBlur={() => setTimeout(() => setInvDropdownOpen(false), 200)}
+                        placeholder="搜索发票号 / 客户名称…"
+                        className="bds-input pl-9"
+                      />
+                      {invDropdownOpen && (invQuery.trim() || invLoading) && (
+                        <div className="absolute z-50 mt-1 w-full rounded-card border border-[var(--border-c-subtle)] bg-[var(--surface-bg)] max-h-48 overflow-y-auto">
+                          {invLoading && <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">搜索中…</div>}
+                          {!invLoading && invResults.length === 0 && invQuery.trim() && (
+                            <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">无匹配发票</div>
+                          )}
+                          {invResults.map(inv => (
+                            <button key={inv.id} type="button" onMouseDown={(e) => { e.preventDefault(); selectInvoice(inv); }} className="w-full px-3 py-2 text-left hover:bg-[var(--recessed-bg)] transition-colors">
+                              <div className="text-xs font-light text-[var(--text-primary)] truncate">{inv.invoiceNumber}</div>
+                              <div className="text-[10px] text-[var(--text-tertiary)] truncate">
+                                {inv.customerName || '—'}{inv.amount != null ? ` · ${inv.currency || ''} ${inv.amount}` : ''}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-[10px] mt-1 text-[var(--text-quaternary)]">关联后「样品发票」按钮直达该发票详情</div>
                 </div>
               </CompiledFormSectionPanel>
               </div>

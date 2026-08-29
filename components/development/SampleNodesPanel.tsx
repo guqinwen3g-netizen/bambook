@@ -33,10 +33,13 @@ import {
   type GarmentSampleRound,
   type GarmentRoundStatus,
 } from '../../services/sampleService';
+import { qcService, type QcInspectionReport } from '../../services/qcService';
+import { hasPermission } from '../../services/authService';
 import type { SampleNode, SampleNodeLevel, SampleNodeStatus } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { bdsConfirm } from '../ui/BdsDialog';
+import { bdsToast } from '../ui/bdsToast';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -131,6 +134,9 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
     }
   }, [acting, caseId, dialog]);
 
+  // R6 权限门：节点推进/寄样/修改/批准均为 products:write（development 域写），无权限只读
+  const canWrite = hasPermission('products:write');
+
   if (loading) {
     return (
       <div className={cx('flex items-center gap-2 py-4 text-[11px] font-light', textFaint)}>
@@ -169,19 +175,19 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  {node.status === 'pending' && (
+                  {canWrite && node.status === 'pending' && (
                     <button type="button" disabled={!!acting} onClick={() => act(node, 'start')}
                       className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
                       <Scissors size={14} strokeWidth={1.5} /> 开始打样
                     </button>
                   )}
-                  {node.status === 'revising' && (
+                  {canWrite && node.status === 'revising' && (
                     <button type="button" disabled={!!acting} onClick={() => act(node, 'start')}
                       className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
                       <RotateCcw size={14} strokeWidth={1.5} /> 重新打样
                     </button>
                   )}
-                  {node.status === 'making' && (
+                  {canWrite && node.status === 'making' && (
                     <>
                       <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'send', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
@@ -193,7 +199,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                       </button>
                     </>
                   )}
-                  {node.status === 'sent' && (
+                  {canWrite && node.status === 'sent' && (
                     <>
                       <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'approve', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors',
@@ -393,6 +399,11 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
   const [form, setForm] = useState<GateFormState>(null);
+  // R6 权限门：轮次/QC 结论/寄送/客户确认/封存均为 products:write（sample 域 garment 写），无权限只读
+  const canWrite = hasPermission('products:write');
+  // QC 结论引用的验货报告候选（qc 域列表接口为订单维度：经开发单 linkedOrderId 拉取）
+  const [reportOptions, setReportOptions] = useState<QcInspectionReport[]>([]);
+  const [reportsHint, setReportsHint] = useState<string | null>(null);
 
   const textPrimary = 'text-[var(--text-primary)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
@@ -418,6 +429,29 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // 验货报告候选：开发单已转/关联订单时列出该订单报告；未关联则提示（下拉禁用，不回退手输 ID）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const devCase = await developmentService.getDevelopmentCase(caseId);
+        const linkedOrderId = (devCase as { linkedOrderId?: string | null })?.linkedOrderId ?? null;
+        if (!linkedOrderId) {
+          if (!cancelled) setReportsHint('本开发单未关联订单，暂无可引用的验货报告');
+          return;
+        }
+        const list = await qcService.listOrderReports(linkedOrderId);
+        if (!cancelled) {
+          setReportOptions(list);
+          if (list.length === 0) setReportsHint('关联订单暂无验货报告');
+        }
+      } catch {
+        if (!cancelled) setReportsHint('验货报告候选加载失败');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [caseId]);
+
   const run = useCallback(async (fn: () => Promise<unknown>) => {
     if (acting) return;
     setActing(true);
@@ -437,14 +471,16 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
     <div className="mt-4">
       <div className="flex items-center justify-between">
         <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>多轮样品双门禁 · DR-008</div>
-        <button
-          type="button"
-          disabled={acting || form?.kind === 'create'}
-          onClick={() => setForm({ kind: 'create' })}
-          className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}
-        >
-          <Plus size={14} strokeWidth={1.5} /> 新建轮次
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            disabled={acting || form?.kind === 'create'}
+            onClick={() => setForm({ kind: 'create' })}
+            className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}
+          >
+            <Plus size={14} strokeWidth={1.5} /> 新建轮次
+          </button>
+        )}
       </div>
       {error && <div className="mt-2 text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
 
@@ -476,6 +512,9 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
               form={form}
               setForm={setForm}
               run={run}
+              canWrite={canWrite}
+              reportOptions={reportOptions}
+              reportsHint={reportsHint}
               cardCls={cardCls}
               actionBtnCls={actionBtnCls}
               inputCls={inputCls}
@@ -498,6 +537,9 @@ interface RoundCardProps {
   form: GateFormState;
   setForm: (f: GateFormState) => void;
   run: (fn: () => Promise<unknown>) => Promise<void>;
+  canWrite: boolean;
+  reportOptions: QcInspectionReport[];
+  reportsHint: string | null;
   cardCls: string;
   actionBtnCls: string;
   inputCls: string;
@@ -508,7 +550,7 @@ interface RoundCardProps {
 }
 
 function RoundCard(props: RoundCardProps) {
-  const { round, isSealedBase, acting, form, setForm, run } = props;
+  const { round, isSealedBase, acting, form, setForm, run, canWrite, reportOptions, reportsHint } = props;
   const { cardCls, actionBtnCls, inputCls, selectCls, textPrimary, textSecondary, textFaint } = props;
   const btn = 'inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors';
 
@@ -583,27 +625,27 @@ function RoundCard(props: RoundCardProps) {
         </div>
       )}
 
-      {/* 状态机操作入口：提交内部门禁 / 提交客户 / 登记客户确认 / 封存归档 */}
+      {/* 状态机操作入口：提交内部门禁 / 提交客户 / 登记客户确认 / 封存归档（R6：无 products:write 权限只读） */}
       <div className="mt-2 flex flex-wrap items-center gap-1">
-        {(round.status === 'in_progress' || round.status === 'qc_passed') && (
+        {canWrite && (round.status === 'in_progress' || round.status === 'qc_passed') && (
           <button type="button" disabled={acting} onClick={() => setForm({ kind: 'qc', roundId: round.id })}
             className={cx(btn, actionBtnCls)}>
             <ShieldCheck size={14} strokeWidth={1.5} /> 提交内部门禁
           </button>
         )}
-        {round.status === 'qc_passed' && (
+        {canWrite && round.status === 'qc_passed' && (
           <button type="button" disabled={acting} onClick={() => setForm({ kind: 'ship', roundId: round.id })}
             className={cx(btn, actionBtnCls)}>
             <Send size={14} strokeWidth={1.5} /> 提交客户
           </button>
         )}
-        {round.status === 'submitted' && (
+        {canWrite && round.status === 'submitted' && (
           <button type="button" disabled={acting} onClick={() => setForm({ kind: 'confirm', roundId: round.id })}
             className={cx(btn, actionBtnCls)}>
             <UserCheck size={14} strokeWidth={1.5} /> 登记客户确认
           </button>
         )}
-        {round.status === 'confirmed' && (
+        {canWrite && round.status === 'confirmed' && (
           <button
             type="button"
             disabled={acting}
@@ -624,6 +666,8 @@ function RoundCard(props: RoundCardProps) {
           busy={acting}
           inputCls={inputCls}
           selectCls={selectCls}
+          reportOptions={reportOptions}
+          reportsHint={reportsHint}
           onCancel={() => setForm(null)}
           onSubmit={(input) => run(() => sampleService.submitGarmentQcConclusion(round.id, input))}
         />
@@ -685,7 +729,10 @@ function CreateRoundForm({ busy, inputCls, onCancel, onSubmit }: {
       className={cx('rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-3 py-2.5', 'space-y-1.5')}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!purpose.trim() || !version.trim() || !materialConfig.trim()) return;
+        if (!purpose.trim() || !version.trim() || !materialConfig.trim()) {
+          bdsToast.warning('本轮目的 / 客户侧版本号 / 材料工艺配置均为必填');
+          return;
+        }
         void onSubmit({ purpose: purpose.trim(), version: version.trim(), materialConfig: materialConfig.trim(), notes: notes.trim() || undefined });
       }}
     >
@@ -700,10 +747,12 @@ function CreateRoundForm({ busy, inputCls, onCancel, onSubmit }: {
   );
 }
 
-function QcGateForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
+function QcGateForm({ busy, inputCls, selectCls, reportOptions, reportsHint, onCancel, onSubmit }: {
   busy: boolean;
   inputCls: string;
   selectCls: string;
+  reportOptions: QcInspectionReport[];
+  reportsHint: string | null;
   onCancel: () => void;
   onSubmit: (input: { result: 'passed' | 'failed'; qcNote?: string; qcInspectionReportId?: string }) => Promise<void>;
 }) {
@@ -715,7 +764,7 @@ function QcGateForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
       className={formWrapCls}
       onSubmit={(e) => {
         e.preventDefault();
-        void onSubmit({ result, qcNote: qcNote.trim() || undefined, qcInspectionReportId: reportId.trim() || undefined });
+        void onSubmit({ result, qcNote: qcNote.trim() || undefined, qcInspectionReportId: reportId || undefined });
       }}
     >
       <div className="grid grid-cols-2 gap-1.5">
@@ -723,8 +772,19 @@ function QcGateForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
           <option value="passed">QC 评审通过</option>
           <option value="failed">QC 评审不通过</option>
         </select>
-        <input className={inputCls} placeholder="关联验货报告 ID（可留空）" value={reportId} onChange={(e) => setReportId(e.target.value)} />
+        {/* 验货报告下拉（qc 域订单级列表，替代手输 ID）；无候选时禁用并提示 */}
+        <select className={selectCls} value={reportId} onChange={(e) => setReportId(e.target.value)} disabled={reportOptions.length === 0}>
+          <option value="">关联验货报告（可留空）</option>
+          {reportOptions.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.inspectionType}{r.inspectionDate ? ` · ${r.inspectionDate}` : ''}{r.result ? ` · ${r.result}` : ''}（{r.id.slice(-6)}）
+            </option>
+          ))}
+        </select>
       </div>
+      {reportOptions.length === 0 && reportsHint && (
+        <div className="text-[10px] font-light text-[var(--text-quaternary)]">{reportsHint}</div>
+      )}
       <input className={inputCls} placeholder="QC 内部评审意见（可留空）" value={qcNote} onChange={(e) => setQcNote(e.target.value)} />
       <FormButtons busy={busy} onCancel={onCancel} submitLabel="登记 QC 结论" />
     </form>
@@ -748,9 +808,15 @@ function ShipForm({ busy, inputCls, onCancel, onSubmit }: {
       className={formWrapCls}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!courier.trim() || !trackingNumber.trim() || !recipientName.trim()) return;
+        if (!courier.trim() || !trackingNumber.trim() || !recipientName.trim()) {
+          bdsToast.warning('快递服务商 / 快递单号 / 收件方均为必填（DR-039）');
+          return;
+        }
         const parsedFee = shippingFee === '' ? undefined : Number(shippingFee);
-        if (parsedFee != null && (!Number.isFinite(parsedFee) || parsedFee < 0)) return;
+        if (parsedFee != null && (!Number.isFinite(parsedFee) || parsedFee < 0)) {
+          bdsToast.warning('邮寄费须为有效的非负数值');
+          return;
+        }
         void onSubmit({
           courier: courier.trim(),
           trackingNumber: trackingNumber.trim(),
@@ -795,7 +861,10 @@ function ConfirmForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
       className={formWrapCls}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!confirmationDate || !channel.trim()) return;
+        if (!confirmationDate || !channel.trim()) {
+          bdsToast.warning('确认日期与确认渠道均为必填');
+          return;
+        }
         void onSubmit({
           result,
           confirmationDate,
