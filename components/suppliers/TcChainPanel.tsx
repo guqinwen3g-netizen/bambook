@@ -14,6 +14,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { BadgeCheck, Loader2, Plus, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
 import { apiService } from '../../services/apiService';
+import { hasPermission } from '../../services/authService';
 import type { TcCertificateRow, TcStage, TcChainVerification, Relation } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
@@ -41,6 +42,8 @@ interface TcChainPanelProps {
 }
 
 export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: TcChainPanelProps) {
+  // R6：登记/删除 TC 走 /tc-certificates 写端点（suppliers:write scope 门），无权限隐藏写入口
+  const canWrite = hasPermission('suppliers:write');
   const [items, setItems] = useState<TcCertificateRow[]>([]);
   const [byStage, setByStage] = useState<Array<{ stage: TcStage; label: string; count: number; totalKg: number }>>([]);
   const [verification, setVerification] = useState<TcChainVerification | null>(null);
@@ -165,9 +168,11 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
           <button type="button" disabled={verifying} onClick={runVerify} className="bds-btn bds-btn-ghost">
             {verifying ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} strokeWidth={1.5} />}一键校验
           </button>
-          <button type="button" onClick={() => setShowCreate(true)} className="bds-btn bds-btn-secondary">
-            <Plus size={14} strokeWidth={1.5} />登记 TC
-          </button>
+          {canWrite && (
+            <button type="button" onClick={() => setShowCreate(true)} className="bds-btn bds-btn-secondary">
+              <Plus size={14} strokeWidth={1.5} />登记 TC
+            </button>
+          )}
         </div>
       </div>
 
@@ -256,15 +261,17 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
                         <span className={cx('bds-badge sm', expired ? 'danger' : 'neutral')}>
                           {expired ? '已过期' : fmtKg(Number(t.quantityKg))}
                         </span>
-                        <button
-                          type="button"
-                          disabled={acting !== null}
-                          onClick={() => removeTc(t)}
-                          className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
-                          title="删除"
-                        >
-                          <Trash2 size={14} strokeWidth={1.5} />
-                        </button>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            disabled={acting !== null}
+                            onClick={() => removeTc(t)}
+                            className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
+                            title="删除"
+                          >
+                            <Trash2 size={14} strokeWidth={1.5} />
+                          </button>
+                        )}
                       </div>
                       <div className={cx('mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-light', textFaint)}>
                         {t.relationName && <span>{t.relationName}</span>}

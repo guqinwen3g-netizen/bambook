@@ -32,6 +32,8 @@
  *   - GET    /:id/overview              — 工厂 360°（档案 + 近期评分 + 认证 + 产能）
  *
  * 守卫口径与 email 模块一致：读走 JWT 或 API-Key，写必须 JWT（requireJwtForWrite）；
+ * 全部写端点叠加 requirePermission('suppliers:write') scope 守卫（对齐 procurementRoute
+ * requireProcurementWrite 口径：JWT permissions 直查 / legacy 角色映射矩阵兜底）；
  * 黑名单属高风险管理动作，叠加 requirePermission('suppliers:admin') scope 守卫
  * （S3-γ：legacy owner/admin/manager 角色门收编为 scope 门；SM/ADMIN 持有，SuperAdmin 全通）。
  */
@@ -63,6 +65,8 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  // 写端点 scope 门（对齐 procurementRoute requireProcurementWrite 口径；黑名单另叠加 suppliers:admin）
+  const requireSupplierWrite = requirePermission('suppliers:write');
   const notify = (action: string, ids?: string[]) => onDataChange?.({ entity: 'suppliers', action, ids });
 
   const handleError = (res: Response, e: any, code: string) => {
@@ -128,7 +132,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   };
 
   // POST /tc-certificates — 登记 TC（三段链）
-  router.post('/tc-certificates', requireWrite, async (req: Request, res: Response) => {
+  router.post('/tc-certificates', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     const result = await tcService.createTc((req.body ?? {}) as any);
     if (result.ok) notify('create_tc_certificate', [result.data.tc.id]);
     handleTcResult(res, result, 201, (d) => ({ ok: true, tc: d.tc }));
@@ -150,14 +154,14 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   });
 
   // PATCH /tc-certificates/:tcId — 修正（吨位/效期/备注白名单）
-  router.patch('/tc-certificates/:tcId', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/tc-certificates/:tcId', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     const result = await tcService.updateTc(req.params.tcId, (req.body ?? {}) as any);
     if (result.ok) notify('update_tc_certificate', [req.params.tcId]);
     handleTcResult(res, result, 200, (d) => ({ ok: true, tc: d.tc }));
   });
 
   // DELETE /tc-certificates/:tcId — 软删
-  router.delete('/tc-certificates/:tcId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/tc-certificates/:tcId', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     const result = await tcService.deleteTc(req.params.tcId);
     if (result.ok) notify('delete_tc_certificate', [req.params.tcId]);
     handleTcResult(res, result, 200, (d) => ({ ok: true, id: d.id }));
@@ -185,7 +189,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   });
 
   // POST /delays — 登记延迟（落库 + 影响快照 + 交期分联动）
-  router.post('/delays', requireWrite, async (req: Request, res: Response) => {
+  router.post('/delays', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     const result = await delayService.registerDelay((req.body ?? {}) as any, actorIdFromRequest(req));
     if (result.ok) notify('register_factory_delay', [result.data.record.id]);
     handleDelayResult(res, result, 201, (d) => ({ ok: true, record: d.record, impact: d.impact, qualityScoreLinked: d.qualityScoreLinked }));
@@ -207,7 +211,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   });
 
   // POST / — 建立工厂档案
-  router.post('/', requireWrite, async (req: Request, res: Response) => {
+  router.post('/', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       const profile = await service.createProfile(req.body as FactoryProfileInput, actorIdFromRequest(req));
       notify('create', [profile.id]);
@@ -218,7 +222,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   });
 
   // PATCH /certifications/:certId（字面前缀，须在 /:id 通配前注册）
-  router.patch('/certifications/:certId', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/certifications/:certId', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       const cert = await service.updateCertification(req.params.certId, req.body, actorIdFromRequest(req));
       notify('update_certification', [cert.id]);
@@ -228,7 +232,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.delete('/certifications/:certId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/certifications/:certId', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteCertification(req.params.certId, actorIdFromRequest(req));
       notify('delete_certification', [req.params.certId]);
@@ -252,7 +256,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.patch('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/:id', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       const profile = await service.updateProfile(req.params.id, req.body, actorIdFromRequest(req));
       notify('update', [profile.id]);
@@ -262,7 +266,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.delete('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/:id', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteProfile(req.params.id, actorIdFromRequest(req));
       notify('delete', [req.params.id]);
@@ -305,7 +309,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.post('/:id/evaluations', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/evaluations', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       const evaluation = await service.addEvaluation(req.params.id, req.body as FactoryEvaluationInput, actorIdFromRequest(req));
       notify('add_evaluation', [evaluation.id]);
@@ -326,7 +330,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.post('/:id/certifications', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/certifications', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       const cert = await service.addCertification(req.params.id, req.body as FactoryCertificationInput, actorIdFromRequest(req));
       notify('add_certification', [cert.id]);
@@ -347,7 +351,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.put('/:id/capacity/:month', requireWrite, async (req: Request, res: Response) => {
+  router.put('/:id/capacity/:month', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       const row = await service.upsertCapacity(req.params.id, {
         month: req.params.month,
@@ -362,7 +366,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     }
   });
 
-  router.delete('/:id/capacity/:month', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/:id/capacity/:month', requireWrite, requireSupplierWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteCapacity(req.params.id, req.params.month, actorIdFromRequest(req));
       notify('delete_capacity', [req.params.id]);

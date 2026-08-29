@@ -16,6 +16,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Plus, TimerReset } from 'lucide-react';
 import { apiService } from '../../services/apiService';
+import { hasPermission } from '../../services/authService';
 import type { DelayImpactResult, DelayImpactItem, DelayReason, FactoryDelayRecord } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
 import { bdsToast } from '../ui/bdsToast';
@@ -52,6 +53,8 @@ interface FactoryDelayPanelProps {
 }
 
 export function FactoryDelayPanel({ relationId, supplierName }: FactoryDelayPanelProps) {
+  // R6：登记延迟走 POST /delays（suppliers:write scope 门），无权限隐藏入口
+  const canWrite = hasPermission('suppliers:write');
   const [records, setRecords] = useState<FactoryDelayRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,9 +172,11 @@ export function FactoryDelayPanel({ relationId, supplierName }: FactoryDelayPane
         <span className={cx('text-xs font-light', textPrimary)}>延迟影响</span>
         <span className={cx('text-[10px] font-light tracking-[0.14em]', textFaint)}>DELAY IMPACT</span>
         <div className="ml-auto">
-          <button type="button" onClick={() => setShowCreate(true)} className="bds-btn bds-btn-secondary">
-            <Plus size={14} strokeWidth={1.5} />登记延迟
-          </button>
+          {canWrite && (
+            <button type="button" onClick={() => setShowCreate(true)} className="bds-btn bds-btn-secondary">
+              <Plus size={14} strokeWidth={1.5} />登记延迟
+            </button>
+          )}
         </div>
       </div>
 

@@ -40,6 +40,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import {
   Relation,
   View,
@@ -224,6 +225,9 @@ interface SuppliersManagerProps {
 // ==================== 主组件 ====================
 
 export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersManagerProps) {
+  // R6 前端权限：写操作按 suppliers:write 隐藏，黑名单管理按 suppliers:admin 隐藏（服务端 scope 门为最终防线）
+  const canWrite = hasPermission('suppliers:write');
+  const canAdmin = hasPermission('suppliers:admin');
   const [activeTab, setActiveTab] = useState<SupplierTab>('overview');
   const [profiles, setProfiles] = useState<FactoryProfile[]>([]);
   const [total, setTotal] = useState(0);
@@ -502,7 +506,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       <PageHeader
         title="供应商管理"
         subtitle="Supplier Management"
-        actions={
+        actions={canWrite ? (
           <button
             onClick={() => { setEditingProfile(null); setShowProfileForm(true); }}
             className="bds-btn bds-btn-primary"
@@ -510,7 +514,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
             <Plus className="w-4 h-4" />
             新建工厂档案
           </button>
-        }
+        ) : undefined}
       />
 
       {/* 认证到期预警横幅（C8：已过期证书一并进预警，比将到期更紧急） */}
@@ -754,15 +758,17 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                     <ScoreBadge label="交期" score={selectedProfile.deliveryScore} />
                   </div>
                 </div>
-                {/* 操作行 */}
+                {/* 操作行（写：suppliers:write；拉黑/解除：suppliers:admin） */}
                 <div className="mt-3 flex items-center gap-2">
-                  <button
-                    onClick={() => { setEditingProfile(detail ?? selectedProfile); setShowProfileForm(true); }}
-                    className="bds-btn bds-btn-secondary"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    编辑档案
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={() => { setEditingProfile(detail ?? selectedProfile); setShowProfileForm(true); }}
+                      className="bds-btn bds-btn-secondary"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      编辑档案
+                    </button>
+                  )}
                   {onNavigate && (
                     <button
                       onClick={() => {
@@ -777,30 +783,34 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null ? (
+                  {canAdmin && (
+                    (detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null ? (
+                      <button
+                        onClick={() => handleUnblacklist(detail ?? selectedProfile)}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        <CircleCheck className="w-3.5 h-3.5" />
+                        解除拉黑
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setBlacklistTarget(detail ?? selectedProfile)}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        拉黑
+                      </button>
+                    )
+                  )}
+                  {canWrite && (
                     <button
-                      onClick={() => handleUnblacklist(detail ?? selectedProfile)}
-                      className="bds-btn bds-btn-secondary"
+                      onClick={() => handleDeleteProfile(detail ?? selectedProfile)}
+                      className="bds-btn bds-btn-danger ml-auto"
                     >
-                      <CircleCheck className="w-3.5 h-3.5" />
-                      解除拉黑
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setBlacklistTarget(detail ?? selectedProfile)}
-                      className="bds-btn bds-btn-secondary"
-                    >
-                      <Ban className="w-3.5 h-3.5" />
-                      拉黑
+                      <Trash2 className="w-3.5 h-3.5" />
+                      删除
                     </button>
                   )}
-                  <button
-                    onClick={() => handleDeleteProfile(detail ?? selectedProfile)}
-                    className="bds-btn bds-btn-danger ml-auto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    删除
-                  </button>
                 </div>
                 {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null && (
                   <div className="bds-alert danger mt-3 text-xs">
@@ -849,6 +859,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                         <EvaluationsTab
                           evaluations={evaluations}
                           onCreate={() => setShowEvaluationForm(true)}
+                          canWrite={canWrite}
                         />
                       )}
                       {activeTab === 'certifications' && (
@@ -857,6 +868,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                           onCreate={() => { setEditingCert(null); setShowCertForm(true); }}
                           onEdit={(c) => { setEditingCert(c); setShowCertForm(true); }}
                           onDelete={handleDeleteCertification}
+                          canWrite={canWrite}
                         />
                       )}
                       {activeTab === 'certifications' && detail?.relationId && (
@@ -868,6 +880,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                           onCreate={() => { setEditingCapacityMonth(null); setShowCapacityForm(true); }}
                           onEdit={(row) => { setEditingCapacityMonth(row); setShowCapacityForm(true); }}
                           onDelete={handleDeleteCapacity}
+                          canWrite={canWrite}
                         />
                       )}
                       {activeTab === 'delays' && detail?.relationId && (
@@ -1031,9 +1044,12 @@ function OverviewTab({ profile }: { profile: FactoryProfile }) {
 function EvaluationsTab({
   evaluations,
   onCreate,
+  canWrite,
 }: {
   evaluations: FactoryEvaluation[];
   onCreate: () => void;
+  /** suppliers:write — 手动评分按钮门禁 */
+  canWrite: boolean;
 }) {
   const [kindFilter, setKindFilter] = useState<'' | FactoryEvaluationKind>('');
   const filtered = kindFilter ? evaluations.filter((e) => e.kind === kindFilter) : evaluations;
@@ -1052,13 +1068,15 @@ function EvaluationsTab({
             </button>
           ))}
         </div>
-        <button
-          onClick={onCreate}
-          className="bds-btn bds-btn-secondary ml-auto"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          手动评分
-        </button>
+        {canWrite && (
+          <button
+            onClick={onCreate}
+            className="bds-btn bds-btn-secondary ml-auto"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            手动评分
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -1105,23 +1123,28 @@ function CertificationsTab({
   onCreate,
   onEdit,
   onDelete,
+  canWrite,
 }: {
   certifications: FactoryCertification[];
   onCreate: () => void;
   onEdit: (c: FactoryCertification) => void;
   onDelete: (c: FactoryCertification) => void;
+  /** suppliers:write — 新增/编辑/删除按钮门禁 */
+  canWrite: boolean;
 }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>共 {certifications.length} 项认证</div>
-        <button
-          onClick={onCreate}
-          className="bds-btn bds-btn-secondary"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          新增认证
-        </button>
+        {canWrite && (
+          <button
+            onClick={onCreate}
+            className="bds-btn bds-btn-secondary"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            新增认证
+          </button>
+        )}
       </div>
 
       {certifications.length === 0 ? (
@@ -1149,20 +1172,24 @@ function CertificationsTab({
                 <span className={`bds-badge sm shrink-0 ${certSemantic(daysLeft)}`}>
                   {daysLeft === null ? '长期有效' : daysLeft < 0 ? `已过期 ${-daysLeft} 天` : daysLeft <= EXPIRING_DAYS ? `剩余 ${daysLeft} 天` : '有效'}
                 </span>
-                <button
-                  onClick={() => onEdit(cert)}
-                  className="bds-btn bds-btn-ghost bds-btn-icon"
-                  title="编辑"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => onDelete(cert)}
-                  className="bds-btn bds-btn-ghost bds-btn-icon"
-                  title="删除"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {canWrite && (
+                  <>
+                    <button
+                      onClick={() => onEdit(cert)}
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
+                      title="编辑"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(cert)}
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
+                      title="删除"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
               </div>
             );
           })}
@@ -1243,11 +1270,14 @@ function CapacityTab({
   onCreate,
   onEdit,
   onDelete,
+  canWrite,
 }: {
   capacity: FactoryCapacity[];
   onCreate: () => void;
   onEdit: (row: FactoryCapacity) => void;
   onDelete: (row: FactoryCapacity) => void;
+  /** suppliers:write — 设置/编辑/删除按钮门禁 */
+  canWrite: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -1255,19 +1285,21 @@ function CapacityTab({
         <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
           占用量由在手采购单（已发送/已确认/部分收货）按交期落月实时聚合
         </div>
-        <button
-          onClick={onCreate}
-          className="bds-btn bds-btn-secondary"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          设置月产能
-        </button>
+        {canWrite && (
+          <button
+            onClick={onCreate}
+            className="bds-btn bds-btn-secondary"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            设置月产能
+          </button>
+        )}
       </div>
 
       {capacity.length === 0 ? (
         <div className="bds-empty bds-card flat">
           <div className="title">暂无产能计划</div>
-          <div className="desc">点击「设置月产能」开始规划</div>
+          <div className="desc">{canWrite ? '点击「设置月产能」开始规划' : '当前账号为只读权限'}</div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1287,22 +1319,24 @@ function CapacityTab({
                     占用 {formatNumber(occupied)}（{Math.round(ratio * 100)}%）
                   </span>
                   {row.note && <span className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>{row.note}</span>}
-                  <div className="ml-auto flex items-center gap-1">
-                    <button
-                      onClick={() => onEdit(row)}
-                      className="bds-btn bds-btn-ghost bds-btn-icon"
-                      title="编辑"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(row)}
-                      className="bds-btn bds-btn-ghost bds-btn-icon"
-                      title="删除"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {canWrite && (
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        onClick={() => onEdit(row)}
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
+                        title="编辑"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onDelete(row)}
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
+                        title="删除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {/* 占用条 */}
                 <div className={`bds-progress mt-2 ${semantic}`}>
@@ -1323,6 +1357,18 @@ function CapacityTab({
 // ==================== 表单组件 ====================
 
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  // Esc 关闭（与 BdsDialog 键盘口径一致；修复自研 Shell 仅遮罩/×可关）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

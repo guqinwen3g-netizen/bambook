@@ -328,6 +328,52 @@ describe('H1a · 黑名单', () => {
   });
 });
 
+describe('R6 · 写端点 suppliers:write scope 门', () => {
+  let prisma: any;
+  beforeEach(() => { prisma = makeMockPrisma(); });
+
+  it('viewer（无 suppliers:write）全部写端点 → 403；读端点不受影响', async () => {
+    seedSupplierRelation(prisma);
+    const app = makeApp(prisma);
+    const p = await createProfile(app, 'REL_SUP1');
+
+    // 读端点仅 JWT 门：viewer 可访问
+    const list = await request(app).get('/api/v1/suppliers').set(viewerAuth());
+    expect(list.status).toBe(200);
+
+    // 档案写
+    expect((await request(app).post('/api/v1/suppliers').set(viewerAuth()).send({ relationId: 'REL_SUP1' })).status).toBe(403);
+    expect((await request(app).patch(`/api/v1/suppliers/${p.id}`).set(viewerAuth()).send({ workerCount: 1 })).status).toBe(403);
+    expect((await request(app).delete(`/api/v1/suppliers/${p.id}`).set(viewerAuth())).status).toBe(403);
+    // 评估 / 认证
+    expect((await request(app).post(`/api/v1/suppliers/${p.id}/evaluations`).set(viewerAuth()).send({ kind: 'inspection', score: 80, evaluatedAt: '2026-08-01' })).status).toBe(403);
+    expect((await request(app).post(`/api/v1/suppliers/${p.id}/certifications`).set(viewerAuth()).send({ type: 'BSCI' })).status).toBe(403);
+    expect((await request(app).patch('/api/v1/suppliers/certifications/FACR__X').set(viewerAuth()).send({})).status).toBe(403);
+    expect((await request(app).delete('/api/v1/suppliers/certifications/FACR__X').set(viewerAuth())).status).toBe(403);
+    // 产能日历
+    expect((await request(app).put(`/api/v1/suppliers/${p.id}/capacity/2026-09`).set(viewerAuth()).send({ capacity: 100 })).status).toBe(403);
+    expect((await request(app).delete(`/api/v1/suppliers/${p.id}/capacity/2026-09`).set(viewerAuth())).status).toBe(403);
+    // 延迟登记 / TC 证书链
+    expect((await request(app).post('/api/v1/suppliers/delays').set(viewerAuth()).send({})).status).toBe(403);
+    expect((await request(app).post('/api/v1/suppliers/tc-certificates').set(viewerAuth()).send({})).status).toBe(403);
+    expect((await request(app).patch('/api/v1/suppliers/tc-certificates/TC__X').set(viewerAuth()).send({})).status).toBe(403);
+    expect((await request(app).delete('/api/v1/suppliers/tc-certificates/TC__X').set(viewerAuth())).status).toBe(403);
+  });
+
+  it('owner 写端点不受阻（super-admin 全通回归锚点：建档 201）', async () => {
+    seedSupplierRelation(prisma);
+    const app = makeApp(prisma);
+    const res = await request(app).post('/api/v1/suppliers').set(auth()).send({ relationId: 'REL_SUP1' });
+    expect(res.status).toBe(201);
+  });
+
+  it('API-Key 通道命中写 scope 门仍 401（requireWrite 先于 scope 校验）', async () => {
+    const app = makeApp(prisma);
+    const res = await request(app).patch('/api/v1/suppliers/FACP__X').set('x-bambook-api-key', validApiKey).send({ workerCount: 1 });
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('H1a · FactoryEvaluation 评分与缓存分重算', () => {
   let prisma: any;
   beforeEach(() => { prisma = makeMockPrisma(); });

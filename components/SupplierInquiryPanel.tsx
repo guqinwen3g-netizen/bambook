@@ -30,6 +30,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import {
   SupplierInquiry,
   SupplierInquiryStatus,
@@ -40,6 +41,7 @@ import {
 } from '../types';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsConfirm } from './ui/BdsDialog';
+import { bdsToast } from './ui/bdsToast';
 
 // ==================== 常量 ====================
 
@@ -190,6 +192,8 @@ const getLowestBaseAmountId = (quotes: SupplierQuoteItem[]): string | null => {
 // ==================== 组件 ====================
 
 const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode: _isDarkMode, onConvertToPurchaseOrder }) => {
+  // R6 前端权限：写操作按钮按 procurement:write 隐藏（服务端 requireProcurementWrite 为最终门禁）
+  const canWrite = hasPermission('procurement:write');
   const [inquiries, setInquiries] = useState<SupplierInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,8 +201,12 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // 服务端搜索词（300ms 防抖后生效，逐键不直发请求——对齐 SuppliersManager 口径）
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  // 编辑断头修复：Open 询价单复用创建表单回填编辑（PUT /inquiries/:id 仅 Open）
+  const [editingInquiryId, setEditingInquiryId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // 创建表单
@@ -221,13 +229,19 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
   // ── 拉取数据 ──
+  // 搜索防抖：300ms 内连续输入合并为一次服务端查询
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
   const fetchInquiries = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listSupplierInquiries({
         status: statusFilter === 'all' ? undefined : statusFilter,
-        search: searchQuery || undefined,
+        search: appliedSearch || undefined,
         limit: 100,
         offset,
       });
@@ -239,7 +253,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, appliedSearch]);
 
   useEffect(() => {
     fetchInquiries();
@@ -273,7 +287,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
     setInquiries(prev => prev.map(i => (i.id === updated.id ? updated : i)));
   }, []);
 
-  // ── 创建询价 ──
+  // ── 创建/编辑询价（编辑断头修复：Open 单回填复用本表单 → PUT /inquiries/:id） ──
   const handleCreate = useCallback(async () => {
     setCreateError(null);
     if (!createForm.description.trim()) {
@@ -292,16 +306,65 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
         buyer: createForm.buyer.trim() || undefined,
         notes: createForm.notes.trim() || undefined,
       };
-      await apiService.createSupplierInquiry(input);
+      if (editingInquiryId) {
+        const updated = await apiService.updateSupplierInquiry(editingInquiryId, input);
+        bdsToast.success(`询价单 ${updated.inquiryNumber} 已更新。`);
+      } else {
+        const created = await apiService.createSupplierInquiry(input);
+        bdsToast.success(`询价单 ${created.inquiryNumber} 已创建。`);
+      }
       setShowCreateForm(false);
       setCreateForm(createEmptyCreateForm());
+      setEditingInquiryId(null);
       await fetchInquiries();
     } catch (e: any) {
-      setCreateError(`创建失败：${e?.message || e}`);
+      setCreateError(`${editingInquiryId ? '保存' : '创建'}失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
-  }, [createForm, fetchInquiries]);
+  }, [createForm, editingInquiryId, fetchInquiries]);
+
+  // ── 编辑询价（仅 Open；回填创建表单进入编辑态） ──
+  const handleEditInquiry = useCallback((inquiry: SupplierInquiry) => {
+    setCreateForm({
+      description: inquiry.description ?? '',
+      materialCode: inquiry.materialCode ?? '',
+      quantity: inquiry.quantity != null ? String(inquiry.quantity) : '',
+      unit: inquiry.unit || 'YD',
+      currency: inquiry.currency || 'USD',
+      expectedDeliveryDate: inquiry.expectedDeliveryDate ?? '',
+      buyer: inquiry.buyer ?? '',
+      notes: inquiry.notes ?? '',
+    });
+    setEditingInquiryId(inquiry.id);
+    setCreateError(null);
+    setShowCreateForm(true);
+  }, []);
+
+  /** 表单是否已填写内容（取消时据此 bdsConfirm 弃稿确认） */
+  const isCreateFormDirty = useCallback(() => {
+    if (editingInquiryId) return true; // 编辑态预填非空，取消一律确认弃稿
+    return Boolean(
+      createForm.description || createForm.materialCode || createForm.quantity
+      || createForm.expectedDeliveryDate || createForm.buyer || createForm.notes,
+    );
+  }, [editingInquiryId, createForm]);
+
+  // ── 取消/返回列表：脏表单 bdsConfirm 弃稿，干净表单直接重置（修复取消残留） ──
+  const handleCancelCreate = useCallback(async () => {
+    if (isCreateFormDirty()) {
+      const ok = await bdsConfirm({
+        title: editingInquiryId ? '放弃对询价单的修改？' : '放弃新建询价单草稿？',
+        body: '表单中已填写的内容不会被保存。',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setShowCreateForm(false);
+    setCreateForm(createEmptyCreateForm());
+    setEditingInquiryId(null);
+    setCreateError(null);
+  }, [isCreateFormDirty, editingInquiryId]);
 
   // ── 添加/更新报价 ──
   const handleSaveQuote = useCallback(async (inquiryId: string) => {
@@ -408,6 +471,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
       updateInquiryInList(updated);
       setSelectedQuoteId(null);
       setDecisionNote('');
+      bdsToast.success(`比价决策已确认：中选 ${updated.selectedSupplierName || '供应商'}，询价单转入已比价。`);
     } catch (e: any) {
       setError(`比价决策失败：${e?.message || e}`);
     } finally {
@@ -422,6 +486,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
     try {
       const updated = await apiService.closeSupplierInquiry(inquiryId);
       updateInquiryInList(updated);
+      bdsToast.success(`询价单 ${updated.inquiryNumber} 已关闭。`);
     } catch (e: any) {
       setError(`关闭询价失败：${e?.message || e}`);
     } finally {
@@ -504,9 +569,9 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
           >
             {/* 创建表单头 */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-light" style={{ color: 'var(--text-primary)' }}>新建询价单</h2>
+              <h2 className="text-lg font-light" style={{ color: 'var(--text-primary)' }}>{editingInquiryId ? '编辑询价单' : '新建询价单'}</h2>
               <button
-                onClick={() => { setShowCreateForm(false); setCreateError(null); }}
+                onClick={() => void handleCancelCreate()}
                 className="bds-btn bds-btn-secondary"
               >
                 <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
@@ -609,7 +674,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
 
               <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => { setShowCreateForm(false); setCreateError(null); }}
+                  onClick={() => void handleCancelCreate()}
                   className="bds-btn bds-btn-ghost"
                 >
                   取消
@@ -619,8 +684,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                   disabled={actionLoading === 'create'}
                   className="bds-btn bds-btn-primary"
                 >
-                  {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                  <span>创建询价</span>
+                  {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : editingInquiryId ? <CheckCircle2 size={16} /> : <Plus size={16} />}
+                  <span>{editingInquiryId ? '保存修改' : '创建询价'}</span>
                 </button>
               </div>
             </div>
@@ -653,12 +718,14 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
               >
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="bds-btn bds-btn-primary ml-auto"
-              >
-                <Plus size={14} /><span>新建询价</span>
-              </button>
+              {canWrite && (
+                <button
+                  onClick={() => { setCreateForm(createEmptyCreateForm()); setEditingInquiryId(null); setCreateError(null); setShowCreateForm(true); }}
+                  className="bds-btn bds-btn-primary ml-auto"
+                >
+                  <Plus size={14} /><span>新建询价</span>
+                </button>
+              )}
             </div>
 
             {/* 状态过滤 */}
@@ -808,8 +875,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                       return (
                                         <div key={quote.id} className="p-3 rounded-inset bds-inset">
                                           <div className="flex items-center gap-3">
-                                            {/* 选择 radio（仅 Open 状态可选） */}
-                                            {isOpen ? (
+                                            {/* 选择 radio（仅 Open 且有写权限可选） */}
+                                            {isOpen && canWrite ? (
                                               <input
                                                 type="radio"
                                                 name={`select_${inquiry.id}`}
@@ -861,8 +928,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                                 </div>
                                               )}
                                             </div>
-                                            {/* 编辑/删除（仅 Open） */}
-                                            {isOpen && (
+                                            {/* 编辑/删除（仅 Open 且有写权限） */}
+                                            {isOpen && canWrite && (
                                               <div className="flex items-center gap-1 flex-shrink-0">
                                                 <button
                                                   onClick={() => handleEditQuote(quote)}
@@ -895,8 +962,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                 )}
                               </div>
 
-                              {/* 添加/编辑报价表单（仅 Open） */}
-                              {isOpen && (
+                              {/* 添加/编辑报价表单（仅 Open 且有写权限） */}
+                              {isOpen && canWrite && (
                                 <div className="p-3 rounded-inset bds-inset">
                                   <div className="flex items-center justify-between mb-2">
                                     <h4 className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -1029,8 +1096,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                 </div>
                               )}
 
-                              {/* 比价决策（仅 Open 且有报价） */}
-                              {isOpen && quotes.length > 0 && (
+                              {/* 比价决策（仅 Open 且有报价且有写权限） */}
+                              {isOpen && canWrite && quotes.length > 0 && (
                                 <div
                                   className="p-3 rounded-inset"
                                   style={{ background: 'var(--recessed-bg)', border: 'var(--border-subtle)' }}
@@ -1096,9 +1163,9 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                 </div>
                               )}
 
-                              {/* 操作按钮 */}
+                              {/* 操作按钮（写操作按 procurement:write 隐藏） */}
                               <div className="flex items-center gap-2 pt-2 flex-wrap">
-                                {inquiry.status === 'Compared' && (
+                                {canWrite && inquiry.status === 'Compared' && (
                                   <>
                                     {/* C7：一键转采购单（宿主提供跳转时展示） */}
                                     {onConvertToPurchaseOrder && (
@@ -1137,19 +1204,29 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                     </button>
                                   </>
                                 )}
-                                {inquiry.status === 'Open' && (
-                                  <button
-                                    onClick={() => handleDeleteInquiry(inquiry.id)}
-                                    disabled={actionLoading === `delinq_${inquiry.id}`}
-                                    className="bds-btn bds-btn-danger"
-                                  >
-                                    {actionLoading === `delinq_${inquiry.id}` ? (
-                                      <Loader2 size={14} className="animate-spin" />
-                                    ) : (
-                                      <Trash2 size={14} />
-                                    )}
-                                    <span>删除询价</span>
-                                  </button>
+                                {canWrite && inquiry.status === 'Open' && (
+                                  <>
+                                    {/* 编辑断头修复：Open 可回填编辑（PUT /inquiries/:id 仅 Open） */}
+                                    <button
+                                      onClick={() => handleEditInquiry(inquiry)}
+                                      className="bds-btn bds-btn-secondary"
+                                    >
+                                      <Pencil size={14} />
+                                      <span>编辑</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteInquiry(inquiry.id)}
+                                      disabled={actionLoading === `delinq_${inquiry.id}`}
+                                      className="bds-btn bds-btn-danger"
+                                    >
+                                      {actionLoading === `delinq_${inquiry.id}` ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                      ) : (
+                                        <Trash2 size={14} />
+                                      )}
+                                      <span>删除询价</span>
+                                    </button>
+                                  </>
                                 )}
                                 {inquiry.status === 'Closed' && (
                                   <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>

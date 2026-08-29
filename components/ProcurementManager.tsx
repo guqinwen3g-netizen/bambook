@@ -32,8 +32,10 @@ import {
   Eye,
   X,
   Undo2,
+  Pencil,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { hasPermission } from '../services/authService';
 import {
   PurchaseOrder,
   PurchaseLine,
@@ -207,6 +209,8 @@ const createEmptyLine = (): DraftLine => ({
 });
 
 const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onNavigate }) => {
+  // R6 前端权限：写操作按钮按 procurement:write 隐藏（服务端 requireProcurementWrite 为最终门禁）
+  const canWrite = hasPermission('procurement:write');
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -214,8 +218,12 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // 服务端搜索词（300ms 防抖后生效，逐键不直发请求——对齐 SuppliersManager/FinancePaymentRequestsPanel 口径）
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  // 编辑断头修复：Draft 采购单复用创建表单回填编辑（PUT /:id 仅 Draft）
+  const [editingPoId, setEditingPoId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'orders' | 'inquiries'>('orders');
   // 边缘渐隐：固定 mask 挂滚动容器自身（12px 轻微渐隐——修复原 ScrollEdgeFades null-ref 断链，恢复渐隐）
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
@@ -273,6 +281,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
   useEffect(() => {
     if (!createPrime) return;
+    setEditingPoId(null); // 订单 prime 永远进入新建态
     setShowCreateForm(true);
     setForm(prev => ({
       ...prev,
@@ -303,13 +312,24 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   // ── 拉取数据 ──
+  // 跨模块导航筛选（关系智库供应商档案「关联业务 → 采购」入口）：挂载时消费一次；
+  // supplierRelationId 下推服务端过滤（与台账导出口径一致，不再客户端截断首 100 条）
+  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+
+  // 搜索防抖：300ms 内连续输入合并为一次服务端查询
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
   const fetchPurchaseOrders = useCallback(async (offset = 0) => {
     if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listPurchaseOrders({
         status: statusFilter === 'all' ? undefined : statusFilter,
-        search: searchQuery || undefined,
+        search: appliedSearch || undefined,
+        supplierRelationId: navRelationFilter?.relationId || undefined,
         limit: 100,
         offset,
       });
@@ -321,18 +341,9 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, appliedSearch, navRelationFilter]);
 
   useEffect(() => { fetchPurchaseOrders(); }, [fetchPurchaseOrders]);
-
-  // 跨模块导航筛选（关系智库供应商档案「关联业务 → 采购」入口）：挂载时消费一次
-  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
-  const visiblePurchaseOrders = useMemo(
-    () => navRelationFilter
-      ? purchaseOrders.filter(po => po.supplierRelationId === navRelationFilter.relationId)
-      : purchaseOrders,
-    [purchaseOrders, navRelationFilter],
-  );
 
   useEffect(() => {
     apiService.listRelations().then(setRelations).catch(() => {});
@@ -346,6 +357,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   // ── C7：询价一键转采购单（已比价询价单 → 新建采购单预填：供应商/币种/条款/行明细） ──
   const handleConvertInquiry = useCallback((draft: SupplierInquiryConvertDraft) => {
     setCreatePrime(null); // 询价来源与订单 prime 互斥，避免关联备注串味
+    setEditingPoId(null); // 与编辑态互斥：转采购单永远进入新建
     setForm(prev => ({
       ...prev,
       currency: draft.currency || prev.currency,
@@ -512,7 +524,75 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
     }
   }, [expandedId, fetchReceipts, fetchMaterialReturns]);
 
-  // ── 创建采购单 ──
+  // ── 表单重置（创建/编辑/取消共用；修复取消后表单残留） ──
+  const resetPoForm = useCallback(() => {
+    setForm({
+      poNumber: '', currency: 'USD', supplierRelationId: '', supplierName: '',
+      orderDate: new Date().toISOString().split('T')[0], expectedDeliveryDate: '',
+      deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
+      shipToAddress: '', buyer: '', notes: '',
+    });
+    setFormLines([createEmptyLine()]);
+    setFormError(null);
+    setCreatePrime(null);
+    setEditingPoId(null);
+  }, []);
+
+  // ── Draft 编辑入口：回填创建表单 → PUT /:id（后端仅 Draft 可编辑） ──
+  const handleEditPo = useCallback((po: PurchaseOrder) => {
+    setCreatePrime(null);
+    setEditingPoId(po.id);
+    setForm({
+      poNumber: po.poNumber,
+      currency: po.currency,
+      supplierRelationId: po.supplierRelationId ?? '',
+      supplierName: po.supplierName ?? '',
+      orderDate: po.orderDate || new Date().toISOString().split('T')[0],
+      expectedDeliveryDate: po.expectedDeliveryDate ?? '',
+      deliveryTerms: po.deliveryTerms ?? '',
+      paymentTerms: po.paymentTerms ?? '',
+      shipToAddress: po.shipToAddress ?? '',
+      buyer: po.buyer ?? '',
+      notes: po.notes ?? '',
+    });
+    const lines = po.lines ?? [];
+    setFormLines(lines.length > 0 ? lines.map(l => ({
+      key: newLineKey(),
+      materialCode: l.materialCode ?? '',
+      description: l.description ?? '',
+      category: l.category ?? 'Fabric',
+      specification: l.specification ?? '',
+      quantity: String(l.quantity ?? ''),
+      unit: l.unit || 'YD',
+      unitPrice: String(l.unitPrice ?? ''),
+      notes: l.notes ?? '',
+    })) : [createEmptyLine()]);
+    setFormError(null);
+    setShowCreateForm(true);
+  }, []);
+
+  /** 表单是否已填写内容（取消时据此 bdsConfirm 弃稿确认） */
+  const isPoFormDirty = useCallback(() => {
+    if (editingPoId) return true; // 编辑态预填非空，取消一律确认弃稿
+    return Boolean(form.poNumber || form.supplierRelationId || form.buyer || form.shipToAddress || form.notes)
+      || formLines.some(l => l.materialCode || l.description || l.specification || l.quantity || l.unitPrice || l.notes);
+  }, [editingPoId, form, formLines]);
+
+  // ── 取消/返回列表：脏表单 bdsConfirm 弃稿，干净表单直接重置（修复取消残留） ──
+  const handleCancelForm = useCallback(async () => {
+    if (isPoFormDirty()) {
+      const ok = await bdsConfirm({
+        title: editingPoId ? '放弃对采购单的修改？' : '放弃新建采购单草稿？',
+        body: '表单中已填写的内容不会被保存。',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    resetPoForm();
+    setShowCreateForm(false);
+  }, [isPoFormDirty, editingPoId, resetPoForm]);
+
+  // ── 提交采购单（新建 POST / 编辑 PUT，编辑仅 Draft） ──
   const handleCreate = useCallback(async () => {
     setFormError(null);
     const validLines = formLines.filter(l => l.description && l.quantity && l.unitPrice);
@@ -532,7 +612,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
         deliveryTerms: form.deliveryTerms || undefined,
         paymentTerms: form.paymentTerms || undefined,
         shipToAddress: form.shipToAddress || undefined,
-        orderId: createPrime?.orderId,
+        orderId: editingPoId ? undefined : createPrime?.orderId,
         buyer: form.buyer || undefined,
         notes: form.notes || undefined,
         lines: validLines.map(l => ({
@@ -546,24 +626,22 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
           notes: l.notes || undefined,
         })),
       };
-      await apiService.createPurchaseOrder(input);
+      if (editingPoId) {
+        await apiService.updatePurchaseOrder(editingPoId, input);
+        bdsToast.success(`采购单 ${form.poNumber} 已更新。`);
+      } else {
+        await apiService.createPurchaseOrder(input);
+        bdsToast.success(`采购单 ${form.poNumber} 已创建。`);
+      }
       setShowCreateForm(false);
-      // 重置表单
-      setForm({
-        poNumber: '', currency: 'USD', supplierRelationId: '', supplierName: '',
-        orderDate: new Date().toISOString().split('T')[0], expectedDeliveryDate: '',
-        deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
-        shipToAddress: '', buyer: '', notes: '',
-      });
-      setFormLines([createEmptyLine()]);
-      setCreatePrime(null);
+      resetPoForm();
       await fetchPurchaseOrders();
     } catch (e: any) {
-      setFormError(`创建失败：${e?.message || e}`);
+      setFormError(`${editingPoId ? '保存' : '创建'}失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
-  }, [form, formLines, createPrime, fetchPurchaseOrders]);
+  }, [form, formLines, createPrime, editingPoId, resetPoForm, fetchPurchaseOrders]);
 
   // ── 创建来料检验记录（D5 仓库下拉生效；D6 行级明细为真源，单头合计由行级累加派生） ──
   const handleCreateReceipt = useCallback(async (poId: string) => {
@@ -718,8 +796,8 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
         title="采购管理"
         subtitle="Procurement"
         isDarkMode={isDarkMode}
-        actions={viewMode === 'orders' && !showCreateForm ? (
-          <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
+        actions={viewMode === 'orders' && !showCreateForm && canWrite ? (
+          <button onClick={() => { resetPoForm(); setShowCreateForm(true); }} className="bds-btn bds-btn-primary">
             <Plus size={14} /><span>新建采购单</span>
           </button>
         ) : undefined}
@@ -741,7 +819,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <h2 className="text-lg font-light" style={{ color: 'var(--text-primary)' }}>新建采购单</h2>
+                    <h2 className="text-lg font-light" style={{ color: 'var(--text-primary)' }}>{editingPoId ? '编辑采购单' : '新建采购单'}</h2>
                     {createPrime && (
                       <span className="bds-badge sm neutral flex items-center gap-1.5">
                         关联订单 {createPrime.poNumber || createPrime.orderId}
@@ -757,7 +835,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                       </span>
                     )}
                   </div>
-                  <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className="bds-btn bds-btn-secondary">
+                  <button onClick={() => void handleCancelForm()} className="bds-btn bds-btn-secondary">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
@@ -868,12 +946,12 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   )}
 
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className="bds-btn bds-btn-ghost">
+                    <button onClick={() => void handleCancelForm()} className="bds-btn bds-btn-ghost">
                       取消
                     </button>
                     <button onClick={handleCreate} disabled={actionLoading === 'create'} className="bds-btn bds-btn-primary">
-                      {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                      <span>创建采购单</span>
+                      {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : editingPoId ? <CheckCircle2 size={16} /> : <Plus size={16} />}
+                      <span>{editingPoId ? '保存修改' : '创建采购单'}</span>
                     </button>
                   </div>
                 </div>
@@ -935,7 +1013,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   <div className="flex items-center justify-center py-12">
                     <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                   </div>
-                ) : visiblePurchaseOrders.length === 0 ? (
+                ) : purchaseOrders.length === 0 ? (
                   <div className="bds-empty">
                     <div className="glyph"><PackageCheck size={24} /></div>
                     <div className="title">{navRelationFilter ? '该供应商暂无采购单' : '暂无采购单'}</div>
@@ -943,7 +1021,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {visiblePurchaseOrders.map((po, index) => {
+                    {purchaseOrders.map((po, index) => {
                       const receipts = receiptsByPo[po.id] || [];
                       return (
                         <motion.div
@@ -969,7 +1047,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                   {STATUS_LABELS[po.status as PurchaseOrderStatus] || po.status}
                                 </span>
                               </div>
-                              <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                              <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>
                                 {po.supplierName || '未指定供应商'} · 下单 {formatDate(po.orderDate)}
                                 {po.expectedDeliveryDate ? ` · 预计交货 ${po.expectedDeliveryDate}` : ''}
                               </div>
@@ -1007,9 +1085,9 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     {po.shipToAddress && <div><span className="opacity-60">收货:</span> {po.shipToAddress}</div>}
                                   </div>
 
-                                  {/* 行明细表 */}
+                                  {/* 行明细表（8 列窄屏溢出：overflow-hidden → overflow-x-auto 横向滚动） */}
                                   {po.lines && po.lines.length > 0 && (
-                                    <div className="rounded-inset overflow-hidden bds-inset">
+                                    <div className="rounded-inset overflow-x-auto bds-inset">
                                       <table className="bds-table">
                                         <thead>
                                           <tr>
@@ -1064,8 +1142,8 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                             {rc.warehouseName && (
                                               <span style={{ color: 'var(--text-quaternary)' }}>· {rc.warehouseName}</span>
                                             )}
-                                            {/* P1-4：有不合格数量 → 退换/索赔入口 */}
-                                            {Number(rc.totalRejected) > 0 && (
+                                            {/* P1-4：有不合格数量 → 退换/索赔入口（写操作按 procurement:write 隐藏） */}
+                                            {canWrite && Number(rc.totalRejected) > 0 && (
                                               <button
                                                 type="button"
                                                 className="bds-btn bds-btn-ghost"
@@ -1119,6 +1197,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                                 <span style={{ color: 'var(--text-quaternary)' }}>{ret.materialCode}</span>
                                               )}
                                               {ret.claimInvoiceId && <span className="bds-badge sm info">索赔贷项已生成</span>}
+                                              {canWrite && (
                                               <div className="ml-auto flex items-center gap-1.5">
                                                 {ret.status === 'pending' && (
                                                   <>
@@ -1141,6 +1220,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                                   </button>
                                                 )}
                                               </div>
+                                              )}
                                             </div>
                                           ))}
                                         </div>
@@ -1278,10 +1358,15 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     )}
                                   </AnimatePresence>
 
-                                  {/* 操作按钮 */}
+                                  {/* 操作按钮（写操作按 procurement:write 隐藏；预览/生成 PDF/导出发票 prime 为只读或跨域入口，保留） */}
                                   <div className="flex items-center gap-2 pt-2 flex-wrap">
-                                    {po.status === 'Draft' && (
+                                    {canWrite && po.status === 'Draft' && (
                                       <>
+                                        {/* 编辑断头修复：Draft 可回填编辑（PUT /:id 仅 Draft） */}
+                                        <button onClick={() => handleEditPo(po)} className="bds-btn bds-btn-secondary">
+                                          <Pencil size={14} />
+                                          <span>编辑</span>
+                                        </button>
                                         <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className="bds-btn bds-btn-secondary">
                                           {actionLoading === `${po.id}_send` ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                                           <span>发送采购单</span>
@@ -1292,7 +1377,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         </button>
                                       </>
                                     )}
-                                    {po.status === 'Sent' && (
+                                    {canWrite && po.status === 'Sent' && (
                                       <>
                                         <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className="bds-btn bds-btn-secondary">
                                           {actionLoading === `${po.id}_confirm` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
@@ -1304,7 +1389,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         </button>
                                       </>
                                     )}
-                                    {canReceive(po.status as PurchaseOrderStatus) && (
+                                    {canWrite && canReceive(po.status as PurchaseOrderStatus) && (
                                       <>
                                         <button
                                           onClick={() => {
@@ -1330,7 +1415,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         )}
                                       </>
                                     )}
-                                    {po.status === 'Received' && (
+                                    {canWrite && po.status === 'Received' && (
                                       <button onClick={() => handleAction(po.id, 'close')} disabled={actionLoading === `${po.id}_close`} className="bds-btn bds-btn-secondary">
                                         {actionLoading === `${po.id}_close` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                         <span>关闭采购单</span>
@@ -1396,8 +1481,8 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                         </motion.div>
                       );
                     })}
-                    {/* 分页消费：消费 result.total，超 100 条不再静默截断 */}
-                    {!navRelationFilter && total > 0 && (
+                    {/* 分页消费：消费 result.total（供应商筛选已下推服务端，total 即筛选后口径），超 100 条不再静默截断 */}
+                    {total > 0 && (
                       <div className="flex items-center justify-center gap-3 pt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                         <span>共 {total} 条{purchaseOrders.length < total ? `，已加载 ${purchaseOrders.length} 条` : ''}</span>
                         {purchaseOrders.length < total && (
