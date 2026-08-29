@@ -210,6 +210,8 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -301,20 +303,23 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   // ── 拉取数据 ──
-  const fetchPurchaseOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchPurchaseOrders = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listPurchaseOrders({
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchQuery || undefined,
         limit: 100,
+        offset,
       });
-      setPurchaseOrders(result.items);
+      setTotal(result.total);
+      setPurchaseOrders(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [statusFilter, searchQuery]);
 
@@ -401,6 +406,14 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
   // ── 状态转换操作 ──
   const handleAction = useCallback(async (id: string, action: 'send' | 'confirm' | 'cancel' | 'close' | 'delete') => {
+    if (action === 'delete' || action === 'cancel') {
+      const poNumber = purchaseOrders.find(p => p.id === id)?.poNumber;
+      const label = poNumber ? ` ${poNumber}` : '';
+      const ok = await bdsConfirm(action === 'delete'
+        ? { title: `删除采购单${label}`, body: '仅草稿状态可删除；确认删除该采购单？此操作不可撤销。', danger: true }
+        : { title: `取消采购单${label}`, body: '确认取消该采购单？取消后进入终态，不可恢复。', danger: true });
+      if (!ok) return;
+    }
     setActionLoading(`${id}_${action}`);
     setError(null);
     try {
@@ -415,7 +428,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
     } finally {
       setActionLoading(null);
     }
-  }, [fetchPurchaseOrders]);
+  }, [fetchPurchaseOrders, purchaseOrders]);
 
   // ── B2 运营域单据：PO 预览 / 生成 PDF / 台账导出 ──
 
@@ -876,7 +889,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className="bds-input sm pl-9" />
                   </div>
-                  <button onClick={fetchPurchaseOrders} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                  <button onClick={() => fetchPurchaseOrders()} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                   {/* B2 运营域报表：采购台账 Excel 导出（当前筛选全量） */}
@@ -1383,6 +1396,22 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                         </motion.div>
                       );
                     })}
+                    {/* 分页消费：消费 result.total，超 100 条不再静默截断 */}
+                    {!navRelationFilter && total > 0 && (
+                      <div className="flex items-center justify-center gap-3 pt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                        <span>共 {total} 条{purchaseOrders.length < total ? `，已加载 ${purchaseOrders.length} 条` : ''}</span>
+                        {purchaseOrders.length < total && (
+                          <button
+                            onClick={() => fetchPurchaseOrders(purchaseOrders.length)}
+                            disabled={loadingMore}
+                            className="bds-btn bds-btn-secondary"
+                          >
+                            {loadingMore ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                            <span>加载更多</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>

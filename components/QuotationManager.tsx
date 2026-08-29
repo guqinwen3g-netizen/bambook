@@ -198,6 +198,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   // 阶段 IA-3：转单成功订单 id（成功横幅 + 「查看订单」直达）
   const [convertedOrderId, setConvertedOrderId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | QuotationStatus>('all');
@@ -296,20 +298,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   }, []);
 
   // ── 拉取数据 ──
-  const fetchQuotations = useCallback(async () => {
-    setLoading(true);
+  const fetchQuotations = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listQuotations({
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchQuery || undefined,
         limit: 100,
+        offset,
       });
-      setQuotations(result.items);
+      setTotal(result.total);
+      setQuotations(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [statusFilter, searchQuery]);
 
@@ -405,6 +410,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       if (!(await bdsConfirm({
         title: '砍价修订',
         body: '快照当前版本留痕并回到草稿状态——编辑价格后重新发送。谈判轮次与版本历史全程可溯。',
+      }))) return;
+    }
+    if (action === 'delete') {
+      if (!(await bdsConfirm({
+        title: '删除报价单',
+        body: '确认删除该报价单？此操作不可撤销。',
+        danger: true,
       }))) return;
     }
     setActionLoading(`${id}_${action}`);
@@ -1138,7 +1150,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       ))}
                     </div>
                   </div>
-                  <button onClick={fetchQuotations} className="bds-btn bds-btn-ghost ml-auto" title="刷新">
+                  <button onClick={() => fetchQuotations()} className="bds-btn bds-btn-ghost ml-auto" title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
@@ -1491,6 +1503,22 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                         </AnimatePresence>
                       </motion.div>
                     ))}
+                    {/* 分页消费：消费 total，超 100 条不再静默截断 */}
+                    {!navRelationFilter && total > 0 && (
+                      <div className="flex items-center justify-center gap-3 pt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                        <span>共 {total} 条{quotations.length < total ? `，已加载 ${quotations.length} 条` : ''}</span>
+                        {quotations.length < total && (
+                          <button
+                            onClick={() => fetchQuotations(quotations.length)}
+                            disabled={loadingMore}
+                            className="bds-btn bds-btn-secondary"
+                          >
+                            {loadingMore ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                            <span>加载更多</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>

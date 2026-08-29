@@ -34,6 +34,7 @@ import {
   CircleCheck,
   Pencil,
   AlertTriangle,
+  AlertCircle,
   Award,
   ArrowRight,
   type LucideIcon,
@@ -229,6 +230,9 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('quality');
   const [filter, setFilter] = useState<FilterId>('active');
@@ -283,24 +287,28 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
   const [blacklistTarget, setBlacklistTarget] = useState<FactoryProfile | null>(null);
 
   // ── 加载档案列表 ──
-  const loadProfiles = useCallback(async () => {
-    setLoading(true);
+  const loadProfiles = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
+    setListError(null);
     try {
       const result = await apiService.listFactoryProfiles({
         search: search || undefined,
         sort,
         blacklisted: filter === 'all' ? undefined : filter === 'blacklisted',
         limit: 100,
+        offset,
       });
-      setProfiles(result.items);
+      setProfiles(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
       setTotal(result.total);
-      if (!selectedId && result.items.length > 0) {
+      if (offset === 0 && !selectedId && result.items.length > 0) {
         setSelectedId(result.items[0].id);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SuppliersManager] loadProfiles failed', e);
+      setListError(`工厂档案加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [search, sort, filter, selectedId]);
 
@@ -330,6 +338,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       return;
     }
     setDetailLoading(true);
+    setDetailError(null);
     try {
       const overview = await apiService.getFactoryOverview(selectedId);
       if (overview) {
@@ -340,8 +349,9 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       } else {
         setDetail(null);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SuppliersManager] loadDetail failed', e);
+      setDetailError(`工厂 360° 详情加载失败：${e?.message || e}`);
     } finally {
       setDetailLoading(false);
     }
@@ -610,9 +620,26 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {listError && profiles.length > 0 && (
+              <div className="bds-alert danger mx-3 mt-2 mb-1">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="flex-1 min-w-0">{listError}</span>
+                <button onClick={() => loadProfiles()} className="bds-btn bds-btn-secondary shrink-0">
+                  <RefreshCw className="w-3.5 h-3.5" /><span>重试</span>
+                </button>
+              </div>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+              </div>
+            ) : listError && profiles.length === 0 ? (
+              <div className="bds-alert danger m-3 items-start">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="flex-1 min-w-0">{listError}</span>
+                <button onClick={() => loadProfiles()} className="bds-btn bds-btn-secondary shrink-0">
+                  <RefreshCw className="w-3.5 h-3.5" /><span>重试</span>
+                </button>
               </div>
             ) : profiles.length === 0 ? (
               <div className="bds-empty">
@@ -659,13 +686,33 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
               </div>
             )}
           </div>
-          <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
-            共 {total} 家工厂
+          <div className="px-4 py-2 text-[11px] flex items-center gap-2" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+            <span>共 {total} 家工厂{profiles.length < total ? `，已加载 ${profiles.length} 家` : ''}</span>
+            {profiles.length < total && (
+              <button
+                onClick={() => loadProfiles(profiles.length)}
+                disabled={loadingMore}
+                className="bds-btn bds-btn-ghost ml-auto"
+                style={{ padding: '0 var(--space-2)' }}
+              >
+                {loadingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>加载更多</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* ── 右侧：360° 详情 ── */}
         <div className="flex-1 min-w-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
+          {detailError && (
+            <div className="bds-alert danger m-3">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="flex-1 min-w-0">{detailError}</span>
+              <button onClick={() => loadDetail()} className="bds-btn bds-btn-secondary shrink-0">
+                <RefreshCw className="w-3.5 h-3.5" /><span>重试</span>
+              </button>
+            </div>
+          )}
           {!selectedProfile ? (
             <div className="bds-empty flex-1 justify-center">
               <div className="glyph"><Building2 className="w-6 h-6" /></div>

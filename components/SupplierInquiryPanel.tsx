@@ -39,6 +39,7 @@ import {
   FactoryProfile,
 } from '../types';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
 
@@ -192,6 +193,8 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   const [inquiries, setInquiries] = useState<SupplierInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -218,20 +221,23 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
   // ── 拉取数据 ──
-  const fetchInquiries = useCallback(async () => {
-    setLoading(true);
+  const fetchInquiries = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const result = await apiService.listSupplierInquiries({
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchQuery || undefined,
         limit: 100,
+        offset,
       });
-      setInquiries(result.items);
+      setTotal(result.total);
+      setInquiries(prev => (offset > 0 ? [...prev, ...result.items] : result.items));
     } catch (e: any) {
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [statusFilter, searchQuery]);
 
@@ -372,6 +378,11 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
 
   // ── 删除报价 ──
   const handleRemoveQuote = useCallback(async (inquiryId: string, quoteId: string) => {
+    if (!(await bdsConfirm({
+      title: '删除报价',
+      body: '确认删除该供应商报价？此操作不可撤销。',
+      danger: true,
+    }))) return;
     setError(null);
     setActionLoading(`delquote_${quoteId}`);
     try {
@@ -461,6 +472,12 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
 
   // ── 删除询价 ──
   const handleDeleteInquiry = useCallback(async (inquiryId: string) => {
+    const inquiryNumber = inquiries.find(i => i.id === inquiryId)?.inquiryNumber;
+    if (!(await bdsConfirm({
+      title: `删除询价单${inquiryNumber ? ` ${inquiryNumber}` : ''}`,
+      body: '确认删除该询价单及其全部报价记录？此操作不可撤销。',
+      danger: true,
+    }))) return;
     setError(null);
     setActionLoading(`delinq_${inquiryId}`);
     try {
@@ -472,7 +489,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
     } finally {
       setActionLoading(null);
     }
-  }, [fetchInquiries]);
+  }, [fetchInquiries, inquiries]);
 
   return (
     <div className="w-full">
@@ -629,7 +646,7 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                 />
               </div>
               <button
-                onClick={fetchInquiries}
+                onClick={() => fetchInquiries()}
                 className="bds-btn bds-btn-ghost"
                 style={{ padding: '0 var(--space-2)' }}
                 title="刷新"
@@ -1148,6 +1165,22 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                     </motion.div>
                   );
                 })}
+                {/* 分页消费：消费 result.total，超 100 条不再静默截断 */}
+                {total > 0 && (
+                  <div className="flex items-center justify-center gap-3 pt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    <span>共 {total} 条{inquiries.length < total ? `，已加载 ${inquiries.length} 条` : ''}</span>
+                    {inquiries.length < total && (
+                      <button
+                        onClick={() => fetchInquiries(inquiries.length)}
+                        disabled={loadingMore}
+                        className="bds-btn bds-btn-secondary"
+                      >
+                        {loadingMore ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        <span>加载更多</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </motion.div>
