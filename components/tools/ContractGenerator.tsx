@@ -378,7 +378,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       {/* Header */}
       <div className="relative z-30 flex-shrink-0 flex items-end justify-between pb-1">
         <div>
-          <h2 className={`text-xl font-normal tracking-tight leading-snug text-[var(--text-primary)]`}>
+          <h2 className={`text-xl font-light tracking-tight leading-snug text-[var(--text-primary)]`}>
             合同生成器
           </h2>
           <p className={`text-xs mt-0.5 text-[var(--text-tertiary)]`}>

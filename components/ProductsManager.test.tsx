@@ -190,8 +190,8 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain("mapMaterialRole: 'raisedCard'");
     expect(productsSource).toContain('titleClassName={productFormSectionTitleClass}');
     expect(productsSource).toContain('w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>');
-    expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-5 bambook-relations-form-panel');
-    expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-4 bambook-relations-form-map-panel');
+    expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-6 bambook-relations-form-panel');
+    expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-6 bambook-relations-form-map-panel');
     expect(RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING).toBe('width');
     expect(productsSource).toContain("} from './ui/relationsFormStyles';");
     expect(productsSource).toContain('<CompiledFormSectionPanel');

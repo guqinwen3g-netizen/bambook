@@ -603,7 +603,7 @@ const ProcessGroup: React.FC<ProcessGroupProps> = ({ blocks, isDarkMode, isStrea
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className={`text-[11.5px] ${quietText} hover:underline`}
+            className={`bds-btn bds-btn-link text-[11.5px] ${quietText}`}
           >
             {expanded ? '收起操作详情' : `查看 ${summary.succeeded + summary.failed} 个操作步骤`}
           </button>

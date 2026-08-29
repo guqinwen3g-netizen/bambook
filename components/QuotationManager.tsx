@@ -1176,8 +1176,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       <button
                         type="button"
                         onClick={() => onOpenOrder(convertedOrderId)}
-                        className="flex items-center gap-1 shrink-0 hover:underline"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit' }}
+                        className="bds-btn bds-btn-link flex items-center gap-1 shrink-0"
                       >
                         查看订单 <ArrowRight size={14} />
                       </button>
@@ -1438,8 +1437,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                             <button
                                               type="button"
                                               onClick={() => onOpenOrder(qt.convertedOrderId!)}
-                                              className="flex items-center gap-0.5 hover:underline"
-                                              style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'var(--accent-text)' }}
+                                              className="bds-btn bds-btn-link flex items-center gap-0.5"
                                             >
                                               {qt.convertedOrderId} <ArrowRight size={14} />
                                             </button>

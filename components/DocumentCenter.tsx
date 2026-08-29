@@ -681,7 +681,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                           {doc.fileName && doc.filePath && (
                             <button
                               onClick={(e) => { e.stopPropagation(); void handleDownloadDocFile(doc); }}
-                              className="inline-flex items-center gap-1 text-[var(--text-link)] hover:underline"
+                              className="bds-btn bds-btn-link inline-flex items-center gap-1 text-[var(--text-link)]"
                               title={`下载已归档单据文件 ${doc.fileName}`}
                             >
                               <Download size={14} strokeWidth={1.75} />{doc.fileName}

@@ -2229,7 +2229,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <textarea
                   value={composeBody}
                   onChange={e => setComposeBody(e.target.value)}
-                  className="flex-1 w-full p-8 outline-none resize-none text-sm leading-relaxed selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] bg-[var(--recessed-bg)] text-[var(--text-primary)]"
+                  className="bds-input flex-1 w-full p-6 resize-none text-sm leading-relaxed"
                   placeholder="Write your message..."
                 />
               </div>

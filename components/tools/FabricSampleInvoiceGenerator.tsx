@@ -854,7 +854,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <ArrowLeft size={16} />
               <span>返回发票编辑</span>
             </button>
-            <h2 className={`text-xl font-normal tracking-tight leading-snug ${'text-[var(--text-primary)]'}`}>
+            <h2 className={`text-xl font-light tracking-tight leading-snug ${'text-[var(--text-primary)]'}`}>
               样品发票历史记录
             </h2>
             <p className={`text-xs mt-0.5 ${'text-[var(--text-tertiary)]'}`}>
@@ -919,7 +919,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     <div className="flex flex-col h-full overflow-hidden">
       <div className="relative z-30 flex-shrink-0 flex items-start justify-between gap-4">
         <div>
-          <h2 className={`text-xl font-normal tracking-tight leading-snug ${'text-[var(--text-primary)]'}`}>
+          <h2 className={`text-xl font-light tracking-tight leading-snug ${'text-[var(--text-primary)]'}`}>
             面料样品发票生成器
           </h2>
           <p className={`text-xs mt-0.5 ${'text-[var(--text-tertiary)]'}`}>

@@ -282,8 +282,8 @@ export const RELATIONS_FORM_TITLE_CRUMB_CLASS = `h-9 flex items-center gap-1.5 m
 export const RELATIONS_FORM_TITLE_HEADING_CLASS = RELATIONS_TITLE_PAGE_LABEL_CLASS;
 export const RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS = `h-9 px-3 rounded-full border flex items-center justify-center shrink-0 transition-colors text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
 export const RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS = `h-9 px-4 rounded-full border flex items-center justify-center gap-2 shrink-0 transition-colors text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
-export const RELATIONS_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel';
-export const RELATIONS_FORM_MAP_PANEL_CLASS = 'p-4 bambook-relations-form-map-panel';
+export const RELATIONS_FORM_PANEL_CLASS = 'scroll-mt-28 p-6 bambook-relations-form-panel';
+export const RELATIONS_FORM_MAP_PANEL_CLASS = 'p-6 bambook-relations-form-map-panel';
 export const RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING = 'width';
 export const RELATIONS_FORM_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
 export const RELATIONS_PANEL_DIVIDER_CLASS = BAMBOOK_OS.tone.divider.panel;
@@ -794,7 +794,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜索组织..."
-            className={`h-9 w-full rounded-control border pl-10 pr-3 outline-none font-normal text-xs ${RELATIONS_TOOLBAR_SEARCH_CLASS}`}
+            className={`bds-input h-10 w-full rounded-control pl-10 pr-3 text-xs ${RELATIONS_TOOLBAR_SEARCH_CLASS}`}
           />
         </div>
 

@@ -236,7 +236,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
           ) : error ? (
             <div className="h-40 flex flex-col items-center justify-center gap-2">
               <div className={`text-xs font-light ${statusSemanticText('danger', isDarkMode)}`}>{error}</div>
-              <button onClick={fetchBoard} className="text-[11px] font-light text-[var(--os-vnext-brand-blue)] hover:underline">重试</button>
+              <button onClick={fetchBoard} className="bds-btn bds-btn-link text-[11px] font-light">重试</button>
             </div>
           ) : filtered.length === 0 ? (
             <div className={`h-40 flex items-center justify-center text-xs font-light ${textSecondary}`}>

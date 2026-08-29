@@ -95,7 +95,7 @@ const InfoItem: React.FC<{
                         href={String(value).startsWith('http') ? String(value) : `https://${value}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`text-sm font-light hover:underline ${brandTextClass}`}
+                        className={`bds-btn bds-btn-link text-sm font-light ${brandTextClass}`}
                     >
                         {value}
                     </a>

@@ -13,7 +13,7 @@
  *   - 状态色遵守 RDL 中性契约：statusSemanticClass（white/slate opacity 驱动），
  *     禁 emerald/red/amber 等 Tailwind 彩色；accent 蓝仅用于品牌锚点
  *     （当前态/主按钮/可点击 hover），不用于状态语义。
- *   - 字重仅 font-extralight / font-light / font-normal（400），禁 medium+。
+ *   - 字重仅 font-light（300），禁 medium+（全局 Light 300 纪律）。
  */
 
 import {
@@ -366,7 +366,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     subGroupDot: dark ? 'bg-white/40' : 'bg-slate-400',
     chevronColor: dark ? 'text-white/35' : 'text-slate-400',
     fieldHint: `text-[9px] font-light ml-1 ${dark ? 'text-white/35' : 'text-slate-400'}`,
-    fieldReadOnlyValue: `text-[14px] font-normal leading-relaxed ${dark ? 'text-white/85' : 'text-slate-800'}`,
+    fieldReadOnlyValue: `text-[14px] font-light leading-relaxed ${dark ? 'text-white/85' : 'text-slate-800'}`,
     fieldReadOnlyEmpty: `text-[13px] font-light italic leading-relaxed ${dark ? 'text-white/20' : 'text-slate-300/70'}`,
     fieldSlotFilled: dark ? 'bg-white/[0.03]' : 'bg-slate-900/[0.025]',
     fieldSlotEmpty: dark ? 'bg-white/[0.015]' : 'bg-slate-900/[0.015]',

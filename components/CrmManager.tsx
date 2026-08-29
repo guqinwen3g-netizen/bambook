@@ -1210,8 +1210,7 @@ function CustomerTierTab({
           )}
 
           <button
-            className="mt-3 text-xs hover:underline"
-            style={{ color: 'var(--danger-text)' }}
+            className="bds-btn bds-btn-link mt-3 text-xs text-[var(--danger-text)]"
             onClick={() => onDelete(activeTier.id)}
           >
             删除此分层

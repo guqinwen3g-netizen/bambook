@@ -333,8 +333,8 @@ describe('RelationsManager title system', () => {
     expect(source).toContain('${relationCategoryGridClass}');
     expect(source).toContain('${RELATIONS_CARD_GRID_CLASS}');
     expect(formSource).toContain('<CompiledSurfacePanel');
-    expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-4 bambook-relations-form-map-panel');
-    expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-5 bambook-relations-form-panel');
+    expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-6 bambook-relations-form-map-panel');
+    expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-6 bambook-relations-form-panel');
     expect(formSource).toContain('materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}');
     expect(formSource).toContain('materialRole="raisedCard" edgeFadeItem spotlight as="section"');
     expect(formSource).not.toContain('materialRole="framePanel" edgeFadeItem spotlight as="section"');

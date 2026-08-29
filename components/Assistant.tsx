@@ -2754,14 +2754,14 @@ const Assistant: React.FC<AssistantProps> = ({
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('bambook')}
-                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? 'bg-[var(--invert-bg)] text-[var(--invert-text)]' : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]' : quietTextClass}`}
                           >
                             Bambook 内容
                           </button>
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('local')}
-                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? 'bg-[var(--invert-bg)] text-[var(--invert-text)]' : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]' : quietTextClass}`}
                           >
                             本地文件
                           </button>
