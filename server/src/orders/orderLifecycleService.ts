@@ -350,7 +350,9 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
           fromStatus,
           toStatus,
           note: note || null,
-          operator: operator || actorId || 'api',
+          // 操作人留痕以 actorId（认证身份）为唯一真源：客户端传入的 operator 仅为
+          // 无认证上下文（API Key/dev 直通）时的兜底，前端不再传字面量 operator（防伪造）。
+          operator: actorId || operator || 'api',
           lineId: lineId || null,
           createdAt: now,
         },
@@ -366,7 +368,7 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
         after: { status: toStatus, transitionId },
       });
 
-      return { order: updated, transitionId, auditId, fromStatus, toStatus, note: note || null, operator: operator || actorId || 'api', lineId: lineId || null, createdAt: Number(now) };
+      return { order: updated, transitionId, auditId, fromStatus, toStatus, note: note || null, operator: actorId || operator || 'api', lineId: lineId || null, createdAt: Number(now) };
     });
 
     // Phase 0 Sprint 1: 事务提交后发布业务事件（fire-and-forget，永不阻断业务操作）

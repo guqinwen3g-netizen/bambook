@@ -201,4 +201,28 @@ describe('task ERP-P1 order-lifecycle: POST /:id/status-transition', () => {
     expect(res.status).toBe(200);
     expect(res.body.transition.lineId).toBe('OL__1');
   });
+
+  // R678 操作人失真修复：留痕 operator 以认证 actorId 为唯一真源，客户端字面量 operator 不得覆盖
+  it('客户端传字面量 operator（如 desktop-user）时，留痕仍以认证 actorId 为准', async () => {
+    const { app, statusTransitionCreate } = makeLifecycleApp();
+    const res = await request(app)
+      .post('/api/v1/orders/ORD__1/status-transition')
+      .set(auth())
+      .send({ toStatus: 'Confirmed', operator: 'desktop-user' });
+    expect(res.status).toBe(200);
+    // JWT ownerToken 的 userId = 'u1'（见文件头 auth()）
+    expect(statusTransitionCreate).toHaveBeenCalledTimes(1);
+    expect(statusTransitionCreate.mock.calls[0][0].data.operator).toBe('u1');
+    expect(res.body.transition.operator).toBe('u1');
+  });
+
+  it('未传 operator 时，留痕 operator = 认证 actorId', async () => {
+    const { app, statusTransitionCreate } = makeLifecycleApp();
+    const res = await request(app)
+      .post('/api/v1/orders/ORD__1/status-transition')
+      .set(auth())
+      .send({ toStatus: 'Confirmed' });
+    expect(res.status).toBe(200);
+    expect(statusTransitionCreate.mock.calls[0][0].data.operator).toBe('u1');
+  });
 });

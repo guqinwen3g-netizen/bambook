@@ -70,6 +70,8 @@ interface OrderChangeRequestsSectionProps {
   onGatePrefillConsumed?: () => void;
   /** 关系档案列表（客户变更表单的 RelationCombobox 数据源；宿主 OrderManager 传入） */
   relations?: Relation[];
+  /** apply 生效后通知宿主刷新订单本体（数量/金额/交期/客户等已写回 Order，仅 reload 列表会留下陈旧详情） */
+  onOrderUpdated?: () => void;
 }
 
 // ── 展示映射 ──
@@ -217,6 +219,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
   gatePrefill = null,
   onGatePrefillConsumed,
   relations = [],
+  onOrderUpdated,
 }) => {
   const spec = useMemo(() => createOrderUiSpec(isDarkMode === true), [isDarkMode]);
   const dark = isDarkMode === true;
@@ -424,6 +427,8 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
     try {
       await orderChangeService.applyChangeRequest(cr.id);
       await reload();
+      // apply 已把改动写回订单本体（数量/金额/交期/客户/状态等），通知宿主刷新详情避免陈旧读
+      onOrderUpdated?.();
     } catch (e: any) {
       setActionError(e?.message ?? String(e));
       setActionErrorCode(typeof e?.code === 'string' ? e.code : null);

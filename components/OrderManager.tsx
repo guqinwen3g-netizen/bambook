@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Order, KnowledgeItem, ResolutionStrategy, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition, View } from '../types';
+import { Order, KnowledgeItem, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition, View } from '../types';
 import { apiService } from '../services/apiService';
 import {
   Plus, ArrowRight,
@@ -36,6 +36,8 @@ import { ProductionPipeline } from './ProductionPipeline';
 import { ProductionAlerts } from './ProductionAlerts';
 import { PageHeader } from './ui/PageHeader';
 import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
+import { hasPermission } from '../services/authService';
 import CustomSelect from './ui/CustomSelect';
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
@@ -64,8 +66,10 @@ import { primeShipmentCreateFromOrder } from './ShipmentManager';
  */
 export function savedRowToOrder(row: SavedOrderRow): Order {
   const firstLine = row.lines?.[0];
-  const customer = row.customer || 'Peerless';
-  const supplier = row.millName || 'Panda Clothing';
+  // 客户/工厂为必填业务字段：缺省不再兜底假名（防误导性假数据入档），
+  // 置空交由后端必填校验 fail-closed，列表/详情层对空串渲染「—」。
+  const customer = row.customer || '';
+  const supplier = row.millName || '';
   return {
     id: row.id,
     customer,
@@ -339,8 +343,6 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Order | null>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [strategies, setStrategies] = useState<ResolutionStrategy[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [selectedLineItem, setSelectedLineItem] = useState<OrderLineItem | null>(null);
@@ -361,6 +363,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [statusTransitioning, setStatusTransitioning] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+
+  // R678-⑧ 写操作按钮可见性门禁：与后端 requirePermission('orders:write') 同口径
+  // （owner 全权 *；admin/manager/merchandiser 默认含 orders:write；归档后端另有
+  // owner/admin/manager 角色门禁兜底 fail-closed，前端按写权限隐藏入口）
+  const canWriteOrders = hasPermission('orders:write');
 
   // R3：列表分页——快照首页 limit=500 可能截断；total 由 App 快照 meta 透传，底部「加载更多」按 offset 续拉
   const [ordersTotalLocal, setOrdersTotalLocal] = useState<number | null>(ordersTotal ?? null);
@@ -450,7 +457,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
     if (statusTransitioning) return; // R5：连点 guard——状态机流转进行中拒绝并发推进
     setStatusTransitioning(true);
     try {
-      const updated = await apiService.transitionOrderStatus(selectedOrder.id, toStatus, 'desktop-user', note);
+      // 操作人不再由前端传字面量（防伪造/失真）：服务端以认证 actorId 为留痕唯一真源，
+      // operator 形参传空串占位（apiService 契约暂留该参数，服务端忽略空值）。
+      const updated = await apiService.transitionOrderStatus(selectedOrder.id, toStatus, '', note);
       const nextOrders = orders.map(o => o.id === updated.id ? updated : o);
       setOrders(nextOrders, updated);
       onSelectOrder(updated);
@@ -858,6 +867,56 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
     setEditForm({ ...item.order });
   };
 
+  // ── R678-② 编辑脏数据防丢：进入编辑时打快照，关闭（遮罩/返回/X）前有改动先 bdsConfirm ──
+  const editSnapshotRef = useRef<{ order: string; line: string } | null>(null);
+  const hasUnsavedEdits = () => {
+    if (!isEditing) return false;
+    const snap = editSnapshotRef.current;
+    if (!snap) return false;
+    if (JSON.stringify(editForm ?? null) !== snap.order) return true;
+    if (JSON.stringify(editLineForm ?? null) !== snap.line) return true;
+    return false;
+  };
+  const requestCloseDetail = async () => {
+    if (hasUnsavedEdits()) {
+      const ok = await bdsConfirm({
+        title: '放弃未保存的修改？',
+        body: '当前订单有未保存的编辑内容，关闭后修改将丢失。',
+        danger: true,
+        confirmText: '放弃修改',
+        cancelText: '继续编辑',
+      });
+      if (!ok) return;
+    }
+    onSelectOrder(null);
+    setSelectedLineItem(null);
+    setEditLineForm(null);
+    clearEditLineFabricWarning();
+    setIsEditing(false);
+    setEditForm(null);
+    editSnapshotRef.current = null;
+  };
+
+  // ── R678-⑥ 变更申请生效后刷新订单本体（V2 详情口径，与列表同源）──
+  const refreshSelectedOrderFromServer = useCallback(async () => {
+    if (!selectedOrder?.id) return;
+    try {
+      const url = apiService.buildApiUrl(`/v2/orders/${encodeURIComponent(selectedOrder.id)}`);
+      const res = await fetch(url, { headers: apiService.getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fresh = data?.order as Order | undefined;
+      if (!fresh?.id) return;
+      setOrders(orders.map(o => (o.id === fresh.id ? fresh : o)), fresh);
+      onSelectOrder(fresh);
+      if (selectedLineItem?.id) {
+        // 行视角同步：重拍平 fresh.lines，选中行指向新对象（防陈旧读）
+        const freshFlat = flattenOrderLines([fresh]).find((l) => l.id === selectedLineItem.id);
+        if (freshFlat) setSelectedLineItem(freshFlat);
+      }
+    } catch { /* 刷新失败非关键：变更已生效，下次同步追上 */ }
+  }, [selectedOrder?.id, selectedLineItem?.id, orders, setOrders, onSelectOrder]);
+
 
   const handleSaveEdit = async () => {
     if (!editForm) return;
@@ -1001,6 +1060,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
       const synced = updatedOrders.map((o) => (o.id === id ? (persisted as Order) : o));
       setOrders(synced, persisted as Order);
       onSelectOrder(persisted as Order);
+      bdsToast.success('订单详情已保存');
     } catch (e: any) {
       // eslint-disable-next-line no-console
       console.error('[detail-save] persist failed:', e);
@@ -1042,6 +1102,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
     if (!selectedOrder?.id) return;
     if (isArchiving) return; // R5：归档进行中拒绝重复点击
     setIsArchiving(true);
+    const archiveLabel = selectedOrder.poNumber || selectedOrder.id;
     try {
       // 成功：用后端返回的 order（含 deletedAt）更新本地状态，保持与后端一致
       // 不传 modified 第二参——本函数已直接调后端 DELETE，传 modified 会触发
@@ -1051,6 +1112,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
       setOrders(updatedOrders);
       onSelectOrder(null);
       setShowDeleteConfirm(false);
+      bdsToast.success(`订单已归档：${archiveLabel}，可在历史档案中查询`);
     } catch (e: any) {
       bdsToast.danger(`订单删除失败：${e?.message ?? e}\n\n订单未从列表移除，请稍后重试。`);
       setShowDeleteConfirm(false);
@@ -1120,6 +1182,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
       setOrders(merged, line.order);
       setSelectedLineItem(line);
       onSelectOrder(line.order);
+      bdsToast.success(`订单已创建：${line.order?.poNumber || line.order?.id || '新订单'}`);
     } catch (e: any) {
       // eslint-disable-next-line no-console
       console.error('[manual-line-create] failed:', e);
@@ -1223,20 +1286,24 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                 <List size={16} strokeWidth={1.5} />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => { onSelectOrder(null); setShowImportWizard(true); }}
-              className="bds-btn bds-btn-secondary"
-            >
-              <Upload size={16} strokeWidth={1.5} /> 导入
-            </button>
-            <button
-              type="button"
-              onClick={() => { onSelectOrder(null); setNewOrder({ ...getDefaultNewOrder(), type: currentDbType || 'Fabric' }); setShowAddModal(true); }}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus size={16} strokeWidth={1.5} /> 录入订单
-            </button>
+            {canWriteOrders && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { onSelectOrder(null); setShowImportWizard(true); }}
+                  className="bds-btn bds-btn-secondary"
+                >
+                  <Upload size={16} strokeWidth={1.5} /> 导入
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onSelectOrder(null); setNewOrder({ ...getDefaultNewOrder(), type: currentDbType || 'Fabric' }); setShowAddModal(true); }}
+                  className="bds-btn bds-btn-primary"
+                >
+                  <Plus size={16} strokeWidth={1.5} /> 录入订单
+                </button>
+              </>
+            )}
             {selectedOrder?.id && (
               <button
                 type="button"
@@ -1611,7 +1678,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
               <div className="pointer-events-auto relative flex items-center gap-2">
                 {/* P2-004：显式「返回列表」入口（原裸 X 图标按钮可发现性差，验收判为无返回入口） */}
                 <button
-                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); clearEditLineFabricWarning(); setIsEditing(false); setEditForm(null); }}
+                  onClick={() => { void requestCloseDetail(); }}
                   className="bds-btn bds-btn-ghost"
                 >
                   <ArrowLeft size={14} strokeWidth={1.5} />返回列表
@@ -1621,13 +1688,21 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                   <button onClick={handleSaveEdit} disabled={isSavingEdit} className="bds-btn bds-btn-primary">
                     <Save size={14} strokeWidth={1.5} />{isSavingEdit ? '保存中…' : '保存修改'}
                   </button>
-                ) : (
-                  <button onClick={() => { setIsEditing(true); setEditForm(selectedOrder ? { ...selectedOrder } : null); setEditLineForm(selectedLineItem ? { ...selectedLineItem } : (selectedOrder?.lines?.[0] ? { ...selectedOrder.lines[0] } as Partial<OrderLineItem> : null)); }} className="bds-btn bds-btn-secondary">
+                ) : canWriteOrders ? (
+                  <button onClick={() => {
+                    const orderDraft = selectedOrder ? { ...selectedOrder } : null;
+                    const lineDraft = selectedLineItem ? { ...selectedLineItem } : (selectedOrder?.lines?.[0] ? { ...selectedOrder.lines[0] } as Partial<OrderLineItem> : null);
+                    // R678-②：进入编辑打快照，供关闭时脏检测（hasUnsavedEdits）
+                    editSnapshotRef.current = { order: JSON.stringify(orderDraft ?? null), line: JSON.stringify(lineDraft ?? null) };
+                    setIsEditing(true);
+                    setEditForm(orderDraft);
+                    setEditLineForm(lineDraft);
+                  }} className="bds-btn bds-btn-secondary">
                     <Edit2 size={14} strokeWidth={1.5} />编辑项目
                   </button>
-                )}
+                ) : null}
                 <button
-                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); clearEditLineFabricWarning(); setIsEditing(false); setEditForm(null); }}
+                  onClick={() => { void requestCloseDetail(); }}
                   className="bds-btn bds-btn-ghost bds-btn-icon"
                   title="关闭详情"
                 >
@@ -1827,7 +1902,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                             <span className={`h-px w-4 shrink-0 ${STEP_CONNECTOR_PENDING_CLASS}`} />
                             <button
                               type="button"
-                              disabled={isEditing || statusTransitioning || (!isAlert && !allowed.includes('Alert'))}
+                              disabled={!canWriteOrders || isEditing || statusTransitioning || (!isAlert && !allowed.includes('Alert'))}
                               onClick={() => !isAlert && handleStatusTransition('Alert')}
                               title={isAlert ? '异常中：点击左侧步骤恢复到对应阶段' : '标记为异常'}
                               className={`${isAlert ? 'bds-btn !min-w-24' : 'bds-btn bds-btn-outline !min-w-24'} ${isEditing ? 'cursor-not-allowed opacity-40' : ''}`}
@@ -1939,6 +2014,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                         gatePrefill={changeGatePrefill}
                         onGatePrefillConsumed={() => setChangeGatePrefill(null)}
                         relations={relations}
+                        onOrderUpdated={() => { void refreshSelectedOrderFromServer(); }}
                       />
                     </div>
 
@@ -2195,9 +2271,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                 style={OVERLAY_BOTTOM_MASK_STYLE}
               />
               <div className="pointer-events-auto relative flex items-center gap-2">
-                <button onClick={() => setShowDeleteConfirm(true)} className="bds-btn bds-btn-ghost bds-btn-icon" title="归档此单">
-                  <Trash2 size={16} strokeWidth={1.5} />
-                </button>
+                {canWriteOrders && (
+                  <button onClick={() => setShowDeleteConfirm(true)} className="bds-btn bds-btn-ghost bds-btn-icon" title="归档此单">
+                    <Trash2 size={16} strokeWidth={1.5} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2336,10 +2414,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
         </div>
       )}
 
-      {/* 一键溯源侧边面板 */}
+      {/* 一键溯源侧边面板（z 须高于详情覆盖层 z-[60]，否则从详情打开时被压在下方不可见） */}
       {showTracePanel && selectedOrder?.id && (
         <div
-          className="fixed inset-0 z-50 flex justify-end"
+          className="fixed inset-0 z-[70] flex justify-end"
           onClick={() => setShowTracePanel(false)}
         >
           <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm" />

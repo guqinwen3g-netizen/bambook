@@ -54,6 +54,9 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value || '');
   const wrapRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // 键盘导航：-1 = 无高亮项；候选行与末尾「创建新档案」共用同一索引序列
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   // Keep the input in sync when the host updates `value` programmatically.
   useEffect(() => {
@@ -84,6 +87,57 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
 
   const exactMatch = candidates.find((r) => r.name.toLowerCase() === query.trim().toLowerCase());
   const showCreateOption = !!onCreateNew && query.trim().length > 0 && !exactMatch;
+  const optionCount = candidates.length + (showCreateOption ? 1 : 0);
+
+  // 候选集变化时重置键盘高亮；列表打开时默认高亮首项（对齐浏览器/OS 下拉惯例）
+  useEffect(() => {
+    setActiveIndex(open && optionCount > 0 ? 0 : -1);
+  }, [open, query, optionCount]);
+
+  // 高亮项滚入可视区
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    listRef.current?.querySelector(`[data-option-index="${activeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  const pickCandidate = (r: Relation) => {
+    setQuery(r.name);
+    setOpen(false);
+    onChange({ name: r.name, relationId: r.id, relation: r });
+  };
+
+  const pickCreate = async () => {
+    const created = await onCreateNew!(query.trim());
+    if (created) {
+      setQuery(created.name);
+      onChange({ name: created.name, relationId: created.id, relation: undefined });
+    }
+    setOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) { setOpen(true); return; }
+      setActiveIndex((i) => (optionCount === 0 ? -1 : Math.min(i + 1, optionCount - 1)));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!open) return;
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (!open || activeIndex < 0) return;
+      e.preventDefault();
+      if (activeIndex < candidates.length) pickCandidate(candidates[activeIndex]);
+      else if (showCreateOption) void pickCreate();
+    } else if (e.key === 'Escape') {
+      if (!open) return;
+      e.preventDefault();
+      // 阻止冒泡到全局 ESC 监听（如 BdsDialog/覆盖层），只收下拉
+      e.stopPropagation();
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  };
 
   // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧硬编码深底/浅描边组合
   // 会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
@@ -128,6 +182,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
 
       {open && (
         <div
+          ref={listRef}
           className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}
         >
           {candidates.length === 0 && !showCreateOption && (
@@ -137,16 +192,14 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
             </div>
           )}
 
-          {candidates.map((r) => (
+          {candidates.map((r, idx) => (
             <button
               key={r.id}
               type="button"
-              onClick={() => {
-                setQuery(r.name);
-                setOpen(false);
-                onChange({ name: r.name, relationId: r.id, relation: r });
-              }}
-              className={`w-full text-left px-3 py-2 text-[11px] flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)]`}
+              data-option-index={idx}
+              onClick={() => pickCandidate(r)}
+              onMouseEnter={() => setActiveIndex(idx)}
+              className={`w-full text-left px-3 py-2 text-[11px] flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)] ${idx === activeIndex ? 'bg-[var(--hover-darken)]' : ''}`}
             >
               <span className="font-light truncate">{r.name}</span>
               <span className={`shrink-0 text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]`}>
@@ -158,15 +211,10 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
           {showCreateOption && (
             <button
               type="button"
-              onClick={async () => {
-                const created = await onCreateNew!(query.trim());
-                if (created) {
-                  setQuery(created.name);
-                  onChange({ name: created.name, relationId: created.id, relation: undefined });
-                }
-                setOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 border-t border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]`}
+              data-option-index={candidates.length}
+              onClick={() => { void pickCreate(); }}
+              onMouseEnter={() => setActiveIndex(candidates.length)}
+              className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 border-t border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] ${activeIndex === candidates.length ? 'bg-[var(--hover-darken)]' : ''}`}
             >
               <Plus size={14} />
               <span>创建新档案 "{query.trim()}"</span>
