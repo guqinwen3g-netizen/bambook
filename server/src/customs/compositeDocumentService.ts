@@ -419,7 +419,7 @@ export interface AssembleCompositeOptions {
    * 渲染复用路径（lifecycleService 按 sourceRef 重装配）必须传 false 防回环。
    */
   register?: boolean;
-  /** 操作人（审计/版本 changedBy；缺省 system——route 层当前未透传 actorId） */
+  /** 操作人（审计/版本 changedBy；route 层透传真实登录人，非登录上下文缺省 system） */
   actorId?: string;
 }
 

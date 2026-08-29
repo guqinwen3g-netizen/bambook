@@ -701,7 +701,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     try {
       const { kind, sourceIds } = req.body ?? {};
       if (!isCompositeDocKind(kind)) return res.status(400).json({ error: `非法组合文档类型: ${kind}` });
-      const { kind: resolvedKind, data } = await assembleCompositeDocument(prisma, { kind, sourceIds });
+      const { kind: resolvedKind, data } = await assembleCompositeDocument(prisma, { kind, sourceIds }, { actorId: actorOf(req) });
       const html = await renderServerDocument(prisma, resolvedKind, data, { screen: true });
       if (!html) return res.status(500).json({ error: '组合文档渲染失败' });
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -718,7 +718,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     try {
       const { kind, sourceIds } = req.body ?? {};
       if (!isCompositeDocKind(kind)) return res.status(400).json({ error: `非法组合文档类型: ${kind}` });
-      const { kind: resolvedKind, data } = await assembleCompositeDocument(prisma, { kind, sourceIds });
+      const { kind: resolvedKind, data } = await assembleCompositeDocument(prisma, { kind, sourceIds }, { actorId: actorOf(req) });
       const html = await renderServerDocument(prisma, resolvedKind, data);
       if (!html) return res.status(500).json({ error: '组合文档渲染失败' });
       const pdf = await renderHtmlToPdf(html, { format: 'A4' });

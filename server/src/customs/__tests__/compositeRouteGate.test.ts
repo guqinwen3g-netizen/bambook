@@ -133,6 +133,8 @@ describe('组合单据端点 scope 写门（composite preview.html / generate.pd
     expect(res.headers['content-type']).toContain('text/html');
     expect(res.text).toContain('merged pl');
     expect(assembleMock).toHaveBeenCalledTimes(1);
+    // actorId 透传：JWT 登录人 u-logi 传入装配（台账审计落真实操作人而非 system）
+    expect(assembleMock.mock.calls[0][2]).toEqual({ actorId: 'u-logi' });
     expect(renderServerMock).toHaveBeenCalledTimes(1);
   });
 
@@ -146,6 +148,7 @@ describe('组合单据端点 scope 写门（composite preview.html / generate.pd
     expect(res.headers['content-type']).toContain('application/pdf');
     expect(res.headers['content-disposition']).toContain('Consolidated-Packing-List');
     expect(assembleMock).toHaveBeenCalledTimes(1);
+    expect(assembleMock.mock.calls[0][2]).toEqual({ actorId: 'u-logi' });
     expect(pdfMock).toHaveBeenCalledTimes(1);
   });
 });

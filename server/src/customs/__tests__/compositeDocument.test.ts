@@ -357,6 +357,28 @@ describe('批次 H3 registerCompositeTradeDocument', () => {
     expect(prisma2._calls.create).toHaveLength(0);
   });
 
+  it('actorId 透传落台账：审计 actor 为真实操作人而非 system', async () => {
+    genNumberMock.mockResolvedValue('PL-2026-0011');
+    appendVersionMock.mockClear().mockResolvedValue(undefined);
+    assembleMock.mockImplementation(async (_p: any, id: string) => makeDocSet(id));
+
+    const prisma = makeRegisterPrisma(null);
+    await assembleCompositeDocument(prisma, { kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'] }, { actorId: 'user-op-1' });
+
+    const createAudit = prisma._calls.audit.find((a: any) => a.action === 'TRADE_DOCUMENT_CREATE');
+    expect(createAudit).toBeTruthy();
+    expect(createAudit.actorId).toBe('user-op-1');
+    expect(createAudit.actorId).not.toBe('system');
+    // 版本留痕 changedBy 同源
+    expect(appendVersionMock.mock.calls[0][1].actorId).toBe('user-op-1');
+
+    // 缺省不传 → 回落 system（非登录上下文兜底语义保持）
+    const prisma2 = makeRegisterPrisma({ id: 'TD_exist', documentNumber: 'PL-2026-0001' });
+    await registerCompositeTradeDocument(prisma2, { kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'], data: { totals: {} } });
+    const refreshAudit = prisma2._calls.audit.find((a: any) => a.action === 'TRADE_DOCUMENT_DOMAIN_REFRESH');
+    expect(refreshAudit.actorId).toBe('system');
+  });
+
   it('登记失败 warn 不阻断装配输出（fail-open，输出语义优先）', async () => {
     assembleMock.mockImplementation(async (_p: any, id: string) => makeDocSet(id));
     const prisma: any = {
