@@ -219,16 +219,33 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
         }
       });
 
-      if (result.success) {
-        setGenerationStatus('success');
-        // 触发下载
-        if (result.downloadUrl) {
-          window.open(result.downloadUrl, '_blank');
-        }
-      } else {
+      if (!result.success) {
         setErrorMessage(result.error || '生成失败');
         setGenerationStatus('error');
+        return;
       }
+
+      if (!result.downloadUrl) {
+        setErrorMessage('生成成功但服务端未返回下载地址');
+        setGenerationStatus('error');
+        return;
+      }
+
+      // 真实下载（buildApiUrl 绝对地址 + 鉴权头 fetch → blob → a[download]），
+      // 下载完成后才允许提示「已下载」，杜绝 window.open 相对链假成功。
+      const downloadUrl = apiService.buildApiUrl(result.downloadUrl);
+      const downloadRes = await fetch(downloadUrl, { headers: apiService.getAuthHeaders() });
+      if (!downloadRes.ok) throw new Error(`下载失败：HTTP ${downloadRes.status}`);
+      const blob = await downloadRes.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = result.filename || '发货通知.xlsx';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      setGenerationStatus('success');
     } catch (error: any) {
       console.error('发货通知生成失败:', error);
       setErrorMessage('生成失败: ' + (error.message || '请检查后端服务'));

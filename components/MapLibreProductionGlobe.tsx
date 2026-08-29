@@ -145,14 +145,6 @@ interface RouteTourTarget {
   value?: number;
 }
 
-const DEMO_TOUR_TARGETS: RouteTourTarget[] = [
-  { id: 'demo-zhangjiagang', center: [120.5215, 31.8676], label: 'Zhangjiagang', status: 'Production', title: 'Production Base', detail: 'Local 3D building coverage', quantity: 10, value: 458400 },
-  { id: 'demo-shanghai', center: [121.4737, 31.2304], label: 'Shanghai', status: 'Shipping', title: 'Export Hub', detail: 'Port and customs handoff', quantity: 6, value: 286000 },
-  { id: 'demo-ningbo', center: [121.5503, 29.8746], label: 'Ningbo', status: 'Shipping', title: 'Ningbo Port', detail: 'Ocean freight departure', quantity: 4, value: 196000 },
-  { id: 'demo-singapore', center: [103.8198, 1.3521], label: 'Singapore', status: 'Pending', title: 'Transit Node', detail: 'Regional consolidation', quantity: 3, value: 148000 },
-  { id: 'demo-rotterdam', center: [4.4777, 51.9244], label: 'Rotterdam', status: 'Delivered', title: 'EU Arrival', detail: 'Destination distribution', quantity: 2, value: 92000 },
-];
-
 export interface MapLibreProductionGlobeProps {
   orders: Order[];
   sidebarOffset?: number;
@@ -1053,13 +1045,12 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       .filter((target): target is RouteTourTarget => Boolean(target)),
     [locatableOrders],
   );
-  const tourTargets = useMemo<RouteTourTarget[]>(
-    () => realTourTargets.length >= 2 ? realTourTargets : DEMO_TOUR_TARGETS,
-    [realTourTargets],
-  );
+  // 数据诚实：巡航点位仅来自真实可定位订单；不足时不伪造演示点位，
+  // 无点位时地图保持初始视角不巡航（scheduleTour 自带 <2 目标守卫）。
+  const tourTargets = realTourTargets;
   const routeCenter = useMemo(
-    () => realTourTargets.length >= 2 ? resolveRouteMapCenter(activeOrders) : DEMO_TOUR_TARGETS[0].center,
-    [activeOrders, realTourTargets],
+    () => resolveRouteMapCenter(activeOrders),
+    [activeOrders],
   );
 
   const styleUrl = getEnvValue('VITE_BAMBOOK_GLOBE_STYLE_URL') || DEFAULT_STYLE_URL;
@@ -1197,9 +1188,6 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     if (tourIndexRef.current >= tourTargets.length) {
       tourIndexRef.current = 0;
     }
-    if (realTourTargets.length < 2 && tourIndexRef.current === 0 && tourTargets.length > 1) {
-      tourIndexRef.current = 1;
-    }
     if (!hasPresentedInitialCameraRef.current) {
       presentInitialCamera();
       return;
@@ -1207,7 +1195,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     if (isLoaded && tourTargets.length > 1 && introFinishedRef.current && !isTourAnimatingRef.current) {
       scheduleTour(MAP_TOUR_HOLD_MS);
     }
-  }, [isLoaded, presentInitialCamera, realTourTargets.length, scheduleTour, tourTargets]);
+  }, [isLoaded, presentInitialCamera, scheduleTour, tourTargets]);
 
   useEffect(() => {
     if (!viewportCenter || hasPresentedInitialCameraRef.current) return;

@@ -190,7 +190,15 @@ export const CityCoordinates: Record<string, { lat: number; lon: number }> = {
     'Baku': { lat: 40.4093, lon: 49.8671 },
 };
 
-export const resolveLocation = (location: string): { lat: number; lon: number } => {
+/**
+ * 厂名/地名 → 坐标解析。仅命中 CityCoordinates 真实地名表（直接/部分匹配）才返回坐标；
+ * 无法匹配时返回 null（不上图），由调用方跳过渲染。
+ *
+ * 注：原"哈希伪随机坐标兜底"已退役（假数据清零）——伪造坐标会把订单光束/巡航点位
+ * 渲染到随机位置，误导生产判读。坐标真源（Relation 挂 lat/lon 入库）待 v1.1 立项，
+ * 登记于 docs/design/09-路线图与技术债务/技术债务登记.md。
+ */
+export const resolveLocation = (location: string): { lat: number; lon: number } | null => {
     // 1. Direct Match
     if (CityCoordinates[location]) {
         return CityCoordinates[location];
@@ -203,19 +211,6 @@ export const resolveLocation = (location: string): { lat: number; lon: number } 
         return CityCoordinates[match];
     }
 
-    // 3. Deterministic Random Fallback based on hash
-    // (Keeps it stable but visibly "somewhere")
-    let hash = 0;
-    for (let i = 0; i < location.length; i++) {
-        hash = ((hash << 5) - hash) + location.charCodeAt(i);
-        hash |= 0;
-    }
-
-    // Map to inhabited zones generally
-    // Random Lat: -40 to 60
-    // Random Lon: -180 to 180
-    const lat = ((Math.abs(hash) % 100) - 40);
-    const lon = ((Math.abs(hash >> 5) % 360) - 180);
-
-    return { lat, lon };
+    // 3. 无匹配 → null（诚实缺省，禁止伪造坐标）
+    return null;
 };

@@ -1,13 +1,13 @@
 /**
  * Unified geocoding service: resolves coordinates from structured address data
- * using a layered strategy (city → postcode → address keyword → fallback).
+ * using a layered strategy (city → postcode → address keyword；未命中返回 null)。
  *
  * This is a pure function module — no API calls, no side effects.
  * Used both on the client (preview) and as the algorithm reference for
  * server-side persistence.
  */
 
-import { CityCoordinates, resolveLocation } from './geoUtils';
+import { CityCoordinates } from './geoUtils';
 import { resolvePostcode } from './postcodeCoordinates';
 
 // ─── Types ──────────────────────────────────────
@@ -27,8 +27,9 @@ export type ResolveSource =
     | 'existing'     // coordinates already present — no resolution needed
     | 'city'         // matched via CityCoordinates
     | 'postcode'     // matched via postcode prefix database
-    | 'address_keyword' // extracted city keyword from address text
-    | 'fallback';    // deterministic hash fallback
+    | 'address_keyword'; // extracted city keyword from address text
+    // 注：'fallback'（哈希伪随机坐标）已退役——无法解析时 resolveCoordinates 返回 null，
+    // 不写假坐标入库。坐标真源（Relation 挂 lat/lon）待 v1.1 立项。
 
 export interface ResolvedCoordinates {
     lat: number;
@@ -127,12 +128,14 @@ function inferCountry(address?: string, postcode?: string): string | undefined {
  *   2. city      — direct or partial match in CityCoordinates
  *   3. postcode  — prefix match in PostcodePrefixes
  *   4. address_keyword — extract city keyword from free-text address
- *   5. fallback  — deterministic hash (stable but imprecise)
+ *
+ * 全部层未命中时返回 null（诚实缺省）：哈希伪随机坐标兜底已退役，
+ * 调用方需容忍 null（不保存坐标/不上图）。
  */
 export function resolveCoordinates(
     existing: { lat: number; lng: number } | undefined,
     address: AddressInput
-): ResolvedCoordinates {
+): ResolvedCoordinates | null {
     // Layer 0: existing coordinates
     if (existing && isFinite(existing.lat) && isFinite(existing.lng)) {
         return { lat: existing.lat, lng: existing.lng, source: 'existing' };
@@ -177,10 +180,8 @@ export function resolveCoordinates(
         }
     }
 
-    // Layer 4: fallback
-    const fallbackKey = [address.city, address.postcode, address.address].filter(Boolean).join(', ') || 'unknown';
-    const fallback = resolveLocation(fallbackKey);
-    return { lat: fallback.lat, lng: fallback.lon, source: 'fallback', label: undefined };
+    // 全部层未命中：返回 null（原哈希伪随机兜底已退役，禁止伪造坐标）
+    return null;
 }
 
 // ─── Batch utility ──────────────────────────────

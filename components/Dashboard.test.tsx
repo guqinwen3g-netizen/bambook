@@ -104,7 +104,9 @@ describe('Dashboard HUD polish', () => {
     it('keeps the dashboard corner clock on desktop while allowing mobile to hide it', () => {
         const source = readFileSync(new URL('./Dashboard.tsx', import.meta.url), 'utf8');
 
-        expect(source).toContain('!isMobileSpatial &&');
+        expect(source).not.toContain('isMobileSpatial');
+        expect(source).not.toContain('mobileSpatialMode');
+        expect(source).not.toContain('DASHBOARD_MOBILE_PINCH_THRESHOLD_PX');
         expect(source).toContain('toLocaleTimeString');
         expect(source).toContain('UTC+8 Shanghai');
         expect(source).toContain('data-ui-lab-wallpaper-contrast');
@@ -114,7 +116,8 @@ describe('Dashboard HUD polish', () => {
         expect(source).toContain("import { NotificationCenterTrigger } from './NotificationCenter'");
         expect(source).toContain('<NotificationCenterTrigger');
         expect(source).not.toContain('aria-label="Notifications"');
-        expect(source).toContain('aria-label="Bambook Team"');
+        expect(source).toContain('aria-label="账户菜单"');
+        expect(source).toContain('{accountName}');
         expect(source).toContain("import UserAvatar from './ui/UserAvatar'");
         expect(source).toContain("import { getAuthState, subscribe } from '../services/authService'");
         expect(source).toContain('avatarUrl={authUser?.avatarUrl}');

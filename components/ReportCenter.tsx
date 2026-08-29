@@ -993,6 +993,19 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ReportRun | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const handleExportRun = useCallback(async (run: ReportRun) => {
+    if (exportingId) return;
+    setExportingId(run.id);
+    try {
+      await reportService.downloadRunCsv(run.id);
+    } catch (e: any) {
+      onError(`导出失败：${e?.message || e}`);
+    } finally {
+      setExportingId(null);
+    }
+  }, [exportingId, onError]);
 
   const handleToggleExpand = useCallback(async (run: ReportRun) => {
     if (expandedId === run.id) {
@@ -1078,14 +1091,17 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                       <td className={`px-3 py-2 tabular-nums ${textSecondary}`}>{duration}</td>
                       <td className="px-3 py-2 text-right">
                         {run.status === 'Success' && (
-                          <a
-                            href={reportService.exportCsvUrl(run.id)}
-                            download
+                          <button
+                            type="button"
+                            onClick={() => handleExportRun(run)}
+                            disabled={exportingId !== null}
                             title="导出 CSV"
-                            className="inline-flex p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
+                            className="inline-flex p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)] disabled:opacity-50"
                           >
-                            <Download size={14} strokeWidth={1.75} />
-                          </a>
+                            {exportingId === run.id
+                              ? <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
+                              : <Download size={14} strokeWidth={1.75} />}
+                          </button>
                         )}
                       </td>
                     </tr>

@@ -24,7 +24,8 @@ describe('MapLibreProductionGlobe', () => {
     expect(source).toContain('const locatableOrders = useMemo(');
     expect(source).toContain('activeOrders.filter(order => Boolean(activeOrderLocation(order)))');
     expect(source).toContain('if (!location) return null;');
-    expect(source).toContain('realTourTargets.length >= 2');
+    expect(source).not.toContain('DEMO_TOUR_TARGETS');
+    expect(source).toContain('const tourTargets = realTourTargets;');
     expect(source).not.toContain('NORMAL_ROUTE_LOCATIONS');
     expect(source).not.toContain('normalRouteFallbackLocation');
     expect(source).not.toContain('resolveLocation(fallback.label)');

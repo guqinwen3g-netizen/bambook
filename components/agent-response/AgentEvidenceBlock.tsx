@@ -61,9 +61,6 @@ export const AgentEvidenceBlock: React.FC<AgentBlockComponentProps<AgentEvidence
           );
         })}
       </div>
-      {(block.anchors?.length ?? 0) > 0 && (
-        <div className={`mt-2 text-[11px] ${quietTextClass}`}>引用锚点已保留，后续可接入点击跳转到工具运行、数据行或产物。</div>
-      )}
     </div>
   );
 };

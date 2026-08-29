@@ -1389,7 +1389,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           <div>
                             <div className={`text-sm font-light ${primaryTextCls}`}>账号修改</div>
                             <div className={`mt-1 text-[11px] ${weakTextCls}`}>
-                              修改密码、重新绑定邮箱等敏感账户操作
+                              修改密码等敏感账户操作
                             </div>
                           </div>
                           <ArrowRight size={16} strokeWidth={1.5} className={weakTextCls} />
@@ -1442,13 +1442,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         >
                           {pwLoading ? '修改中...' : '确认修改密码'}
                         </button>
-                      </div>
-
-                      <div className={card + ' p-5'}>
-                        <div className={`text-sm font-light ${primaryTextCls}`}>重新绑定邮箱</div>
-                        <p className={`mt-1 text-xs ${weakTextCls}`}>
-                          邮箱重绑需要验证码与管理员策略，当前先保留入口，后续接入完整流程。
-                        </p>
                       </div>
                     </div>
                   )}

@@ -970,7 +970,7 @@ const App: React.FC = () => {
 
   // Auto-collapse sidebar based on window width for responsive desktop experience
   useEffect(() => {
-    // Note: isMobile is hardcoded false now, but this logic is for Desktop resizing.
+    // Note: this logic is for Desktop window resizing.
     const handleResize = () => {
       const width = window.innerWidth;
       if (width < 1300) {
@@ -1466,6 +1466,7 @@ const App: React.FC = () => {
                 isCloudConnected={isCloudConnected}
                 isDarkMode={isDarkMode}
                 onRefreshBriefing={handleManualRefresh}
+                onOpenCommandPalette={() => setPaletteOpen(true)}
                 hasGlobeUnderlay={isGlobeUnderlay}
               />
             )}

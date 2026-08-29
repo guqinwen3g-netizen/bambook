@@ -30,7 +30,9 @@ import {
     TrendingDown,
     RefreshCw,
     Search,
-    ChevronDown
+    ChevronDown,
+    User,
+    Monitor
 } from 'lucide-react';
 import { NotificationCenterTrigger } from './NotificationCenter';
 import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
@@ -67,7 +69,6 @@ export const DASHBOARD_EXPANDED_PIPELINE_MIN_WIDTH_PX = 300;
 export const DASHBOARD_EXPANDED_VELOCITY_MIN_WIDTH_PX = 560;
 export const DASHBOARD_LIVE_SCAN_CLASS = 'dashboard-live-scan';
 export const DASHBOARD_LIVE_SCAN_LIGHT_CLASS = 'dashboard-live-scan dashboard-live-scan-light';
-export const DASHBOARD_MOBILE_PINCH_THRESHOLD_PX = 26;
 export const DASHBOARD_CARD_RADIUS_CLASS = '!rounded-panel';
 export const DASHBOARD_RAISED_CARD_CLASS = `${OS_MATERIAL.raisedCard} ${DASHBOARD_CARD_RADIUS_CLASS}`;
 export const DASHBOARD_ACCENT_CARD_CLASS = 'bambook-dashboard-accent-card';
@@ -485,7 +486,8 @@ interface DashboardProps {
     isCloudConnected?: boolean;
     isDarkMode?: boolean;
     onRefreshBriefing?: () => void;
-    isMobileSpatial?: boolean;
+    /** 打开全局命令面板（Cmd/Ctrl+K 同一入口），由 App 注入 */
+    onOpenCommandPalette?: () => void;
     hasGlobeUnderlay?: boolean;
 }
 
@@ -539,14 +541,7 @@ const DashboardMarketHub = React.memo(function DashboardMarketHub({
     );
 });
 
-function getTouchDistance(touches: TouchList): number {
-    if (touches.length < 2) return 0;
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.hypot(dx, dy);
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavigate: _onNavigate, briefing, isBriefingLoading, isCloudConnected: _isCloudConnected, isDarkMode = false, onRefreshBriefing, isMobileSpatial = false, hasGlobeUnderlay = true }) => {
+const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavigate, briefing, isBriefingLoading, isCloudConnected: _isCloudConnected, isDarkMode = false, onRefreshBriefing, onOpenCommandPalette, hasGlobeUnderlay = true }) => {
     const blueprint = useMemo(() => compileDashboardPage(), []);
     const [authUser, setAuthUser] = React.useState(() => getAuthState().user);
 
@@ -597,9 +592,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
     const dashboardIdleSpotlightOpacity = 0;
     const dashboardCardLabelClass = 'text-[13px] font-normal tracking-[0.04em] text-os-adaptive-subtitle';
     const dashboardMetricCaptionClass = 'text-[12px] font-normal text-os-adaptive-subtitle';
-    const [mobileSpatialMode, setMobileSpatialMode] = useState<'globe' | 'cards'>('globe');
-    const pinchStartDistanceRef = React.useRef(0);
-    const pinchResolvedRef = React.useRef(false);
+    const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
     // Sync Global Pulse — slow rotation across the view-state cards.
     // (Originally toggled off during the stutter investigation; restored
@@ -661,42 +654,6 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         setGarmentData(buildVelocityWeeks(orders, 'garment'));
     }, [orders]);
 
-    useEffect(() => {
-        if (!isMobileSpatial || !hasGlobeUnderlay || typeof document === 'undefined') return;
-
-        const handleTouchStart = (event: TouchEvent) => {
-            if (event.touches.length !== 2) return;
-            pinchStartDistanceRef.current = getTouchDistance(event.touches);
-            pinchResolvedRef.current = false;
-        };
-
-        const handleTouchMove = (event: TouchEvent) => {
-            if (event.touches.length !== 2 || pinchStartDistanceRef.current <= 0) return;
-            event.preventDefault();
-            const delta = getTouchDistance(event.touches) - pinchStartDistanceRef.current;
-            if (pinchResolvedRef.current || Math.abs(delta) < DASHBOARD_MOBILE_PINCH_THRESHOLD_PX) return;
-            pinchResolvedRef.current = true;
-            setMobileSpatialMode(delta < 0 ? 'cards' : 'globe');
-        };
-
-        const resetPinch = () => {
-            pinchStartDistanceRef.current = 0;
-            pinchResolvedRef.current = false;
-        };
-
-        document.addEventListener('touchstart', handleTouchStart, { passive: true });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', resetPinch);
-        document.addEventListener('touchcancel', resetPinch);
-
-        return () => {
-            document.removeEventListener('touchstart', handleTouchStart);
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', resetPinch);
-            document.removeEventListener('touchcancel', resetPinch);
-        };
-    }, [hasGlobeUnderlay, isMobileSpatial]);
-
     // DIAGNOSTIC: when freeze is on, also kill all CSS animations on the
     // entire body via a global className. Tailwind utilities like
     // animate-pulse / animate-ping / animate-spin / animate-spin-slow are
@@ -725,11 +682,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         return;
     }, []);
 
-    const effectiveMobileSpatialMode = hasGlobeUnderlay ? mobileSpatialMode : 'cards';
-    const mobileSpatialClass = isMobileSpatial
-        ? `bambook-mobile-dashboard-spatial bambook-mobile-dashboard-${effectiveMobileSpatialMode}-focus`
-        : '';
-    const useExpandedDashboardLayout = !hasGlobeUnderlay && !isMobileSpatial;
+    const useExpandedDashboardLayout = !hasGlobeUnderlay;
     const dashboardHeaderClass = 'dashboard-header-hud absolute top-0 left-0 right-0 z-40 pt-4 mt-[5px] pointer-events-none';
     const dashboardHeaderFrameClass = useExpandedDashboardLayout
         ? DASHBOARD_EXPANDED_HUD_FRAME_CLASS
@@ -786,6 +739,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         ? 'min-w-0 w-full perspective-[1200px] h-full pointer-events-auto'
         : 'col-start-7 col-span-6 row-start-1 min-w-0 w-full perspective-[1200px] h-full pointer-events-auto';
     const dashboardHeaderPillClass = BAMBOOK_OS.controls.actionControl.base;
+    const overlayMenu = BAMBOOK_OS.controls.overlayMenu;
+    const accountMenuSurfaceClass = `${overlayMenu.surfaceBase} ${overlayMenu.surface}`;
+    const accountMenuLayerClass = overlayMenu.surfaceLayer;
+    const accountMenuItemClass = `${overlayMenu.itemBase} flex items-center gap-2 ${overlayMenu.item}`;
+    const accountMenuIconClass = `transition-colors duration-[260ms] ${overlayMenu.icon}`;
 
     const dashboardContent = (
         <div
@@ -794,7 +752,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
             data-os-compiler-provenance={blueprint.provenance}
             data-os-compiler-role="dashboard-hud-root"
             data-os-compiler-edge-fade-source="DASHBOARD_HEADER_CARD_FADE_*"
-            className={`relative w-full h-full bg-transparent selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] pointer-events-none ${mobileSpatialClass}`}
+            className="relative w-full h-full bg-transparent selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] pointer-events-none"
         >
             {/* LAYER 1: GRID OVERLAY ONLY */}
             <div data-dashboard-bg-grid className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
@@ -816,52 +774,86 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     Bambook Hub
                                     <span className="ml-2.5 align-middle text-[12px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
                                 </h1>
-                                {!isMobileSpatial && (
-                                    <label className={`pointer-events-auto flex h-14 w-[18.75rem] max-w-[30vw] items-center gap-3 rounded-card-lg border px-5 ${dashboardHeaderPillClass} text-os-adaptive-subtitle`}>
+                                {onOpenCommandPalette && (
+                                    <label
+                                        className={`pointer-events-auto flex h-14 w-[18.75rem] max-w-[30vw] cursor-pointer items-center gap-3 rounded-card-lg border px-5 ${dashboardHeaderPillClass} text-os-adaptive-subtitle`}
+                                        onClick={onOpenCommandPalette}
+                                    >
                                         <Search size={18} strokeWidth={1.5} />
                                         <input
                                             aria-label="Search Bambook Hub"
-                                            className="min-w-0 flex-1 bg-transparent text-[14px] font-normal text-os-adaptive-primary outline-none placeholder:text-os-adaptive-subtitle"
+                                            readOnly
+                                            className="min-w-0 flex-1 cursor-pointer bg-transparent text-[14px] font-normal text-os-adaptive-primary outline-none placeholder:text-os-adaptive-subtitle"
                                             placeholder="Search..."
+                                            onFocus={onOpenCommandPalette}
                                         />
                                     </label>
                                 )}
                             </div>
 
-                            {!isMobileSpatial && (
-                                <div className="flex items-center gap-3 self-end md:self-auto">
-                                    <div className="text-right">
-                                        <div
-                                            className="text-[26px] font-light leading-none tracking-tight tabular-nums text-[var(--os-adaptive-primary)] transition-colors"
-                                        >
-                                            {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                        <div
-                                            className="text-[11px] font-light uppercase tracking-[0.14em] text-[var(--os-adaptive-subtitle)] mt-1"
-                                        >
-                                            UTC+8 Shanghai
-                                        </div>
-                                    </div>
-                                    <NotificationCenterTrigger className="pointer-events-auto" />
-                                    <button
-                                        type="button"
-                                        aria-label="Bambook Team"
-                                        className={`pointer-events-auto flex h-14 items-center gap-3 rounded-card-lg border px-4 pr-5 ${dashboardHeaderPillClass} text-os-adaptive-primary`}
+                            <div className="relative flex items-center gap-3 self-end md:self-auto">
+                                <div className="text-right">
+                                    <div
+                                        className="text-[26px] font-light leading-none tracking-tight tabular-nums text-[var(--os-adaptive-primary)] transition-colors"
                                     >
-                                        <UserAvatar
-                                            name={accountName}
-                                            email={authUser?.email}
-                                            avatarUrl={authUser?.avatarUrl}
-                                            isDarkMode={isDarkMode}
-                                            sizeClassName="h-9 w-9"
-                                            textClassName="text-xs"
-                                            adaptive
-                                        />
-                                        <span className="text-[13px] font-normal">Bambook Team</span>
-                                        <ChevronDown size={16} strokeWidth={1.5} className="text-os-adaptive-subtitle" />
-                                    </button>
+                                        {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                    <div
+                                        className="text-[11px] font-light uppercase tracking-[0.14em] text-[var(--os-adaptive-subtitle)] mt-1"
+                                    >
+                                        UTC+8 Shanghai
+                                    </div>
                                 </div>
-                            )}
+                                <NotificationCenterTrigger className="pointer-events-auto" />
+                                <button
+                                    type="button"
+                                    aria-label="账户菜单"
+                                    aria-expanded={accountMenuOpen}
+                                    onClick={() => setAccountMenuOpen((open) => !open)}
+                                    className={`pointer-events-auto flex h-14 items-center gap-3 rounded-card-lg border px-4 pr-5 ${dashboardHeaderPillClass} text-os-adaptive-primary`}
+                                >
+                                    <UserAvatar
+                                        name={accountName}
+                                        email={authUser?.email}
+                                        avatarUrl={authUser?.avatarUrl}
+                                        isDarkMode={isDarkMode}
+                                        sizeClassName="h-9 w-9"
+                                        textClassName="text-xs"
+                                        adaptive
+                                    />
+                                    <span className="text-[13px] font-normal">{accountName}</span>
+                                    <ChevronDown size={16} strokeWidth={1.5} className={`text-os-adaptive-subtitle transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                <AnimatePresence>
+                                    {accountMenuOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                                            className={`pointer-events-auto absolute right-0 top-full mt-2 z-50 w-60 ${accountMenuSurfaceClass}`}
+                                        >
+                                            <div aria-hidden className={`pointer-events-none absolute inset-0 rounded-[inherit] ${accountMenuLayerClass}`} />
+                                            <button
+                                                type="button"
+                                                onClick={() => { setAccountMenuOpen(false); onNavigate(View.AccountSettings); }}
+                                                className={`relative z-10 w-full ${accountMenuItemClass}`}
+                                            >
+                                                <User size={16} strokeWidth={1.5} className={accountMenuIconClass} />
+                                                <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">账号设置</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setAccountMenuOpen(false); onNavigate(View.SystemSettings); }}
+                                                className={`relative z-10 w-full ${accountMenuItemClass}`}
+                                            >
+                                                <Monitor size={16} strokeWidth={1.5} className={accountMenuIconClass} />
+                                                <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">系统设置</span>
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -869,14 +861,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                 <div ref={dashboardScrollerRef} className={DASHBOARD_HUD_SCROLLER_CLASS}>
                     <div className={dashboardRootClass} style={dashboardRootStyle}>
 
-                        {/* MIDDLE SECTION: RESPONSIVE GRID */}
-                        {/* On Desktop, this pushes content to sides to reveal Globe in center. On smaller screens, it stacks. */}
-                        {/* MIDDLE SECTION: RESPONSIVE GRID */}
                         {/* MIDDLE SECTION: ULTIMATE STABLE FLEX LAYOUT */}
                         {/* STRATEGY: "Two Bricks and a Spring" */}
-                        {/* Mobile (<md): Vertical Stack. */}
-                        {/* Desktop/Tablet (>=md): Left(260px) -- Stretchable Spacer -- Right(320px). */}
-                        {/* Components behave like solid objects moving closer together, with ZERO shape distortion. */}
                         {/* Desktop (Always): Left(260px) -- Stretchable Spacer -- Right(320px). */}
                         {/* Components behave like solid objects moving closer together, with ZERO shape distortion. */}
                         <motion.div className={dashboardStageClass} style={dashboardStageStyle}>

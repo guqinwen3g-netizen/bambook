@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Check, Copy, Paperclip, Globe, ThumbsUp, ThumbsDown, Share2, ClipboardList, Pencil } from 'lucide-react';
+import { Check, Copy, Paperclip, Globe, ClipboardList, Pencil } from 'lucide-react';
 import type { ChatMessage, AgentWorkEvent, AgentArtifactBlock, AgentReferenceAnchor, AgentResponseBlock, AgentToolLifecycleBlock, AgentEvidenceBlock, AgentApprovalBlock, AgentMarkdownBlock } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { AgentDocumentRenderer } from './agent-response/AgentDocumentRenderer';
@@ -355,30 +355,6 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                   <span>{isCopiedFull ? '已复制' : '复制工作流'}</span>
                 </button>
               )}
-              <button
-                type="button"
-                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
-                title="有用"
-                aria-label="有用"
-              >
-                <ThumbsUp size={12} strokeWidth={1.5} />
-              </button>
-              <button
-                type="button"
-                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
-                title="需改进"
-                aria-label="需改进"
-              >
-                <ThumbsDown size={12} strokeWidth={1.5} />
-              </button>
-              <button
-                type="button"
-                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
-                title="分享"
-                aria-label="分享"
-              >
-                <Share2 size={12} strokeWidth={1.5} />
-              </button>
             </div>
           )}
         </>

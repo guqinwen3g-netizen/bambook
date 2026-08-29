@@ -173,13 +173,22 @@ const INTRO_START_POS = calcPosFromLatLonRad(GLOBE_INTRO_GEO.lat, GLOBE_INTRO_GE
 const GLOBAL_STRATEGIC_POS = calcPosFromLatLonRad(GLOBE_GLOBAL_GEO.lat, GLOBE_GLOBAL_GEO.lon, GLOBE_GLOBAL_GEO.orbitDistance);
 
 // --- Layout Engine (Anti-Clutter) ---
+// 订单定位真源：factoryLat/factoryLon（入库坐标）→ resolveLocation（真实地名表）；
+// 均不命中时该订单不上图（假坐标兜底已退役，禁止把订单渲染到随机位置）。
+function resolveOrderGeo(order: Order): { lat: number; lon: number } | null {
+    if (order.factoryLat !== undefined && order.factoryLon !== undefined) {
+        return { lat: order.factoryLat, lon: order.factoryLon };
+    }
+    return resolveLocation(order.millName || '');
+}
+
 function useSphericalLayout(orders: Order[], radius: number, iterations = 42) {
     return useMemo(() => {
-        // 1. Initial Mapping
-        const nodes = orders.map(order => {
-            const { lat, lon } = order.factoryLat !== undefined && order.factoryLon !== undefined
-                ? { lat: order.factoryLat, lon: order.factoryLon }
-                : resolveLocation(order.millName || '');
+        // 1. Initial Mapping（跳过无真实坐标的订单）
+        const nodes = orders.flatMap(order => {
+            const location = resolveOrderGeo(order);
+            if (!location) return [];
+            const { lat, lon } = location;
 
             const basePos = calcPosFromLatLonRad(lat, lon, radius);
 
@@ -189,12 +198,12 @@ function useSphericalLayout(orders: Order[], radius: number, iterations = 42) {
             basePos.z += (Math.random() - 0.5) * 0.01;
             basePos.normalize().multiplyScalar(radius);
 
-            return {
+            return [{
                 id: order.id,
                 order,
                 pos: basePos,
                 velocity: new THREE.Vector3(0, 0, 0)
-            };
+            }];
         });
 
         // 2. Physics Simulation (Repulsion)
@@ -314,10 +323,9 @@ function CameraController({ focusedOrder, layoutMap, isReady }: { focusedOrder: 
                 targetCenter = layoutMap.get(focusedOrder.id)!.position.clone();
             } else {
                 // Fallback (Should rarely happen if logic is synced)
-                const { lat, lon } = focusedOrder.factoryLat !== undefined
-                    ? { lat: focusedOrder.factoryLat, lon: focusedOrder.factoryLon! }
-                    : resolveLocation(focusedOrder.millName || '');
-                targetCenter = calcPosFromLatLonRad(lat, lon, GLOBE_RADIUS);
+                // 无真实坐标时聚焦回全局战略锚点（GLOBE_GLOBAL_GEO 为声明常量，非伪坐标）
+                const geo = resolveOrderGeo(focusedOrder) ?? { lat: GLOBE_GLOBAL_GEO.lat, lon: GLOBE_GLOBAL_GEO.lon };
+                targetCenter = calcPosFromLatLonRad(geo.lat, geo.lon, GLOBE_RADIUS);
             }
 
             // 目标：订单上方即视感 (Radius 5 + 4 = 9)
@@ -542,9 +550,10 @@ function DataBeamInstances({ orders, radius, onFocus, focusedId }: {
         const heights = new Float32Array(orders.length);
 
         orders.forEach((order, i) => {
-            const { lat, lon } = order.factoryLat !== undefined
-                ? { lat: order.factoryLat, lon: order.factoryLon! }
-                : resolveLocation(order.millName || '');
+            const location = resolveOrderGeo(order);
+            // 上游 activeOrders 已过滤无坐标订单；防御性跳过，避免把实例矩阵留在原点
+            if (!location) return;
+            const { lat, lon } = location;
 
             // Calculate Position on Sphere
             const pos = calcPosFromLatLonRad(lat, lon, radius);
@@ -631,9 +640,10 @@ function DataBeamInstances({ orders, radius, onFocus, focusedId }: {
 
 // Positioning Helper for Tooltip
 function BeamTooltip({ order, isFocused, radius }: { order: Order, isFocused: boolean, radius: number }) {
-    const { lat, lon } = order.factoryLat !== undefined
-        ? { lat: order.factoryLat, lon: order.factoryLon! }
-        : resolveLocation(order.millName || '');
+    const location = resolveOrderGeo(order);
+    // 无真实坐标的订单本不上图，tooltip 亦不渲染
+    if (!location) return null;
+    const { lat, lon } = location;
 
     // Calculate top of the beam position
     const height = Math.min(Math.max(order.quantity / 800, 1.5), 5.0);
@@ -1000,9 +1010,9 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
         }
     }, [initialDelay]);
 
-    // Filter relevant orders
+    // Filter relevant orders（仅真实可定位订单上图：入库坐标或地名表命中）
     const activeOrders = useMemo(
-        () => orders.filter(order => ['Alert', 'Production', 'Shipping'].includes(order.status)),
+        () => orders.filter(order => ['Alert', 'Production', 'Shipping'].includes(order.status) && resolveOrderGeo(order) !== null),
         [orders]
     );
 

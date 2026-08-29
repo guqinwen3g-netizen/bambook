@@ -227,10 +227,25 @@ export const reportService = {
     return data.run;
   },
 
-  /** CSV 导出地址（浏览器直接下载） */
-  exportCsvUrl(runId: string, endpoint?: string): string {
+  /**
+   * CSV 导出：携带鉴权头 fetch → blob → a[download]。
+   * 替代旧 <a href download> 裸链（无鉴权头必 401）与 apiKey 拼 URL（凭据进 URL/日志泄漏）。
+   */
+  async downloadRunCsv(runId: string, endpoint?: string): Promise<void> {
     const url = buildUrl(`/runs/${encodeURIComponent(runId)}/export.csv`, endpoint);
-    const apiKey = apiService.getApiKey();
-    return apiKey ? `${url}?apiKey=${encodeURIComponent(apiKey)}` : url;
+    const res = await fetch(url, { headers: headers() });
+    if (!res.ok) throw new Error(`报表导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `报表运行_${runId}.csv`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
   },
 };
