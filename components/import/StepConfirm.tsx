@@ -84,9 +84,8 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
       >
         <Info size={18} className="shrink-0 mt-0.5" />
         <div className="text-xs leading-relaxed">
-          <p className="font-light mb-1">当前为「预览」模式</p>
           <p>
-            点击「完成」会把这些订单交还给上层（暂不写入数据库）。数据库写入将在下一阶段开通——届时同一个按钮会直接落库并按 PO 号去重。
+            点击「完成」即把可入库订单写入数据库，并按 PO 号去重（同号订单自动更新合并，不重复新增）。
           </p>
         </div>
       </div>

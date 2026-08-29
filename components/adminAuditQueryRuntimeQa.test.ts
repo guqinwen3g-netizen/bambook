@@ -164,10 +164,14 @@ describe('runtime QA [AdminPanel UI]: 筛选控件', () => {
 
 // ═══ Part 8: 边界 — invalid date 不前端伪造成功 ═══
 describe('runtime QA [边界]: invalid date 不前端伪造', () => {
-  it('createdFrom/createdTo 直接传给后端（不前端校验拦截）', () => {
-    // trim 后直接 set，不前端 isNaN 拦截——交给后端 INVALID_DATE_RANGE fail closed
-    expect(ADMIN_SRC).toMatch(/if \(f\.createdFrom\.trim\(\)\) params\.set\('createdFrom', f\.createdFrom\.trim\(\)\)/);
-    expect(ADMIN_SRC).toMatch(/if \(f\.createdTo\.trim\(\)\) params\.set\('createdTo', f\.createdTo\.trim\(\)\)/);
+  it('createdFrom/createdTo 经 datetime-local → epoch ms 转换后传后端（转换失败原值透传，fail closed）', () => {
+    // R678：筛选框改 datetime-local（不再手输毫秒）；trim 后转 ms 直接 set，
+    // 转换失败不前端 isNaN 拦截——原值透传，交给后端 INVALID_DATE_RANGE fail closed
+    expect(ADMIN_SRC).toMatch(/if \(f\.createdFrom\.trim\(\)\) params\.set\('createdFrom', auditDateTimeToMs\(f\.createdFrom\.trim\(\)\)\)/);
+    expect(ADMIN_SRC).toMatch(/if \(f\.createdTo\.trim\(\)\) params\.set\('createdTo', auditDateTimeToMs\(f\.createdTo\.trim\(\)\)\)/);
+    // datetime-local 控件契约：输入类型锁定
+    expect(ADMIN_SRC).toMatch(/type="datetime-local"[\s\S]*?value=\{auditFilter\.createdFrom\}/);
+    expect(ADMIN_SRC).toMatch(/type="datetime-local"[\s\S]*?value=\{auditFilter\.createdTo\}/);
   });
   it('fetchAuditLogs 失败 catch 后 setAuditFilterError（INVALID_DATE_RANGE/INVALID_PAGINATION 显示在筛选区）', () => {
     // try/catch 包裹 fetchAdmin，catch 内 setAuditFilterError

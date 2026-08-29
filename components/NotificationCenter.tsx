@@ -22,6 +22,7 @@ import {
 import { apiService } from '../services/apiService';
 import { NotificationItem, NotificationStats, NotificationTypeCatalogItem, ApprovalRequestItem } from '../types';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import { bdsToast } from './ui/bdsToast';
 import { statusSemanticClass, statusSemanticText, statusSemanticBg } from './rdlBusinessStatusTokens';
 
 // D2 主动提醒引擎 — Electron 原生推送桥（preload.ts exposeInMainWorld）。
@@ -480,6 +481,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
       await apiService.decideApproval(item.id, status, note || undefined, endpoint);
       setRejectingId(null);
       setRejectNote('');
+      bdsToast.success(status === 'approved' ? '已通过该审批。' : '已驳回该审批。');
       fetchApprovals();
     } catch (e: any) {
       setApprovalsError(String(e?.message || '决策失败'));
@@ -689,7 +691,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
                               ${entry.isEnabled ? 'bg-link/70' : ui.switchOff}`}
                           >
                             <span
-                              className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition-transform duration-200
+                              className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-[var(--on-accent)] transition-transform duration-200
                                 ${entry.isEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
                             />
                           </button>
@@ -887,7 +889,18 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
                     return (
                       <div
                         key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${item.title}（${isUnread ? '未读' : '已读'}）`}
                         onClick={() => handleItemClick(item)}
+                        onKeyDown={(e) => {
+                          // 仅当焦点在条目本体时响应；内部按钮/输入框的 Enter/Space 不冒泡触发跳转
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleItemClick(item);
+                          }
+                        }}
                         className={`group relative flex cursor-pointer items-start gap-3 rounded-control px-4 py-3.5 transition-colors duration-200
                           ${isUnread
                             ? `${levelBg} ${ui.rowHoverUnread}`

@@ -98,12 +98,27 @@ const EMPTY_USER_EDIT_DRAFT = {
   role: DEFAULT_ASSIGN_ROLE,
 };
 
+const EMPTY_NEW_USER_DRAFT = {
+  displayName: '',
+  email: '',
+  password: '',
+  roles: DEFAULT_ASSIGN_ROLE as string,
+  departmentId: '',
+};
+
 const KNOWLEDGE_SCOPES = ['company', 'department', 'team', 'private'] as const;
 const ACCESS_LEVELS = ['read', 'write', 'admin', 'none'] as const;
 const TOOL_ACCESS_LEVELS = ['execute', 'read', 'admin', 'none'] as const;
 const RISK_MODES = ['direct', 'approval', 'disabled'] as const;
 /** R3：系统日志每页条数（与后端 entityQuery 默认 limit=100 对齐，显式传参翻页） */
 const AUDIT_PAGE_SIZE = 100;
+
+/** datetime-local 值 → epoch ms（后端 entityQuery 仅收毫秒时间戳）；
+ *  转换失败不伪造成功：原值透传，由后端 INVALID_DATE_RANGE fail closed */
+const auditDateTimeToMs = (value: string): string => {
+  const t = new Date(value).getTime();
+  return Number.isFinite(t) ? String(t) : value;
+};
 
 const formatRoleLabel = (role: string) => ROLE_LABELS[role as typeof AVAILABLE_ROLES[number]] || role;
 const formatPermissionLabel = (scope: string) => PERMISSION_LABELS[scope] || scope;
@@ -270,7 +285,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
 
   // New user form
   const [showNewUser, setShowNewUser] = useState(false);
-  const [newUser, setNewUser] = useState({ displayName: '', email: '', password: '', roles: DEFAULT_ASSIGN_ROLE as string, departmentId: '' });
+  const [newUser, setNewUser] = useState(EMPTY_NEW_USER_DRAFT);
+  // 用户列表搜索 / 状态筛选（客户端过滤已加载列表）
+  const [userSearch, setUserSearch] = useState('');
+  const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
 
   const adminGlassClass = ADMIN_PANEL_GLASS_CLASS;
   const userCardClass = ADMIN_USER_CARD_CLASS;
@@ -336,9 +354,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     if (f.targetId.trim()) params.set('targetId', f.targetId.trim());
     if (f.action.trim()) params.set('action', f.action.trim());
     if (f.actorId.trim()) params.set('actorId', f.actorId.trim());
-    // invalid date 不前端伪造成功，交给后端 fail closed
-    if (f.createdFrom.trim()) params.set('createdFrom', f.createdFrom.trim());
-    if (f.createdTo.trim()) params.set('createdTo', f.createdTo.trim());
+    // 前端收 datetime-local，转 epoch ms 发给后端（后端仅收毫秒时间戳；转换失败原值透传 fail closed）
+    if (f.createdFrom.trim()) params.set('createdFrom', auditDateTimeToMs(f.createdFrom.trim()));
+    if (f.createdTo.trim()) params.set('createdTo', auditDateTimeToMs(f.createdTo.trim()));
     params.set('limit', String(AUDIT_PAGE_SIZE));
     if (offset > 0) params.set('offset', String(offset));
     try {
@@ -457,10 +475,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     try {
       const data = await postAdmin(`users/${userId}/approve`, { roles: [role] });
       await loadTab('users');
+      // 批准成功的三类后续状态走 toast（loadError 是错误横幅，不承载非错误信息）
       if (data?.emailStatus === 'failed') {
-        setLoadError(`已批准，但通知邮件发送失败：${data.emailError || '未知错误'}`);
+        bdsToast.warning(`已批准，但通知邮件发送失败：${data.emailError || '未知错误'}`);
       } else if (data?.emailStatus === 'skipped') {
-        setLoadError('已批准。该用户未填写邮箱，未发送通知邮件。');
+        bdsToast.info('已批准。该用户未填写邮箱，未发送通知邮件。');
+      } else {
+        bdsToast.success('已批准该注册申请。');
       }
     } catch (e: any) {
       setLoadError(e.message || '批准失败');
@@ -476,6 +497,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     try {
       await postAdmin(`users/${userId}/reject`, { reason: '' });
       await loadTab('users');
+      bdsToast.success('已驳回该注册申请。');
     } catch (e: any) {
       setLoadError(e.message || '驳回失败');
     } finally {
@@ -490,6 +512,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     try {
       await postAdmin(`users/${userId}/disable-account`, {});
       await loadTab('users');
+      bdsToast.success(`账号「${displayName || userId}」已停用。`);
     } catch (e: any) {
       setLoadError(e.message || '停用账号失败');
     } finally {
@@ -611,6 +634,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
       await loadTab('users');
       setEditingUserId(null);
       setUserDraft(EMPTY_USER_EDIT_DRAFT);
+      bdsToast.success('账号已保存。');
     } catch (e: any) {
       setLoadError(e.message || '保存用户失败');
     } finally {
@@ -625,6 +649,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     try {
       await postAdmin(`users/${userId}/erase-personal-data`, {});
       await loadTab('users');
+      bdsToast.success(`「${displayName || userId}」的个人数据已抹除。`);
     } catch (e: any) {
       setLoadError(e.message || '抹除个人数据失败');
     } finally {
@@ -664,6 +689,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     try {
       await postAdmin(`approvals/${approvalId}`, { status }, 'PATCH');
       await loadTab('approvals');
+      bdsToast.success(status === 'approved' ? '已通过审批。' : '已驳回审批。');
     } catch (e: any) {
       setLoadError(e.message || '审批操作失败');
     } finally {
@@ -677,6 +703,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     try {
       await postAdmin(`suggestions/${suggestionId}`, { status }, 'PATCH');
       await loadTab('approvals');
+      bdsToast.success(status === 'accepted' ? '已采纳该建议。' : '已驳回该建议。');
     } catch (e: any) {
       setLoadError(e.message || '建议操作失败');
     } finally {
@@ -746,6 +773,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
               {activeTab === 'users' && (() => {
                 const pendingUsers = users.filter(u => u.status === 'pending');
                 const activeUsers = users.filter(u => u.status !== 'pending');
+                // 姓名 / 邮箱关键字 + 状态筛选（客户端过滤）
+                const userKeyword = userSearch.trim().toLowerCase();
+                const visibleUsers = activeUsers.filter(u => {
+                  if (userStatusFilter !== 'all' && u.status !== userStatusFilter) return false;
+                  if (!userKeyword) return true;
+                  return (u.displayName || '').toLowerCase().includes(userKeyword)
+                    || (u.email || '').toLowerCase().includes(userKeyword);
+                });
                 const editingUser = editingUserId ? activeUsers.find(u => u.id === editingUserId) : null;
                 return (
                 <div className="flex h-full min-h-0 flex-col gap-4">
@@ -757,7 +792,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         {users.length} 个用户 · {activeUsers.length} 个账号 · {pendingUsers.length} 个待审批
                       </p>
                     </div>
-                    <button onClick={() => setShowNewUser(!showNewUser)} className={actionButtonCls}>
+                    <button onClick={() => {
+                      // 收起时重置草稿，避免下次打开残留上次输入
+                      if (showNewUser) setNewUser(EMPTY_NEW_USER_DRAFT);
+                      setShowNewUser(!showNewUser);
+                    }} className={actionButtonCls}>
                       <UserPlus size={14} strokeWidth={1.5} />
                       {showNewUser ? '取消' : '新建用户'}
                     </button>
@@ -796,8 +835,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         try {
                           await postAdmin('users', { ...newUser, id: createAdminGeneratedUserId(newUser.email, newUser.displayName) });
                           setShowNewUser(false);
-                          setNewUser({ displayName: '', email: '', password: '', roles: DEFAULT_ASSIGN_ROLE, departmentId: '' });
+                          setNewUser(EMPTY_NEW_USER_DRAFT);
                           await loadTab('users');
+                          bdsToast.success('用户已创建。');
                         } catch(e: any) {
                           // fail closed：创建失败显示在页面错误区，禁止 alert 弹窗
                           setLoadError(e.message || '创建用户失败');
@@ -1016,6 +1056,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     )}
                   </div>
 
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="w-56">
+                      <input
+                        value={userSearch}
+                        onChange={e => setUserSearch(e.target.value)}
+                        placeholder="搜索姓名 / 邮箱"
+                        aria-label="搜索姓名或邮箱"
+                        className={inputCls}
+                      />
+                    </div>
+                    <select
+                      value={userStatusFilter}
+                      onChange={e => setUserStatusFilter(e.target.value)}
+                      aria-label="按状态筛选"
+                      className="bds-select sm w-auto"
+                    >
+                      <option value="all">全部状态</option>
+                      {ADMIN_USER_STATUS_OPTIONS.filter(o => o.value !== 'pending').map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {(userKeyword || userStatusFilter !== 'all') && (
+                      <span className={`text-[10px] text-[var(--text-tertiary)]`}>
+                        匹配 {visibleUsers.length} / {activeUsers.length} 个账号
+                      </span>
+                    )}
+                  </div>
+
                   <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-inset border ${userCardClass}`}>
                     <table className="w-full shrink-0 table-fixed border-separate border-spacing-0 text-left text-xs">
                       <colgroup>
@@ -1041,10 +1109,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <col className="w-[12%]" />
                       </colgroup>
                       <tbody>
-                        {activeUsers.map((u: any, idx: number) => {
+                        {visibleUsers.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-6 text-center text-[11px] text-[var(--text-tertiary)]">
+                              {activeUsers.length === 0 ? '暂无账号' : '无匹配账号，调整搜索或状态筛选'}
+                            </td>
+                          </tr>
+                        )}
+                        {visibleUsers.map((u: any, idx: number) => {
                           const roles = Array.isArray(u.roles) ? u.roles : [];
                           const privilegedRole = roles.includes('owner') ? 'owner' : roles.includes('admin') ? 'admin' : null;
-                          const userRowBorderClass = idx === activeUsers.length - 1
+                          const userRowBorderClass = idx === visibleUsers.length - 1
                             ? 'border-transparent'
                             : 'border-[var(--border-c-default)]';
                           return (
@@ -1156,6 +1231,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   await postAdmin(`roles/${r.id}/permissions`, { addPermissions: toAdd, removePermissions: toRemove }, 'PATCH');
                                   setPermEditingRoleId(null);
                                   loadTab('roles');
+                                  bdsToast.success('角色权限已更新。');
                                 } catch (e: any) { setLoadError(e.message || '更新权限失败'); }
                               }} className={brandActionCls}>
                                 <Check size={14} />保存权限
@@ -1247,20 +1323,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
 
               {activeTab === 'audit-logs' && (
                 <div className="space-y-2">
-                  {/* task_mr1ncdp9: audit query filter UI */}
-                  <div className={`flex flex-wrap items-center gap-2 p-2 text-xs ${inlineRowClass}`}>
-                    <input value={auditFilter.targetType} onChange={(e) => setAuditFilter(s => ({ ...s, targetType: e.target.value }))}
-                      placeholder="targetType" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
-                    <input value={auditFilter.targetId} onChange={(e) => setAuditFilter(s => ({ ...s, targetId: e.target.value }))}
-                      placeholder="targetId" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
-                    <input value={auditFilter.action} onChange={(e) => setAuditFilter(s => ({ ...s, action: e.target.value }))}
-                      placeholder="action" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
-                    <input value={auditFilter.actorId} onChange={(e) => setAuditFilter(s => ({ ...s, actorId: e.target.value }))}
-                      placeholder="actorId" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
-                    <input value={auditFilter.createdFrom} onChange={(e) => setAuditFilter(s => ({ ...s, createdFrom: e.target.value }))}
-                      placeholder="createdFrom(ms)" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
-                    <input value={auditFilter.createdTo} onChange={(e) => setAuditFilter(s => ({ ...s, createdTo: e.target.value }))}
-                      placeholder="createdTo(ms)" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                  {/* task_mr1ncdp9: audit query filter UI（中文 label + 时间用 datetime-local，前端转 epoch ms） */}
+                  <div className={`flex flex-wrap items-end gap-2 p-2 text-xs ${inlineRowClass}`}>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)]">对象类型</span>
+                      <input value={auditFilter.targetType} onChange={(e) => setAuditFilter(s => ({ ...s, targetType: e.target.value }))}
+                        placeholder="如 Order" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)]">对象 ID</span>
+                      <input value={auditFilter.targetId} onChange={(e) => setAuditFilter(s => ({ ...s, targetId: e.target.value }))}
+                        placeholder="精确 ID" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)]">动作</span>
+                      <input value={auditFilter.action} onChange={(e) => setAuditFilter(s => ({ ...s, action: e.target.value }))}
+                        placeholder="如 order.update" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)]">操作人 ID</span>
+                      <input value={auditFilter.actorId} onChange={(e) => setAuditFilter(s => ({ ...s, actorId: e.target.value }))}
+                        placeholder="用户 ID" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)]">起始时间</span>
+                      <input type="datetime-local" value={auditFilter.createdFrom} onChange={(e) => setAuditFilter(s => ({ ...s, createdFrom: e.target.value }))}
+                        className={`rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)]">结束时间</span>
+                      <input type="datetime-local" value={auditFilter.createdTo} onChange={(e) => setAuditFilter(s => ({ ...s, createdTo: e.target.value }))}
+                        className={`rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                    </label>
                     <button onClick={() => { setAuditFilter({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' }); setAuditFilterError(''); fetchAuditLogs({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' }); }}
                       className={`rounded-control border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}>清空</button>
                     <button onClick={() => fetchAuditLogs()}
@@ -1364,6 +1458,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           setShowAclForm(false);
                           setEditingAclId(null);
                           await loadTab('knowledge-acl');
+                          bdsToast.success('访问规则已保存。');
                         } catch (e: any) { setLoadError(e.message || '保存失败'); }
                         finally { setActionBusyId(null); }
                       }} className={primaryButtonCls}>
@@ -1406,7 +1501,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               if (actionBusyId) return;
                               if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此访问控制规则？', danger: true }))) return;
                               setActionBusyId(`acl:${acl.id}`);
-                              try { await postAdmin(`knowledge-acl/${acl.id}`, {}, 'DELETE'); await loadTab('knowledge-acl'); } catch (e: any) { setLoadError(e.message); }
+                              try { await postAdmin(`knowledge-acl/${acl.id}`, {}, 'DELETE'); await loadTab('knowledge-acl'); bdsToast.success('访问规则已删除。'); } catch (e: any) { setLoadError(e.message); }
                               finally { setActionBusyId(null); }
                             }} className={quietDangerActionCls}>删除</button>
                           </div>
@@ -1472,6 +1567,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           await postAdmin('tool-permissions', toolPermForm);
                           setShowToolPermForm(false);
                           await loadTab('tool-perms');
+                          bdsToast.success('工具授权已保存。');
                         } catch (e: any) { setLoadError(e.message || '保存失败'); }
                         finally { setActionBusyId(null); }
                       }} className={primaryButtonCls}>{actionBusyId === 'toolperm-create' ? '提交中…' : '创建授权'}</button>
@@ -1507,7 +1603,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                     // R5：移除授权前确认（对齐本文件 knowledge-acl 删除确认模式）
                                     if (!(await bdsConfirm({ title: '确认移除授权', body: `确认移除「${formatRoleLabel(p.roleName)}」对工具 ${t.name} 的授权？移除后该角色将无法再调用此工具。`, danger: true }))) return;
                                     setActionBusyId(`toolperm:${p.id}`);
-                                    try { await postAdmin(`tool-permissions/${p.id}`, {}, 'DELETE'); await loadTab('tool-perms'); } catch (e: any) { setLoadError(e.message); }
+                                    try { await postAdmin(`tool-permissions/${p.id}`, {}, 'DELETE'); await loadTab('tool-perms'); bdsToast.success('工具授权已移除。'); } catch (e: any) { setLoadError(e.message); }
                                     finally { setActionBusyId(null); }
                                   }} className={`${quietDangerActionCls} ml-auto h-8 px-2`}>移除</button>
                                 </div>

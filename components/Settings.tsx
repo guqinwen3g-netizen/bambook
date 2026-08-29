@@ -3,7 +3,7 @@ import { SystemConfig, MODELS, type WallpaperOption } from '../types';
 import { apiService } from '../services/apiService';
 import { knowledgeApiService } from '../services/knowledgeApiService';
 import { storageService, type DeviceStorageReport } from '../services/storageService';
-import { getAuthState, changePassword, logout, hasPermission, updateMyProfile, login } from '../services/authService';
+import { getAuthState, changePassword, logout, hasPermission, updateMyProfile } from '../services/authService';
 import { getDevOptions, setDevOption, subscribe as subscribeDevOptions, type DevOptions } from '../services/devOptionsService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -304,19 +304,6 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'developer', label: '开发者选项', hint: '开发与演示工具', icon: Wrench }
 ];
 
-// 开发者选项 · 演示账号快速切换（点击即以该账号登录，便于验收不同角色视图）
-const DEMO_ACCOUNTS: { email: string; name: string }[] = [
-  { email: 'boss@bambook.local', name: '沈国强 · 超管' },
-  { email: 'gm@bambook.local', name: '林志远 · 管理员' },
-  { email: 'sales.manager@bambook.local', name: '陈雅雯 · 销售主管' },
-  { email: 'sales.a@bambook.local', name: '苏晓芸 · 业务员' },
-  { email: 'sales.b@bambook.local', name: '周子墨 · 业务员' },
-  { email: 'finance.manager@bambook.local', name: '赵美玲 · 财务主管' },
-  { email: 'finance@bambook.local', name: '钱志明 · 财务' },
-  { email: 'qc@bambook.local', name: '吴建国 · QC' },
-  { email: 'logistics@bambook.local', name: '郑海涛 · 后勤' },
-];
-
 type CompiledSettingsPageBlueprint = {
   template: 'CompiledSettingsPage';
   source: 'Settings.ui-lab-1.0.full-contract';
@@ -433,9 +420,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const [confirmPw, setConfirmPw] = useState('');
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pwLoading, setPwLoading] = useState(false);
-  // 开发者选项 · 演示账号一键切换（由开发者选项页开关控制）
-  const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
-  const [switchMsg, setSwitchMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [storageReport, setStorageReport] = useState<DeviceStorageReport | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
   const [storageMsg, setStorageMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -566,21 +550,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
   const handleLogout = async () => {
     await logout();
-  };
-
-  // 开发者选项 · 一键切换演示账号（登录新账号 → 全局状态刷新 → 各页面按新权限重挂载）
-  const handleQuickSwitch = async (email: string) => {
-    if (switchingAccount) return;
-    setSwitchingAccount(email);
-    setSwitchMsg(null);
-    try {
-      await login(email, 'Bambook@2026');
-      setSwitchMsg({ ok: true, text: '已切换' });
-    } catch (e: any) {
-      setSwitchMsg({ ok: false, text: e.message || '切换失败' });
-    } finally {
-      setSwitchingAccount(null);
-    }
   };
 
   const handleAvatarFile = async (file?: File | null) => {
@@ -1033,9 +1002,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       className={rangeCls}
                     />
                   </div>
-                  <p className={`text-xs ${weakTextCls}`}>
-                    下方「TTS 引擎」旧选项已弃用展示；当前实现以助理内实际播放链路为准。
-                  </p>
                 </div>
               )}
 
@@ -1480,60 +1446,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         className={switchCls(devOptions.comingSoonOverlay)}
                       />
                     </div>
-                  </div>
-
-                  {/* 演示账号快速切换 */}
-                  <div className={card + ' p-5'}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className={`mt-0.5 ${iconWellCls}`}>
-                          <User size={18} strokeWidth={1.5} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className={`text-sm font-light ${primaryTextCls}`}>演示账号快速切换</div>
-                          <p className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>
-                            点击即以演示账号身份登录，便于验收不同角色视图。
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={devOptions.demoAccountSwitch}
-                        onClick={() => setDevOption('demoAccountSwitch', !devOptions.demoAccountSwitch)}
-                        className={switchCls(devOptions.demoAccountSwitch)}
-                      />
-                    </div>
-                    {devOptions.demoAccountSwitch && (
-                      <div className="mt-4">
-                        {switchMsg && (
-                          <div className={`mb-3 text-xs rounded-control px-3 py-2 ${switchMsg.ok ? 'text-[var(--status-success)]' : 'text-[var(--status-danger)]'}`}>
-                            {switchMsg.text}
-                          </div>
-                        )}
-                        <div className="grid grid-cols-3 gap-2">
-                          {DEMO_ACCOUNTS.map((acct) => {
-                            const isCurrent = user?.email === acct.email;
-                            const isBusy = switchingAccount === acct.email;
-                            return (
-                              <button
-                                key={acct.email}
-                                type="button"
-                                disabled={isCurrent || !!switchingAccount}
-                                onClick={() => handleQuickSwitch(acct.email)}
-                                className={`px-3 py-2 rounded-control border text-[11px] font-light transition-colors duration-200 ${
-                                  isCurrent
-                                    ? 'border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
-                                    : 'border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'
-                                } disabled:opacity-50`}
-                              >
-                                {isBusy ? '切换中…' : isCurrent ? `${acct.name}（当前）` : acct.name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div className={`${card} p-5 text-[11px] ${weakTextCls}`}>

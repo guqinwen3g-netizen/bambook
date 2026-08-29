@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Upload, ScanLine, ShieldCheck, Loader2 } from 'lucide-react';
 import StepUpload, { FileEntry } from './StepUpload';
@@ -30,6 +30,8 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
   const [results, setResults] = useState<ImportFileResult[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  // 在途解析请求句柄：关闭向导时 abort，避免结果静默丢弃后写回已关闭的向导状态
+  const parseAbortRef = useRef<AbortController | null>(null);
 
   // Reset on open/close
   useEffect(() => {
@@ -42,11 +44,18 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
     }
   }, [isOpen]);
 
+  // 关闭即中止在途解析（AbortError 静默吞掉，不作为失败展示）
+  const handleClose = () => {
+    parseAbortRef.current?.abort();
+    parseAbortRef.current = null;
+    onClose();
+  };
+
   // ESC closes
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -58,10 +67,12 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
       setIsParsing(true);
       setParseError(null);
       setFiles((prev) => prev.map((f) => ({ ...f, status: 'parsing' })));
+      const controller = new AbortController();
+      parseAbortRef.current = controller;
       try {
         const resp: ImportResponse = await uploadPdfsForParsing(
           files.map((f) => f.file),
-          { apiKey },
+          { apiKey, signal: controller.signal },
         );
         // Reorder results to match files order (server preserves input order, but be defensive)
         const byName = new Map<string, ImportFileResult[]>();
@@ -88,9 +99,12 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
         setResults(ordered);
         setStep(2);
       } catch (e: any) {
+        // 用户主动关闭向导 → 请求被 abort，静默丢弃，不展示为失败
+        if (controller.signal.aborted) return;
         setParseError(String(e?.message ?? e));
         setFiles((prev) => prev.map((f) => ({ ...f, status: 'error' })));
       } finally {
+        if (parseAbortRef.current === controller) parseAbortRef.current = null;
         setIsParsing(false);
       }
       return;
@@ -221,7 +235,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="bds-btn bds-btn-ghost"
               >
                 关闭

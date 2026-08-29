@@ -45,6 +45,8 @@ import {
 } from '../services/exceptionService';
 import { getAuthState, hasRole } from '../services/authService';
 import UserCombobox from './ui/UserCombobox';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ── 状态 → 显示 ──
 const STATUS_LABEL: Record<WorkflowInstanceStatus, string> = {
@@ -104,6 +106,8 @@ const BOSS_REASON_MIN = 30;
 const EXCEPTION_REASON_MIN = 30;
 /** R3：例外/工作流实例单页上限（达到上限时显示截断提示，引导用筛选收窄） */
 const LIST_PAGE_LIMIT = 100;
+/** 高风险审批决策前需二次确认的风险等级（对齐 agentLoop risk 值域） */
+const HIGH_RISK_DECISION_LEVELS = new Set(['high', 'critical']);
 
 // ══════════════════════════════════════════════════════════════════
 // 审批单分区（/v1/approvals + /v1/approvals-kernel）
@@ -159,7 +163,16 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
     });
   }, [traces, loadTrace]);
 
-  const handleDecide = useCallback(async (id: string, status: 'approved' | 'rejected') => {
+  const handleDecide = useCallback(async (id: string, status: 'approved' | 'rejected', risk?: string) => {
+    // 高风险审批即时生效且不可撤销，决策前二次确认（驳回走 danger 语义）
+    if (risk && HIGH_RISK_DECISION_LEVELS.has(risk)) {
+      const confirmed = await bdsConfirm({
+        title: status === 'approved' ? '确认通过高风险审批' : '确认驳回高风险审批',
+        body: `该审批单风险等级为 ${risk}，决策立即生效并全程留痕，不可撤销。确认继续？`,
+        danger: status === 'rejected',
+      });
+      if (!confirmed) return;
+    }
     setActionLoading(id);
     setError(null);
     try {
@@ -167,6 +180,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
       await fetchItems();
       setDecideNote(prev => { const next = { ...prev }; delete next[id]; return next; });
       setExpandedId(null);
+      bdsToast.success(status === 'approved' ? '已通过该审批单。' : '已驳回该审批单。');
     } catch (e: any) {
       setError(`决策失败：${e?.message || e}`);
     } finally {
@@ -186,6 +200,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
       setDelegateForm({ toUserId: '', reason: '' });
       await fetchItems();
       setTraces({});
+      bdsToast.success('已委派，审批人已变更。');
     } catch (e: any) {
       setError(`委派失败：${e?.message || e}`);
     } finally {
@@ -201,6 +216,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
       setBossFor(null);
       setBossReason('');
       await fetchItems();
+      bdsToast.success('BOSS 兜底特批已生效。');
     } catch (e: any) {
       setError(`BOSS 兜底特批失败：${e?.message || e}`);
     } finally {
@@ -384,7 +400,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           <button
                             type="button"
                             disabled={actionLoading === item.id}
-                            onClick={() => handleDecide(item.id, 'approved')}
+                            onClick={() => handleDecide(item.id, 'approved', item.risk)}
                             className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
                             <CheckCircle size={14} strokeWidth={1.5} className="inline mr-1" />
@@ -393,7 +409,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           <button
                             type="button"
                             disabled={actionLoading === item.id || !(decideNote[item.id] ?? '').trim()}
-                            onClick={() => handleDecide(item.id, 'rejected')}
+                            onClick={() => handleDecide(item.id, 'rejected', item.risk)}
                             className={`flex-1 rounded-control py-2 text-xs font-light transition-colors duration-200 bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id || !(decideNote[item.id] ?? '').trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <XCircle size={14} strokeWidth={1.5} className="inline mr-1" />
@@ -673,6 +689,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
     try {
       await exceptionService.withdrawException(id);
       await fetchItems();
+      setNotice('例外申请已撤回。');
     } catch (e: any) {
       setError(`撤回失败：${e?.message || e}`);
     } finally {
@@ -688,6 +705,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
       setBossFor(null);
       setBossReason('');
       await fetchItems();
+      setNotice('BOSS 兜底特批已生效。');
     } catch (e: any) {
       setError(`BOSS 兜底特批失败：${e?.message || e}`);
     } finally {
@@ -1129,6 +1147,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
       }
       await fetchInstances();
       setActionNote(prev => { const next = { ...prev }; delete next[instanceId]; return next; });
+      bdsToast.success(action === 'approve' ? '已通过该工作流步骤。' : '已驳回该工作流步骤。');
     } catch (e: any) {
       setError(`操作失败：${e?.message || e}`);
     } finally {
