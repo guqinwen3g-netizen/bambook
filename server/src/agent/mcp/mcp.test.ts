@@ -131,6 +131,8 @@ describe('Bambook MCP-like agent tools', () => {
       agentTool: { upsert: vi.fn().mockResolvedValue({}) },
       agentToolRun: { create: vi.fn().mockResolvedValue({}) },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
+      // 联系人体系统一：relations.expand 的 profileContacts 优先读 Contact 表（零行 → 文本兜底）
+      contact: { findMany: vi.fn().mockResolvedValue([]) },
     } as any;
 
     const hits = await runMcpPlan({

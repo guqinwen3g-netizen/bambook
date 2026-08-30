@@ -138,6 +138,10 @@ describe('relations route', () => {
         findFirst: vi.fn().mockResolvedValue(organization),
         findMany: vi.fn().mockResolvedValue([person]),
       },
+      // 联系人体系统一：profileContacts 优先读 Contact 表；零行时回退文本解析（本用例验证兜底路径）
+      contact: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
 
     const res = await request(makeApp(prisma))

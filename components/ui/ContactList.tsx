@@ -32,6 +32,8 @@ interface ContactListProps {
     onAddContact: () => void;
     /** R678-R6：无 relations:write 权限时隐藏「添加联系人」入口（默认 true 兼容既有调用方） */
     canWrite?: boolean;
+    /** 联系人体系统一：Contact 表通讯录拉取中（区分空列表与加载态） */
+    loading?: boolean;
     isDarkMode: boolean;
 }
 
@@ -42,6 +44,7 @@ const ContactList: React.FC<ContactListProps> = ({
     onSelect,
     onAddContact,
     canWrite = true,
+    loading = false,
     isDarkMode
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -202,12 +205,12 @@ const ContactList: React.FC<ContactListProps> = ({
                     })}
                 </AnimatePresence>
 
-                {/* 空状态 */}
+                {/* 空状态（加载中区分呈现，避免闪「暂无联系人」） */}
                 {filteredContacts.length === 0 && (
                     <div className={`py-8 text-center text-[var(--text-tertiary)]`}>
                         <User size={24} className="mx-auto mb-2 opacity-50" />
                         <p className="text-xs font-light">
-                            {searchTerm ? '未找到匹配的联系人' : '暂无联系人'}
+                            {loading ? '通讯录加载中...' : searchTerm ? '未找到匹配的联系人' : '暂无联系人'}
                         </p>
                     </div>
                 )}

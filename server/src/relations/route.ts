@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { resolveRelationCoordinates } from './geoResolve';
 import { expandRelation, getRelation, queryRelations } from './query';
-import { actorIdFromRequest } from '../audit/routeAudit';
+import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { createRelation, updateRelation, deleteRelation } from './relationMutationService';
 import { requireRole } from '../auth/middleware';
 import { requirePermission } from '../auth/permissionGuard';
@@ -86,6 +86,142 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[relations/detail] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DETAIL_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  // ── 联系人体系统一：Contact 表 CRUD ─────────────────────────────
+  // 联系人唯一真源为 Contact 表（种子数据/completeness「联系人」维度同源）；
+  // Relation 人物子行仅为旧数据读兜底，不再作为联系人写入口。
+  // 守卫对齐本文件口径：读=模块级 auth guard（同 GET /）；写=requireWrite(JWT) + relations:write。
+  // 写纪律与 relationMutationService 一致：业务写 + AuditLog 同 $transaction。
+
+  router.get('/:id/contacts', async (req, res) => {
+    try {
+      const rows = await (opts.prisma as any).contact.findMany({
+        where: { relationId: req.params.id, deletedAt: null },
+        orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+      });
+      return res.json({ ok: true, contacts: rows.map(serializeContact) });
+    } catch (e: any) {
+      logger.error('[relations/contacts/list] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  router.post('/:id/contacts', requireWrite, requirePermission('relations:write'), async (req, res) => {
+    try {
+      const input = req.body || {};
+      const name = typeof input.name === 'string' ? input.name.trim() : '';
+      if (!name) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.name 必填（联系人姓名）' });
+      const prisma: any = opts.prisma;
+      const relation = await prisma.relation.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!relation) return res.status(404).json({ error: 'NOT_FOUND', message: 'Relation not found' });
+      const created = await prisma.$transaction(async (tx: any) => {
+        const now = BigInt(Date.now());
+        const row = await tx.contact.create({
+          data: {
+            id: `CTC_${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+            relationId: req.params.id,
+            name,
+            ...contactWritableData(input),
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+        await writeRouteAuditLog({
+          prisma: tx,
+          actorId: actorIdFromRequest(req),
+          source: 'route:relation:contacts',
+          operation: 'create_relation_contact',
+          targetType: 'Contact',
+          targetId: row.id,
+          after: { relationId: req.params.id, name },
+          ip: req.ip ?? null,
+          operationType: 'create',
+        });
+        return row;
+      });
+      opts.onDataChange?.({ entity: 'relations', action: 'upsert', ids: [req.params.id] });
+      return res.json({ ok: true, contact: serializeContact(created) });
+    } catch (e: any) {
+      logger.error('[relations/contacts/create] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'CREATE_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  router.patch('/:id/contacts/:contactId', requireWrite, requirePermission('relations:write'), async (req, res) => {
+    try {
+      const input = req.body || {};
+      const patch = contactWritableData(input);
+      if (input.name !== undefined) {
+        const name = typeof input.name === 'string' ? input.name.trim() : '';
+        if (!name) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.name 不能为空' });
+        patch.name = name;
+      }
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body 无可更新字段' });
+      const prisma: any = opts.prisma;
+      const existing = await prisma.contact.findFirst({
+        where: { id: req.params.contactId, relationId: req.params.id, deletedAt: null },
+      });
+      if (!existing) return res.status(404).json({ error: 'NOT_FOUND', message: 'Contact not found' });
+      const updated = await prisma.$transaction(async (tx: any) => {
+        const row = await tx.contact.update({
+          where: { id: existing.id },
+          data: { ...patch, updatedAt: BigInt(Date.now()) },
+        });
+        await writeRouteAuditLog({
+          prisma: tx,
+          actorId: actorIdFromRequest(req),
+          source: 'route:relation:contacts',
+          operation: 'update_relation_contact',
+          targetType: 'Contact',
+          targetId: row.id,
+          before: { name: existing.name, title: existing.title, email: existing.email, phone: existing.phone, mobile: existing.mobile, isPrimary: existing.isPrimary, isDecisionMaker: existing.isDecisionMaker },
+          after: patch,
+          ip: req.ip ?? null,
+          operationType: 'update',
+        });
+        return row;
+      });
+      opts.onDataChange?.({ entity: 'relations', action: 'update', ids: [req.params.id] });
+      return res.json({ ok: true, contact: serializeContact(updated) });
+    } catch (e: any) {
+      logger.error('[relations/contacts/update] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  router.delete('/:id/contacts/:contactId', requireWrite, requirePermission('relations:write'), async (req, res) => {
+    try {
+      const prisma: any = opts.prisma;
+      const existing = await prisma.contact.findFirst({
+        where: { id: req.params.contactId, relationId: req.params.id, deletedAt: null },
+      });
+      if (!existing) return res.status(404).json({ error: 'NOT_FOUND', message: 'Contact not found' });
+      const deleted = await prisma.$transaction(async (tx: any) => {
+        const now = BigInt(Date.now());
+        const row = await tx.contact.update({
+          where: { id: existing.id },
+          data: { deletedAt: now, updatedAt: now },
+        });
+        await writeRouteAuditLog({
+          prisma: tx,
+          actorId: actorIdFromRequest(req),
+          source: 'route:relation:contacts',
+          operation: 'delete_relation_contact',
+          targetType: 'Contact',
+          targetId: row.id,
+          before: { name: existing.name, relationId: req.params.id },
+          ip: req.ip ?? null,
+          operationType: 'delete',
+        });
+        return row;
+      });
+      opts.onDataChange?.({ entity: 'relations', action: 'delete', ids: [req.params.id] });
+      return res.json({ ok: true, contact: serializeContact(deleted) });
+    } catch (e: any) {
+      logger.error('[relations/contacts/delete] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
     }
   });
 
@@ -240,5 +376,31 @@ function serializeRelation(row: any) {
   }
   delete out.coordinatesLat;
   delete out.coordinatesLng;
+  return out;
+}
+
+// Contact 表可写字段白名单（POST/PATCH 共用）：title/department/email/phone/mobile/wechat/whatsapp/
+// birthday/personalNote/status + tags + isPrimary/isDecisionMaker；name 由端点单独校验。
+// 空 string 归一为 null（Contact 表语义：未填=NULL）。
+const CONTACT_WRITABLE_TEXT_FIELDS = ['title', 'department', 'email', 'phone', 'mobile', 'wechat', 'whatsapp', 'birthday', 'personalNote', 'status'] as const;
+
+function contactWritableData(input: any): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+  for (const key of CONTACT_WRITABLE_TEXT_FIELDS) {
+    if (input[key] === undefined) continue;
+    const value = typeof input[key] === 'string' ? input[key].trim() : input[key];
+    data[key] = value === '' || value == null ? null : String(value);
+  }
+  if (Array.isArray(input.tags)) data.tags = input.tags.map(String).filter(Boolean);
+  if (input.isPrimary !== undefined) data.isPrimary = Boolean(input.isPrimary);
+  if (input.isDecisionMaker !== undefined) data.isDecisionMaker = Boolean(input.isDecisionMaker);
+  return data;
+}
+
+function serializeContact(row: any) {
+  const out: any = { ...row };
+  for (const key of ['createdAt', 'updatedAt', 'deletedAt']) {
+    if (typeof out[key] === 'bigint') out[key] = Number(out[key]);
+  }
   return out;
 }

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Relation, RelationCategory, View, CompletenessBatchItem } from '../types';
+import { Relation, RelationCategory, View, CompletenessBatchItem, Contact } from '../types';
 import { apiService } from '../services/apiService';
 import { CompletenessBadge } from './ui/CompletenessIndicators';
 import {
@@ -173,6 +173,34 @@ export const compareRelationsForList = (
 
   return primary || compareRelationIdentity(a, b);
 };
+
+// 联系人体系统一：Contact 表行 → Relation 形状映射（通讯录/组织架构图/详情面板复用既有渲染）。
+// category 继承挂靠组织；title→role、status→contactStatus；contactInfo 由结构化字段拼接（Contact 表无该列）。
+const contactRowToRelation = (row: Contact, orgCategory: RelationCategory): Relation => ({
+  id: row.id,
+  name: row.name,
+  category: orgCategory,
+  type: 'Contact',
+  isOrganization: false,
+  parentId: row.relationId,
+  role: row.title || undefined,
+  department: row.department || undefined,
+  tags: Array.isArray(row.tags) ? row.tags : [],
+  contactInfo: [row.email, row.phone, row.mobile].filter(Boolean).join(' | '),
+  rating: 3,
+  lastInteraction: row.updatedAt || row.createdAt || 0,
+  preferences: '',
+  email: row.email || undefined,
+  phone: row.phone || undefined,
+  mobile: row.mobile || undefined,
+  wechat: row.wechat || undefined,
+  whatsapp: row.whatsapp || undefined,
+  birthday: row.birthday || undefined,
+  personalNote: row.personalNote || undefined,
+  isPrimary: !!row.isPrimary,
+  isDecisionMaker: !!row.isDecisionMaker,
+  contactStatus: row.status,
+});
 
 const organizationFormSections: { id: RelationFormSectionId; label: string; desc: string }[] = [
   { id: 'basic', label: '基础信息', desc: '名称、类别、等级、简介' },
@@ -373,6 +401,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   // 组织集合（id 序列）变化时重拉——新增/删除组织刷新，编辑保存不触发。
   // 注意：用 Record 而非 Map——本文件顶部 lucide-react 的 Map 图标 shadow 了全局 Map 构造器。
   const [completenessByRelation, setCompletenessByRelation] = useState<Record<string, CompletenessBatchItem>>({});
+  // 联系人体系统一：Contact 表通讯录写操作后自增，触发完备度徽标重拉（联系人维度命中后分数应上升）
+  const [contactsRevision, setContactsRevision] = useState(0);
   const relationIdSetKey = useMemo(() => relations.map(r => r.id).sort().join(','), [relations]);
   useEffect(() => {
     let cancelled = false;
@@ -385,7 +415,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       })
       .catch(() => { if (!cancelled) setCompletenessByRelation({}); });
     return () => { cancelled = true; };
-  }, [relationIdSetKey]);
+  }, [relationIdSetKey, contactsRevision]);
+
   // score < 100 的组织返回批次条目用于徽标渲染，score=100 或暂无引擎数据时返回 null
   const relationCompletenessBadge = (org: Relation): CompletenessBatchItem | null => {
     const item = completenessByRelation[org.id];
@@ -418,6 +449,35 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   // relationsTotalCount 记录服务端 total（null=未知，未点过加载更多）
   const [relationsTotalCount, setRelationsTotalCount] = useState<number | null>(null);
   const [relationsLoadingMore, setRelationsLoadingMore] = useState(false);
+  // 联系人体系统一：通讯录唯一真源为 Contact 表（/v1/relations/:id/contacts）。
+  // contactTableRows=null 表示未拉取或拉取失败（旧后端无端点）——此时降级回 Relation 人物子行推导，
+  // 保证通讯录可读不白屏；非 null 时 orgContacts 一律以 Contact 表映射为准。
+  const [contactTableRows, setContactTableRows] = useState<Contact[] | null>(null);
+  const [orgContactsLoading, setOrgContactsLoading] = useState(false);
+  // 按当前组织拉取 Contact 表通讯录；切换组织重拉，失败静默降级（contactTableRows=null）
+  const refreshOrgContacts = React.useCallback((orgId: string | null) => {
+    if (!orgId) {
+      setContactTableRows(null);
+      setOrgContactsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setOrgContactsLoading(true);
+    apiService.listRelationContacts(orgId, cloudEndpoint)
+      .then((rows) => { if (!cancelled) setContactTableRows(rows); })
+      .catch(() => { if (!cancelled) setContactTableRows(null); })
+      .finally(() => { if (!cancelled) setOrgContactsLoading(false); });
+    return () => { cancelled = true; };
+  }, [cloudEndpoint]);
+  useEffect(() => {
+    const cleanup = refreshOrgContacts(selectedOrgId);
+    return () => cleanup?.();
+  }, [refreshOrgContacts, selectedOrgId]);
+  // 通讯录写操作后统一刷新：列表重拉 + 完备度徽标重拉
+  const bumpAfterContactMutation = () => {
+    refreshOrgContacts(selectedOrgId);
+    setContactsRevision(rev => rev + 1);
+  };
   const [tagRows, setTagRows] = useState<RelationTagRow[]>([{ id: 'tag-0', value: '' }]);
   const [backupContactRows, setBackupContactRows] = useState<BackupContactRow[]>([{ id: 'backup-0', name: '', email: '', phone: '', note: '' }]);
   const [shipToRows, setShipToRows] = useState<ShipToRow[]>([{ id: 'shipto-0', contactName: '', city: '', postcode: '', phone: '', address: '', note: '' }]);
@@ -784,14 +844,20 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const selectedOrgTraceMeta = TRACE_SCENARIOS.find((s) => s.id === selectedOrgTraceScenario);
 
   // Level 3 Tab 1: Contacts in this organization
+  // 联系人体系统一：Contact 表行映射为 Relation 形状供通讯录/组织架构/详情面板复用；
+  // contactTableRows=null（未拉取/失败/旧后端）时降级回 Relation 人物子行推导（旧读兜底）。
   const orgContacts = useMemo(() => {
     if (!selectedOrgId) return [];
+    if (contactTableRows !== null) {
+      const orgCategory = (selectedOrganization?.category as RelationCategory) || 'Other';
+      return contactTableRows.map(row => contactRowToRelation(row, orgCategory));
+    }
     return relations.filter(r =>
       !r.isOrganization &&
       r.parentId === selectedOrgId &&
       !r.deletedAt
     );
-  }, [relations, selectedOrgId]);
+  }, [contactTableRows, relations, selectedOrgId, selectedOrganization]);
 
   // Level 3 Tab 2: Hierarchy Tree (Simplified for now)
   const orgHierarchy = useMemo(() => {
@@ -926,6 +992,52 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     if (relationBusy) return;
     const formData = new FormData(e.currentTarget);
     const isOrg = formData.get('isOrganization') === 'on';
+
+    // 联系人体系统一：联系人表单写 Contact 表（不再创建 Relation 人物子行）。
+    // Contact 表无列的表单遗留字段（联系方式文本/语言偏好/其他联系方式/备注偏好）不落库。
+    if (!isOrg) {
+      const relationId = selectedOrgId || editingItem?.parentId || null;
+      if (!relationId) {
+        setRelationSaveError('未找到挂靠组织，无法保存联系人');
+        return;
+      }
+      const contactPayload: Partial<Contact> = {
+        name: String(formData.get('name') || '').trim(),
+        title: (formData.get('role') as string)?.trim() || null,
+        department: (formData.get('department') as string)?.trim() || null,
+        email: (formData.get('email') as string)?.trim() || null,
+        phone: (formData.get('phone') as string)?.trim() || null,
+        mobile: (formData.get('mobile') as string)?.trim() || null,
+        wechat: (formData.get('wechat') as string)?.trim() || null,
+        whatsapp: (formData.get('whatsapp') as string)?.trim() || null,
+        birthday: birthdayDraft || null,
+        personalNote: (formData.get('personalNote') as string)?.trim() || null,
+        tags: formData.getAll('tags').map(value => String(value).trim()).filter(Boolean),
+        isPrimary: editingItem?.isPrimary ?? false,
+        isDecisionMaker: editingItem?.isDecisionMaker ?? false,
+        status: editingItem?.contactStatus || 'Active',
+      };
+      setRelationBusy(true);
+      setRelationSaveError(null);
+      try {
+        if (editingItem) {
+          await apiService.updateRelationContact(relationId, editingItem.id, contactPayload, cloudEndpoint);
+        } else {
+          await apiService.createRelationContact(relationId, contactPayload, cloudEndpoint);
+        }
+        // R678-7 同款保存反馈：成功 toast 后关窗；列表与完备度徽标经 bump 重拉
+        bdsToast.success(editingItem ? '联系人已更新' : '联系人已创建');
+        setShowAddModal(false);
+        setEditingItem(null);
+        bumpAfterContactMutation();
+      } catch (err: any) {
+        setRelationSaveError(err?.message || '保存失败，请稍后重试');
+      } finally {
+        setRelationBusy(false);
+      }
+      return;
+    }
+
     // 分类感知表单兜底：财务区被隐藏（Government/Internal）时 formData 无对应字段，
     // 保留 editingItem 旧值——防止保存把已有财务数据清空
     const financeFallback = <K extends 'financialNotes' | 'paymentTerms' | 'paymentPreference' | 'currency' | 'taxId' | 'creditLimit'>(key: K): Relation[K] | undefined =>
@@ -1017,6 +1129,24 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   };
 
   const handleDelete = async (id: string) => {
+    // 联系人体系统一：Contact 表联系人行走专用软删端点；组织与旧 Relation 人物子行沿用原通道
+    const isContactTableRow = !!selectedOrgId && (contactTableRows ?? []).some(row => row.id === id);
+    if (isContactTableRow) {
+      setRelationBusy(true);
+      setRelationSaveError(null);
+      try {
+        await apiService.deleteRelationContact(selectedOrgId!, id, cloudEndpoint);
+        if (selectedContactId === id) setSelectedContactId(null);
+        setConfirmDeleteId(null);
+        bdsToast.success('联系人已移除');
+        bumpAfterContactMutation();
+      } catch (e: any) {
+        setRelationSaveError(e?.message || '删除失败，请稍后重试');
+      } finally {
+        setRelationBusy(false);
+      }
+      return;
+    }
     setRelationSaveError(null);
     setRelationBusy(true);
     try {
@@ -1047,6 +1177,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const handleMoveContact = (contactId: string, reportsToId?: string) => {
     const source = orgContacts.find(contact => contact.id === contactId);
     if (!source) return;
+    // 联系人体系统一：Contact 表无 reportsToId 列——统一联系人模型暂不支持汇报线拖拽，
+    // 明确提示而非假持久化（拖到 Relation 子行更新会 404 回弹）
+    if ((contactTableRows ?? []).some(row => row.id === contactId)) {
+      setOrgMoveError('统一联系人模型（Contact 表）暂不支持汇报线调整');
+      return;
+    }
     if (source.reportsToId === reportsToId) return;
     if (reportsToId === contactId) return;
     if (reportsToId && !orgContacts.some(contact => contact.id === reportsToId)) return;
@@ -1590,6 +1726,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 <ContactList
                   organization={selectedOrganization}
                   contacts={orgContacts}
+                  loading={orgContactsLoading}
                   selectedId={selectedContactId}
                   onSelect={setSelectedContactId}
                   onAddContact={() => setShowAddModal(true)}
@@ -2303,8 +2440,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       )}
 
       {confirmDeleteId && (() => {
-        // 删除对象判定：组织 or 联系人（唯一删除入口为详情页底部，两类共用本弹窗）
-        const deleteTarget = relations.find(r => r.id === confirmDeleteId);
+        // 删除对象判定：组织 or 联系人（唯一删除入口为详情页底部，两类共用本弹窗）。
+        // 联系人体系统一：Contact 表联系人不在 relations 中——从 orgContacts（含映射行）兜底判定
+        const deleteTarget = relations.find(r => r.id === confirmDeleteId)
+          || orgContacts.find(c => c.id === confirmDeleteId);
         const deletingOrganization = deleteTarget?.isOrganization ?? false;
         return (
         <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">

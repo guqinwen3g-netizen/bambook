@@ -3123,6 +3123,45 @@ export const apiService = {
     return data.relation;
   },
 
+  // ── 联系人体系统一：Contact 表 CRUD（/v1/relations/:id/contacts）──────────
+  // 联系人唯一真源为 Contact 表（合约类型复用 types.ts 的 Contact）；
+  // 列表排序 isPrimary desc + name asc，软删行服务端已排除。
+
+  /** 按组织拉取 Contact 表通讯录（拉取失败由调用方降级 Relation 人物子行推导） */
+  async listRelationContacts(relationId: string, endpoint?: string): Promise<Contact[]> {
+    const data = await requestJson<{ ok: boolean; contacts: Contact[] }>(`/v1/relations/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'GET' });
+    return Array.isArray(data.contacts) ? data.contacts : [];
+  },
+
+  /** 新建组织联系人（服务端校验 name 必填 + 挂靠组织存在） */
+  async createRelationContact(relationId: string, contact: Partial<Contact>, endpoint?: string): Promise<Contact> {
+    const data = await requestJson<{ ok: boolean; contact: Contact }>(`/v1/relations/${encodeURIComponent(relationId)}/contacts`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify(contact),
+    });
+    return data.contact;
+  },
+
+  /** 部分更新联系人（仅显式字段参与更新） */
+  async updateRelationContact(relationId: string, contactId: string, patch: Partial<Contact>, endpoint?: string): Promise<Contact> {
+    const data = await requestJson<{ ok: boolean; contact: Contact }>(`/v1/relations/${encodeURIComponent(relationId)}/contacts/${encodeURIComponent(contactId)}`, {
+      endpoint,
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    return data.contact;
+  },
+
+  /** 删除联系人（服务端软删 deletedAt） */
+  async deleteRelationContact(relationId: string, contactId: string, endpoint?: string): Promise<Contact> {
+    const data = await requestJson<{ ok: boolean; contact: Contact }>(`/v1/relations/${encodeURIComponent(relationId)}/contacts/${encodeURIComponent(contactId)}`, {
+      endpoint,
+      method: 'DELETE',
+    });
+    return data.contact;
+  },
+
   async listBusinessProfiles<TPayload = Record<string, unknown>, TAssets = Record<string, unknown>>(
     kind: string,
     endpoint?: string,

@@ -92,7 +92,7 @@ export async function expandRelation(prisma: PrismaClient, input: StructuredRela
       names,
       domains,
     },
-    profileContacts: include.includes('contacts') ? relationProfileContacts(organization) : [],
+    profileContacts: include.includes('contacts') ? await relationProfileContacts(prisma, organization) : [],
     people: people.map(formatPersonContact),
     count: people.length,
   };
@@ -312,7 +312,28 @@ function normalizeRelationExpandInclude(value: unknown) {
   return include.length ? Array.from(new Set(include)) : ['profile'];
 }
 
-function relationProfileContacts(relation: any) {
+// 联系人体系统一：档案联系人优先读 Contact 表（结构化真源，与通讯录 CRUD/completeness「联系人」维度同源），
+// source 标记 'contact'；零行时回退 primaryContact/backupContacts/otherContacts/contactInfo 文本解析（旧数据兜底）。
+async function relationProfileContacts(prisma: PrismaClient, relation: any) {
+  const contactRows = await (prisma as any).contact.findMany({
+    where: { relationId: relation.id, deletedAt: null },
+    orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+  });
+  if (contactRows.length) {
+    return contactRows.map((row: any) => ({
+      source: 'contact',
+      ...compactObject({
+        name: row.name,
+        title: row.title,
+        email: row.email,
+        phone: row.phone,
+        mobile: row.mobile,
+        isPrimary: row.isPrimary,
+        decisionMaker: row.isDecisionMaker,
+      }),
+    }));
+  }
+
   const contacts: any[] = [];
   const push = (source: string, value: any) => {
     if (!value) return;
