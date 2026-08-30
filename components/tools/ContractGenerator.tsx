@@ -22,6 +22,7 @@ import {
 import { Order, Relation } from '../../types';
 import { apiService } from '../../services/apiService';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
 import { getExporterProfile } from './exportDocs/exporterProfile';
@@ -475,29 +476,29 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>{contractType === 'sales' ? '卖方 Seller' : '供货方 Supplier'}</label>
-                <select
-                  className="bds-select"
+                <CustomSelect
+                  surface="form"
                   value={sellerId}
-                  onChange={(e) => setSellerId(e.target.value)}
-                >
-                  <option value="">选择卖方...</option>
-                  {relationOptions.map(r => (
-                    <option key={r.id} value={r.id}>{r.label} ({r.chineseName})</option>
-                  ))}
-                </select>
+                  onChange={(v) => setSellerId(v)}
+                  ariaLabel="选择卖方"
+                  options={[
+                    { value: '', label: '选择卖方...' },
+                    ...relationOptions.map(r => ({ value: r.id, label: `${r.label} (${r.chineseName})` })),
+                  ]}
+                />
               </div>
               <div>
                 <label className={labelClass}>{contractType === 'sales' ? '买方 Buyer' : '采购方 Purchaser'}</label>
-                <select
-                  className="bds-select"
+                <CustomSelect
+                  surface="form"
                   value={buyerId}
-                  onChange={(e) => setBuyerId(e.target.value)}
-                >
-                  <option value="">选择买方...</option>
-                  {relationOptions.map(r => (
-                    <option key={r.id} value={r.id}>{r.label} ({r.chineseName})</option>
-                  ))}
-                </select>
+                  onChange={(v) => setBuyerId(v)}
+                  ariaLabel="选择买方"
+                  options={[
+                    { value: '', label: '选择买方...' },
+                    ...relationOptions.map(r => ({ value: r.id, label: `${r.label} (${r.chineseName})` })),
+                  ]}
+                />
               </div>
             </div>
 
@@ -600,13 +601,13 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                       placeholder="数量"
                       className={`${fieldClass} py-1.5 text-xs`}
                     />
-                    <select
-                      className="bds-select sm"
+                    <CustomSelect
+                      size="compact"
                       value={line.unit}
-                      onChange={(e) => updateLine(line.id, 'unit', e.target.value)}
-                    >
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                      onChange={(v) => updateLine(line.id, 'unit', v)}
+                      ariaLabel="单位"
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                    />
                     <input
                       type="number"
                       step="0.01"
@@ -621,9 +622,14 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             </div>
             <div className={`mt-3 pt-3 border-t flex items-center justify-end gap-4 text-xs border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
               <span>币种:
-                <select className="bds-select sm ml-1 w-auto" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  {['USD', 'CNY', 'EUR'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <CustomSelect
+                  size="compact"
+                  className="ml-1 inline-block w-20"
+                  value={currency}
+                  onChange={(v) => setCurrency(v)}
+                  ariaLabel="币种"
+                  options={['USD', 'CNY', 'EUR'].map(c => ({ value: c, label: c }))}
+                />
               </span>
               <span>合计: <strong className="text-[var(--text-primary)]">{formatDocNumber(totals.totalAmount, 2)} {currency}</strong></span>
             </div>
@@ -638,15 +644,23 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>付款方式 Payment Terms</label>
-                <select className="bds-select" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)}>
-                  {PAYMENT_TERMS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <CustomSelect
+                  surface="form"
+                  value={paymentTerms}
+                  onChange={(v) => setPaymentTerms(v)}
+                  ariaLabel="付款方式"
+                  options={PAYMENT_TERMS_OPTIONS.map(t => ({ value: t, label: t }))}
+                />
               </div>
               <div>
                 <label className={labelClass}>交货条款 Delivery Terms</label>
-                <select className="bds-select" value={deliveryTerms} onChange={(e) => setDeliveryTerms(e.target.value)}>
-                  {DELIVERY_TERMS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <CustomSelect
+                  surface="form"
+                  value={deliveryTerms}
+                  onChange={(v) => setDeliveryTerms(v)}
+                  ariaLabel="交货条款"
+                  options={DELIVERY_TERMS_OPTIONS.map(t => ({ value: t, label: t }))}
+                />
               </div>
               <div>
                 <label className={labelClass}>品质条款 Quality Clause</label>

@@ -42,9 +42,11 @@ describe('FabricCalculatorPanel REQ2-22（DR-062）', () => {
     expect(source).toContain('可装卷数 = min(柜实用容积 × 装载率 ÷ 卷体积, 柜载重 ÷ 卷重)');
   });
 
-  it('BDS 控件：bds-input sm / bds-select sm（字面类名，tokens 守卫可识别）/ bds-segment seg / bds-alert danger', () => {
+  it('BDS 控件：bds-input sm（字面类名，tokens 守卫可识别）/ CustomSelect（surface=form+compact 替代 bds-select sm）/ bds-segment seg / bds-alert danger', () => {
     expect(source).toContain("const inputClass = 'bds-input sm w-full'");
-    expect(source).toContain('className="bds-select sm w-full"');
+    expect(source).toContain('<CustomSelect');
+    expect(source).toContain('surface="form"');
+    expect(source).not.toContain('<select');
     expect(source).toContain('bds-segment');
     expect(source).toContain('bds-alert danger');
   });

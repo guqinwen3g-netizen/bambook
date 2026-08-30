@@ -151,7 +151,7 @@ describe('AdminPanel REQ2-13 离职一键交接（DR-056）', () => {
     expect(source).toContain('title="离职一键交接"');
     expect(source).toContain('handoverService.preview(u.id)');
     expect(source).toContain('handoverService.listRecords(10)');
-    expect(source).toContain('refreshHandoverPreview(handoverTarget.id, e.target.value)');
+    expect(source).toContain('refreshHandoverPreview(handoverTarget.id, v)');
     // 五类资产计数格
     expect(source).toContain("'档主客户'");
     expect(source).toContain("'协同客户'");

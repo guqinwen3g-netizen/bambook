@@ -13,6 +13,7 @@ import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTo
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 
 interface PayrollTabProps {
   isDarkMode: boolean;
@@ -419,10 +420,13 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       {subView === 'salary' && (
         <>
           <div className="flex items-center gap-2 px-1">
-            <select className={`${t.selectCls} max-w-56`} value={salaryUserId} onChange={e => setSalaryUserId(e.target.value)}>
-              <option value="">选择员工查看薪资历史</option>
-              {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-            </select>
+            <CustomSelect
+              className="max-w-56"
+              ariaLabel="薪资员工筛选"
+              value={salaryUserId}
+              onChange={v => setSalaryUserId(v)}
+              options={[{ value: '', label: '选择员工查看薪资历史' }, ...personnel.map(p => ({ value: p.id, label: p.displayName }))]}
+            />
           </div>
 
           {showSalaryForm && canWrite && (

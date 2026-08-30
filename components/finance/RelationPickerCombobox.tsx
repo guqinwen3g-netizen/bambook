@@ -1,7 +1,7 @@
 /**
  * RelationPickerCombobox — 财务域客户/供应商可搜索选择器（R678）
  *
- * 替代原生 <select> 全量渲染（listRelations 默认窗口 500 条，原生下拉不可搜索）：
+ * 替代原生 select 下拉全量渲染（listRelations 默认窗口 500 条，原生下拉不可搜索）：
  *   - 受控值 = Relation ID（'' = 未选/空选项语义由 emptyOptionLabel 决定）
  *   - 搜索匹配 name / chineseName / englishName / id（不区分大小写）
  *   - 量级截断：匹配超过 RELATION_PICKER_MAX_VISIBLE 时只渲染前 50 条并透明披露，

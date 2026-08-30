@@ -13,6 +13,7 @@ import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTo
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 
 interface TrainingTabProps {
   isDarkMode: boolean;
@@ -220,10 +221,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center gap-2 px-1">
-        <select className={`${t.selectCls} max-w-36`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">全部状态</option>
-          {COURSE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <CustomSelect
+          className="max-w-36"
+          ariaLabel="课程状态筛选"
+          value={statusFilter}
+          onChange={v => setStatusFilter(v)}
+          options={[{ value: '', label: '全部状态' }, ...COURSE_STATUS_OPTIONS]}
+        />
         <span className={t.sectionMutedClass}>共 {courses.length} 门课程</span>
         {canWrite && (
           <div className="ml-auto">
@@ -253,11 +257,16 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>类型</div>
-              <select className={t.selectCls} value={courseForm.type}
-                onChange={e => setCourseForm(f => ({ ...f, type: e.target.value as 'Internal' | 'External' }))}>
-                <option value="Internal">内部培训</option>
-                <option value="External">外部培训</option>
-              </select>
+              <CustomSelect
+                surface="form"
+                ariaLabel="课程类型"
+                value={courseForm.type}
+                onChange={v => setCourseForm(f => ({ ...f, type: v as 'Internal' | 'External' }))}
+                options={[
+                  { value: 'Internal', label: '内部培训' },
+                  { value: 'External', label: '外部培训' },
+                ]}
+              />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>讲师</div>
@@ -348,10 +357,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
 
               {canWrite && (selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
                 <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
-                  <select className={`${t.selectCls} max-w-56`} value={enrollUserId} onChange={e => setEnrollUserId(e.target.value)}>
-                    <option value="">选择员工报名</option>
-                    {unenrolled.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                  </select>
+                  <CustomSelect
+                    className="max-w-56"
+                    ariaLabel="选择员工报名"
+                    value={enrollUserId}
+                    onChange={v => setEnrollUserId(v)}
+                    options={[{ value: '', label: '选择员工报名' }, ...unenrolled.map(p => ({ value: p.id, label: p.displayName }))]}
+                  />
                   <button onClick={enroll} disabled={busy || !enrollUserId} className={`${t.primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
                     <Plus className="w-3.5 h-3.5" /> 报名
                   </button>
@@ -390,10 +402,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                       <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-end gap-2 border-b border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-3">
                         <div>
                           <div className={t.labelCls + ' mb-1'}>状态</div>
-                          <select className={t.selectCls} value={enrollmentForm.status}
-                            onChange={ev => setEnrollmentForm(f => ({ ...f, status: ev.target.value as EnrollmentStatus }))}>
-                            {ENROLLMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            surface="form"
+                            ariaLabel="报名状态"
+                            value={enrollmentForm.status}
+                            onChange={v => setEnrollmentForm(f => ({ ...f, status: v as EnrollmentStatus }))}
+                            options={[...ENROLLMENT_STATUS_OPTIONS]}
+                          />
                         </div>
                         <div>
                           <div className={t.labelCls + ' mb-1'}>成绩（0-100）</div>

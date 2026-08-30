@@ -43,6 +43,7 @@ import {
 import { PageHeader } from './ui/PageHeader';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
+import CustomSelect from './ui/CustomSelect';
 
 // ==================== 常量 ====================
 
@@ -613,19 +614,17 @@ function LookbookItemsEditor({
     <ModalShell title={`管理条目 · ${lookbook.title}`} onClose={onClose} wide>
       {/* 添加产品 */}
       <div className="flex items-center gap-2 mb-4">
-        <select
-          className="bds-select"
+        <CustomSelect
+          className="w-64"
+          surface="form"
           value={pickId}
-          onChange={(e) => setPickId(e.target.value)}
+          onChange={(v) => setPickId(v)}
           disabled={productsLoading}
-        >
-          <option value="">{productsLoading ? '产品加载中…' : '选择产品加入画册'}</option>
-          {available.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.sku} · {p.name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: '', label: productsLoading ? '产品加载中…' : '选择产品加入画册' },
+            ...available.map((p) => ({ value: p.id, label: `${p.sku} · ${p.name}` })),
+          ]}
+        />
         <button onClick={handleAdd} disabled={!pickId} className="bds-btn bds-btn-secondary shrink-0">
           <Plus className="w-3.5 h-3.5" />
           添加
@@ -664,16 +663,18 @@ function LookbookItemsEditor({
                   />
                 </span>
                 <span className="col-span-1">
-                  <select
-                    className="bds-select sm"
+                  <CustomSelect
+                    className="w-full"
+                    size="compact"
                     value={d.currency ?? ''}
-                    onChange={(e) => handlePatch(d.productAssetId, { currency: e.target.value || null })}
-                  >
-                    <option value="">—</option>
-                    <option value="USD">USD</option>
-                    <option value="CNY">CNY</option>
-                    <option value="EUR">EUR</option>
-                  </select>
+                    onChange={(v) => handlePatch(d.productAssetId, { currency: v || null })}
+                    options={[
+                      { value: '', label: '—' },
+                      { value: 'USD', label: 'USD' },
+                      { value: 'CNY', label: 'CNY' },
+                      { value: 'EUR', label: 'EUR' },
+                    ]}
+                  />
                 </span>
                 <span className="col-span-4">
                   <input
@@ -809,11 +810,16 @@ function FabricRecommendPanel() {
             <input className={inputClass} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} placeholder="如 8" inputMode="decimal" />
           </Field>
           <Field label="预算币种">
-            <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="USD">USD</option>
-              <option value="CNY">CNY</option>
-              <option value="EUR">EUR</option>
-            </select>
+            <CustomSelect
+              surface="form"
+              value={currency}
+              onChange={(v) => setCurrency(v)}
+              options={[
+                { value: 'USD', label: 'USD' },
+                { value: 'CNY', label: 'CNY' },
+                { value: 'EUR', label: 'EUR' },
+              ]}
+            />
           </Field>
           <Field label="成分关键词（逗号分隔）">
             <input className={inputClass} value={compositionText} onChange={(e) => setCompositionText(e.target.value)} placeholder="如 羊毛, 羊绒" />

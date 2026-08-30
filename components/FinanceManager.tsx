@@ -52,6 +52,7 @@ import { developmentService } from '../services/developmentService';
 import { hasPermission } from '../services/authService';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import RelationPickerCombobox from './finance/RelationPickerCombobox';
+import CustomSelect from './ui/CustomSelect';
 
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -2678,10 +2679,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select className="bds-select sm" value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '', paymentRequestId: '' }))}>
-                    <option value="Receipt">收款</option>
-                    <option value="Disbursement">付款</option>
-                  </select>
+                  <CustomSelect surface="form" value={voucherForm.type}
+                    onChange={v => setVoucherForm(f => ({ ...f, type: v as 'Receipt' | 'Disbursement', customerRelationId: '', paymentRequestId: '' }))}
+                    options={[{ value: 'Receipt', label: '收款' }, { value: 'Disbursement', label: '付款' }]} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>金额 *</label>
@@ -2695,18 +2695,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <div className="rounded-field bg-[var(--recessed-bg)] px-4 py-3">
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>关联付款申请 *（先申请后付款）</label>
                   {payableRequests.length > 0 ? (
-                    <select
-                      className="bds-select sm"
+                    <CustomSelect
+                      surface="form"
                       value={voucherForm.paymentRequestId}
-                      onChange={e => handleSelectPaymentRequest(e.target.value)}
-                    >
-                      <option value="">请选择已批准的付款申请</option>
-                      {payableRequests.map(pr => (
-                        <option key={pr.id} value={pr.id}>
-                          {pr.requestNumber} · {pr.supplierName || '未填供应商'} · {formatAmount(Number(pr.totalAmount), pr.currency)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={v => handleSelectPaymentRequest(v)}
+                      options={[
+                        { value: '', label: '请选择已批准的付款申请' },
+                        ...payableRequests.map(pr => ({
+                          value: pr.id,
+                          label: `${pr.requestNumber} · ${pr.supplierName || '未填供应商'} · ${formatAmount(Number(pr.totalAmount), pr.currency)}`,
+                        })),
+                      ]}
+                    />
                   ) : (
                     <div className={cx('text-[11px] font-light', textSecondaryClass)}>
                       {payableRequestsLoading ? '正在加载已批准的付款申请…' : '暂无已批准未付款的付款申请。'}
@@ -2726,11 +2726,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               )}
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
-                <select className="bds-select sm" value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}>
-                  {VOUCHER_CATEGORIES.map(c => (
-                    <option key={c} value={c}>{VOUCHER_CATEGORY_LABELS[c]}</option>
-                  ))}
-                </select>
+                <CustomSelect surface="form" value={voucherForm.voucherCategory}
+                  onChange={v => setVoucherForm(f => ({ ...f, voucherCategory: v as VoucherCategory }))}
+                  options={VOUCHER_CATEGORIES.map(c => ({ value: c, label: VOUCHER_CATEGORY_LABELS[c] }))} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -2740,9 +2738,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付款方式</label>
-                  <select className="bds-select sm" value={voucherForm.paymentMethod} onChange={e => setVoucherForm(f => ({ ...f, paymentMethod: e.target.value }))}>
-                    <option value="TT">TT</option><option value="LC">LC</option><option value="Cash">Cash</option><option value="Other">Other</option>
-                  </select>
+                  <CustomSelect surface="form" value={voucherForm.paymentMethod}
+                    onChange={v => setVoucherForm(f => ({ ...f, paymentMethod: v }))}
+                    options={[{ value: 'TT', label: 'TT' }, { value: 'LC', label: 'LC' }, { value: 'Cash', label: 'Cash' }, { value: 'Other', label: 'Other' }]} />
                 </div>
               </div>
               <div>
@@ -2820,10 +2818,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select className="bds-select sm" value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable', customerRelationId: '' }))}>
-                    <option value="Receivable">应收</option>
-                    <option value="Payable">应付</option>
-                  </select>
+                  <CustomSelect surface="form" value={invoiceForm.type}
+                    onChange={v => setInvoiceForm(f => ({ ...f, type: v as 'Receivable' | 'Payable', customerRelationId: '' }))}
+                    options={[{ value: 'Receivable', label: '应收' }, { value: 'Payable', label: '应付' }]} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>金额 *</label>
@@ -2943,13 +2940,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     {allocForm.targetId}（编辑模式不可更改关联对象）
                   </div>
                 ) : (
-                  <select value={allocForm.targetId} onChange={e => setAllocForm(f => ({ ...f, targetId: e.target.value }))}
-                    className="bds-select sm">
-                    <option value="">请选择{isInvoiceContext ? '凭证' : '发票'}</option>
-                    {(isInvoiceContext ? vouchers : invoices).map((item: any) => (
-                      <option key={item.id} value={item.id}>{isInvoiceContext ? `${item.voucherNumber} · ${formatAmount(item.amount, item.currency)}` : `${item.invoiceNumber} · ${formatAmount(item.amount, item.currency)}`}</option>
-                    ))}
-                  </select>
+                  <CustomSelect surface="form" value={allocForm.targetId}
+                    onChange={v => setAllocForm(f => ({ ...f, targetId: v }))}
+                    options={[
+                      { value: '', label: `请选择${isInvoiceContext ? '凭证' : '发票'}` },
+                      ...(isInvoiceContext ? vouchers : invoices).map((item: any) => ({
+                        value: item.id,
+                        label: isInvoiceContext ? `${item.voucherNumber} · ${formatAmount(item.amount, item.currency)}` : `${item.invoiceNumber} · ${formatAmount(item.amount, item.currency)}`,
+                      })),
+                    ]} />
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -3134,19 +3133,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>方向</label>
-                  <select value={vatForm.direction} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, direction: e.target.value as VatInvoiceDirection }))}
-                    className={cx('bds-select sm', editingVat && 'opacity-50')}>
-                    <option value="Input">进项</option>
-                    <option value="Output">销项</option>
-                  </select>
+                  <CustomSelect surface="form" value={vatForm.direction} disabled={!!editingVat}
+                    onChange={v => setVatForm(f => ({ ...f, direction: v as VatInvoiceDirection }))}
+                    options={[{ value: 'Input', label: '进项' }, { value: 'Output', label: '销项' }]} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>票种</label>
-                  <select value={vatForm.invoiceType} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, invoiceType: e.target.value as VatInvoiceType }))}
-                    className={cx('bds-select sm', editingVat && 'opacity-50')}>
-                    <option value="Special">专票</option>
-                    <option value="Normal">普票</option>
-                  </select>
+                  <CustomSelect surface="form" value={vatForm.invoiceType} disabled={!!editingVat}
+                    onChange={v => setVatForm(f => ({ ...f, invoiceType: v as VatInvoiceType }))}
+                    options={[{ value: 'Special', label: '专票' }, { value: 'Normal', label: '普票' }]} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -3260,15 +3255,16 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {vatTransitionAction === 'Declared' && (
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 *</label>
-                  <select className="bds-select sm" value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
-                    disabled={vatRefundOptionsLoading}>
-                    <option value="">{vatRefundOptionsLoading ? '加载退税申报单…' : '请选择退税申报单'}</option>
-                    {vatRefundOptions.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.refundNumber} · {TAX_REFUND_STATUS_LABELS[r.status] || r.status}{r.refundableVat != null ? ` · 可退 ${formatAmount(Number(r.refundableVat), 'CNY')}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomSelect surface="form" value={vatTransitionForm.taxRefundId}
+                    onChange={v => setVatTransitionForm(f => ({ ...f, taxRefundId: v }))}
+                    disabled={vatRefundOptionsLoading}
+                    options={[
+                      { value: '', label: vatRefundOptionsLoading ? '加载退税申报单…' : '请选择退税申报单' },
+                      ...vatRefundOptions.map(r => ({
+                        value: r.id,
+                        label: `${r.refundNumber} · ${TAX_REFUND_STATUS_LABELS[r.status] || r.status}${r.refundableVat != null ? ` · 可退 ${formatAmount(Number(r.refundableVat), 'CNY')}` : ''}`,
+                      })),
+                    ]} />
                   {!vatRefundOptionsLoading && vatRefundOptions.length === 0 && (
                     <div className={cx('mt-1 text-[10px] font-light', textSecondaryClass)}>
                       暂无可用退税申报单，请先在 关务 → 出口退税 页签创建
@@ -3392,12 +3388,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       </div>
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇用途</label>
-                        <select value={remittanceForm.purpose} onChange={e => setRemittanceForm(f => ({ ...f, purpose: e.target.value }))}
-                          className="bds-select sm">
-                          {REMITTANCE_PURPOSE_OPTIONS.map(o => (
-                            <option key={o.id} value={o.id}>{o.label}</option>
-                          ))}
-                        </select>
+                        <CustomSelect surface="form" value={remittanceForm.purpose}
+                          onChange={v => setRemittanceForm(f => ({ ...f, purpose: v }))}
+                          options={REMITTANCE_PURPOSE_OPTIONS.map(o => ({ value: o.id, label: o.label }))} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">

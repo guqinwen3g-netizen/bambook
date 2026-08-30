@@ -9,6 +9,7 @@ import {
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { bdsToast } from './ui/bdsToast';
+import CustomSelect from './ui/CustomSelect';
 import { apiService } from '../services/apiService';
 
 const KB_CATEGORIES = ['Product', 'Policy', 'Customer', 'Production', 'Company', 'Supplier'] as const;
@@ -536,13 +537,13 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                       <span className={`text-[11px] font-light ${'text-[var(--success-text)]'}`}>已归档到官方知识库</span>
                     ) : (
                       <>
-                        <select
-                          className="bds-select sm w-auto"
+                        <CustomSelect
+                          className="w-36 shrink-0"
+                          surface="form"
                           value={qaArchiveCategory}
-                          onChange={(e) => setQaArchiveCategory(e.target.value as KbCategory)}
-                        >
-                          {KB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                          onChange={(v) => setQaArchiveCategory(v as KbCategory)}
+                          options={KB_CATEGORIES.map(c => ({ value: c, label: c }))}
+                        />
                         <button
                           onClick={handleArchiveQa}
                           disabled={qaArchiving}
@@ -647,18 +648,19 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-[var(--text-quaternary)] tracking-wide ml-1">资产类型</label>
-                <select
-                  className="bds-select"
+                <CustomSelect
+                  surface="form"
                   value={editingItem ? editingItem.category : newItem.category}
-                  onChange={(e) => editingItem ? setEditingItem({ ...editingItem, category: e.target.value as any }) : setNewItem({ ...newItem, category: e.target.value as any })}
-                >
-                  <option value="Product">Product - 产品知识</option>
-                  <option value="Policy">Policy - 商务政策</option>
-                  <option value="Customer">Customer - 客户偏好</option>
-                  <option value="Production">Production - 生产流程</option>
-                  <option value="Company">Company - 集团制度</option>
-                  <option value="Supplier">Supplier - 供应商档案</option>
-                </select>
+                  onChange={(v) => editingItem ? setEditingItem({ ...editingItem, category: v as any }) : setNewItem({ ...newItem, category: v as any })}
+                  options={[
+                    { value: 'Product', label: 'Product - 产品知识' },
+                    { value: 'Policy', label: 'Policy - 商务政策' },
+                    { value: 'Customer', label: 'Customer - 客户偏好' },
+                    { value: 'Production', label: 'Production - 生产流程' },
+                    { value: 'Company', label: 'Company - 集团制度' },
+                    { value: 'Supplier', label: 'Supplier - 供应商档案' },
+                  ]}
+                />
               </div>
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-[var(--text-quaternary)] tracking-wide ml-1">核心摘要</label>
@@ -810,13 +812,12 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-light text-[var(--text-quaternary)] tracking-wide ml-1">分类 *</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={sopDraft.category}
-                    onChange={(e) => setSopDraft({ ...sopDraft, category: e.target.value })}
-                  >
-                    {KB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    onChange={(v) => setSopDraft({ ...sopDraft, category: v })}
+                    options={KB_CATEGORIES.map(c => ({ value: c, label: c }))}
+                  />
                 </div>
               </div>
               <div className="space-y-2">

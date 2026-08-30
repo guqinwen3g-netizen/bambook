@@ -16,6 +16,7 @@ import { hasPermission } from '../../services/authService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { buildDepartmentOptions } from '../../lib/departmentTree';
 
 interface DeptOption { id: string; name: string; }
@@ -230,14 +231,20 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
           onKeyDown={e => e.key === 'Enter' && load()}
           placeholder="搜索姓名 / 工号 / 邮箱"
         />
-        <select className={`${t.selectCls} max-w-36`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">全部状态</option>
-          {EMPLOYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className={`${t.selectCls} max-w-40`} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
-          <option value="">全部部门</option>
-          {buildDepartmentOptions(departments).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-        </select>
+        <CustomSelect
+          className="max-w-36"
+          ariaLabel="状态筛选"
+          value={statusFilter}
+          onChange={v => setStatusFilter(v)}
+          options={[{ value: '', label: '全部状态' }, ...EMPLOYMENT_STATUS_OPTIONS]}
+        />
+        <CustomSelect
+          className="max-w-40"
+          ariaLabel="部门筛选"
+          value={deptFilter}
+          onChange={v => setDeptFilter(v)}
+          options={[{ value: '', label: '全部部门' }, ...buildDepartmentOptions(departments).map(d => ({ value: d.id, label: d.label }))]}
+        />
         <button onClick={load} className={t.actionButtonCls}>查询</button>
         <span className={t.sectionMutedClass}>共 {employees.length} 人</span>
         {canWrite && (
@@ -310,30 +317,36 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
               {!selected && (
                 <div>
                   <div className={t.labelCls + ' mb-1'}>选择员工（未建档）</div>
-                  <select className={t.selectCls} value={profileForm.userId}
-                    onChange={e => setProfileForm(f => ({ ...f, userId: e.target.value }))}>
-                    <option value="">请选择</option>
-                    {unprofiled.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    ariaLabel="选择员工"
+                    value={profileForm.userId}
+                    onChange={v => setProfileForm(f => ({ ...f, userId: v }))}
+                    options={[{ value: '', label: '请选择' }, ...unprofiled.map(p => ({ value: p.id, label: p.displayName }))]}
+                  />
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className={t.labelCls + ' mb-1'}>职位</div>
-                  <select className={t.selectCls} value={profileForm.positionId}
-                    onChange={e => setProfileForm(f => ({ ...f, positionId: e.target.value }))}>
-                    <option value="">未指定</option>
-                    {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    ariaLabel="职位"
+                    value={profileForm.positionId}
+                    onChange={v => setProfileForm(f => ({ ...f, positionId: v }))}
+                    options={[{ value: '', label: '未指定' }, ...positions.map(p => ({ value: p.id, label: p.title }))]}
+                  />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>合同类型</div>
-                  <select className={t.selectCls} value={profileForm.contractType}
-                    onChange={e => setProfileForm(f => ({ ...f, contractType: e.target.value }))}>
-                    <option value="">未指定</option>
-                    {CONTRACT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    ariaLabel="合同类型"
+                    value={profileForm.contractType}
+                    onChange={v => setProfileForm(f => ({ ...f, contractType: v }))}
+                    options={[{ value: '', label: '未指定' }, ...CONTRACT_TYPE_OPTIONS]}
+                  />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>入职日期 *</div>
@@ -410,10 +423,13 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className={t.labelCls + ' mb-1'}>异动类型</div>
-                      <select className={t.selectCls} value={eventForm.type}
-                        onChange={e => setEventForm(f => ({ ...f, type: e.target.value as EmploymentEventType }))}>
-                        {EMPLOYMENT_EVENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                      <CustomSelect
+                        surface="form"
+                        ariaLabel="异动类型"
+                        value={eventForm.type}
+                        onChange={v => setEventForm(f => ({ ...f, type: v as EmploymentEventType }))}
+                        options={[...EMPLOYMENT_EVENT_OPTIONS]}
+                      />
                     </div>
                     <div>
                       <div className={t.labelCls + ' mb-1'}>生效日期 *</div>
@@ -425,19 +441,23 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className={t.labelCls + ' mb-1'}>调入部门</div>
-                        <select className={t.selectCls} value={eventForm.toDeptId}
-                          onChange={e => setEventForm(f => ({ ...f, toDeptId: e.target.value }))}>
-                          <option value="">不变更</option>
-                          {buildDepartmentOptions(departments).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-                        </select>
+                        <CustomSelect
+                          surface="form"
+                          ariaLabel="调入部门"
+                          value={eventForm.toDeptId}
+                          onChange={v => setEventForm(f => ({ ...f, toDeptId: v }))}
+                          options={[{ value: '', label: '不变更' }, ...buildDepartmentOptions(departments).map(d => ({ value: d.id, label: d.label }))]}
+                        />
                       </div>
                       <div>
                         <div className={t.labelCls + ' mb-1'}>新任职位</div>
-                        <select className={t.selectCls} value={eventForm.toPositionId}
-                          onChange={e => setEventForm(f => ({ ...f, toPositionId: e.target.value }))}>
-                          <option value="">不变更</option>
-                          {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                        </select>
+                        <CustomSelect
+                          surface="form"
+                          ariaLabel="新任职位"
+                          value={eventForm.toPositionId}
+                          onChange={v => setEventForm(f => ({ ...f, toPositionId: v }))}
+                          options={[{ value: '', label: '不变更' }, ...positions.map(p => ({ value: p.id, label: p.title }))]}
+                        />
                       </div>
                     </div>
                   )}

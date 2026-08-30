@@ -9,7 +9,7 @@
  *   ② 选项以 relationId 为值、Relation.name 为展示名（身份真源 Relation → FactoryProfile 1:1）
  *   ③ 提交报价携带 supplierId + 档案派生 supplierName（后端按 supplierId 复核存在且未拉黑）
  *   ④ 手打供应商名称输入框移除（前端无旁路入口）
- *   ⑤ BDS 纪律：bds-select 语义类，无硬编码 hex/rounded-[Npx]
+ *   ⑤ BDS 纪律：CustomSelect（surface=form）替代原生 select，无硬编码 hex/rounded-[Npx]
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -24,13 +24,11 @@ describe('SupplierInquiryPanel B2 报价供应商档案下拉框', () => {
     expect(source).toContain('useState<FactoryProfile[]>([])');
   });
 
-  it('报价表单供应商字段为 bds-select 下拉框：relationId 为值、Relation.name 为展示名', () => {
+  it('报价表单供应商字段为 CustomSelect 下拉框：relationId 为值、Relation.name 为展示名', () => {
     expect(source).toContain('value={quoteForm.supplierId}');
-    expect(source).toContain("onChange={(e) => setQuoteForm({ ...quoteForm, supplierId: e.target.value })}");
-    expect(source).toContain('className="bds-select sm"');
-    expect(source).toContain('<option value="">请选择供应商档案</option>');
-    expect(source).toContain('key={s.relationId} value={s.relationId}');
-    expect(source).toContain('s.relation?.name || s.relationId');
+    expect(source).toContain('onChange={(v) => setQuoteForm({ ...quoteForm, supplierId: v })}');
+    expect(source).toContain("{ value: '', label: '请选择供应商档案' }");
+    expect(source).toContain('...supplierOptions.map(s => ({ value: s.relationId, label: s.relation?.name || s.relationId }))');
   });
 
   it('提交报价携带 supplierId + 档案派生 supplierName（前端预检 + 后端复核双保险）', () => {
@@ -53,9 +51,11 @@ describe('SupplierInquiryPanel B2 报价供应商档案下拉框', () => {
     expect(source).toContain("supplierId: quote.supplierId || ''");
   });
 
-  it('BDS 设计纪律：供应商下拉用 bds-select 语义类，无硬编码 hex/rounded-[Npx]', () => {
-    // 报价表单内下拉框统一 bds-select（币种/单位/供应商）
+  it('BDS 设计纪律：供应商下拉用 CustomSelect（surface=form），无硬编码 hex/rounded-[Npx]', () => {
+    // 报价表单内下拉框统一 CustomSelect（币种/单位/供应商），原生 select 全部退役
     const quoteFormSection = source.slice(source.indexOf('添加/编辑报价表单'));
+    expect(quoteFormSection).toContain('<CustomSelect');
+    expect(quoteFormSection).not.toContain('<select');
     expect(quoteFormSection).not.toMatch(/rounded-\[\d+px\]/);
     expect(quoteFormSection).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });

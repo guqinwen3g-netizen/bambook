@@ -80,7 +80,7 @@ describe('SampleRoomPanel REQ2-16（DR-057）', () => {
     expect(devSource).toContain('SAMPLE_UNIT_OPTIONS');
     expect(devSource).toContain("updateField('sampleShippingFee', e.target.value)");
     expect(devSource).toContain("updateField('sampleTrackingNumber', e.target.value)");
-    expect(devSource).toContain("updateField('sampleCourier', e.target.value)");
+    expect(devSource).toContain("updateField('sampleCourier', v)");
     // 提交链路：数量/邮寄费数值校验 + 条件提交
     expect(devSource).toContain('邮寄费必须是有效的非负数值');
     expect(devSource).toContain('...(parsedFee != null ? { sampleShippingFee: parsedFee } : {})');

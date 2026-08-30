@@ -40,6 +40,7 @@ import {
   FactoryProfile,
 } from '../types';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { bdsConfirm } from './ui/BdsDialog';
 import { bdsToast } from './ui/bdsToast';
 
@@ -605,13 +606,14 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                   </div>
                   <div>
                     <label className={labelCls}>币种</label>
-                    <select
+                    <CustomSelect
+                      surface="form"
+                      className="w-full"
+                      ariaLabel="询价币种"
                       value={createForm.currency}
-                      onChange={(e) => setCreateForm({ ...createForm, currency: e.target.value })}
-                      className="bds-select"
-                    >
-                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                      onChange={(v) => setCreateForm({ ...createForm, currency: v })}
+                      options={CURRENCIES.map(c => ({ value: c, label: c }))}
+                    />
                   </div>
                   <div>
                     <label className={labelCls}>数量</label>
@@ -626,13 +628,14 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                   </div>
                   <div>
                     <label className={labelCls}>单位</label>
-                    <select
+                    <CustomSelect
+                      surface="form"
+                      className="w-full"
+                      ariaLabel="询价单位"
                       value={createForm.unit}
-                      onChange={(e) => setCreateForm({ ...createForm, unit: e.target.value })}
-                      className="bds-select"
-                    >
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                      onChange={(v) => setCreateForm({ ...createForm, unit: v })}
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                    />
                   </div>
                   <div>
                     <label className={labelCls}>期望交期</label>
@@ -982,18 +985,18 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                   <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
                                     <div>
                                       <label className={labelCls}>供应商 *</label>
-                                      <select
+                                      <CustomSelect
+                                        surface="form"
+                                        size="compact"
+                                        className="w-full"
+                                        ariaLabel="报价供应商"
                                         value={quoteForm.supplierId}
-                                        onChange={(e) => setQuoteForm({ ...quoteForm, supplierId: e.target.value })}
-                                        className="bds-select sm"
-                                      >
-                                        <option value="">请选择供应商档案</option>
-                                        {supplierOptions.map(s => (
-                                          <option key={s.relationId} value={s.relationId}>
-                                            {s.relation?.name || s.relationId}
-                                          </option>
-                                        ))}
-                                      </select>
+                                        onChange={(v) => setQuoteForm({ ...quoteForm, supplierId: v })}
+                                        options={[
+                                          { value: '', label: '请选择供应商档案' },
+                                          ...supplierOptions.map(s => ({ value: s.relationId, label: s.relation?.name || s.relationId })),
+                                        ]}
+                                      />
                                     </div>
                                     <div>
                                       <label className={labelCls}>报价金额 *</label>
@@ -1008,13 +1011,15 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                                     </div>
                                     <div>
                                       <label className={labelCls}>币种 *</label>
-                                      <select
+                                      <CustomSelect
+                                        surface="form"
+                                        size="compact"
+                                        className="w-full"
+                                        ariaLabel="报价币种"
                                         value={quoteForm.currency}
-                                        onChange={(e) => setQuoteForm({ ...quoteForm, currency: e.target.value })}
-                                        className="bds-select sm"
-                                      >
-                                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                      </select>
+                                        onChange={(v) => setQuoteForm({ ...quoteForm, currency: v })}
+                                        options={CURRENCIES.map(c => ({ value: c, label: c }))}
+                                      />
                                     </div>
                                     <div>
                                       <label className={labelCls}>汇率</label>

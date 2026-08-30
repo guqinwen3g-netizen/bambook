@@ -55,6 +55,7 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
@@ -424,14 +425,18 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
               {/* 工具栏 */}
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <div className="bds-filterbar">
-                  <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ maxWidth: 160 }}>
-                    <option value="">全部仓库</option>
-                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
-                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bds-select" style={{ maxWidth: 120 }}>
-                    <option value="">全部品类</option>
-                    {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <CustomSelect
+                    options={[{ value: '', label: '全部仓库' }, ...warehouses.map(w => ({ value: w.id, label: w.name }))]}
+                    value={warehouseFilter}
+                    onChange={(v) => setWarehouseFilter(v)}
+                    className="w-[160px]"
+                  />
+                  <CustomSelect
+                    options={[{ value: '', label: '全部品类' }, ...ITEM_CATEGORIES.map(c => ({ value: c, label: c }))]}
+                    value={categoryFilter}
+                    onChange={(v) => setCategoryFilter(v)}
+                    className="w-[120px]"
+                  />
                   <label className="bds-check" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
                     <input type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />
                     <span className="box"></span>
@@ -576,19 +581,27 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                           );
                                         })()}
                                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
-                                          <select value={movementForm.type} onChange={(e) => setMovementForm({ ...movementForm, type: e.target.value as StockMovementType })} className="bds-select sm">
-                                            {MOVEMENT_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                                          </select>
+                                          <CustomSelect
+                                            options={MOVEMENT_TYPES.map(m => ({ value: m.id, label: m.label }))}
+                                            value={movementForm.type}
+                                            onChange={(v) => setMovementForm({ ...movementForm, type: v as StockMovementType })}
+                                          />
                                           <input type="number" value={movementForm.quantity || ''} onChange={(e) => setMovementForm({ ...movementForm, quantity: parseFloat(e.target.value) || 0 })} placeholder={movementForm.type === 'Adjustment' ? '盘点后实际数量 *' : '数量 *'} className="bds-input sm" />
                                           <CapsuleDateInput value={movementForm.movementDate || ''} onChange={(v) => setMovementForm({ ...movementForm, movementDate: v })} className="bds-input sm" />
                                           <input type="text" value={movementForm.reason || ''} onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })} placeholder="原因" className="bds-input sm" />
                                           {/* E6：关联单据号（如 PO-2026-001 / MR-001，随变动流水落库可追溯） */}
                                           <input type="text" value={movementForm.referenceId || ''} onChange={(e) => setMovementForm({ ...movementForm, referenceId: e.target.value })} placeholder="关联单据号" className="bds-input sm" />
                                           {movementForm.type === 'Transfer' && (
-                                            <select value={movementForm.targetWarehouseId || ''} onChange={(e) => setMovementForm({ ...movementForm, targetWarehouseId: e.target.value })} className="bds-select sm xl:col-span-2">
-                                              <option value="">目标仓库...</option>
-                                              {warehouses.filter(w => w.id !== item.warehouseId).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                            </select>
+                                            <CustomSelect
+                                              options={[
+                                                { value: '', label: '目标仓库...' },
+                                                ...warehouses.filter(w => w.id !== item.warehouseId).map(w => ({ value: w.id, label: w.name })),
+                                              ]}
+                                              value={movementForm.targetWarehouseId || ''}
+                                              onChange={(v) => setMovementForm({ ...movementForm, targetWarehouseId: v })}
+                                              surface="form"
+                                              className="xl:col-span-2"
+                                            />
                                           )}
                                           {movementForm.type === 'Adjustment' && (
                                             <input type="text" value={movementForm.notes || ''} onChange={(e) => setMovementForm({ ...movementForm, notes: e.target.value })} placeholder="盘点备注" className="bds-input sm xl:col-span-2" />
@@ -652,11 +665,11 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                         <button onClick={() => setShowItemForm(false)} className="bds-btn bds-btn-ghost bds-btn-icon"><X size={18} /></button>
                       </div>
                       <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                        <div><label className={labelCls}>仓库 *</label><select value={itemForm.warehouseId} onChange={(e) => setItemForm({ ...itemForm, warehouseId: e.target.value })} className="bds-select">{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+                        <div><label className={labelCls}>仓库 *</label><CustomSelect options={warehouses.map(w => ({ value: w.id, label: w.name }))} value={itemForm.warehouseId} onChange={(v) => setItemForm({ ...itemForm, warehouseId: v })} surface="form" /></div>
                         <div><label className={labelCls}>物料编码</label><input type="text" value={itemForm.materialCode} onChange={(e) => setItemForm({ ...itemForm, materialCode: e.target.value })} className="bds-input" /></div>
-                        <div><label className={labelCls}>品类</label><select value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })} className="bds-select">{ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                        <div><label className={labelCls}>品类</label><CustomSelect options={ITEM_CATEGORIES.map(c => ({ value: c, label: c }))} value={itemForm.category ?? ''} onChange={(v) => setItemForm({ ...itemForm, category: v })} surface="form" /></div>
                         <div className="xl:col-span-2"><label className={labelCls}>品名描述 *</label><input type="text" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} className="bds-input" /></div>
-                        <div><label className={labelCls}>单位 *</label><select value={itemForm.unit} onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })} className="bds-select">{UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
+                        <div><label className={labelCls}>单位 *</label><CustomSelect options={UNITS.map(u => ({ value: u, label: u }))} value={itemForm.unit} onChange={(v) => setItemForm({ ...itemForm, unit: v })} surface="form" /></div>
                         <div><label className={labelCls}>初始数量</label><input type="number" value={itemForm.quantity || ''} onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })} className="bds-input" /></div>
                         <div><label className={labelCls}>单位成本</label><input type="number" step="0.01" value={itemForm.unitCost ?? ''} onChange={(e) => setItemForm({ ...itemForm, unitCost: e.target.value ? parseFloat(e.target.value) : undefined })} className="bds-input" /></div>
                         <div><label className={labelCls}>批次号</label><input type="text" value={itemForm.batchNumber} onChange={(e) => setItemForm({ ...itemForm, batchNumber: e.target.value })} className="bds-input" /></div>
@@ -724,7 +737,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div><label className={labelCls}>仓库编码 *</label><input type="text" value={warehouseForm.code} onChange={(e) => setWarehouseForm({ ...warehouseForm, code: e.target.value })} placeholder="WH-001" className="bds-input" /></div>
-                          <div><label className={labelCls}>类型</label><select value={warehouseForm.type} onChange={(e) => setWarehouseForm({ ...warehouseForm, type: e.target.value as WarehouseType })} className="bds-select">{WAREHOUSE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+                          <div><label className={labelCls}>类型</label><CustomSelect options={WAREHOUSE_TYPES.map(t => ({ value: t.id, label: t.label }))} value={warehouseForm.type} onChange={(v) => setWarehouseForm({ ...warehouseForm, type: v as WarehouseType })} surface="form" /></div>
                         </div>
                         <div><label className={labelCls}>仓库名称 *</label><input type="text" value={warehouseForm.name} onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })} className="bds-input" /></div>
                         <div><label className={labelCls}>地址</label><input type="text" value={warehouseForm.address} onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })} className="bds-input" /></div>

@@ -51,6 +51,7 @@ import {
 import { PageHeader } from './ui/PageHeader';
 import { BdsDialog } from './ui/BdsDialog';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
@@ -566,19 +567,25 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                 onKeyDown={(e) => { if (e.key === 'Enter') void fetchDocs(); }}
               />
             </div>
-            <select className="bds-select w-auto min-w-[132px]" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-              <option value="">全部类型</option>
-              {DOC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-            <select className="bds-select w-auto min-w-[116px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">全部状态</option>
-              {DOC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
+            <CustomSelect
+              className="w-[132px]"
+              value={typeFilter}
+              onChange={(v) => setTypeFilter(v)}
+              options={[{ value: '', label: '全部类型' }, ...DOC_TYPES.map(t => ({ value: t.id, label: t.label }))]}
+            />
+            <CustomSelect
+              className="w-[116px]"
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v)}
+              options={[{ value: '', label: '全部状态' }, ...DOC_STATUSES.map(s => ({ value: s.id, label: s.label }))]}
+            />
             {/* B4 域视图：全系统文件枢纽按业务域过滤（外贸主体 + 采购/质检等运营域归档） */}
-            <select className="bds-select w-auto min-w-[116px]" value={domainFilter} onChange={(e) => setDomainFilter(e.target.value)}>
-              <option value="">全部业务域</option>
-              {DOMAIN_OPTIONS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-            </select>
+            <CustomSelect
+              className="w-[116px]"
+              value={domainFilter}
+              onChange={(v) => setDomainFilter(v)}
+              options={[{ value: '', label: '全部业务域' }, ...DOMAIN_OPTIONS.map(d => ({ value: d.id, label: d.label }))]}
+            />
             <button
               onClick={() => void fetchDocs()}
               className="bds-btn bds-btn-ghost"
@@ -985,11 +992,17 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
     const current = form[key] ?? '';
     const missing = current && !options.some(o => o.id === current);
     return (
-      <select className="bds-select" value={current} onChange={setStr(key)}>
-        <option value="">—（不关联）</option>
-        {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-        {missing && <option value={current}>{current}（当前值）</option>}
-      </select>
+      <CustomSelect
+        surface="form"
+        className="w-full"
+        value={current}
+        onChange={(v) => set({ [key]: v.trim() === '' ? undefined : v } as Partial<TradeDocumentInput>)}
+        options={[
+          { value: '', label: '—（不关联）' },
+          ...options.map(o => ({ value: o.id, label: o.label })),
+          ...(missing ? [{ value: current, label: `${current}（当前值）` }] : []),
+        ]}
+      />
     );
   };
 
@@ -1032,9 +1045,14 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>单据类型 *</label>
-            <select className="bds-select" value={form.type} disabled={isEdit} onChange={(e) => set({ type: e.target.value as TradeDocumentType })}>
-              {DOC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+            <CustomSelect
+              surface="form"
+              className="w-full"
+              value={form.type}
+              disabled={isEdit}
+              onChange={(v) => set({ type: v as TradeDocumentType })}
+              options={DOC_TYPES.map(t => ({ value: t.id, label: t.label }))}
+            />
           </div>
           <div>
             <label className={labelClass}>单据编号{isEdit ? '' : '（留空自动取号）'}</label>
@@ -1058,10 +1076,13 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
           </div>
           <div>
             <label className={labelClass}>币种</label>
-            <select className="bds-select" value={form.currency ?? ''} onChange={setStr('currency')}>
-              <option value="">—</option>
-              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              surface="form"
+              className="w-full"
+              value={form.currency ?? ''}
+              onChange={(v) => set({ currency: v.trim() === '' ? undefined : v })}
+              options={[{ value: '', label: '—' }, ...CURRENCIES.map(c => ({ value: c, label: c }))]}
+            />
           </div>
           <div><label className={labelClass}>关联运单</label>{renderLinkSelect('shipmentId', shipmentOptions)}</div>
           <div><label className={labelClass}>关联订单</label>{renderLinkSelect('orderId', orderOptions)}</div>
@@ -1167,18 +1188,18 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
 
         <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>选择运单 *</label>
         <div className="mb-4">
-          <select
-            className="bds-select"
+          <CustomSelect
+            surface="form"
+            className="w-full"
             value={shipmentId}
             disabled={shipmentsLoading}
-            onChange={(e) => setShipmentId(e.target.value)}
-          >
-            <option value="">{shipmentsLoading ? '加载运单中...' : '—（请选择运单）'}</option>
-            {shipments.map(s => <option key={s.id} value={s.id}>{s.shipmentNumber}（{s.status}）</option>)}
-            {shipmentId && !shipments.some(s => s.id === shipmentId) && (
-              <option value={shipmentId}>{shipmentId}（当前运单）</option>
-            )}
-          </select>
+            onChange={(v) => setShipmentId(v)}
+            options={[
+              { value: '', label: shipmentsLoading ? '加载运单中...' : '—（请选择运单）' },
+              ...shipments.map(s => ({ value: s.id, label: `${s.shipmentNumber}（${s.status}）` })),
+              ...(shipmentId && !shipments.some(s => s.id === shipmentId) ? [{ value: shipmentId, label: `${shipmentId}（当前运单）` }] : []),
+            ]}
+          />
         </div>
 
         <label className={`block text-xs mb-1.5 text-[var(--text-tertiary)]`}>单据类型 *</label>
@@ -1467,15 +1488,17 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
         ) : (
           <>
             <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">选择订单查看验货报告 *（≥2 份报告，可跨订单勾选）</label>
-            <select
-              className="bds-select mb-2"
+            <CustomSelect
+              surface="form"
+              className="w-full mb-2"
               value={reportOrderId}
               disabled={ordersLoading}
-              onChange={(e) => setReportOrderId(e.target.value)}
-            >
-              <option value="">{ordersLoading ? '加载订单中...' : '—（请选择订单）'}</option>
-              {orders.map(o => <option key={o.id} value={o.id}>{o.label}（{o.status}）</option>)}
-            </select>
+              onChange={(v) => setReportOrderId(v)}
+              options={[
+                { value: '', label: ordersLoading ? '加载订单中...' : '—（请选择订单）' },
+                ...orders.map(o => ({ value: o.id, label: `${o.label}（${o.status}）` })),
+              ]}
+            />
             {reportOrderId && (
               <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-2 p-2 space-y-1">
                 {reportsLoading ? (
@@ -1618,15 +1641,17 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
         </p>
 
         <div className="flex items-center gap-2 mb-4">
-          <select
-            className="bds-select"
+          <CustomSelect
+            surface="form"
+            className="w-full"
             value={orderId}
             disabled={ordersLoading}
-            onChange={(e) => { setOrderId(e.target.value); void handleLoad(e.target.value); }}
-          >
-            <option value="">{ordersLoading ? '加载订单中...' : '—（请选择订单）'}</option>
-            {orders.map(o => <option key={o.id} value={o.id}>{o.label}（{o.status}）</option>)}
-          </select>
+            onChange={(v) => { setOrderId(v); void handleLoad(v); }}
+            options={[
+              { value: '', label: ordersLoading ? '加载订单中...' : '—（请选择订单）' },
+              ...orders.map(o => ({ value: o.id, label: `${o.label}（${o.status}）` })),
+            ]}
+          />
           {loading && <Loader2 size={14} className="animate-spin shrink-0 text-[var(--text-tertiary)]" />}
         </div>
 

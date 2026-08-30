@@ -5101,9 +5101,14 @@ export const ProductModuleSettingsWorkspace = ({
         </div>
         <label className="mt-4 block space-y-2">
           <span className={labelClass}>默认排序</span>
-          <select className="bds-select" value={moduleSettings.defaultSortValue} onChange={event => patchModuleSettings({ defaultSortValue: event.target.value })}>
-            {PRODUCT_MODULE_SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
+          <CompiledSelectControl
+            value={moduleSettings.defaultSortValue}
+            onChange={value => patchModuleSettings({ defaultSortValue: value })}
+            options={PRODUCT_MODULE_SORT_OPTIONS}
+            isDarkMode={isDarkMode}
+            surface="form"
+            menuPortal
+          />
         </label>
       </CompiledFormSectionPanel>
       <CompiledFormSectionPanel

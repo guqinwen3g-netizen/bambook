@@ -15,6 +15,7 @@ import { apiService } from '../../services/apiService';
 import { hasPermission } from '../../services/authService';
 import { bdsToast } from '../ui/bdsToast';
 import { bdsConfirm, bdsPrompt } from '../ui/BdsDialog';
+import CustomSelect from '../ui/CustomSelect';
 import { buildDepartmentOptions } from '../../lib/departmentTree';
 
 interface DeptOption { id: string; name: string; parentId?: string | null }
@@ -373,12 +374,14 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className={t.labelCls}>添加成员</label>
-                <select className={t.selectCls + ' mt-1'} value={memberUserId} onChange={e => setMemberUserId(e.target.value)}>
-                  <option value="">选择用户</option>
-                  {personnel.filter(u => !members.some(m => m.userId === u.id)).map(u => (
-                    <option key={u.id} value={u.id}>{u.displayName}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  className="mt-1"
+                  surface="form"
+                  ariaLabel="添加成员"
+                  value={memberUserId}
+                  onChange={v => setMemberUserId(v)}
+                  options={[{ value: '', label: '选择用户' }, ...personnel.filter(u => !members.some(m => m.userId === u.id)).map(u => ({ value: u.id, label: u.displayName }))]}
+                />
               </div>
               <button type="button" disabled={!memberUserId || busyId === 'add-member'} onClick={() => addMember(detailTeam)}
                 className={t.primaryButtonCls + ' disabled:opacity-50'}>
@@ -401,23 +404,36 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className={t.labelCls}>选择客户（我可见范围内）</label>
-                <select className={t.selectCls + ' mt-1'} value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}>
-                  <option value="">{relationOptions.length === 0 ? '暂无可共享的客户' : '选择要共享的客户档案'}</option>
-                  {relationOptions
-                    .filter(r => !activeGrants.some(g => g.entityId === r.id))
-                    .map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}{r.code ? `（${r.code}）` : ''}{r.stage ? ` · ${r.stage}` : ''}
-                      </option>
-                    ))}
-                </select>
+                <CustomSelect
+                  className="mt-1"
+                  surface="form"
+                  ariaLabel="选择客户"
+                  value={grantRelationId}
+                  onChange={v => setGrantRelationId(v)}
+                  options={[
+                    { value: '', label: relationOptions.length === 0 ? '暂无可共享的客户' : '选择要共享的客户档案' },
+                    ...relationOptions
+                      .filter(r => !activeGrants.some(g => g.entityId === r.id))
+                      .map(r => ({
+                        value: r.id,
+                        label: `${r.name}${r.code ? `（${r.code}）` : ''}${r.stage ? ` · ${r.stage}` : ''}`,
+                      })),
+                  ]}
+                />
               </div>
               <div>
                 <label className={t.labelCls}>档位</label>
-                <select className={t.selectCls + ' mt-1'} value={grantPermission} onChange={e => setGrantPermission(e.target.value as 'read' | 'read+followup')}>
-                  <option value="read+followup">可查看 + 可跟进</option>
-                  <option value="read">仅查看</option>
-                </select>
+                <CustomSelect
+                  className="mt-1"
+                  surface="form"
+                  ariaLabel="授权档位"
+                  value={grantPermission}
+                  onChange={v => setGrantPermission(v as 'read' | 'read+followup')}
+                  options={[
+                    { value: 'read+followup', label: '可查看 + 可跟进' },
+                    { value: 'read', label: '仅查看' },
+                  ]}
+                />
               </div>
               <button type="button" disabled={!grantRelationId.trim() || busyId === 'add-grant'} onClick={() => grantShare(detailTeam)}
                 className={t.primaryButtonCls + ' disabled:opacity-50'}>
@@ -485,17 +501,25 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             </div>
             <div>
               <label className={t.labelCls}>组长（可空缺）</label>
-              <select className={t.selectCls + ' mt-1'} value={teamForm.leaderId} onChange={e => setTeamForm({ ...teamForm, leaderId: e.target.value })}>
-                <option value="">空缺（组照常运作，T-06）</option>
-                {personnel.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-              </select>
+              <CustomSelect
+                className="mt-1"
+                surface="form"
+                ariaLabel="组长"
+                value={teamForm.leaderId}
+                onChange={v => setTeamForm({ ...teamForm, leaderId: v })}
+                options={[{ value: '', label: '空缺（组照常运作，T-06）' }, ...personnel.map(u => ({ value: u.id, label: u.displayName }))]}
+              />
             </div>
             <div>
               <label className={t.labelCls}>关联部门（可选）</label>
-              <select className={t.selectCls + ' mt-1'} value={teamForm.departmentId} onChange={e => setTeamForm({ ...teamForm, departmentId: e.target.value })}>
-                <option value="">跨部门（不关联）</option>
-                {deptOptions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
+              <CustomSelect
+                className="mt-1"
+                surface="form"
+                ariaLabel="关联部门"
+                value={teamForm.departmentId}
+                onChange={v => setTeamForm({ ...teamForm, departmentId: v })}
+                options={[{ value: '', label: '跨部门（不关联）' }, ...deptOptions.map(d => ({ value: d.id, label: d.label }))]}
+              />
             </div>
             <div className="md:col-span-3">
               <label className={t.labelCls}>描述</label>

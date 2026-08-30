@@ -16,6 +16,7 @@ import { ArrowRight, CheckCircle2, Factory, Loader2, Play, Plus, Trash2 } from '
 import { apiService } from '../../services/apiService';
 import type { OrderProcessNodeRow, OrderProcessChainSummary, Relation } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
+import CustomSelect from '../ui/CustomSelect';
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 
@@ -314,12 +315,20 @@ export function OrderProcessChainPanel({ orderId, relations = [] }: OrderProcess
           </div>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>承接工厂</label>
-            <select value={formSupplier} onChange={e => setFormSupplier(e.target.value)} className="bds-select sm w-full" aria-label="选择承接工厂">
-              <option value="">未指定（后补）</option>
-              {suppliers.map(s => (
-                <option key={s.id} value={s.id}>{s.chineseName || s.name}{s.name && s.chineseName && s.name !== s.chineseName ? ` (${s.name})` : ''}</option>
-              ))}
-            </select>
+            <CustomSelect
+              surface="form"
+              className="w-full"
+              ariaLabel="选择承接工厂"
+              value={formSupplier}
+              onChange={v => setFormSupplier(v)}
+              options={[
+                { value: '', label: '未指定（后补）' },
+                ...suppliers.map(s => ({
+                  value: s.id,
+                  label: `${s.chineseName || s.name}${s.name && s.chineseName && s.name !== s.chineseName ? ` (${s.name})` : ''}`,
+                })),
+              ]}
+            />
           </div>
           <div className="flex flex-wrap gap-3">
             <div>

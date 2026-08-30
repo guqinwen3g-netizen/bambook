@@ -57,6 +57,7 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 
@@ -199,7 +200,6 @@ interface RisksManagerProps {
 // ==================== 共享样式（BDS v2.1 组件族） ====================
 
 const actionBtnCls = 'bds-btn bds-btn-secondary';
-const selectSmStyle: React.CSSProperties = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)', width: 'auto' };
 
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -726,9 +726,12 @@ function FxPanel() {
       <SectionCard title="录入汇率">
         <div className="grid grid-cols-4 gap-3 items-end">
           <Field label="币种 *">
-            <select className="bds-select" value={rateCurrency} onChange={(e) => setRateCurrency(e.target.value)}>
-              {FX_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={rateCurrency}
+              onChange={(v) => setRateCurrency(v)}
+              options={FX_CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </Field>
           <Field label="汇率（兑 CNY）*">
             <input type="number" min={0} step="0.0001" className="bds-input" value={rateValue} onChange={(e) => setRateValue(e.target.value)} placeholder="如 7.1234" />
@@ -752,15 +755,13 @@ function FxPanel() {
       <SectionCard
         title="汇率历史"
         extra={
-          <select
+          <CustomSelect
             value={currencyFilter}
-            onChange={(e) => setCurrencyFilter(e.target.value)}
-            className="bds-select"
-            style={selectSmStyle}
-          >
-            <option value="">全部币种</option>
-            {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+            onChange={(v) => setCurrencyFilter(v)}
+            size="compact"
+            className="w-28"
+            options={[{ value: '', label: '全部币种' }, ...currencyOptions.map((c) => ({ value: c, label: c }))]}
+          />
         }
       >
         {loadingRates ? (
@@ -806,17 +807,23 @@ function FxPanel() {
       <SectionCard title="订单汇率锁定">
         <div className="grid grid-cols-[1.2fr_0.8fr_1fr_1.2fr_auto] gap-3 items-end mb-4">
           <Field label="订单 *">
-            <select className="bds-select" value={lockOrderId} onChange={(e) => setLockOrderId(e.target.value)}>
-              <option value="">选择订单...</option>
-              {orders.map((o) => (
-                <option key={o.id} value={o.id}>{o.id}（{o.customer}）</option>
-              ))}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={lockOrderId}
+              onChange={(v) => setLockOrderId(v)}
+              options={[
+                { value: '', label: '选择订单...' },
+                ...orders.map((o) => ({ value: o.id, label: `${o.id}（${o.customer}）` })),
+              ]}
+            />
           </Field>
           <Field label="币种 *">
-            <select className="bds-select" value={lockCurrency} onChange={(e) => setLockCurrency(e.target.value)}>
-              {FX_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={lockCurrency}
+              onChange={(v) => setLockCurrency(v)}
+              options={FX_CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </Field>
           <Field label="锁定汇率">
             <input type="number" min={0} step="0.0001" className="bds-input" value={lockRate} onChange={(e) => setLockRate(e.target.value)} placeholder="留空取最新汇率" />
@@ -976,17 +983,17 @@ function CreditPanel() {
       {loadError && <LoadErrorBanner message={loadError} onRetry={loadRatings} />}
       {/* 操作条 */}
       <div className="bds-card flex items-center gap-2 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-        <select
+        <CustomSelect
+          surface="form"
+          size="compact"
+          className="w-48"
           value={evaluateRelationId}
-          onChange={(e) => setEvaluateRelationId(e.target.value)}
-          className="bds-select"
-          style={selectSmStyle}
-        >
-          <option value="">选择客户...</option>
-          {relations.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
+          onChange={(v) => setEvaluateRelationId(v)}
+          options={[
+            { value: '', label: '选择客户...' },
+            ...relations.map((r) => ({ value: r.id, label: r.name })),
+          ]}
+        />
         <button onClick={handleEvaluate} disabled={evaluating} className={actionBtnCls}>
           {evaluating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Gauge className="w-3.5 h-3.5" />}
           评估该客户
@@ -1007,17 +1014,16 @@ function CreditPanel() {
             扫描完成：新冻结 {scanResult.frozenCount} 家客户 · 新增坏账预警 {scanResult.badDebtCount} 条
           </span>
         )}
-        <select
+        <CustomSelect
+          size="compact"
+          className="ml-auto w-56"
           value={relationFilter}
-          onChange={(e) => setRelationFilter(e.target.value)}
-          className="bds-select ml-auto"
-          style={selectSmStyle}
-        >
-          <option value="">全部客户（最新评级）</option>
-          {relations.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}（评估历史）</option>
-          ))}
-        </select>
+          onChange={(v) => setRelationFilter(v)}
+          options={[
+            { value: '', label: '全部客户（最新评级）' },
+            ...relations.map((r) => ({ value: r.id, label: `${r.name}（评估历史）` })),
+          ]}
+        />
       </div>
 
       {/* 评级列表 */}
@@ -1203,12 +1209,18 @@ function CompliancePanel() {
       <div className="grid grid-cols-3 gap-4">
         <SectionCard title="运行 HS Code 检查">
           <Field label="报关单 *">
-            <select className="bds-select" value={hsDeclarationId} onChange={(e) => setHsDeclarationId(e.target.value)}>
-              <option value="">选择报关单...</option>
-              {declarations.map((d) => (
-                <option key={d.id} value={d.id}>{d.declarationNumber}{d.destinationCountry ? `（${d.destinationCountry}）` : ''}</option>
-              ))}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={hsDeclarationId}
+              onChange={(v) => setHsDeclarationId(v)}
+              options={[
+                { value: '', label: '选择报关单...' },
+                ...declarations.map((d) => ({
+                  value: d.id,
+                  label: `${d.declarationNumber}${d.destinationCountry ? `（${d.destinationCountry}）` : ''}`,
+                })),
+              ]}
+            />
           </Field>
           <div className="flex justify-end">
             <button onClick={handleRunHs} disabled={runningHs} className={actionBtnCls}>
@@ -1219,12 +1231,18 @@ function CompliancePanel() {
         </SectionCard>
         <SectionCard title="运行出口管制检查">
           <Field label="报关单 *">
-            <select className="bds-select" value={ecDeclarationId} onChange={(e) => setEcDeclarationId(e.target.value)}>
-              <option value="">选择报关单...</option>
-              {declarations.map((d) => (
-                <option key={d.id} value={d.id}>{d.declarationNumber}{d.destinationCountry ? `（${d.destinationCountry}）` : ''}</option>
-              ))}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={ecDeclarationId}
+              onChange={(v) => setEcDeclarationId(v)}
+              options={[
+                { value: '', label: '选择报关单...' },
+                ...declarations.map((d) => ({
+                  value: d.id,
+                  label: `${d.declarationNumber}${d.destinationCountry ? `（${d.destinationCountry}）` : ''}`,
+                })),
+              ]}
+            />
           </Field>
           <div className="flex justify-end">
             <button onClick={handleRunEc} disabled={runningEc} className={actionBtnCls}>
@@ -1236,16 +1254,20 @@ function CompliancePanel() {
         <SectionCard title="人工登记（原产地规则）">
           <div className="grid grid-cols-2 gap-2">
             <Field label="对象类型 *">
-              <select className="bds-select" value={manualTargetType} onChange={(e) => setManualTargetType(e.target.value)}>
-                {CHECK_TARGET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <CustomSelect
+                surface="form"
+                value={manualTargetType}
+                onChange={(v) => setManualTargetType(v)}
+                options={CHECK_TARGET_TYPES.map((t) => ({ value: t, label: t }))}
+              />
             </Field>
             <Field label="结果 *">
-              <select className="bds-select" value={manualResult} onChange={(e) => setManualResult(e.target.value as ComplianceCheckResult)}>
-                {(Object.keys(CHECK_RESULT_LABELS) as ComplianceCheckResult[]).map((r) => (
-                  <option key={r} value={r}>{CHECK_RESULT_LABELS[r]}</option>
-                ))}
-              </select>
+              <CustomSelect
+                surface="form"
+                value={manualResult}
+                onChange={(v) => setManualResult(v as ComplianceCheckResult)}
+                options={(Object.keys(CHECK_RESULT_LABELS) as ComplianceCheckResult[]).map((r) => ({ value: r, label: CHECK_RESULT_LABELS[r] }))}
+              />
             </Field>
           </div>
           <Field label="对象 ID *">

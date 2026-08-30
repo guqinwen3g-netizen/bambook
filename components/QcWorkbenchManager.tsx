@@ -43,6 +43,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import CustomSelect from './ui/CustomSelect';
 import {
   qcService,
   CHAIN_CONCLUSION_LABELS,
@@ -524,17 +525,12 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       {/* 操作条：QC 人员筛选 + 刷新 + 新建（bds-filterbar：内控 40px 等高 + pill 同形） */}
       <div className="shrink-0 bds-filterbar flex-wrap">
         <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
-        <select
-          className="bds-select"
+        <CustomSelect
+          className="w-32"
           value={qcUserFilter}
-          onChange={(e) => setQcUserFilter(e.target.value)}
-          style={{ width: 'auto', fontSize: 'var(--text-xs)' }}
-        >
-          <option value="">全部</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.displayName}</option>
-          ))}
-        </select>
+          onChange={(v) => setQcUserFilter(v)}
+          options={[{ value: '', label: '全部' }, ...users.map((u) => ({ value: u.id, label: u.displayName }))]}
+        />
         {usersLoadFailed && (
           <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>人员列表需管理角色权限，当前仅支持查看全部任务</span>
         )}
@@ -892,20 +888,21 @@ function AssignmentForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="验货类型 *">
-          <select className="bds-select" value={inspectionType} onChange={(e) => setInspectionType(e.target.value as QCInspectionType)}>
-            {(Object.keys(INSPECTION_TYPE_LABELS) as QCInspectionType[]).map((t) => (
-              <option key={t} value={t}>{INSPECTION_TYPE_LABELS[t]}验货</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={inspectionType}
+            onChange={(v) => setInspectionType(v as QCInspectionType)}
+            options={(Object.keys(INSPECTION_TYPE_LABELS) as QCInspectionType[]).map((t) => ({ value: t, label: `${INSPECTION_TYPE_LABELS[t]}验货` }))}
+          />
         </Field>
         <Field label="执行 QC *">
           {users.length > 0 ? (
-            <select className="bds-select" value={qcUserId} onChange={(e) => setQcUserId(e.target.value)}>
-              <option value="">选择 QC 人员...</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.displayName}{u.department ? `（${u.department}）` : ''}</option>
-              ))}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={qcUserId}
+              onChange={(v) => setQcUserId(v)}
+              options={[{ value: '', label: '选择 QC 人员...' }, ...users.map((u) => ({ value: u.id, label: `${u.displayName}${u.department ? `（${u.department}）` : ''}` }))]}
+            />
           ) : (
             <input
               className="bds-input"
@@ -918,12 +915,12 @@ function AssignmentForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属驻地">
-          <select className="bds-select" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-            <option value="">不指定驻地</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={locationId}
+            onChange={(v) => setLocationId(v)}
+            options={[{ value: '', label: '不指定驻地' }, ...locations.map((l) => ({ value: l.id, label: l.name }))]}
+          />
         </Field>
         <Field label="要求完成日期">
           <CapsuleDateInput className="bds-input" value={dueDate} onChange={setDueDate} />
@@ -1129,14 +1126,12 @@ function CompleteAssignmentForm({
         <>
           <div className="grid grid-cols-2 gap-3">
             <Field label="验货结论 *">
-              <select
-                className="bds-select"
+              <CustomSelect
+                surface="form"
                 value={form.result}
-                onChange={(e) => patchForm({ result: e.target.value as 'pass' | 'fail' })}
-              >
-                <option value="pass">合格</option>
-                <option value="fail">不合格</option>
-              </select>
+                onChange={(v) => patchForm({ result: v as 'pass' | 'fail' })}
+                options={[{ value: 'pass', label: '合格' }, { value: 'fail', label: '不合格' }]}
+              />
             </Field>
             <Field label="检验日期">
               <CapsuleDateInput className="bds-input" value={form.inspectionDate} onChange={(v) => patchForm({ inspectionDate: v })} />
@@ -1436,11 +1431,12 @@ function LocationForm({
           <input className="bds-input" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="浙江 · 温州" />
         </Field>
         <Field label="主攻业务线">
-          <select className="bds-select" value={focus} onChange={(e) => setFocus(e.target.value)}>
-            <option value="">通用</option>
-            <option value="garment">服装</option>
-            <option value="fabric">面料</option>
-          </select>
+          <CustomSelect
+            surface="form"
+            value={focus}
+            onChange={(v) => setFocus(v)}
+            options={[{ value: '', label: '通用' }, { value: 'garment', label: '服装' }, { value: 'fabric', label: '面料' }]}
+          />
         </Field>
       </div>
       <Field label="地址">
@@ -1739,9 +1735,12 @@ function BusinessLineForm({
           <input type="number" min={0} className="bds-input" value={moqValue} onChange={(e) => setMoqValue(e.target.value)} placeholder="如 1000" />
         </Field>
         <Field label="MOQ 单位">
-          <select className="bds-select" value={moqUnit} onChange={(e) => setMoqUnit(e.target.value)}>
-            {MOQ_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={moqUnit}
+            onChange={(v) => setMoqUnit(v)}
+            options={MOQ_UNITS.map((u) => ({ value: u, label: u }))}
+          />
         </Field>
         <Field label="生产周期（天）">
           <input type="number" min={0} className="bds-input" value={productionCycleDays} onChange={(e) => setProductionCycleDays(e.target.value)} placeholder="如 70" />
@@ -2076,15 +2075,12 @@ function GarmentChainView({ order }: { order: Order }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="样品级别">
-              <select
-                className="bds-select"
+              <CustomSelect
+                surface="form"
                 value={sampleLevel}
-                onChange={(e) => setSampleLevel(e.target.value as GarmentQcSampleLevel)}
-              >
-                {(Object.keys(GARMENT_SAMPLE_LEVEL_LABELS) as GarmentQcSampleLevel[]).map((lv) => (
-                  <option key={lv} value={lv}>{GARMENT_SAMPLE_LEVEL_LABELS[lv]}</option>
-                ))}
-              </select>
+                onChange={(v) => setSampleLevel(v as GarmentQcSampleLevel)}
+                options={(Object.keys(GARMENT_SAMPLE_LEVEL_LABELS) as GarmentQcSampleLevel[]).map((lv) => ({ value: lv, label: GARMENT_SAMPLE_LEVEL_LABELS[lv] }))}
+              />
             </Field>
             <Field label="样品轮次">
               <input
@@ -2151,15 +2147,12 @@ function GarmentChainView({ order }: { order: Order }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="评审结论 *">
-              <select
-                className="bds-select"
+              <CustomSelect
+                surface="form"
                 value={conclusion}
-                onChange={(e) => setConclusion(e.target.value as 'pass' | 'conditional' | 'fail')}
-              >
-                <option value="pass">通过</option>
-                <option value="conditional">有条件通过</option>
-                <option value="fail">不通过</option>
-              </select>
+                onChange={(v) => setConclusion(v as 'pass' | 'conditional' | 'fail')}
+                options={[{ value: 'pass', label: '通过' }, { value: 'conditional', label: '有条件通过' }, { value: 'fail', label: '不通过' }]}
+              />
             </Field>
             <Field label="检验日期">
               <CapsuleDateInput className="bds-input" value={inspectionDate} onChange={setInspectionDate} />
@@ -2353,15 +2346,12 @@ function FabricChainView({ order }: { order: Order }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="样品类型">
-              <select
-                className="bds-select"
+              <CustomSelect
+                surface="form"
                 value={sampleKind}
-                onChange={(e) => setSampleKind(e.target.value as FabricQcSampleKind)}
-              >
-                {(Object.keys(FABRIC_SAMPLE_KIND_LABELS) as FabricQcSampleKind[]).map((k) => (
-                  <option key={k} value={k}>{FABRIC_SAMPLE_KIND_LABELS[k]}</option>
-                ))}
-              </select>
+                onChange={(v) => setSampleKind(v as FabricQcSampleKind)}
+                options={(Object.keys(FABRIC_SAMPLE_KIND_LABELS) as FabricQcSampleKind[]).map((k) => ({ value: k, label: FABRIC_SAMPLE_KIND_LABELS[k] }))}
+              />
             </Field>
             <Field label="样品记录 *">
               {samplesLoading ? (
@@ -2377,12 +2367,12 @@ function FabricChainView({ order }: { order: Order }) {
                   </button>
                 </div>
               ) : (
-                <select className="bds-select" value={sampleId} onChange={(e) => setSampleId(e.target.value)}>
-                  <option value="">选择样品...</option>
-                  {sampleOptions.map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  surface="form"
+                  value={sampleId}
+                  onChange={(v) => setSampleId(v)}
+                  options={[{ value: '', label: '选择样品...' }, ...sampleOptions.map((s) => ({ value: s.id, label: s.label }))]}
+                />
               )}
             </Field>
           </div>
@@ -2400,15 +2390,12 @@ function FabricChainView({ order }: { order: Order }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="评审结论 *">
-              <select
-                className="bds-select"
+              <CustomSelect
+                surface="form"
                 value={conclusion}
-                onChange={(e) => setConclusion(e.target.value as 'pass' | 'conditional' | 'fail')}
-              >
-                <option value="pass">通过</option>
-                <option value="conditional">有条件通过</option>
-                <option value="fail">不通过</option>
-              </select>
+                onChange={(v) => setConclusion(v as 'pass' | 'conditional' | 'fail')}
+                options={[{ value: 'pass', label: '通过' }, { value: 'conditional', label: '有条件通过' }, { value: 'fail', label: '不通过' }]}
+              />
             </Field>
             <Field label="检验日期">
               <CapsuleDateInput className="bds-input" value={inspectionDate} onChange={setInspectionDate} />

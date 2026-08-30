@@ -8,6 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { apiService } from '../../services/apiService';
+import CustomSelect from '../ui/CustomSelect';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -175,12 +176,20 @@ function YarnConvertCard() {
         <NumInput value={value} onChange={setValue} placeholder="如 40" />
       </Field>
       <Field label="输入制式 *">
-        <select className="bds-select sm w-full" value={from} onChange={e => setFrom(e.target.value)}>
-          <option value="Ne">英支 Ne</option>
-          <option value="D">旦尼尔 D</option>
-          <option value="Nm">公支 Nm</option>
-          <option value="tex">特克斯 tex</option>
-        </select>
+        <CustomSelect
+          surface="form"
+          size="compact"
+          className="w-full"
+          value={from}
+          onChange={v => setFrom(v)}
+          ariaLabel="输入制式"
+          options={[
+            { value: 'Ne', label: '英支 Ne' },
+            { value: 'D', label: '旦尼尔 D' },
+            { value: 'Nm', label: '公支 Nm' },
+            { value: 'tex', label: '特克斯 tex' },
+          ]}
+        />
       </Field>
       </CalcInputs>
       <CalcResults>
@@ -221,10 +230,18 @@ function TheoreticalWeightCard() {
         <NumInput value={weftDensity} onChange={setWeftDensity} placeholder="如 72" />
       </Field>
       <Field label="密度单位">
-        <select className="bds-select sm w-full" value={densityUnit} onChange={e => setDensityUnit(e.target.value)}>
-          <option value="per-in">根/英寸</option>
-          <option value="per-10cm">根/10cm</option>
-        </select>
+        <CustomSelect
+          surface="form"
+          size="compact"
+          className="w-full"
+          value={densityUnit}
+          onChange={v => setDensityUnit(v)}
+          ariaLabel="密度单位"
+          options={[
+            { value: 'per-in', label: '根/英寸' },
+            { value: 'per-10cm', label: '根/10cm' },
+          ]}
+        />
       </Field>
       <Field label="经纱支 *">
         <NumInput value={warpYarn} onChange={setWarpYarn} placeholder="如 40" />
@@ -233,10 +250,18 @@ function TheoreticalWeightCard() {
         <NumInput value={weftYarn} onChange={setWeftYarn} placeholder="如 40" />
       </Field>
       <Field label="纱支制式">
-        <select className="bds-select sm w-full" value={yarnUnit} onChange={e => setYarnUnit(e.target.value)}>
-          <option value="Ne">英支 Ne</option>
-          <option value="D">旦尼尔 D</option>
-        </select>
+        <CustomSelect
+          surface="form"
+          size="compact"
+          className="w-full"
+          value={yarnUnit}
+          onChange={v => setYarnUnit(v)}
+          ariaLabel="纱支制式"
+          options={[
+            { value: 'Ne', label: '英支 Ne' },
+            { value: 'D', label: '旦尼尔 D' },
+          ]}
+        />
       </Field>
       <Field label="织缩系数" hint="实际/理论，默认 1.0">
         <NumInput value={shrinkFactor} onChange={setShrinkFactor} placeholder="1.0" />
@@ -373,11 +398,19 @@ function ContainerLoadingCard() {
       formula="卷体积 = π/4 × 卷径² × 卷宽（圆柱近似）；可装卷数 = min(柜实用容积 × 装载率 ÷ 卷体积, 柜载重 ÷ 卷重)；提供克重/门幅时联动匹长估算总米数">
       <CalcInputs>
       <Field label="柜型 *">
-        <select className="bds-select sm w-full" value={containerType} onChange={e => setContainerType(e.target.value)}>
-          <option value="20GP">20GP（28m³ / 21.7t）</option>
-          <option value="40GP">40GP（58m³ / 26.7t）</option>
-          <option value="40HQ">40HQ（68m³ / 26.6t）</option>
-        </select>
+        <CustomSelect
+          surface="form"
+          size="compact"
+          className="w-full"
+          value={containerType}
+          onChange={v => setContainerType(v)}
+          ariaLabel="柜型"
+          options={[
+            { value: '20GP', label: '20GP（28m³ / 21.7t）' },
+            { value: '40GP', label: '40GP（58m³ / 26.7t）' },
+            { value: '40HQ', label: '40HQ（68m³ / 26.6t）' },
+          ]}
+        />
       </Field>
       <Field label="卷径 CM *">
         <NumInput value={rollDiameterCm} onChange={setRollDiameterCm} placeholder="如 60" />

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Order, Relation } from '../../types';
 import { apiService } from '../../services/apiService';
+import CustomSelect from '../ui/CustomSelect';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
 import { getExporterProfile } from './exportDocs/exporterProfile';
@@ -376,16 +377,16 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
               {/* 客户选择 */}
               <div>
                 <label className={labelClass}>收货方（客户）</label>
-                <select
-                  className="bds-select"
+                <CustomSelect
+                  surface="form"
                   value={selectedRelationId}
-                  onChange={(e) => setSelectedRelationId(e.target.value)}
-                >
-                  <option value="">选择客户...</option>
-                  {relationOptions.map(r => (
-                    <option key={r.id} value={r.id}>{r.label} ({r.chineseName})</option>
-                  ))}
-                </select>
+                  onChange={(v) => setSelectedRelationId(v)}
+                  ariaLabel="选择客户"
+                  options={[
+                    { value: '', label: '选择客户...' },
+                    ...relationOptions.map(r => ({ value: r.id, label: `${r.label} (${r.chineseName})` })),
+                  ]}
+                />
               </div>
             </div>
 
@@ -509,13 +510,13 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                       placeholder="总数量"
                       className={`${fieldClass} py-1.5 text-xs`}
                     />
-                    <select
-                      className="bds-select sm"
+                    <CustomSelect
+                      size="compact"
                       value={line.unit}
-                      onChange={(e) => updateLine(line.id, 'unit', e.target.value)}
-                    >
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                      onChange={(v) => updateLine(line.id, 'unit', v)}
+                      ariaLabel="单位"
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                    />
                     <input
                       type="number"
                       step="0.01"

@@ -54,6 +54,7 @@ import {
 import { primeFinanceInvoiceCreate } from './FinanceManager';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
@@ -851,9 +852,12 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                       </div>
                       <div>
                         <label className={labelCls}>币种</label>
-                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="bds-select">
-                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        <CustomSelect
+                          options={CURRENCIES.map(c => ({ value: c, label: c }))}
+                          value={form.currency}
+                          onChange={(v) => setForm({ ...form, currency: v })}
+                          surface="form"
+                        />
                       </div>
                       <div>
                         <label className={labelCls}>下单日期 *</label>
@@ -865,13 +869,18 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                       </div>
                       <div>
                         <label className={labelCls}>供应商</label>
-                        <select value={form.supplierRelationId} onChange={(e) => {
-                          const rel = relations.find(r => r.id === e.target.value);
-                          setForm({ ...form, supplierRelationId: e.target.value, supplierName: rel?.englishName || rel?.chineseName || '' });
-                        }} className="bds-select">
-                          <option value="">选择供应商...</option>
-                          {supplierOptions.map(s => <option key={s.id} value={s.id}>{s.label} ({s.chineseName})</option>)}
-                        </select>
+                        <CustomSelect
+                          options={[
+                            { value: '', label: '选择供应商...' },
+                            ...supplierOptions.map(s => ({ value: s.id, label: `${s.label} (${s.chineseName})` })),
+                          ]}
+                          value={form.supplierRelationId}
+                          onChange={(v) => {
+                            const rel = relations.find(r => r.id === v);
+                            setForm({ ...form, supplierRelationId: v, supplierName: rel?.englishName || rel?.chineseName || '' });
+                          }}
+                          surface="form"
+                        />
                       </div>
                       <div>
                         <label className={labelCls}>采购员</label>
@@ -916,13 +925,19 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                           <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
                             <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className="bds-input sm" />
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
-                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className="bds-select sm">
-                              {LINE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                            <CustomSelect
+                              options={LINE_CATEGORIES.map(c => ({ value: c, label: c }))}
+                              value={line.category}
+                              onChange={(v) => updateFormLine(line.key, 'category', v)}
+                              surface="form"
+                            />
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
-                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select sm">
-                              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                            </select>
+                            <CustomSelect
+                              options={UNITS.map(u => ({ value: u, label: u }))}
+                              value={line.unit}
+                              onChange={(v) => updateFormLine(line.key, 'unit', v)}
+                              surface="form"
+                            />
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
                             <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className="bds-input sm xl:col-span-2" />
                           </div>
@@ -1244,10 +1259,15 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                             <CapsuleDateInput value={receiptForm.receivedDate} onChange={(v) => setReceiptForm({ ...receiptForm, receivedDate: v })} className="bds-input sm" />
                                             <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className="bds-input sm" />
                                             {/* D5：入库仓库下拉（选定真实落点；不选 = 默认主仓，与 L8 兜底口径一致） */}
-                                            <select value={receiptForm.warehouseId} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseId: e.target.value })} className="bds-select sm">
-                                              <option value="">入库仓库（默认主仓）</option>
-                                              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                            </select>
+                                            <CustomSelect
+                                              options={[
+                                                { value: '', label: '入库仓库（默认主仓）' },
+                                                ...warehouses.map(w => ({ value: w.id, label: w.name })),
+                                              ]}
+                                              value={receiptForm.warehouseId}
+                                              onChange={(v) => setReceiptForm({ ...receiptForm, warehouseId: v })}
+                                              surface="form"
+                                            />
                                           </div>
                                           {/* D6 行级收货明细（真源：每行本次收了多少；单头合计由行级累加派生） */}
                                           <div className="mb-2">

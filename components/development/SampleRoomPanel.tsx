@@ -22,6 +22,7 @@ import BottomSheet from '../ui/BottomSheet';
 import { bdsToast } from '../ui/bdsToast';
 import { bdsConfirm } from '../ui/BdsDialog';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import RelationCombobox from '../ui/RelationCombobox';
 import { sampleRoomService, SampleCardItemView } from '../../services/sampleRoomService';
 import { apiService } from '../../services/apiService';
@@ -568,16 +569,27 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 className="bds-input pl-9 h-9 text-xs"
               />
             </div>
-            <select className="bds-select w-28 h-9 text-xs shrink-0" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">全部状态</option>
-              <option value="in_stock">在库</option>
-              <option value="borrowed">在借</option>
-              <option value="retired">已退役</option>
-            </select>
-            <select className="bds-select w-32 h-9 text-xs shrink-0" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)} disabled={warehousesLoading}>
-              <option value="">全部仓库</option>
-              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            <CustomSelect
+              className="w-28 shrink-0"
+              value={statusFilter}
+              onChange={v => setStatusFilter(v)}
+              options={[
+                { value: '', label: '全部状态' },
+                { value: 'in_stock', label: '在库' },
+                { value: 'borrowed', label: '在借' },
+                { value: 'retired', label: '已退役' },
+              ]}
+            />
+            <CustomSelect
+              className="w-32 shrink-0"
+              value={warehouseFilter}
+              onChange={v => setWarehouseFilter(v)}
+              disabled={warehousesLoading}
+              options={[
+                { value: '', label: '全部仓库' },
+                ...warehouses.map(w => ({ value: w.id, label: w.name })),
+              ]}
+            />
             <label className="flex items-center gap-1 text-[11px] font-light text-[var(--text-tertiary)] shrink-0">
               <input type="checkbox" checked={lowStockOnly} onChange={e => setLowStockOnly(e.target.checked)} />
               仅低库存
@@ -786,9 +798,13 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">类型</label>
-                <select className="bds-select sm w-full" value={itemForm.cardType} onChange={e => setItemForm(f => ({ ...f, cardType: e.target.value }))}>
-                  {Object.entries(CARD_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+                <CustomSelect
+                  surface="form"
+                  className="w-full"
+                  value={itemForm.cardType}
+                  onChange={v => setItemForm(f => ({ ...f, cardType: v }))}
+                  options={Object.entries(CARD_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                />
               </div>
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">架位</label>
@@ -803,16 +819,26 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
               </div>
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">单位</label>
-                <select className="bds-select sm w-full" value={itemForm.unit} onChange={e => setItemForm(f => ({ ...f, unit: e.target.value }))}>
-                  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
+                <CustomSelect
+                  surface="form"
+                  className="w-full"
+                  value={itemForm.unit}
+                  onChange={v => setItemForm(f => ({ ...f, unit: v }))}
+                  options={UNITS.map(u => ({ value: u, label: u }))}
+                />
               </div>
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">仓库</label>
-                <select className="bds-select sm w-full" value={itemForm.warehouseId} onChange={e => setItemForm(f => ({ ...f, warehouseId: e.target.value }))}>
-                  <option value="">未指定</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
+                <CustomSelect
+                  surface="form"
+                  className="w-full"
+                  value={itemForm.warehouseId}
+                  onChange={v => setItemForm(f => ({ ...f, warehouseId: v }))}
+                  options={[
+                    { value: '', label: '未指定' },
+                    ...warehouses.map(w => ({ value: w.id, label: w.name })),
+                  ]}
+                />
               </div>
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">最低库存</label>

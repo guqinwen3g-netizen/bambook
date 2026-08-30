@@ -64,6 +64,7 @@ import { PageHeader } from './ui/PageHeader';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import { bdsConfirm } from './ui/BdsDialog';
@@ -690,10 +691,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <RefreshCw size={16} className={actionLoading === 'refresh:plans' ? 'animate-spin' : ''} />
                 </button>
                 {renderTabToolbarExtras(
-                  <select value={planStatusFilter} onChange={(e) => setPlanStatusFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
-                    <option value="">全部状态</option>
-                    {PLAN_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>,
+                  <CustomSelect
+                    className="w-32"
+                    size="compact"
+                    value={planStatusFilter}
+                    onChange={(v) => setPlanStatusFilter(v)}
+                    options={[{ value: '', label: '全部状态' }, ...PLAN_STATUSES.map(s => ({ value: s.id, label: s.label }))]}
+                  />,
                 )}
               </div>
 
@@ -792,23 +796,31 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={planForm.planNumber} onChange={e => setPlanForm({ ...planForm, planNumber: e.target.value })} placeholder="PP-2026-001" />
                   </FormField>
                   <FormField label="工位">
-                    <select className="bds-select sm" value={planForm.workStationId} onChange={e => setPlanForm({ ...planForm, workStationId: e.target.value })}>
-                      <option value="">选择工位</option>
-                      {workStations.map(w => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={planForm.workStationId}
+                      onChange={v => setPlanForm({ ...planForm, workStationId: v })}
+                      options={[{ value: '', label: '选择工位' }, ...workStations.map(w => ({ value: w.id, label: `${w.name} (${w.code})` }))]}
+                    />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select sm" value={planForm.processType} onChange={e => setPlanForm({ ...planForm, processType: e.target.value as WorkStationType })}>
-                      {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={planForm.processType}
+                      onChange={v => setPlanForm({ ...planForm, processType: v as WorkStationType })}
+                      options={WS_TYPES.map(t => ({ value: t.id, label: t.label }))}
+                    />
                   </FormField>
                   <FormField label="计划数量">
                     <input type="number" className="bds-input sm" value={planForm.plannedQuantity} onChange={e => setPlanForm({ ...planForm, plannedQuantity: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select sm" value={planForm.unit} onChange={e => setPlanForm({ ...planForm, unit: e.target.value })}>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={planForm.unit}
+                      onChange={v => setPlanForm({ ...planForm, unit: v })}
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                    />
                   </FormField>
                   <FormField label="计划开始">
                     <CapsuleDateInput className="bds-input sm" value={planForm.plannedStartDate ?? ''} onChange={(v) => setPlanForm({ ...planForm, plannedStartDate: v })} isDarkMode={isDarkMode} />
@@ -817,9 +829,12 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <CapsuleDateInput className="bds-input sm" value={planForm.plannedEndDate ?? ''} onChange={(v) => setPlanForm({ ...planForm, plannedEndDate: v })} isDarkMode={isDarkMode} />
                   </FormField>
                   <FormField label="优先级">
-                    <select className="bds-select sm" value={planForm.priority} onChange={e => setPlanForm({ ...planForm, priority: e.target.value as Priority })}>
-                      {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={planForm.priority ?? ''}
+                      onChange={v => setPlanForm({ ...planForm, priority: v as Priority })}
+                      options={PRIORITIES.map(p => ({ value: p.id, label: p.label }))}
+                    />
                   </FormField>
                 </CreateFormModal>
               )}
@@ -839,10 +854,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <RefreshCw size={16} className={actionLoading === 'refresh:workStations' ? 'animate-spin' : ''} />
                 </button>
                 {renderTabToolbarExtras(
-                  <select value={wsTypeFilter} onChange={(e) => setWsTypeFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
-                    <option value="">全部类型</option>
-                    {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                  </select>,
+                  <CustomSelect
+                    className="w-32"
+                    size="compact"
+                    value={wsTypeFilter}
+                    onChange={(v) => setWsTypeFilter(v)}
+                    options={[{ value: '', label: '全部类型' }, ...WS_TYPES.map(t => ({ value: t.id, label: t.label }))]}
+                  />,
                 )}
               </div>
 
@@ -894,9 +912,12 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={wsForm.name} onChange={e => setWsForm({ ...wsForm, name: e.target.value })} placeholder="缝纫一号线" />
                   </FormField>
                   <FormField label="类型">
-                    <select className="bds-select sm" value={wsForm.type} onChange={e => setWsForm({ ...wsForm, type: e.target.value as WorkStationType })}>
-                      {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={wsForm.type}
+                      onChange={v => setWsForm({ ...wsForm, type: v as WorkStationType })}
+                      options={WS_TYPES.map(t => ({ value: t.id, label: t.label }))}
+                    />
                   </FormField>
                   <FormField label="日产能">
                     <input type="number" className="bds-input sm" value={wsForm.capacityPerDay ?? ''} onChange={e => setWsForm({ ...wsForm, capacityPerDay: e.target.value ? Number(e.target.value) : undefined })} />
@@ -925,10 +946,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <RefreshCw size={16} className={actionLoading === 'refresh:outsourcing' ? 'animate-spin' : ''} />
                 </button>
                 {renderTabToolbarExtras(
-                  <select value={osoStatusFilter} onChange={(e) => setOsoStatusFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
-                    <option value="">全部状态</option>
-                    {OUTSOURCING_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>,
+                  <CustomSelect
+                    className="w-32"
+                    size="compact"
+                    value={osoStatusFilter}
+                    onChange={(v) => setOsoStatusFilter(v)}
+                    options={[{ value: '', label: '全部状态' }, ...OUTSOURCING_STATUSES.map(s => ({ value: s.id, label: s.label }))]}
+                  />,
                 )}
                 {navRelationFilter && (
                   <NavRelationFilterChip filter={navRelationFilter} label="外协订单" onClear={() => setNavRelationFilter(null)} />
@@ -1023,32 +1047,42 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   </FormField>
                   {/* R678⑤：供应商下拉（Relation 档案供应商口径，与采购域一致；落 supplierId 入图可追溯） */}
                   <FormField label="供应商">
-                    <select className="bds-select sm" value={osoForm.supplierId ?? ''} onChange={e => setOsoForm({ ...osoForm, supplierId: e.target.value || undefined })}>
-                      <option value="">不指定供应商</option>
-                      {supplierOptions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={osoForm.supplierId ?? ''}
+                      onChange={v => setOsoForm({ ...osoForm, supplierId: v || undefined })}
+                      options={[{ value: '', label: '不指定供应商' }, ...supplierOptions.map(s => ({ value: s.id, label: s.label }))]}
+                    />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select sm" value={osoForm.processType} onChange={e => setOsoForm({ ...osoForm, processType: e.target.value as OutsourcingProcessType })}>
-                      {OUTSOURCING_PROCESS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={osoForm.processType}
+                      onChange={v => setOsoForm({ ...osoForm, processType: v as OutsourcingProcessType })}
+                      options={OUTSOURCING_PROCESS_TYPES.map(t => ({ value: t.id, label: t.label }))}
+                    />
                   </FormField>
                   <FormField label="数量">
                     <input type="number" className="bds-input sm" value={osoForm.quantity} onChange={e => setOsoForm({ ...osoForm, quantity: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select sm" value={osoForm.unit} onChange={e => setOsoForm({ ...osoForm, unit: e.target.value })}>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={osoForm.unit}
+                      onChange={v => setOsoForm({ ...osoForm, unit: v })}
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                    />
                   </FormField>
                   <FormField label="单价">
                     <input type="number" className="bds-input sm" value={osoForm.unitPrice} onChange={e => setOsoForm({ ...osoForm, unitPrice: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="币种">
-                    <select className="bds-select sm" value={osoForm.currency} onChange={e => setOsoForm({ ...osoForm, currency: e.target.value })}>
-                      <option value="CNY">CNY 人民币</option>
-                      <option value="USD">USD 美元</option>
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={osoForm.currency ?? ''}
+                      onChange={v => setOsoForm({ ...osoForm, currency: v })}
+                      options={[{ value: 'CNY', label: 'CNY 人民币' }, { value: 'USD', label: 'USD 美元' }]}
+                    />
                   </FormField>
                 </CreateFormModal>
               )}
@@ -1100,10 +1134,12 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showWhForm && (
                 <CreateFormModal title="记录工时" onClose={() => setShowWhForm(false)} onSubmit={submitWh} loading={actionLoading === 'submit:wh'}>
                   <FormField label="排产单">
-                    <select className="bds-select sm" value={whForm.productionPlanId} onChange={e => setWhForm({ ...whForm, productionPlanId: e.target.value })}>
-                      <option value="">选择排产单</option>
-                      {plans.map(p => <option key={p.id} value={p.id}>{p.planNumber}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={whForm.productionPlanId}
+                      onChange={v => setWhForm({ ...whForm, productionPlanId: v })}
+                      options={[{ value: '', label: '选择排产单' }, ...plans.map(p => ({ value: p.id, label: p.planNumber }))]}
+                    />
                   </FormField>
                   <FormField label="员工姓名">
                     <input className="bds-input sm" value={whForm.employeeName ?? ''} onChange={e => setWhForm({ ...whForm, employeeName: e.target.value })} />
@@ -1135,11 +1171,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRules' ? 'animate-spin' : ''} />
                 </button>
                 {renderTabToolbarExtras(
-                  <select value={ruleActiveFilter} onChange={(e) => setRuleActiveFilter(e.target.value as '' | 'active' | 'inactive')} className="bds-select sm" style={{ maxWidth: 140 }}>
-                    <option value="">全部状态</option>
-                    <option value="active">生效中</option>
-                    <option value="inactive">已停用</option>
-                  </select>,
+                  <CustomSelect
+                    className="w-32"
+                    size="compact"
+                    value={ruleActiveFilter}
+                    onChange={(v) => setRuleActiveFilter(v as '' | 'active' | 'inactive')}
+                    options={[{ value: '', label: '全部状态' }, { value: 'active', label: '生效中' }, { value: 'inactive', label: '已停用' }]}
+                  />,
                 )}
               </div>
 
@@ -1187,14 +1225,20 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={ruleForm.name} onChange={e => setRuleForm({ ...ruleForm, name: e.target.value })} placeholder="缝纫计件标准" />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select sm" value={ruleForm.processType} onChange={e => setRuleForm({ ...ruleForm, processType: e.target.value as WorkStationType })}>
-                      {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={ruleForm.processType}
+                      onChange={v => setRuleForm({ ...ruleForm, processType: v as WorkStationType })}
+                      options={WS_TYPES.map(t => ({ value: t.id, label: t.label }))}
+                    />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select sm" value={ruleForm.unit} onChange={e => setRuleForm({ ...ruleForm, unit: e.target.value })}>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={ruleForm.unit}
+                      onChange={v => setRuleForm({ ...ruleForm, unit: v })}
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                    />
                   </FormField>
                   <FormField label="单价">
                     <input type="number" className="bds-input sm" value={ruleForm.ratePerUnit} onChange={e => setRuleForm({ ...ruleForm, ratePerUnit: Number(e.target.value) })} />
@@ -1215,10 +1259,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRecords' ? 'animate-spin' : ''} />
                 </button>
                 {renderTabToolbarExtras(
-                  <select value={recordStatusFilter} onChange={(e) => setRecordStatusFilter(e.target.value)} className="bds-select sm" style={{ maxWidth: 140 }}>
-                    <option value="">全部状态</option>
-                    {PIECE_RATE_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>,
+                  <CustomSelect
+                    className="w-32"
+                    size="compact"
+                    value={recordStatusFilter}
+                    onChange={(v) => setRecordStatusFilter(v)}
+                    options={[{ value: '', label: '全部状态' }, ...PIECE_RATE_STATUSES.map(s => ({ value: s.id, label: s.label }))]}
+                  />,
                 )}
               </div>
 
@@ -1270,10 +1317,12 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showRecordForm && (
                 <CreateFormModal title="新增计件记录" onClose={() => setShowRecordForm(false)} onSubmit={submitRecord} loading={actionLoading === 'submit:record'}>
                   <FormField label="计件规则">
-                    <select className="bds-select sm" value={recordForm.pieceRateRuleId} onChange={e => setRecordForm({ ...recordForm, pieceRateRuleId: e.target.value, unit: pieceRateRules.find(r => r.id === e.target.value)?.unit || 'PC' })}>
-                      <option value="">选择规则</option>
-                      {pieceRateRules.filter(r => r.isActive).map(r => <option key={r.id} value={r.id}>{r.code} · {r.name} ({formatNum(Number(r.ratePerUnit))}/{r.unit})</option>)}
-                    </select>
+                    <CustomSelect
+                      surface="form"
+                      value={recordForm.pieceRateRuleId}
+                      onChange={v => setRecordForm({ ...recordForm, pieceRateRuleId: v, unit: pieceRateRules.find(r => r.id === v)?.unit || 'PC' })}
+                      options={[{ value: '', label: '选择规则' }, ...pieceRateRules.filter(r => r.isActive).map(r => ({ value: r.id, label: `${r.code} · ${r.name} (${formatNum(Number(r.ratePerUnit))}/${r.unit})` }))]}
+                    />
                   </FormField>
                   <FormField label="员工姓名">
                     <input className="bds-input sm" value={recordForm.employeeName ?? ''} onChange={e => setRecordForm({ ...recordForm, employeeName: e.target.value })} />

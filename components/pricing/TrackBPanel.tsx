@@ -15,6 +15,7 @@ import { Calculator, Loader2, RefreshCw, Search } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { CommissionRule, TrackBResult } from '../../types';
 import { bdsToast } from '../ui/bdsToast';
+import CustomSelect from '../ui/CustomSelect';
 
 const inputClass = "bds-input w-full";
 const actionButtonClass = "bds-btn bds-btn-secondary flex items-center gap-1 px-2.5 py-1 text-xs";
@@ -227,18 +228,20 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
           />
         </Field>
         <Field label="佣金规则（可选，带入快照）">
-          <select
-            className="bds-select"
+          <CustomSelect
+            surface="form"
+            className="w-full"
+            ariaLabel="佣金规则"
             value={commissionRuleId ?? ''}
-            onChange={(e) => handleCommissionRuleSelect(e.target.value)}
-          >
-            <option value="">不使用规则</option>
-            {commissionRules.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}（{r.rate}%{r.intermediaryName ? ` · ${r.intermediaryName}` : ' · 默认'}）
-              </option>
-            ))}
-          </select>
+            onChange={handleCommissionRuleSelect}
+            options={[
+              { value: '', label: '不使用规则' },
+              ...commissionRules.map((r) => ({
+                value: r.id,
+                label: `${r.name}（${r.rate}%${r.intermediaryName ? ` · ${r.intermediaryName}` : ' · 默认'}）`,
+              })),
+            ]}
+          />
         </Field>
         {children}
       </div>

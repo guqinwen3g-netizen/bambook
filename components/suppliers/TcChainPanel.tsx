@@ -17,6 +17,7 @@ import { apiService } from '../../services/apiService';
 import { hasPermission } from '../../services/authService';
 import type { TcCertificateRow, TcStage, TcChainVerification, Relation } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
+import CustomSelect from '../ui/CustomSelect';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
@@ -314,12 +315,17 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
           </div>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>交易对手</label>
-            <select value={formRelation} onChange={e => setFormRelation(e.target.value)} className="bds-select sm w-full" aria-label="选择交易对手">
-              <option value="">未指定（后补）</option>
-              {counterparties.map(r => (
-                <option key={r.id} value={r.id}>{r.chineseName || r.name}</option>
-              ))}
-            </select>
+            <CustomSelect
+              className="w-full"
+              surface="form"
+              ariaLabel="选择交易对手"
+              value={formRelation}
+              onChange={v => setFormRelation(v)}
+              options={[
+                { value: '', label: '未指定（后补）' },
+                ...counterparties.map(r => ({ value: r.id, label: r.chineseName || r.name })),
+              ]}
+            />
           </div>
           <div className="flex flex-wrap gap-3">
             <div>

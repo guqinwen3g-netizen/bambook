@@ -40,6 +40,7 @@ import type {
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
 import RelationPickerCombobox from './RelationPickerCombobox';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import A4DocumentPreviewModal from '../ui/A4DocumentPreviewModal';
 import type { AgingBuckets, AgingReport, CustomerStatement, DunningStage, FxGainLossReport, FxLedger, Order, Relation, Shipment, StatementSection, SupplierStatement } from '../../types';
 
@@ -1357,17 +1358,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           )}
           {tab === 'internal-trade' && (
             <>
-              <select
+              <CustomSelect
                 value={transferStatus}
-                onChange={e => setTransferStatus(e.target.value as InternalTransferStatus | '')}
-                className="bds-select sm min-w-36"
-                aria-label="状态筛选"
-              >
-                <option value="">全部状态</option>
-                {INTERNAL_TRANSFER_STATUSES.map(s => (
-                  <option key={s} value={s}>{INTERNAL_TRANSFER_STATUS_LABEL[s]}</option>
-                ))}
-              </select>
+                onChange={v => setTransferStatus(v as InternalTransferStatus | '')}
+                className="min-w-36"
+                ariaLabel="状态筛选"
+                options={[
+                  { value: '', label: '全部状态' },
+                  ...INTERNAL_TRANSFER_STATUSES.map(s => ({ value: s, label: INTERNAL_TRANSFER_STATUS_LABEL[s] })),
+                ]}
+              />
               <RdlPill type="button" active tone="accent" onClick={loadTransfers} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
               <RdlPill type="button" tone="accent" onClick={openCreateTransfer} className="min-h-8 px-3 text-[11px]">
                 <span className="inline-flex items-center gap-1"><Plus size={14} strokeWidth={1.5} />新建申请</span>
@@ -1443,31 +1443,29 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>服装订单 *</label>
-                      <select
+                      <CustomSelect
+                        surface="form"
                         value={createForm.garmentOrderId}
-                        onChange={e => setCreateForm(f => ({ ...f, garmentOrderId: e.target.value }))}
-                        className="bds-select sm"
+                        onChange={v => setCreateForm(f => ({ ...f, garmentOrderId: v }))}
                         disabled={!orderOptions}
-                      >
-                        <option value="">{orderOptions ? '请选择服装订单' : '加载订单...'}</option>
-                        {(orderOptions ?? []).filter(o => o.type === 'Garment').map(o => (
-                          <option key={o.id} value={o.id}>{o.id} · {o.customer} · {o.product}</option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: '', label: orderOptions ? '请选择服装订单' : '加载订单...' },
+                          ...(orderOptions ?? []).filter(o => o.type === 'Garment').map(o => ({ value: o.id, label: `${o.id} · ${o.customer} · ${o.product}` })),
+                        ]}
+                      />
                     </div>
                     <div>
                       <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>面料订单 *</label>
-                      <select
+                      <CustomSelect
+                        surface="form"
                         value={createForm.fabricOrderId}
-                        onChange={e => setCreateForm(f => ({ ...f, fabricOrderId: e.target.value }))}
-                        className="bds-select sm"
+                        onChange={v => setCreateForm(f => ({ ...f, fabricOrderId: v }))}
                         disabled={!orderOptions}
-                      >
-                        <option value="">{orderOptions ? '请选择面料订单' : '加载订单...'}</option>
-                        {(orderOptions ?? []).filter(o => o.type === 'Fabric').map(o => (
-                          <option key={o.id} value={o.id}>{o.id} · {o.customer} · {o.product}</option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: '', label: orderOptions ? '请选择面料订单' : '加载订单...' },
+                          ...(orderOptions ?? []).filter(o => o.type === 'Fabric').map(o => ({ value: o.id, label: `${o.id} · ${o.customer} · ${o.product}` })),
+                        ]}
+                      />
                     </div>
                   </div>
                   {orderOptionsError && (
@@ -1554,16 +1552,15 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>关联运单 *（面料订单名下非取消运单）</label>
                     {shipmentOptions && shipmentOptions.length > 0 ? (
-                      <select
+                      <CustomSelect
+                        surface="form"
                         value={deliveryForm.shipmentId}
-                        onChange={e => setDeliveryForm(f => ({ ...f, shipmentId: e.target.value }))}
-                        className="bds-select sm"
-                      >
-                        <option value="">请选择运单</option>
-                        {shipmentOptions.map(s => (
-                          <option key={s.id} value={s.id}>{s.shipmentNumber || s.id} · {s.status}</option>
-                        ))}
-                      </select>
+                        onChange={v => setDeliveryForm(f => ({ ...f, shipmentId: v }))}
+                        options={[
+                          { value: '', label: '请选择运单' },
+                          ...shipmentOptions.map(s => ({ value: s.id, label: `${s.shipmentNumber || s.id} · ${s.status}` })),
+                        ]}
+                      />
                     ) : (
                       <input
                         value={deliveryForm.shipmentId}

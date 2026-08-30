@@ -45,6 +45,7 @@ import {
 } from '../services/exceptionService';
 import { getAuthState, hasRole } from '../services/authService';
 import UserCombobox from './ui/UserCombobox';
+import CustomSelect from './ui/CustomSelect';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 
@@ -780,15 +781,12 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
           <div className="grid grid-cols-2 gap-3">
             <label className="space-y-1">
               <span className={`text-[10px] font-light ${weakText}`}>例外类型 Category</span>
-              <select
+              <CustomSelect
                 value={form.exceptionCategory}
-                onChange={e => setField('exceptionCategory', e.target.value as ExceptionCategory)}
-                className="bds-select sm"
-              >
-                {EXCEPTION_CATEGORIES.map(c => (
-                  <option key={c} value={c}>{EXCEPTION_CATEGORY_LABEL[c]}（{c}）</option>
-                ))}
-              </select>
+                onChange={v => setField('exceptionCategory', v as ExceptionCategory)}
+                surface="form"
+                options={EXCEPTION_CATEGORIES.map(c => ({ value: c, label: `${EXCEPTION_CATEGORY_LABEL[c]}（${c}）` }))}
+              />
             </label>
             <label className="space-y-1">
               <span className={`text-[10px] font-light ${weakText}`}>子类 Sub-category（可选）</span>

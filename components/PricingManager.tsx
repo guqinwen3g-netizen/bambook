@@ -60,6 +60,7 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { TrackAPanel } from './pricing/TrackAPanel';
@@ -1246,12 +1247,18 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>材料类型</label>
-            <select className="bds-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as MaterialPriceType | '')}>
-              <option value="">全部</option>
-              <option value="yarn">纱线</option>
-              <option value="fabric">面料</option>
-              <option value="trimming">辅料</option>
-            </select>
+            <CustomSelect
+              className="w-full"
+              ariaLabel="材料类型筛选"
+              value={typeFilter}
+              onChange={(v) => setTypeFilter(v as MaterialPriceType | '')}
+              options={[
+                { value: '', label: '全部' },
+                { value: 'yarn', label: '纱线' },
+                { value: 'fabric', label: '面料' },
+                { value: 'trimming', label: '辅料' },
+              ]}
+            />
           </div>
           <div>
             <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>起始日期</label>
@@ -1438,11 +1445,18 @@ function MaterialPriceForm({
     <ModalShell title={editing ? '编辑价格记录' : '录入价格'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="材料类型">
-          <select className="bds-select" value={materialType} onChange={(e) => setMaterialType(e.target.value as MaterialPriceType)}>
-            <option value="yarn">纱线</option>
-            <option value="fabric">面料</option>
-            <option value="trimming">辅料</option>
-          </select>
+          <CustomSelect
+            surface="form"
+            className="w-full"
+            ariaLabel="材料类型"
+            value={materialType}
+            onChange={(v) => setMaterialType(v as MaterialPriceType)}
+            options={[
+              { value: 'yarn', label: '纱线' },
+              { value: 'fabric', label: '面料' },
+              { value: 'trimming', label: '辅料' },
+            ]}
+          />
         </Field>
         <Field label="材料编码（可选）">
           <input className={inputClass} value={materialCode} onChange={(e) => setMaterialCode(e.target.value)} placeholder="如 YC-32S" />
@@ -1460,11 +1474,18 @@ function MaterialPriceForm({
           <input className={inputClass} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="M / PC / KG" />
         </Field>
         <Field label="币种">
-          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            <option value="CNY">CNY</option>
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-          </select>
+          <CustomSelect
+            surface="form"
+            className="w-full"
+            ariaLabel="币种"
+            value={currency}
+            onChange={(v) => setCurrency(v)}
+            options={[
+              { value: 'CNY', label: 'CNY' },
+              { value: 'USD', label: 'USD' },
+              { value: 'EUR', label: 'EUR' },
+            ]}
+          />
         </Field>
         <Field label="价格日期">
           <CapsuleDateInput className={inputClass} value={priceDate} onChange={setPriceDate} />
@@ -1708,12 +1729,17 @@ function CommissionRuleForm({
         <input className={inputClass} value={rate} onChange={(e) => setRate(e.target.value)} placeholder="如 7.5" inputMode="decimal" />
       </Field>
       <Field label="中间人（空 = 默认规则）">
-        <select className="bds-select" value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
-          <option value="">默认规则（不限中间人）</option>
-          {relations.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
+        <CustomSelect
+          surface="form"
+          className="w-full"
+          ariaLabel="中间人"
+          value={intermediaryRelationId}
+          onChange={(v) => setIntermediaryRelationId(v)}
+          options={[
+            { value: '', label: '默认规则（不限中间人）' },
+            ...relations.map((r) => ({ value: r.id, label: r.name })),
+          ]}
+        />
       </Field>
       <Field label="备注（可选）">
         <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="适用场景说明" />

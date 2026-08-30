@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import CustomerSearchInput from '../ui/CustomerSearchInput';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { bdsConfirm } from '../ui/BdsDialog';
 import { BusinessProfile, ProductAsset, Relation } from '../../types';
 import { apiService } from '../../services/apiService';
@@ -1060,15 +1061,13 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
             <section className={panelClass(isDarkMode)}>
               <div className={`mb-3 rounded-inset border p-3 ${'border-[var(--border-c-default)] bg-[var(--recessed-bg)]'}`}>
                 <label className={labelClass(isDarkMode)}>当前云端档案</label>
-                <select
-                  className="bds-select"
+                <CustomSelect
+                  surface="form"
                   value={selectedProfileId}
-                  onChange={event => handleSelectProfile(event.target.value)}
-                >
-                  {profiles.map(profile => (
-                    <option key={profile.id} value={profile.id}>{profile.name}</option>
-                  ))}
-                </select>
+                  onChange={v => handleSelectProfile(v)}
+                  ariaLabel="当前云端档案"
+                  options={profiles.map(profile => ({ value: profile.id, label: profile.name }))}
+                />
 
                 <label className={`${labelClass(isDarkMode)} mt-3`}>档案名称</label>
                 <div className="flex gap-2">

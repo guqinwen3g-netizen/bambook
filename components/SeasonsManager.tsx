@@ -58,6 +58,7 @@ import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
+import CustomSelect from './ui/CustomSelect';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { hasPermission } from '../services/authService';
 
@@ -809,17 +810,15 @@ function TrendsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolea
     <div className="h-full flex flex-col min-h-0 bds-card overflow-hidden" style={{ padding: 0 }}>
       {/* 过滤栏 */}
       <div className="p-3 flex items-center gap-2 flex-wrap" style={{ borderBottom: 'var(--border-subtle)' }}>
-        <select
+        <CustomSelect
           value={seasonFilter}
-          onChange={(e) => setSeasonFilter(e.target.value)}
-          className="bds-select"
-          style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
-        >
-          <option value="">全部季度</option>
-          {seasons.map((s) => (
-            <option key={s.id} value={s.id}>{s.code} {s.name}</option>
-          ))}
-        </select>
+          onChange={(v) => setSeasonFilter(v)}
+          className="w-40"
+          options={[
+            { value: '', label: '全部季度' },
+            ...seasons.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` })),
+          ]}
+        />
         <div className="bds-segment flex-wrap">
           {(['', 'fabric', 'color', 'craft', 'composition'] as const).map((t) => (
             <button
@@ -1274,17 +1273,15 @@ function ShowsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolean
       <div className="w-80 shrink-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
         <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
           <div className="flex items-center gap-2">
-            <select
+            <CustomSelect
               value={seasonFilter}
-              onChange={(e) => setSeasonFilter(e.target.value)}
-              className="bds-select flex-1 min-w-0"
-              style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
-            >
-              <option value="">全部季度</option>
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>{s.code} {s.name}</option>
-              ))}
-            </select>
+              onChange={(v) => setSeasonFilter(v)}
+              className="flex-1 min-w-0"
+              options={[
+                { value: '', label: '全部季度' },
+                ...seasons.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` })),
+              ]}
+            />
             <button
               onClick={refreshAll}
               className="bds-btn bds-btn-ghost bds-btn-icon"
@@ -1502,23 +1499,14 @@ function ShowsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolean
                             <td className="max-w-[80px] truncate" style={{ color: 'var(--text-secondary)' }}>{lead.country || '—'}</td>
                             <td className="max-w-[180px] truncate" title={lead.demand || undefined} style={{ color: 'var(--text-tertiary)' }}>{lead.demand || '—'}</td>
                             <td>
-                              <select
+                              <CustomSelect
+                                size="compact"
                                 value={lead.status}
-                                onChange={(e) => handleLeadStatus(lead, e.target.value as TradeShowLeadStatus)}
+                                onChange={(v) => handleLeadStatus(lead, v as TradeShowLeadStatus)}
                                 disabled={!canWrite}
-                                className="bds-select"
-                                style={{
-                                  width: 'auto',
-                                  height: 'var(--h-input-sm)',
-                                  fontSize: '11px',
-                                  padding: '0 26px 0 10px',
-                                  ...SEMANTIC_TINT_STYLE[SEMANTIC_BADGE_VARIANT[LEAD_STATUS_SEMANTIC[lead.status] ?? 'neutral']],
-                                }}
-                              >
-                                {(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => (
-                                  <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
-                                ))}
-                              </select>
+                                className="w-24"
+                                options={(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => ({ value: s, label: LEAD_STATUS_LABELS[s] }))}
+                              />
                             </td>
                             <td style={{ color: 'var(--text-tertiary)' }}>{formatDate(lead.nextFollowUpAt)}</td>
                             <td>
@@ -1739,11 +1727,12 @@ function SeasonForm({
       </div>
       {season && (
         <Field label="状态">
-          <select className="bds-select" value={status} onChange={(e) => setStatus(e.target.value as SeasonStatus)}>
-            {(Object.keys(SEASON_STATUS_LABELS) as SeasonStatus[]).map((s) => (
-              <option key={s} value={s}>{SEASON_STATUS_LABELS[s]}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={status}
+            onChange={(v) => setStatus(v as SeasonStatus)}
+            options={(Object.keys(SEASON_STATUS_LABELS) as SeasonStatus[]).map((s) => ({ value: s, label: SEASON_STATUS_LABELS[s] }))}
+          />
         </Field>
       )}
       <Field label="备注">
@@ -1881,23 +1870,23 @@ function TrendTagForm({
     <ModalShell title={tag ? '编辑趋势标签' : '新建趋势标签'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属季度">
-          <select
-            className="bds-select"
+          <CustomSelect
+            surface="form"
             value={seasonId}
-            onChange={(e) => { setSeasonId(e.target.value); setTradeShowId(''); }}
-          >
-            <option value="">跨季通用</option>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.code} {s.name}</option>
-            ))}
-          </select>
+            onChange={(v) => { setSeasonId(v); setTradeShowId(''); }}
+            options={[
+              { value: '', label: '跨季通用' },
+              ...seasons.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` })),
+            ]}
+          />
         </Field>
         <Field label="类型 *">
-          <select className="bds-select" value={type} onChange={(e) => setType(e.target.value as TrendTagType)}>
-            {(Object.keys(TREND_TYPE_LABELS) as TrendTagType[]).map((t) => (
-              <option key={t} value={t}>{TREND_TYPE_LABELS[t]}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={type}
+            onChange={(v) => setType(v as TrendTagType)}
+            options={(Object.keys(TREND_TYPE_LABELS) as TrendTagType[]).map((t) => ({ value: t, label: TREND_TYPE_LABELS[t] }))}
+          />
         </Field>
       </div>
       <Field label="标签名称 *">
@@ -1911,12 +1900,15 @@ function TrendTagForm({
           <input className={inputClass} value={source} onChange={(e) => setSource(e.target.value)} placeholder="如：WGSN / 行业报告" />
         </Field>
         <Field label="来源展会">
-          <select className="bds-select" value={tradeShowId} onChange={(e) => setTradeShowId(e.target.value)}>
-            <option value="">无</option>
-            {selectableShows.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={tradeShowId}
+            onChange={(v) => setTradeShowId(v)}
+            options={[
+              { value: '', label: '无' },
+              ...selectableShows.map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-4">
@@ -1986,12 +1978,15 @@ function TradeShowForm({
     <ModalShell title={show ? '编辑展会' : '新建展会'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属季度">
-          <select className="bds-select" value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
-            <option value="">不关联季度</option>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.code} {s.name}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={seasonId}
+            onChange={(v) => setSeasonId(v)}
+            options={[
+              { value: '', label: '不关联季度' },
+              ...seasons.map((s) => ({ value: s.id, label: `${s.code} ${s.name}` })),
+            ]}
+          />
         </Field>
         <Field label="展会名称 *">
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="如：Intertextile 上海面辅料展" />
@@ -2021,18 +2016,22 @@ function TradeShowForm({
           <input type="number" min={0} className={inputClass} value={cost} onChange={(e) => setCost(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={currency}
+            onChange={(v) => setCurrency(v)}
+            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+          />
         </Field>
       </div>
       {show && (
         <Field label="状态">
-          <select className="bds-select" value={status} onChange={(e) => setStatus(e.target.value as TradeShowStatus)}>
-            {(Object.keys(SHOW_STATUS_LABELS) as TradeShowStatus[]).map((s) => (
-              <option key={s} value={s}>{SHOW_STATUS_LABELS[s]}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={status}
+            onChange={(v) => setStatus(v as TradeShowStatus)}
+            options={(Object.keys(SHOW_STATUS_LABELS) as TradeShowStatus[]).map((s) => ({ value: s, label: SHOW_STATUS_LABELS[s] }))}
+          />
         </Field>
       )}
       <Field label="备注">
@@ -2125,11 +2124,12 @@ function LeadForm({
         </Field>
         {lead && (
           <Field label="状态">
-            <select className="bds-select" value={status} onChange={(e) => setStatus(e.target.value as TradeShowLeadStatus)}>
-              {(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => (
-                <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
-              ))}
-            </select>
+            <CustomSelect
+              surface="form"
+              value={status}
+              onChange={(v) => setStatus(v as TradeShowLeadStatus)}
+              options={(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => ({ value: s, label: LEAD_STATUS_LABELS[s] }))}
+            />
           </Field>
         )}
       </div>
@@ -2205,12 +2205,15 @@ function ConvertLeadForm({
             <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-tertiary)' }} />
           </div>
         ) : (
-          <select className="bds-select" value={relationId} onChange={(e) => setRelationId(e.target.value)}>
-            <option value="">选择客户...</option>
-            {relations.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={relationId}
+            onChange={(v) => setRelationId(v)}
+            options={[
+              { value: '', label: '选择客户...' },
+              ...relations.map((r) => ({ value: r.id, label: r.name })),
+            ]}
+          />
         )}
         {!loading && relations.length === 0 && (
           <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>

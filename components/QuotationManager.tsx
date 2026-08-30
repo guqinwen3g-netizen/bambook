@@ -49,6 +49,7 @@ import { TraceabilityPanel } from './TraceabilityPanel';
 import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput, View } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import QuotationImportWizard from './import/QuotationImportWizard';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
@@ -924,9 +925,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       </div>
                       <div>
                         <label className={labelCls}>币种</label>
-                        <select className="bds-select" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
-                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        <CustomSelect
+                          surface="form"
+                          className="w-full"
+                          ariaLabel="报价币种"
+                          value={form.currency}
+                          onChange={(v) => setForm({ ...form, currency: v })}
+                          options={CURRENCIES.map(c => ({ value: c, label: c }))}
+                        />
                       </div>
                       <div>
                         <label className={labelCls}>报价日期 *</label>
@@ -938,13 +944,20 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       </div>
                       <div>
                         <label className={labelCls}>客户</label>
-                        <select className="bds-select" value={form.customerRelationId} onChange={(e) => {
-                          const rel = relations.find(r => r.id === e.target.value);
-                          setForm({ ...form, customerRelationId: e.target.value, customerName: rel?.englishName || rel?.chineseName || '' });
-                        }}>
-                          <option value="">选择客户...</option>
-                          {customerOptions.map(c => <option key={c.id} value={c.id}>{c.label} ({c.chineseName})</option>)}
-                        </select>
+                        <CustomSelect
+                          surface="form"
+                          className="w-full"
+                          ariaLabel="报价客户"
+                          value={form.customerRelationId}
+                          onChange={(v) => {
+                            const rel = relations.find(r => r.id === v);
+                            setForm({ ...form, customerRelationId: v, customerName: rel?.englishName || rel?.chineseName || '' });
+                          }}
+                          options={[
+                            { value: '', label: '选择客户...' },
+                            ...customerOptions.map(c => ({ value: c.id, label: `${c.label} (${c.chineseName})` })),
+                          ]}
+                        />
                       </div>
                       <div>
                         <label className={labelCls}>业务员</label>
@@ -1072,9 +1085,15 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                             </div>
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
-                            <select className="bds-select sm" value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)}>
-                              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                            </select>
+                            <CustomSelect
+                              surface="form"
+                              size="compact"
+                              className="w-full"
+                              ariaLabel="行单位"
+                              value={line.unit}
+                              onChange={(v) => updateFormLine(line.key, 'unit', v)}
+                              options={UNITS.map(u => ({ value: u, label: u }))}
+                            />
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
                           </div>
                           {/* F4：历史价参考条 + 偏差黄标（PRD 19.5） */}
@@ -1711,15 +1730,18 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               </div>
               <div>
                 <label className={labelCls}>订单类型</label>
-                <select
-                  className="bds-select"
+                <CustomSelect
+                  surface="form"
+                  className="w-full"
+                  ariaLabel="订单类型"
                   value={convertForm.type}
-                  onChange={(e) => setConvertForm({ ...convertForm, type: e.target.value })}
-                >
-                  <option value="Fabric">面料订单</option>
-                  <option value="Garment">成衣订单</option>
-                  <option value="Other">其他</option>
-                </select>
+                  onChange={(v) => setConvertForm({ ...convertForm, type: v })}
+                  options={[
+                    { value: 'Fabric', label: '面料订单' },
+                    { value: 'Garment', label: '成衣订单' },
+                    { value: 'Other', label: '其他' },
+                  ]}
+                />
               </div>
             </div>
 

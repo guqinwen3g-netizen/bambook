@@ -14,6 +14,7 @@ import { Plus, Loader2, FileText, Trash2, Star, AlertCircle } from 'lucide-react
 import { apiService } from '../../services/apiService';
 import { DocumentTemplate, DocumentTemplateInput, DocumentTemplateType, DocumentTemplateLanguage } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import CustomSelect from '../ui/CustomSelect';
 import { PageHeader } from '../ui/PageHeader';
 
 interface Props {
@@ -270,14 +271,14 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
               <div className="flex gap-3">
                 <div className="w-44">
                   <label className={labelClass}>单据类型</label>
-                  <select
-                    className="bds-select disabled:opacity-50"
+                  <CustomSelect
+                    surface="form"
                     value={draft.type}
-                    onChange={e => setDraft({ ...draft, type: e.target.value as DocumentTemplateType })}
+                    onChange={v => setDraft({ ...draft, type: v as DocumentTemplateType })}
                     disabled={!!draft.id}
-                  >
-                    {TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-                  </select>
+                    ariaLabel="单据类型"
+                    options={TYPES.map(t => ({ value: t, label: TYPE_LABELS[t] }))}
+                  />
                 </div>
                 <div className="flex-1">
                   <label className={labelClass}>模板名称</label>
@@ -285,9 +286,13 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 </div>
                 <div className="w-36">
                   <label className={labelClass}>语言</label>
-                  <select className="bds-select" value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as DocumentTemplateLanguage })}>
-                    {LANGUAGES.map(l => <option key={l} value={l}>{LANGUAGE_LABELS[l]}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    value={draft.language}
+                    onChange={v => setDraft({ ...draft, language: v as DocumentTemplateLanguage })}
+                    ariaLabel="语言"
+                    options={LANGUAGES.map(l => ({ value: l, label: LANGUAGE_LABELS[l] }))}
+                  />
                 </div>
               </div>
               <div>

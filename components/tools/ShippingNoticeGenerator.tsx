@@ -21,6 +21,7 @@ import {
 import { apiService } from '../../services/apiService';
 import { Order, Relation } from '../../types';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 
 // ==================== 类型定义 ====================
@@ -436,16 +437,16 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     目的港 *
                   </label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={options.destinationPort}
-                    onChange={(e) => setOptions({ ...options, destinationPort: e.target.value })}
-                  >
-                    <option value="">选择目的港...</option>
-                    {DESTINATION_PORTS.map(port => (
-                      <option key={port} value={port}>{port}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setOptions({ ...options, destinationPort: v })}
+                    ariaLabel="目的港"
+                    options={[
+                      { value: '', label: '选择目的港...' },
+                      ...DESTINATION_PORTS.map(port => ({ value: port, label: port })),
+                    ]}
+                  />
                 </div>
 
                 {/* Shipment Date */}
@@ -466,16 +467,16 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     付款方式
                   </label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={options.paymentTerms}
-                    onChange={(e) => setOptions({ ...options, paymentTerms: e.target.value })}
-                  >
-                    <option value="">选择付款方式...</option>
-                    {PAYMENT_TERMS_OPTIONS.map(term => (
-                      <option key={term} value={term}>{term}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setOptions({ ...options, paymentTerms: v })}
+                    ariaLabel="付款方式"
+                    options={[
+                      { value: '', label: '选择付款方式...' },
+                      ...PAYMENT_TERMS_OPTIONS.map(term => ({ value: term, label: term })),
+                    ]}
+                  />
                 </div>
 
                 {/* Shipping Method */}

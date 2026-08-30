@@ -41,6 +41,7 @@ import {
 import { apiService } from '../services/apiService';
 import ShipmentDocumentGenerator from './tools/ShipmentDocumentGenerator';
 import DocumentTemplateManager from './tools/DocumentTemplateManager';
+import CustomSelect from './ui/CustomSelect';
 import {
   CustomsDeclaration,
   CustomsDeclarationInput,
@@ -604,12 +605,17 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               />
             </div>
             {activeTab !== 'hsCodes' && (
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bds-select" style={{ maxWidth: 140, fontSize: 'var(--text-xs)' }}>
-                <option value="">全部状态</option>
-                {activeTab === 'declarations' && DECLARATION_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                {activeTab === 'lettersOfCredit' && LC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                {activeTab === 'taxRefunds' && TAX_REFUND_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
+              <CustomSelect
+                className="w-[140px]"
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v)}
+                options={[
+                  { value: '', label: '全部状态' },
+                  ...(activeTab === 'declarations' ? DECLARATION_STATUSES.map(s => ({ value: s.id, label: s.label })) : []),
+                  ...(activeTab === 'lettersOfCredit' ? LC_STATUSES.map(s => ({ value: s.id, label: s.label })) : []),
+                  ...(activeTab === 'taxRefunds' ? TAX_REFUND_STATUSES.map(s => ({ value: s.id, label: s.label })) : []),
+                ]}
+              />
             )}
             <button
               onClick={() => { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); }}
@@ -1275,9 +1281,9 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
         {activeTab === 'declarations' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关单号 *</label><input className="bds-input sm" value={declForm.declarationNumber} onChange={e => setDeclForm({ ...declForm, declarationNumber: e.target.value })} placeholder="CD-20260807-001" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关类型 *</label><select className="bds-select sm" value={declForm.type} onChange={e => setDeclForm({ ...declForm, type: e.target.value as CustomsType })}>{CUSTOMS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关类型 *</label><CustomSelect surface="form" size="compact" className="w-full" value={declForm.type} onChange={v => setDeclForm({ ...declForm, type: v as CustomsType })} options={CUSTOMS_TYPES.map(t => ({ value: t.id, label: t.label }))} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>申报日期</label><CapsuleDateInput value={declForm.declarationDate || ''} onChange={v => setDeclForm({ ...declForm, declarationDate: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><select className="bds-select sm" value={declForm.tradeTerms || ''} onChange={e => setDeclForm({ ...declForm, tradeTerms: e.target.value })}><option value="">—</option>{TRADE_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><CustomSelect surface="form" size="compact" className="w-full" value={declForm.tradeTerms || ''} onChange={v => setDeclForm({ ...declForm, tradeTerms: v })} options={[{ value: '', label: '—' }, ...TRADE_TERMS.map(t => ({ value: t, label: t }))]} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>申报口岸</label><input className="bds-input sm" value={declForm.declarationPort || ''} onChange={e => setDeclForm({ ...declForm, declarationPort: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关行</label><input className="bds-input sm" value={declForm.agent || ''} onChange={e => setDeclForm({ ...declForm, agent: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>发货人</label><input className="bds-input sm" value={declForm.consignor || ''} onChange={e => setDeclForm({ ...declForm, consignor: e.target.value })} /></div>
@@ -1330,7 +1336,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
         {activeTab === 'hsCodes' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>HS 编码 *</label><input className="bds-input sm" value={hsForm.code} onChange={e => setHsForm({ ...hsForm, code: e.target.value })} placeholder="5208.52.00.00" disabled={!!editingHsCode} title={editingHsCode ? '编码为自然键不可修改' : undefined} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类别 *</label><select className="bds-select sm" value={hsForm.category} onChange={e => setHsForm({ ...hsForm, category: e.target.value as HsCodeCategory })}>{HS_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类别 *</label><CustomSelect surface="form" size="compact" className="w-full" value={hsForm.category} onChange={v => setHsForm({ ...hsForm, category: v as HsCodeCategory })} options={HS_CATEGORIES.map(c => ({ value: c.id, label: c.label }))} /></div>
             <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>商品描述 *</label><input className="bds-input sm" value={hsForm.description} onChange={e => setHsForm({ ...hsForm, description: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>出口退税率(%)</label><input type="number" step="0.01" className="bds-input sm" value={hsForm.exportTaxRebateRate ?? ''} onChange={e => setHsForm({ ...hsForm, exportTaxRebateRate: Number(e.target.value) || undefined })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>进口关税率(%)</label><input type="number" step="0.01" className="bds-input sm" value={hsForm.importTariffRate ?? ''} onChange={e => setHsForm({ ...hsForm, importTariffRate: Number(e.target.value) || undefined })} /></div>
@@ -1346,7 +1352,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
         {activeTab === 'lettersOfCredit' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>信用证号 *</label><input className="bds-input sm" value={lcForm.lcNumber} onChange={e => setLcForm({ ...lcForm, lcNumber: e.target.value })} placeholder="LC-20260807-001" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类型 *</label><select className="bds-select sm" value={lcForm.type} onChange={e => setLcForm({ ...lcForm, type: e.target.value as LetterOfCreditType })}>{LC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类型 *</label><CustomSelect surface="form" size="compact" className="w-full" value={lcForm.type} onChange={v => setLcForm({ ...lcForm, type: v as LetterOfCreditType })} options={LC_TYPES.map(t => ({ value: t.id, label: t.label }))} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>金额 *</label><input type="number" className="bds-input sm" value={lcForm.amount || ''} onChange={e => setLcForm({ ...lcForm, amount: Number(e.target.value) || 0 })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>币种</label><input className="bds-input sm" value={lcForm.currency || ''} onChange={e => setLcForm({ ...lcForm, currency: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>开证日期</label><CapsuleDateInput value={lcForm.issueDate || ''} onChange={v => setLcForm({ ...lcForm, issueDate: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
@@ -1357,7 +1363,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>受益人(出口方)</label><input className="bds-input sm" value={lcForm.beneficiary || ''} onChange={e => setLcForm({ ...lcForm, beneficiary: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>最迟装运期</label><CapsuleDateInput value={lcForm.shipmentDeadline || ''} onChange={v => setLcForm({ ...lcForm, shipmentDeadline: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>交单期限</label><CapsuleDateInput value={lcForm.presentationDeadline || ''} onChange={v => setLcForm({ ...lcForm, presentationDeadline: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><select className="bds-select sm" value={lcForm.tradeTerms || ''} onChange={e => setLcForm({ ...lcForm, tradeTerms: e.target.value })}><option value="">—</option>{TRADE_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><CustomSelect surface="form" size="compact" className="w-full" value={lcForm.tradeTerms || ''} onChange={v => setLcForm({ ...lcForm, tradeTerms: v })} options={[{ value: '', label: '—' }, ...TRADE_TERMS.map(t => ({ value: t, label: t }))]} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>装运港</label><input className="bds-input sm" value={lcForm.portOfLoading || ''} onChange={e => setLcForm({ ...lcForm, portOfLoading: e.target.value })} /></div>
             <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>特殊条款</label><textarea className="bds-input bds-textarea" rows={2} value={lcForm.specialConditions || ''} onChange={e => setLcForm({ ...lcForm, specialConditions: e.target.value })} /></div>
           </div>

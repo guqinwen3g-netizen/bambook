@@ -22,6 +22,7 @@ import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTo
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 
 /// HR 项目简化选项（HRManager 加载的 ProjectInfo 投影，仅传 id/name/code 用于 KPI 关联下拉）
 export interface ProjectOption {
@@ -400,16 +401,21 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <div className={t.labelCls + ' mb-1'}>{editingDraftUserId ? '员工（编辑草稿，锁定）' : '员工（未评定）*'}</div>
-                      <select className={t.selectCls} value={reviewForm.userId} disabled={!!editingDraftUserId}
-                        onChange={e => setReviewForm(f => ({ ...f, userId: e.target.value }))}>
-                        <option value="">请选择</option>
-                        {editingDraftUserId && (
-                          <option value={editingDraftUserId}>
-                            {personnel.find(p => p.id === editingDraftUserId)?.displayName || editingDraftUserId}
-                          </option>
-                        )}
-                        {unreviewed.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                      </select>
+                      <CustomSelect
+                        surface="form"
+                        ariaLabel="考评员工"
+                        value={reviewForm.userId}
+                        disabled={!!editingDraftUserId}
+                        onChange={v => setReviewForm(f => ({ ...f, userId: v }))}
+                        options={[
+                          { value: '', label: '请选择' },
+                          ...(editingDraftUserId ? [{
+                            value: editingDraftUserId,
+                            label: personnel.find(p => p.id === editingDraftUserId)?.displayName || editingDraftUserId,
+                          }] : []),
+                          ...unreviewed.map(p => ({ value: p.id, label: p.displayName })),
+                        ]}
+                      />
                     </div>
                     <div>
                       <div className={t.labelCls + ' mb-1'}>自评分（0-100）</div>
@@ -473,11 +479,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                         </div>
                         <div>
                           {idx === 0 && <div className={t.labelCls + ' mb-1'}>关联项目</div>}
-                          <select className={t.selectCls} value={kpi.projectId || ''}
-                            onChange={e => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, projectId: e.target.value || undefined } : k) }))}>
-                            <option value="">无关联</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} · ${p.name}` : p.name}</option>)}
-                          </select>
+                          <CustomSelect
+                            surface="form"
+                            ariaLabel="关联项目"
+                            value={kpi.projectId || ''}
+                            onChange={v => setReviewForm(f => ({ ...f, kpis: f.kpis.map((k, i) => i === idx ? { ...k, projectId: v || undefined } : k) }))}
+                            options={[{ value: '', label: '无关联' }, ...projects.map(p => ({ value: p.id, label: p.code ? `${p.code} · ${p.name}` : p.name }))]}
+                          />
                         </div>
                         <div>
                           <button
@@ -561,10 +569,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                         </div>
                         <div>
                           <div className={t.labelCls + ' mb-1'}>评级 *</div>
-                          <select className={t.selectCls} value={confirmForm.grade}
-                            onChange={e => setConfirmForm(f => ({ ...f, grade: e.target.value as ReviewGrade }))}>
-                            {REVIEW_GRADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            surface="form"
+                            ariaLabel="评级"
+                            value={confirmForm.grade}
+                            onChange={v => setConfirmForm(f => ({ ...f, grade: v as ReviewGrade }))}
+                            options={[...REVIEW_GRADE_OPTIONS]}
+                          />
                         </div>
                         <div>
                           <div className={t.labelCls + ' mb-1'}>评语</div>

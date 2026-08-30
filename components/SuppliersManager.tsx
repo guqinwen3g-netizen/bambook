@@ -57,6 +57,7 @@ import {
   TcCertificateRow,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CustomSelect from './ui/CustomSelect';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
@@ -610,16 +611,13 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   </button>
                 ))}
               </div>
-              <select
-                className="bds-select ml-auto"
+              <CustomSelect
+                className="ml-auto w-32"
+                size="compact"
                 value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.id}>{opt.label}</option>
-                ))}
-              </select>
+                onChange={(v) => setSort(v)}
+                options={SORT_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
+              />
             </div>
           </div>
 
@@ -1483,12 +1481,15 @@ function ProfileForm({
     <ModalShell title={profile ? '编辑工厂档案' : '新建工厂档案'} onClose={onClose}>
       {!profile && (
         <Field label="供应商（category=Supplier 的组织）*">
-          <select className="bds-select" value={relationId} onChange={(e) => setRelationId(e.target.value)}>
-            <option value="">选择供应商...</option>
-            {relations.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={relationId}
+            onChange={(v) => setRelationId(v)}
+            options={[
+              { value: '', label: '选择供应商...' },
+              ...relations.map((r) => ({ value: r.id, label: r.name })),
+            ]}
+          />
           {relations.length === 0 && (
             <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
               暂无可建档的供应商组织，请先在「关系智库」创建 category=Supplier 的组织
@@ -1501,9 +1502,12 @@ function ProfileForm({
           <input type="number" className={inputClass} value={monthlyCapacity} onChange={(e) => setMonthlyCapacity(e.target.value)} />
         </Field>
         <Field label="产能单位">
-          <select className="bds-select" value={capacityUnit} onChange={(e) => setCapacityUnit(e.target.value)}>
-            {CAPACITY_UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={capacityUnit}
+            onChange={(v) => setCapacityUnit(v)}
+            options={CAPACITY_UNITS.map((u) => ({ value: u.id, label: u.label }))}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1511,10 +1515,15 @@ function ProfileForm({
           <input type="number" className={inputClass} value={workerCount} onChange={(e) => setWorkerCount(e.target.value)} />
         </Field>
         <Field label="价位水平">
-          <select className="bds-select" value={priceLevel} onChange={(e) => setPriceLevel(e.target.value as FactoryPriceLevel | '')}>
-            <option value="">未设置</option>
-            {PRICE_LEVELS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={priceLevel}
+            onChange={(v) => setPriceLevel(v as FactoryPriceLevel | '')}
+            options={[
+              { value: '', label: '未设置' },
+              ...PRICE_LEVELS.map((p) => ({ value: p.id, label: p.label })),
+            ]}
+          />
         </Field>
       </div>
       <Field label="擅长品类（逗号分隔）">
@@ -1581,10 +1590,15 @@ function EvaluationForm({
   return (
     <ModalShell title="手动追加评分" onClose={onClose}>
       <Field label="评分类型 *">
-        <select className="bds-select" value={kind} onChange={(e) => setKind(e.target.value as FactoryEvaluationKind)}>
-          <option value="inspection">验货质量</option>
-          <option value="delivery">交期达成</option>
-        </select>
+        <CustomSelect
+          surface="form"
+          value={kind}
+          onChange={(v) => setKind(v as FactoryEvaluationKind)}
+          options={[
+            { value: 'inspection', label: '验货质量' },
+            { value: 'delivery', label: '交期达成' },
+          ]}
+        />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="分数（0-100）*">
@@ -1649,17 +1663,15 @@ function CertificationForm({
   return (
     <ModalShell title={certification ? '编辑认证' : '新增认证'} onClose={onClose}>
       <Field label="认证类型 *">
-        <select
-          className="bds-select"
+        <CustomSelect
+          surface="form"
           value={CERT_TYPES.includes(type) ? type : '其他'}
-          onChange={(e) => {
-            const v = e.target.value;
+          onChange={(v) => {
             setType(v);
             if (v !== '其他') setCustomType('');
           }}
-        >
-          {CERT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+          options={CERT_TYPES.map((t) => ({ value: t, label: t }))}
+        />
       </Field>
       {(type === '其他' || isCustom) && (
         <Field label="自定义类型名称 *">
@@ -1739,9 +1751,12 @@ function CapacityForm({
         </Field>
       </div>
       <Field label="单位">
-        <select className="bds-select" value={unit} onChange={(e) => setUnit(e.target.value)}>
-          {CAPACITY_UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-        </select>
+        <CustomSelect
+          surface="form"
+          value={unit}
+          onChange={(v) => setUnit(v)}
+          options={CAPACITY_UNITS.map((u) => ({ value: u.id, label: u.label }))}
+        />
       </Field>
       <Field label="备注">
         <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="如：春节月减半" />

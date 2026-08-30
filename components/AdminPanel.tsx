@@ -13,6 +13,7 @@ import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
 import SidePanelContainer from './ui/SidePanelContainer';
 import BottomSheet from './ui/BottomSheet';
+import CustomSelect from './ui/CustomSelect';
 import ToggleSwitch from './ui/ToggleSwitch';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
@@ -297,7 +298,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   // v2.3 字段统一裁决：BDS .bds-input/.bds-select 已胶囊化（36px/描边/rounded-control），
   // 与原 recessedField 胶囊配方完全同规格——表单字段直接用 BDS 类，消灭双真源
   const inputCls = 'bds-input';
-  const selectCls = 'mt-1 bds-select';
   const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`;
   const brandTextCls = BAMBOOK_OS.tone.text.brandEmphasis;
@@ -815,17 +815,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div><label className={labelCls}>邮箱</label><input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className={inputCls + ' mt-1'} placeholder="name@company.com" /></div>
                         <div><label className={labelCls}>密码</label><input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className={inputCls + ' mt-1'} placeholder="至少6位" /></div>
                         <div><label className={labelCls}>角色</label>
-                          <select value={newUser.roles} onChange={e => setNewUser({...newUser, roles: e.target.value})} className={selectCls}>
-                            {assignableRoles.length > 0
-                              ? assignableRoles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)
-                              : <option value={DEFAULT_ASSIGN_ROLE}>业务员</option>}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={newUser.roles}
+                            onChange={v => setNewUser({ ...newUser, roles: v })}
+                            options={assignableRoles.length > 0
+                              ? assignableRoles.map(role => ({ value: role.id, label: role.name }))
+                              : [{ value: DEFAULT_ASSIGN_ROLE, label: '业务员' }]}
+                          />
                         </div>
                         <div><label className={labelCls}>部门</label>
-                          <select className={selectCls} value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})}>
-                            <option value="">未分配</option>
-                            {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={newUser.departmentId}
+                            onChange={v => setNewUser({ ...newUser, departmentId: v })}
+                            options={[
+                              { value: '', label: '未分配' },
+                              ...buildDepartmentOptions(userDepartments).map((d: any) => ({ value: d.id, label: d.label })),
+                            ]}
+                          />
                         </div>
                       </div>
                       <button disabled={actionBusyId !== null} onClick={async () => {
@@ -890,26 +900,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         </div>
                         <div>
                           <label className={labelCls}>部门</label>
-                          <select
-                            className={selectCls}
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
                             value={userDraft.departmentId}
-                            onChange={e => setUserDraft(prev => ({ ...prev, departmentId: e.target.value }))}
-                          >
-                            <option value="">未分配</option>
-                            {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
-                          </select>
+                            onChange={v => setUserDraft(prev => ({ ...prev, departmentId: v }))}
+                            options={[
+                              { value: '', label: '未分配' },
+                              ...buildDepartmentOptions(userDepartments).map((d: any) => ({ value: d.id, label: d.label })),
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>账号状态</label>
-                          <select
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
                             value={userDraft.status}
-                            onChange={e => setUserDraft(prev => ({ ...prev, status: e.target.value }))}
-                            className={selectCls}
-                          >
-                            {ADMIN_USER_STATUS_OPTIONS.map(option => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
+                            onChange={v => setUserDraft(prev => ({ ...prev, status: v }))}
+                            options={ADMIN_USER_STATUS_OPTIONS.map(option => ({ value: option.value, label: option.label }))}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>最后登录</label>
@@ -934,18 +944,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                           <div>
                             <label className={labelCls}>角色权限</label>
-                            <select
+                            <CustomSelect
+                              className="mt-1"
+                              surface="form"
                               value={userDraft.role}
-                              onChange={e => setUserDraft(prev => ({ ...prev, role: e.target.value }))}
+                              onChange={v => setUserDraft(prev => ({ ...prev, role: v }))}
                               disabled={actionBusyId === editingUser.id}
-                              className={selectCls + ' disabled:opacity-50'}
-                            >
-                              {assignableRoles.length > 0 ? assignableRoles.map(role => (
-                                <option key={role.id} value={role.id}>{role.name}</option>
+                              options={assignableRoles.length > 0 ? assignableRoles.map(role => (
+                                { value: role.id, label: role.name }
                               )) : (
-                                <option value={userDraft.role}>{userDraft.role}</option>
+                                [{ value: userDraft.role, label: userDraft.role }]
                               )}
-                            </select>
+                            />
                           </div>
                         </div>
                         <div className="flex flex-wrap justify-end gap-2 mt-4">
@@ -1023,18 +1033,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   {requestedDept && <><span className="mx-1 opacity-50">·</span>{requestedDept}</>}
                                 </div>
                               </div>
-                              <select
+                              <CustomSelect
+                                size="compact"
+                                className="w-36 shrink-0"
                                 value={pendingRoles[u.id] || DEFAULT_ASSIGN_ROLE}
-                                onChange={e => setPendingRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
-                                className="bds-select sm w-auto"
+                                onChange={v => setPendingRoles(prev => ({ ...prev, [u.id]: v }))}
                                 disabled={actionBusyId === u.id}
-                              >
-                                {assignableRoles.length > 0 ? assignableRoles.map(role => (
-                                  <option key={role.id} value={role.id}>{role.name}</option>
+                                options={assignableRoles.length > 0 ? assignableRoles.map(role => (
+                                  { value: role.id, label: role.name }
                                 )) : (
-                                  <option value={DEFAULT_ASSIGN_ROLE}>业务员</option>
+                                  [{ value: DEFAULT_ASSIGN_ROLE, label: '业务员' }]
                                 )}
-                              </select>
+                              />
                               <button
                                 onClick={() => approvePendingUser(u.id)}
                                 disabled={actionBusyId === u.id}
@@ -1066,17 +1076,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         className={inputCls}
                       />
                     </div>
-                    <select
+                    <CustomSelect
+                      className="w-32 shrink-0"
                       value={userStatusFilter}
-                      onChange={e => setUserStatusFilter(e.target.value)}
-                      aria-label="按状态筛选"
-                      className="bds-select sm w-auto"
-                    >
-                      <option value="all">全部状态</option>
-                      {ADMIN_USER_STATUS_OPTIONS.filter(o => o.value !== 'pending').map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                      onChange={v => setUserStatusFilter(v)}
+                      ariaLabel="按状态筛选"
+                      options={[
+                        { value: 'all', label: '全部状态' },
+                        ...ADMIN_USER_STATUS_OPTIONS.filter(o => o.value !== 'pending').map(o => ({ value: o.value, label: o.label })),
+                      ]}
+                    />
                     {(userKeyword || userStatusFilter !== 'all') && (
                       <span className={`text-[10px] text-[var(--text-tertiary)]`}>
                         匹配 {visibleUsers.length} / {activeUsers.length} 个账号
@@ -1413,36 +1422,62 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={labelCls}>文档</label>
-                          <select value={aclForm.documentId} onChange={e => setAclForm({ ...aclForm, documentId: e.target.value })} className={selectCls}>
-                            <option value="">选择文档...</option>
-                            {kbDocuments.map((d: any) => <option key={d.id} value={d.id}>{d.title}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={aclForm.documentId}
+                            onChange={v => setAclForm({ ...aclForm, documentId: v })}
+                            options={[
+                              { value: '', label: '选择文档...' },
+                              ...kbDocuments.map((d: any) => ({ value: d.id, label: d.title })),
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>访问范围</label>
-                          <select value={aclForm.scope} onChange={e => setAclForm({ ...aclForm, scope: e.target.value })} className={selectCls}>
-                            {KNOWLEDGE_SCOPES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={aclForm.scope}
+                            onChange={v => setAclForm({ ...aclForm, scope: v })}
+                            options={KNOWLEDGE_SCOPES.map(s => ({ value: s, label: s }))}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>角色（可选）</label>
-                          <select value={aclForm.roleId} onChange={e => setAclForm({ ...aclForm, roleId: e.target.value })} className={selectCls}>
-                            <option value="">不限角色</option>
-                            {kbRoles.map((r: any) => <option key={r.id} value={r.id}>{formatRoleLabel(r.name)}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={aclForm.roleId}
+                            onChange={v => setAclForm({ ...aclForm, roleId: v })}
+                            options={[
+                              { value: '', label: '不限角色' },
+                              ...kbRoles.map((r: any) => ({ value: r.id, label: formatRoleLabel(r.name) })),
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>部门（可选）</label>
-                          <select value={aclForm.departmentId} onChange={e => setAclForm({ ...aclForm, departmentId: e.target.value })} className={selectCls}>
-                            <option value="">不限部门</option>
-                            {buildDepartmentOptions(kbDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={aclForm.departmentId}
+                            onChange={v => setAclForm({ ...aclForm, departmentId: v })}
+                            options={[
+                              { value: '', label: '不限部门' },
+                              ...buildDepartmentOptions(kbDepartments).map((d: any) => ({ value: d.id, label: d.label })),
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>权限级别</label>
-                          <select value={aclForm.access} onChange={e => setAclForm({ ...aclForm, access: e.target.value })} className={selectCls}>
-                            {ACCESS_LEVELS.map(a => <option key={a} value={a}>{formatAccessLabel(a)}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={aclForm.access}
+                            onChange={v => setAclForm({ ...aclForm, access: v })}
+                            options={ACCESS_LEVELS.map(a => ({ value: a, label: formatAccessLabel(a) }))}
+                          />
                         </div>
                       </div>
                       <button disabled={actionBusyId !== null} onClick={async () => {
@@ -1533,29 +1568,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={labelCls}>工具</label>
-                          <select value={toolPermForm.toolId} onChange={e => setToolPermForm({ ...toolPermForm, toolId: e.target.value })} className={selectCls}>
-                            <option value="">选择工具...</option>
-                            {tools.map((t: any) => <option key={t.id} value={t.id}>{t.name} ({t.scope})</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={toolPermForm.toolId}
+                            onChange={v => setToolPermForm({ ...toolPermForm, toolId: v })}
+                            options={[
+                              { value: '', label: '选择工具...' },
+                              ...tools.map((t: any) => ({ value: t.id, label: `${t.name} (${t.scope})` })),
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>角色</label>
-                          <select value={toolPermForm.roleId} onChange={e => setToolPermForm({ ...toolPermForm, roleId: e.target.value })} className={selectCls}>
-                            <option value="">选择角色...</option>
-                            {toolRoles.map((r: any) => <option key={r.id} value={r.id}>{formatRoleLabel(r.name)}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={toolPermForm.roleId}
+                            onChange={v => setToolPermForm({ ...toolPermForm, roleId: v })}
+                            options={[
+                              { value: '', label: '选择角色...' },
+                              ...toolRoles.map((r: any) => ({ value: r.id, label: formatRoleLabel(r.name) })),
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>访问级别</label>
-                          <select value={toolPermForm.access} onChange={e => setToolPermForm({ ...toolPermForm, access: e.target.value })} className={selectCls}>
-                            {TOOL_ACCESS_LEVELS.map(a => <option key={a} value={a}>{formatAccessLabel(a)}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={toolPermForm.access}
+                            onChange={v => setToolPermForm({ ...toolPermForm, access: v })}
+                            options={TOOL_ACCESS_LEVELS.map(a => ({ value: a, label: formatAccessLabel(a) }))}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>风险模式</label>
-                          <select value={toolPermForm.riskMode} onChange={e => setToolPermForm({ ...toolPermForm, riskMode: e.target.value })} className={selectCls}>
-                            {RISK_MODES.map(m => <option key={m} value={m}>{formatRiskModeLabel(m)}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="mt-1"
+                            surface="form"
+                            value={toolPermForm.riskMode}
+                            onChange={v => setToolPermForm({ ...toolPermForm, riskMode: v })}
+                            options={RISK_MODES.map(m => ({ value: m, label: formatRiskModeLabel(m) }))}
+                          />
                         </div>
                       </div>
                       <button disabled={actionBusyId !== null} onClick={async () => {
@@ -1699,20 +1754,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                 {/* 接收人选择 */}
                 <div>
                   <label className={`mb-1.5 block text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>接收人 *</label>
-                  <select
+                  <CustomSelect
                     value={handoverSuccessorId}
-                    onChange={e => {
-                      setHandoverSuccessorId(e.target.value);
-                      if (e.target.value) refreshHandoverPreview(handoverTarget.id, e.target.value);
+                    onChange={v => {
+                      setHandoverSuccessorId(v);
+                      if (v) refreshHandoverPreview(handoverTarget.id, v);
                     }}
                     disabled={handoverExecuting}
-                    className="bds-select sm w-full"
-                  >
-                    <option value="">选择接收全部资产的在职账号</option>
-                    {handoverSuccessorOptions.map((u: any) => (
-                      <option key={u.id} value={u.id}>{u.displayName}{u.email ? ` · ${u.email}` : ''}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: '选择接收全部资产的在职账号' },
+                      ...handoverSuccessorOptions.map((u: any) => ({
+                        value: u.id,
+                        label: `${u.displayName}${u.email ? ` · ${u.email}` : ''}`,
+                      })),
+                    ]}
+                  />
                 </div>
 
                 {/* 停用开关 + 备注 */}

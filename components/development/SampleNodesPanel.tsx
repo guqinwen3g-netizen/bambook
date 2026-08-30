@@ -38,6 +38,7 @@ import { hasPermission } from '../../services/authService';
 import type { SampleNode, SampleNodeLevel, SampleNodeStatus } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { bdsConfirm } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 
@@ -411,7 +412,6 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
   const cardCls = 'border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
   const actionBtnCls = 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]';
   const inputCls = 'bds-input sm';
-  const selectCls = 'bds-select sm';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -518,7 +518,6 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
               cardCls={cardCls}
               actionBtnCls={actionBtnCls}
               inputCls={inputCls}
-              selectCls={selectCls}
               textPrimary={textPrimary}
               textSecondary={textSecondary}
               textFaint={textFaint}
@@ -543,7 +542,6 @@ interface RoundCardProps {
   cardCls: string;
   actionBtnCls: string;
   inputCls: string;
-  selectCls: string;
   textPrimary: string;
   textSecondary: string;
   textFaint: string;
@@ -551,7 +549,7 @@ interface RoundCardProps {
 
 function RoundCard(props: RoundCardProps) {
   const { round, isSealedBase, acting, form, setForm, run, canWrite, reportOptions, reportsHint } = props;
-  const { cardCls, actionBtnCls, inputCls, selectCls, textPrimary, textSecondary, textFaint } = props;
+  const { cardCls, actionBtnCls, inputCls, textPrimary, textSecondary, textFaint } = props;
   const btn = 'inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors';
 
   return (
@@ -665,7 +663,6 @@ function RoundCard(props: RoundCardProps) {
         <QcGateForm
           busy={acting}
           inputCls={inputCls}
-          selectCls={selectCls}
           reportOptions={reportOptions}
           reportsHint={reportsHint}
           onCancel={() => setForm(null)}
@@ -684,7 +681,6 @@ function RoundCard(props: RoundCardProps) {
         <ConfirmForm
           busy={acting}
           inputCls={inputCls}
-          selectCls={selectCls}
           onCancel={() => setForm(null)}
           onSubmit={(input) => run(() => sampleService.registerGarmentCustomerConfirmation(round.id, input))}
         />
@@ -747,10 +743,9 @@ function CreateRoundForm({ busy, inputCls, onCancel, onSubmit }: {
   );
 }
 
-function QcGateForm({ busy, inputCls, selectCls, reportOptions, reportsHint, onCancel, onSubmit }: {
+function QcGateForm({ busy, inputCls, reportOptions, reportsHint, onCancel, onSubmit }: {
   busy: boolean;
   inputCls: string;
-  selectCls: string;
   reportOptions: QcInspectionReport[];
   reportsHint: string | null;
   onCancel: () => void;
@@ -768,19 +763,29 @@ function QcGateForm({ busy, inputCls, selectCls, reportOptions, reportsHint, onC
       }}
     >
       <div className="grid grid-cols-2 gap-1.5">
-        <select className="bds-select sm" value={result} onChange={(e) => setResult(e.target.value as 'passed' | 'failed')}>
-          <option value="passed">QC 评审通过</option>
-          <option value="failed">QC 评审不通过</option>
-        </select>
+        <CustomSelect
+          size="compact"
+          value={result}
+          onChange={(v) => setResult(v as 'passed' | 'failed')}
+          options={[
+            { value: 'passed', label: 'QC 评审通过' },
+            { value: 'failed', label: 'QC 评审不通过' },
+          ]}
+        />
         {/* 验货报告下拉（qc 域订单级列表，替代手输 ID）；无候选时禁用并提示 */}
-        <select className={selectCls} value={reportId} onChange={(e) => setReportId(e.target.value)} disabled={reportOptions.length === 0}>
-          <option value="">关联验货报告（可留空）</option>
-          {reportOptions.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.inspectionType}{r.inspectionDate ? ` · ${r.inspectionDate}` : ''}{r.result ? ` · ${r.result}` : ''}（{r.id.slice(-6)}）
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          size="compact"
+          value={reportId}
+          onChange={(v) => setReportId(v)}
+          disabled={reportOptions.length === 0}
+          options={[
+            { value: '', label: '关联验货报告（可留空）' },
+            ...reportOptions.map((r) => ({
+              value: r.id,
+              label: `${r.inspectionType}${r.inspectionDate ? ` · ${r.inspectionDate}` : ''}${r.result ? ` · ${r.result}` : ''}（${r.id.slice(-6)}）`,
+            })),
+          ]}
+        />
       </div>
       {reportOptions.length === 0 && reportsHint && (
         <div className="text-[10px] font-light text-[var(--text-quaternary)]">{reportsHint}</div>
@@ -844,10 +849,9 @@ function ShipForm({ busy, inputCls, onCancel, onSubmit }: {
   );
 }
 
-function ConfirmForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
+function ConfirmForm({ busy, inputCls, onCancel, onSubmit }: {
   busy: boolean;
   inputCls: string;
-  selectCls: string;
   onCancel: () => void;
   onSubmit: (input: { result: 'approved' | 'rejected' | 'needs_revision'; confirmationDate: string; channel: string; note?: string; modifications?: string[] }) => Promise<void>;
 }) {
@@ -875,11 +879,16 @@ function ConfirmForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
       }}
     >
       <div className="grid grid-cols-2 gap-1.5">
-        <select className="bds-select sm" value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
-          <option value="approved">客户确认通过</option>
-          <option value="rejected">客户拒绝</option>
-          <option value="needs_revision">客户要求修改</option>
-        </select>
+        <CustomSelect
+          size="compact"
+          value={result}
+          onChange={(v) => setResult(v as typeof result)}
+          options={[
+            { value: 'approved', label: '客户确认通过' },
+            { value: 'rejected', label: '客户拒绝' },
+            { value: 'needs_revision', label: '客户要求修改' },
+          ]}
+        />
         <input className={inputCls} placeholder="确认渠道 *（email/电话/微信…）" value={channel} onChange={(e) => setChannel(e.target.value)} />
       </div>
       <CapsuleDateInput className={inputCls} value={confirmationDate} onChange={setConfirmationDate} />

@@ -21,6 +21,7 @@ import {
 } from '../../types';
 import { statusSemanticClass, StatusSemantic } from '../rdlBusinessStatusTokens';
 import { bdsToast } from '../ui/bdsToast';
+import CustomSelect from '../ui/CustomSelect';
 
 const TRACKA_SOURCE_LABELS: Record<TrackASource, string> = {
   price_history: '价格历史',
@@ -259,11 +260,18 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange, isDarkMode }: T
               <input className={inputClass} value={cmtCostCny} onChange={(e) => { setCmtCostCny(e.target.value); resetResult(); }} inputMode="decimal" />
             </Field>
             <Field label="工艺复杂度">
-              <select className="bds-select" value={complexity} onChange={(e) => { setComplexity(e.target.value as typeof complexity); resetResult(); }}>
-                <option value="simple">简单 ×0.85</option>
-                <option value="standard">标准 ×1.0</option>
-                <option value="complex">复杂 ×1.3</option>
-              </select>
+              <CustomSelect
+                surface="form"
+                className="w-full"
+                ariaLabel="工艺复杂度"
+                value={complexity}
+                onChange={(v) => { setComplexity(v as typeof complexity); resetResult(); }}
+                options={[
+                  { value: 'simple', label: '简单 ×0.85' },
+                  { value: 'standard', label: '标准 ×1.0' },
+                  { value: 'complex', label: '复杂 ×1.3' },
+                ]}
+              />
             </Field>
             <Field label="包装（¥/件，缺省基准）">
               <input className={inputClass} value={packagingCostCny} onChange={(e) => { setPackagingCostCny(e.target.value); resetResult(); }} inputMode="decimal" />
@@ -287,11 +295,18 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange, isDarkMode }: T
               <input className={inputClass} value={weavingCostCny} onChange={(e) => { setWeavingCostCny(e.target.value); resetResult(); }} inputMode="decimal" />
             </Field>
             <Field label="织法">
-              <select className="bds-select" value={weaveType} onChange={(e) => { setWeaveType(e.target.value as typeof weaveType); resetResult(); }}>
-                <option value="plain">平纹 ×1.0</option>
-                <option value="twill">斜纹 ×1.15</option>
-                <option value="jacquard">提花 ×1.4</option>
-              </select>
+              <CustomSelect
+                surface="form"
+                className="w-full"
+                ariaLabel="织造方式"
+                value={weaveType}
+                onChange={(v) => { setWeaveType(v as typeof weaveType); resetResult(); }}
+                options={[
+                  { value: 'plain', label: '平纹 ×1.0' },
+                  { value: 'twill', label: '斜纹 ×1.15' },
+                  { value: 'jacquard', label: '提花 ×1.4' },
+                ]}
+              />
             </Field>
             <Field label="染整费（¥/米，缺省基准）">
               <input className={inputClass} value={dyeingCostCny} onChange={(e) => { setDyeingCostCny(e.target.value); resetResult(); }} inputMode="decimal" />

@@ -11,6 +11,7 @@ import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
 import { buildDepartmentOptions } from '../lib/departmentTree';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import EmployeeProfilesTab from './hr/EmployeeProfilesTab';
 import AttendanceLeaveTab from './hr/AttendanceLeaveTab';
@@ -242,7 +243,6 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
   const inputCls = 'bds-input';
-  const selectCls = 'bds-select';
 
   const primaryButtonCls = 'bds-btn bds-btn-primary';
   const actionButtonCls = 'bds-btn bds-btn-ghost';
@@ -1269,18 +1269,25 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-3 gap-3">
                         <div>
                           <div className={labelCls}>所属团队</div>
-                          <select className="bds-select" value={projectForm.teamId}
-                            onChange={e => setProjectForm(f => ({ ...f, teamId: e.target.value }))}>
-                            <option value="">无</option>
-                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="w-32"
+                            surface="form"
+                            ariaLabel="所属团队"
+                            value={projectForm.teamId}
+                            onChange={v => setProjectForm(f => ({ ...f, teamId: v }))}
+                            options={[{ value: '', label: '无' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                          />
                         </div>
                         <div>
                           <div className={labelCls}>优先级</div>
-                          <select className="bds-select" value={projectForm.priority}
-                            onChange={e => setProjectForm(f => ({ ...f, priority: e.target.value }))}>
-                            {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="w-24"
+                            surface="form"
+                            ariaLabel="优先级"
+                            value={projectForm.priority}
+                            onChange={v => setProjectForm(f => ({ ...f, priority: v }))}
+                            options={[...PRIORITY_OPTIONS]}
+                          />
                         </div>
                         <div>
                           <div className={labelCls}>开始日期</div>
@@ -1329,28 +1336,38 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className={labelCls}>指派给</div>
-                          <select className="bds-select" value={assignmentForm.userId}
-                            onChange={e => setAssignmentForm(f => ({ ...f, userId: e.target.value }))}>
-                            <option value="">选择人员</option>
-                            {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="w-32"
+                            surface="form"
+                            ariaLabel="指派给"
+                            value={assignmentForm.userId}
+                            onChange={v => setAssignmentForm(f => ({ ...f, userId: v }))}
+                            options={[{ value: '', label: '选择人员' }, ...personnel.map(p => ({ value: p.id, label: p.displayName }))]}
+                          />
                         </div>
                         <div>
                           <div className={labelCls}>关联项目</div>
-                          <select className="bds-select" value={assignmentForm.projectId}
-                            onChange={e => setAssignmentForm(f => ({ ...f, projectId: e.target.value }))}>
-                            <option value="">无</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="w-40"
+                            surface="form"
+                            ariaLabel="关联项目"
+                            value={assignmentForm.projectId}
+                            onChange={v => setAssignmentForm(f => ({ ...f, projectId: v }))}
+                            options={[{ value: '', label: '无' }, ...projects.map(p => ({ value: p.id, label: p.name }))]}
+                          />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className={labelCls}>优先级</div>
-                          <select className="bds-select" value={assignmentForm.priority}
-                            onChange={e => setAssignmentForm(f => ({ ...f, priority: e.target.value }))}>
-                            {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="w-24"
+                            surface="form"
+                            ariaLabel="优先级"
+                            value={assignmentForm.priority}
+                            onChange={v => setAssignmentForm(f => ({ ...f, priority: v }))}
+                            options={[...PRIORITY_OPTIONS]}
+                          />
                         </div>
                         <div>
                           <div className={labelCls}>截止日期</div>
@@ -1388,11 +1405,14 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         </div>
                         <div>
                           <div className={labelCls}>所属部门</div>
-                          <select className={selectCls} value={positionForm.departmentId}
-                            onChange={e => setPositionForm(f => ({ ...f, departmentId: e.target.value }))}>
-                            <option value="">未分配</option>
-                            {departmentOptions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-                          </select>
+                          <CustomSelect
+                            className="w-32"
+                            surface="form"
+                            ariaLabel="所属部门"
+                            value={positionForm.departmentId}
+                            onChange={v => setPositionForm(f => ({ ...f, departmentId: v }))}
+                            options={[{ value: '', label: '未分配' }, ...departmentOptions.map(d => ({ value: d.id, label: d.label }))]}
+                          />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">

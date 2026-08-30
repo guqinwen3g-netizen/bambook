@@ -33,6 +33,7 @@ import {
   type OrderReconciliation,
 } from '../../services/reconciliationService';
 import BottomSheet from '../ui/BottomSheet';
+import CustomSelect from '../ui/CustomSelect';
 import { bdsToast } from '../ui/bdsToast';
 import RelationPickerCombobox from './RelationPickerCombobox';
 import type { Relation } from '../../types';
@@ -266,24 +267,25 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
               </button>
             ))}
           </div>
-          <select
+          <CustomSelect
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as DiscrepancyType | 'fx' | '')}
-            className="bds-select sm"
-            aria-label="差异类型筛选"
-          >
-            <option value="">全部类型</option>
-            <option value="quantity_mismatch">数量差异</option>
-            <option value="invoice_amount_mismatch">开票差异</option>
-            <option value="payment_mismatch">收款差异</option>
-            <option value="status_inconsistency">状态不一致</option>
-            <option value="currency_mismatch">币种不一致</option>
-            <option value="manual_payment_field_drift">手工实收漂移</option>
-            <option value="fx">汇率差异（全部三段）</option>
-            <option value="fx_order_to_invoice">汇率·订单→开票</option>
-            <option value="fx_invoice_to_payment">汇率·开票→收付</option>
-            <option value="fx_payment_to_settlement">汇率·收付→结汇</option>
-          </select>
+            onChange={v => setTypeFilter(v as DiscrepancyType | 'fx' | '')}
+            className="w-44"
+            ariaLabel="差异类型筛选"
+            options={[
+              { value: '', label: '全部类型' },
+              { value: 'quantity_mismatch', label: '数量差异' },
+              { value: 'invoice_amount_mismatch', label: '开票差异' },
+              { value: 'payment_mismatch', label: '收款差异' },
+              { value: 'status_inconsistency', label: '状态不一致' },
+              { value: 'currency_mismatch', label: '币种不一致' },
+              { value: 'manual_payment_field_drift', label: '手工实收漂移' },
+              { value: 'fx', label: '汇率差异（全部三段）' },
+              { value: 'fx_order_to_invoice', label: '汇率·订单→开票' },
+              { value: 'fx_invoice_to_payment', label: '汇率·开票→收付' },
+              { value: 'fx_payment_to_settlement', label: '汇率·收付→结汇' },
+            ]}
+          />
           <span className={cx('ml-auto text-[11px] font-light', textSecondary)}>
             共 {total} 条 · 第 {page}/{totalPages} 页
           </span>

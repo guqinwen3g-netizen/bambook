@@ -36,11 +36,11 @@ describe('ProcurementManager D5 收货仓库手填生效', () => {
     expect(source).toContain('useState<Warehouse[]>([])');
   });
 
-  it('收货表单仓库字段为 bds-select 下拉（不再手打文本），提交 warehouseId + 名称快照', () => {
+  it('收货表单仓库字段为 CustomSelect 下拉（不再手打文本），提交 warehouseId + 名称快照', () => {
     expect(source).toContain('value={receiptForm.warehouseId}');
-    expect(source).toContain('className="bds-select sm"');
-    expect(source).toContain('<option value="">入库仓库（默认主仓）</option>');
-    expect(source).toContain('warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)');
+    expect(source).toContain('<CustomSelect');
+    expect(source).toContain("{ value: '', label: '入库仓库（默认主仓）' }");
+    expect(source).toContain('warehouses.map(w => ({ value: w.id, label: w.name }))');
     // 手打仓库名输入框已移除
     expect(source).not.toContain('receiptForm.warehouseName');
     // 提交载荷：warehouseId + warehouseName（后端落库并随 MaterialReceived 事件透传）

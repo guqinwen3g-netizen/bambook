@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, ClipboardList, Send } from 'lucide-react';
 import type { AgentFormBlock as AgentFormBlockModel } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import CustomSelect from '../ui/CustomSelect';
 import { OS_MATERIAL } from '../ui/osMaterial';
 import type { AgentBlockComponentProps } from './AgentMarkdownBlock';
 import { bdsToast } from '../ui/bdsToast';
@@ -103,14 +104,16 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                     />
                   ) : field.type === 'select' || field.type === 'multiselect' ? (
                     field.type === 'select' ? (
-                      <select
+                      <CustomSelect
                         value={typeof values[field.key] === 'string' ? values[field.key] as string : ''}
-                        onChange={(e) => handleChange(field.key, e.target.value)}
-                        className="bds-select mt-1 w-full"
-                      >
-                        <option value="">请选择...</option>
-                        {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
+                        onChange={(v) => handleChange(field.key, v)}
+                        surface="form"
+                        className="mt-1 w-full"
+                        options={[
+                          { value: '', label: '请选择...' },
+                          ...(field.options?.map(opt => ({ value: opt, label: opt })) ?? []),
+                        ]}
+                      />
                     ) : (
                       <div className="mt-1 flex flex-wrap gap-2">
                         {field.options?.map(opt => {

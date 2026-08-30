@@ -15,6 +15,7 @@ import { EmailSignature, EmailSignatureInput, SignatureLanguage } from '../../ty
 import { RdlSurface, RdlPill } from '../ui/RDLPrimitives';
 import { ErrorBanner } from '../ui/primitives/layoutPrimitives';
 import { bdsConfirm } from '../ui/BdsDialog';
+import CustomSelect from '../ui/CustomSelect';
 
 interface Props {
   isOpen: boolean;
@@ -169,9 +170,12 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                 </div>
                 <div className="w-36">
                   <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>语言</label>
-                  <select className="bds-select" value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as SignatureLanguage })}>
-                    {LANGUAGES.map(l => <option key={l} value={l}>{LANGUAGE_LABELS[l]}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    value={draft.language}
+                    onChange={v => setDraft({ ...draft, language: v as SignatureLanguage })}
+                    options={LANGUAGES.map(l => ({ value: l, label: LANGUAGE_LABELS[l] }))}
+                  />
                 </div>
               </div>
               <div>

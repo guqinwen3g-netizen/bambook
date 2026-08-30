@@ -43,6 +43,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import CustomSelect from './ui/CustomSelect';
 import {
   Relation,
   Contact,
@@ -448,19 +449,17 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
               className="bds-input sm w-full pl-10"
             />
           </div>
-          <select
+          <CustomSelect
+            surface="field"
+            menuPortal
+            className="shrink-0 w-52"
             value={selectedRelationId ?? ''}
-            onChange={(e) => setSelectedRelationId(e.target.value || null)}
-            className="bds-select"
-            style={{ width: 'auto', minWidth: 200 }}
-          >
-            <option value="">选择客户...</option>
-            {relationSelectOptions.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name} ({r.category})
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setSelectedRelationId(v || null)}
+            options={[
+              { value: '', label: '选择客户...' },
+              ...relationSelectOptions.map((r) => ({ value: r.id, label: `${r.name} (${r.category})` })),
+            ]}
+          />
         </div>
         <button
           onClick={loadRelations}
@@ -737,29 +736,31 @@ function OpportunitiesTab({
             className="bds-input sm w-full pl-10"
           />
         </div>
-        <select
+        <CustomSelect
+          surface="field"
+          menuPortal
+          className="shrink-0 w-32"
           value={oppStageFilter}
-          onChange={(e) => setOppStageFilter(e.target.value)}
-          className="bds-select"
-          style={{ width: 'auto' }}
-        >
-          <option value="">全部阶段</option>
-          {OPPORTUNITY_STAGES.map((s) => (
-            <option key={s.id} value={s.id}>{s.label}</option>
-          ))}
-        </select>
-        <select
+          onChange={(v) => setOppStageFilter(v)}
+          options={[
+            { value: '', label: '全部阶段' },
+            ...OPPORTUNITY_STAGES.map((s) => ({ value: s.id, label: s.label })),
+          ]}
+        />
+        <CustomSelect
+          surface="field"
+          menuPortal
+          className="shrink-0 w-36"
           value={oppSort}
-          onChange={(e) => setOppSort(e.target.value as 'default' | 'amount-desc' | 'amount-asc' | 'closeDate-asc')}
-          className="bds-select"
-          style={{ width: 'auto' }}
-          title="排序"
-        >
-          <option value="default">默认排序</option>
-          <option value="amount-desc">金额 高→低</option>
-          <option value="amount-asc">金额 低→高</option>
-          <option value="closeDate-asc">预计成交 近→远</option>
-        </select>
+          onChange={(v) => setOppSort(v as 'default' | 'amount-desc' | 'amount-asc' | 'closeDate-asc')}
+          ariaLabel="排序"
+          options={[
+            { value: 'default', label: '默认排序' },
+            { value: 'amount-desc', label: '金额 高→低' },
+            { value: 'amount-asc', label: '金额 低→高' },
+            { value: 'closeDate-asc', label: '预计成交 近→远' },
+          ]}
+        />
       </div>
 
       {/* 管线阶段卡片 */}
@@ -794,22 +795,28 @@ function OpportunitiesTab({
                     <div className="bds-tnum text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{formatAmount(opp.amount, opp.currency)}</div>
                     <div className="flex items-center gap-1 mt-1">
                       {STAGE_TRANSITION_TARGETS[opp.stage].length > 0 && (
-                        <select
-                          className="bds-select text-xs bg-transparent outline-none cursor-pointer"
-                          style={{ color: 'var(--text-tertiary)' }}
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) onTransition(opp.id, e.target.value as OpportunityStage);
-                          }}
+                        <div
+                          className="shrink-0 w-24"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <option value="">流转 →</option>
-                          {STAGE_TRANSITION_TARGETS[opp.stage].map((target) => (
-                            <option key={target} value={target}>
-                              {OPPORTUNITY_STAGES.find((s) => s.id === target)?.label}
-                            </option>
-                          ))}
-                        </select>
+                          <CustomSelect
+                            size="compact"
+                            surface="toolbar"
+                            triggerVariant="inline"
+                            menuPortal
+                            value=""
+                            onChange={(v) => {
+                              if (v) onTransition(opp.id, v as OpportunityStage);
+                            }}
+                            options={[
+                              { value: '', label: '流转 →' },
+                              ...STAGE_TRANSITION_TARGETS[opp.stage].map((target) => ({
+                                value: target,
+                                label: OPPORTUNITY_STAGES.find((s) => s.id === target)?.label ?? '',
+                              })),
+                            ]}
+                          />
+                        </div>
                       )}
                       <button
                         className="ml-auto transition-colors hover:text-[var(--danger-text)]"
@@ -936,28 +943,30 @@ function FollowUpsTab({
             className="bds-input sm w-full pl-10"
           />
         </div>
-        <select
+        <CustomSelect
+          surface="field"
+          menuPortal
+          className="shrink-0 w-32"
           value={fuTypeFilter}
-          onChange={(e) => setFuTypeFilter(e.target.value)}
-          className="bds-select"
-          style={{ width: 'auto' }}
-        >
-          <option value="">全部类型</option>
-          {FOLLOWUP_TYPES.map((t) => (
-            <option key={t.id} value={t.id}>{t.label}</option>
-          ))}
-        </select>
-        <select
+          onChange={(v) => setFuTypeFilter(v)}
+          options={[
+            { value: '', label: '全部类型' },
+            ...FOLLOWUP_TYPES.map((t) => ({ value: t.id, label: t.label })),
+          ]}
+        />
+        <CustomSelect
+          surface="field"
+          menuPortal
+          className="shrink-0 w-36"
           value={fuSort}
-          onChange={(e) => setFuSort(e.target.value as 'followUpAt-desc' | 'followUpAt-asc' | 'nextFollowUpAt-asc')}
-          className="bds-select"
-          style={{ width: 'auto' }}
-          title="排序"
-        >
-          <option value="followUpAt-desc">跟进日期 新→旧</option>
-          <option value="followUpAt-asc">跟进日期 旧→新</option>
-          <option value="nextFollowUpAt-asc">下次跟进 近→远</option>
-        </select>
+          onChange={(v) => setFuSort(v as 'followUpAt-desc' | 'followUpAt-asc' | 'nextFollowUpAt-asc')}
+          ariaLabel="排序"
+          options={[
+            { value: 'followUpAt-desc', label: '跟进日期 新→旧' },
+            { value: 'followUpAt-asc', label: '跟进日期 旧→新' },
+            { value: 'nextFollowUpAt-asc', label: '下次跟进 近→远' },
+          ]}
+        />
       </div>
 
       <div className="space-y-2">
@@ -1462,18 +1471,22 @@ function OpportunityForm({
           <input type="number" className={inputClass} value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={currency}
+            onChange={setCurrency}
+            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+          />
         </Field>
       </div>
       {!opportunity && (
         <Field label="初始阶段">
-          <select className="bds-select" value={stage} onChange={(e) => setStage(e.target.value as OpportunityStage)}>
-            {OPPORTUNITY_STAGES.filter((s) => s.id !== 'ClosedWon' && s.id !== 'ClosedLost').map((s) => (
-              <option key={s.id} value={s.id}>{s.label}</option>
-            ))}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={stage}
+            onChange={(v) => setStage(v as OpportunityStage)}
+            options={OPPORTUNITY_STAGES.filter((s) => s.id !== 'ClosedWon' && s.id !== 'ClosedLost').map((s) => ({ value: s.id, label: s.label }))}
+          />
         </Field>
       )}
       <div className="grid grid-cols-2 gap-3">
@@ -1557,9 +1570,12 @@ function FollowUpForm({
     <ModalShell title={followUp ? '编辑跟进' : '新建跟进'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="跟进类型">
-          <select className="bds-select" value={type} onChange={(e) => setType(e.target.value)}>
-            {FOLLOWUP_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={type}
+            onChange={setType}
+            options={FOLLOWUP_TYPES.map((t) => ({ value: t.id, label: t.label }))}
+          />
         </Field>
         <Field label="跟进日期">
           <CapsuleDateInput className="bds-input" value={followUpAt} onChange={setFollowUpAt} />
@@ -1570,16 +1586,26 @@ function FollowUpForm({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="关联联系人">
-          <select className="bds-select" value={contactId} onChange={(e) => setContactId(e.target.value)}>
-            <option value="">不关联</option>
-            {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={contactId}
+            onChange={setContactId}
+            options={[
+              { value: '', label: '不关联' },
+              ...contacts.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </Field>
         <Field label="关联商机">
-          <select className="bds-select" value={opportunityId} onChange={(e) => setOpportunityId(e.target.value)}>
-            <option value="">不关联</option>
-            {opportunities.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={opportunityId}
+            onChange={setOpportunityId}
+            options={[
+              { value: '', label: '不关联' },
+              ...opportunities.map((o) => ({ value: o.id, label: o.title })),
+            ]}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1651,9 +1677,12 @@ function CreditLimitForm({
           <input type="number" className={inputClass} value={totalLimit} onChange={(e) => setTotalLimit(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <CustomSelect
+            surface="form"
+            value={currency}
+            onChange={setCurrency}
+            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1723,9 +1752,12 @@ function CustomerTierForm({
   return (
     <ModalShell title="评定客户分层" onClose={onClose}>
       <Field label="分层等级">
-        <select className="bds-select" value={level} onChange={(e) => setLevel(e.target.value as CustomerTierLevel)}>
-          {TIER_LEVELS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-        </select>
+        <CustomSelect
+          surface="form"
+          value={level}
+          onChange={(v) => setLevel(v as CustomerTierLevel)}
+          options={TIER_LEVELS.map((t) => ({ value: t.id, label: t.label }))}
+        />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="折扣率 (%)">
@@ -1737,11 +1769,16 @@ function CustomerTierForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="信用优先级">
-          <select className="bds-select" value={creditPriority} onChange={(e) => setCreditPriority(e.target.value)}>
-            <option value="High">高</option>
-            <option value="Normal">常规</option>
-            <option value="Low">低</option>
-          </select>
+          <CustomSelect
+            surface="form"
+            value={creditPriority}
+            onChange={setCreditPriority}
+            options={[
+              { value: 'High', label: '高' },
+              { value: 'Normal', label: '常规' },
+              { value: 'Low', label: '低' },
+            ]}
+          />
         </Field>
         <Field label="评定日期 *">
           <CapsuleDateInput className="bds-input" value={evaluatedAt} onChange={setEvaluatedAt} />

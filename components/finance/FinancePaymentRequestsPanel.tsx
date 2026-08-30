@@ -19,6 +19,7 @@ import { getAuthState, hasPermission } from '../../services/authService';
 import { approvalKernelService } from '../../services/approvalKernelService';
 import { apiService } from '../../services/apiService';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { bdsConfirm } from '../ui/BdsDialog';
 import RelationPickerCombobox from './RelationPickerCombobox';
 import {
@@ -566,15 +567,12 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>付款性质</label>
-                  <select
+                  <CustomSelect
+                    surface="form"
                     value={form.paymentCategory}
-                    onChange={e => setForm(f => ({ ...f, paymentCategory: e.target.value as PaymentCategory }))}
-                    className="bds-select sm"
-                  >
-                    {VOUCHER_CATEGORIES.map(c => (
-                      <option key={c} value={c}>{VOUCHER_CATEGORY_LABELS[c]}</option>
-                    ))}
-                  </select>
+                    onChange={v => setForm(f => ({ ...f, paymentCategory: v as PaymentCategory }))}
+                    options={VOUCHER_CATEGORIES.map(c => ({ value: c, label: VOUCHER_CATEGORY_LABELS[c] }))}
+                  />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>预期付款日</label>
@@ -584,16 +582,15 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>来源单据类型</label>
-                  <select
+                  <CustomSelect
+                    surface="form"
                     value={form.sourceType}
-                    onChange={e => setForm(f => ({ ...f, sourceType: e.target.value as '' | PaymentRequestSourceType }))}
-                    className="bds-select sm"
-                  >
-                    <option value="">不关联</option>
-                    {PAYMENT_REQUEST_SOURCE_TYPES.map(t => (
-                      <option key={t} value={t}>{PAYMENT_REQUEST_SOURCE_TYPE_LABELS[t]}</option>
-                    ))}
-                  </select>
+                    onChange={v => setForm(f => ({ ...f, sourceType: v as '' | PaymentRequestSourceType }))}
+                    options={[
+                      { value: '', label: '不关联' },
+                      ...PAYMENT_REQUEST_SOURCE_TYPES.map(t => ({ value: t, label: PAYMENT_REQUEST_SOURCE_TYPE_LABELS[t] })),
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>来源单据号</label>

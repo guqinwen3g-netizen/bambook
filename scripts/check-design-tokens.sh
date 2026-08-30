@@ -106,11 +106,11 @@ BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-
                               # 白名单仅限表格行内操作，spec §3.1）
 BASELINE_FILTERBAR_H=0        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
                               # 2026-08-18 W1 组2 收编 3→0：FinanceManager:1935 / FinanceCreditPanel:367 / FinancePaymentRequestsPanel:422 均删 h-auto min-h-11）
-BASELINE_NATIVE_CONTROLS=1    # M4: 原生 <select（无 bds-select 类）+ type="date" 合计
-                               # 2026-08-19 批次 3a 收敛 77→1：date 20→0（全部 CapsuleDateInput）；
-                               # select 真实非合规清零（原 77 中 ~55 为箭头截断误报，计数逻辑已修正）。
-                               # 余 1 = Assistant.tsx 聊天输入栏模型选择器 ghost（外层自绘胶囊承担 BDS 视觉，
-                               # 加 bds-select 会叠加自绘箭头+覆盖透明背景，前波次裁决豁免——与 M4 收编范围"表单场景"一致）
+BASELINE_NATIVE_CONTROLS=0    # M4: 原生 <select 元素 + type="date" 合计——2026-08-31 W4 原生浮层收编完成后【反转】：
+                              # 任何原生 <select 元素即违规（弹出选项面板由浏览器渲染无法定制，spec §5 退役裁决），
+                              # 旧「bds-select 类豁免」口径废除——带类的原生 select 同样是浏览器渲染面板。
+                              # 历史：77→1（2026-08-19 批次 3a 精确口径修正）→ 2026-08-31 W4 收编 254 处/51 文件
+                              # 全部切 CustomSelect 自绘浮层（surface 四档），date 已全部 CapsuleDateInput。
                               # 2026-08-18 P2-W4 组7+组8 收编 102→77：CockpitManager 2 date（-2）+
                               # crmRelationSections/DetailPanel/import 等 select→bds-select + date→CapsuleDateInput（-23）
                               # 2026-08-18 W2 遗留清零：RelationsManager 联系人生日 type=date → CapsuleDateInput（+hidden 兼容 FormData），date 35→34
@@ -374,36 +374,26 @@ else
   echo "  ✅ M3: filterbar 高度违例维持基线（${pg_filterbar_h} 行，逐页主刀清零对象）"
 fi
 
-# M4: 原生 <select（无 bds-select 类）+ type="date" 合计（精确口径 281，spec §8 M4 对账注释）
-# 2026-08-19 批次 3a 修正计数逻辑：原 rg 正则被 JSX 箭头函数 => 截断（className 出现在
-# onChange 箭头之后即漏判 bds-select），长期虚报非合规数（基线 77 中 ~55 为误报）。
-# 新口径：perl 逐标签解析——先中和 => 再取开标签尾，bds-select 字面量判定。
-# 2026-08-21 口径扩展：bds-select 类名收敛至变量（AdminPanel selectCls / hrTokens
-# selectCls），变量引用形式（selectCls / t.selectCls）与字面量同等放行——运行时类名均含 bds-select。
+# M4: 原生 <select 元素 + type="date" 合计——2026-08-31 W4 收编后反转为【绝对零容忍】：
+# 任何原生 <select 元素均违规（不再豁免 bds-select 类——类的美化只作用于触发器外壳，
+# 弹出面板仍是浏览器渲染）。选项下拉一律 CustomSelect（spec §5）。
 pg_native_select=$(find components -name '*.tsx' \
   ! -name '*.test.*' ! -path '*__tests__*' ! -path '*mascot*' \
   ! -name '*Globe*' ! -name '*EmailManager*' ! -name '*SampleInvoice*' \
   ! -name '*fabricSampleInvoice*' \
   -print0 2>/dev/null | xargs -0 perl -0777 -ne '
     my $n = 0;
-    while (/<select\b/g) {
-      my $seg = substr($_, pos(), 800);
-      $seg =~ s/=>//g;
-      if ($seg =~ /^(.*?)>/s) { $n++ unless $1 =~ /bds-select|selectCls/; }
-      else { $n++ }
-    }
+    $n++ while (/<select\b/g);
     print "$n\n";
   ' 2>/dev/null | awk '{s+=$1} END{print s+0}')
 pg_native_date=$(rg -o 'type="date"' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 pg_native_total=$((pg_native_select + pg_native_date))
 if [ "$pg_native_total" -gt "$BASELINE_NATIVE_CONTROLS" ]; then
-  echo "  ❌ M4: 原生表单控件增加（基线 ${BASELINE_NATIVE_CONTROLS} → 当前 ${pg_native_total}）"
-  echo "     select → bds-select；date → CapsuleDateInput（spec §4）；禁新增原生渲染"
+  echo "  ❌ M4: 原生表单控件出现（基线 0 → 当前 ${pg_native_total}，select ${pg_native_select} + date ${pg_native_date}）"
+  echo "     下拉一律 CustomSelect（spec §5，弹出面板禁止浏览器渲染）；date → CapsuleDateInput"
   pg_errors=$((pg_errors + 1))
-elif [ "$pg_native_total" -lt "$BASELINE_NATIVE_CONTROLS" ]; then
-  echo "  ✅ M4: 原生控件减少（基线 ${BASELINE_NATIVE_CONTROLS} → 当前 ${pg_native_total}，select ${pg_native_select} + date ${pg_native_date}）— 恭喜！请更新基线。"
 else
-  echo "  ✅ M4: 原生控件维持基线（${pg_native_total} 处 = select ${pg_native_select} + date ${pg_native_date}，逐页清零对象）"
+  echo "  ✅ M4: 原生表单控件归零（select ${pg_native_select} + date ${pg_native_date}，W4 收编完成 2026-08-31）"
 fi
 
 # M6: 原生 alert/confirm 调用点（批次 3b 收敛 ~211 处 → 0；仅注释/字符串豁免）

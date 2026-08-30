@@ -42,8 +42,9 @@ describe('C16 报价转订单补充信息弹窗（PO 号/工厂/交期/订单类
     expect(source).toContain('>工厂</label>');
     expect(source).toContain('>交期</label>');
     expect(source).toContain('>订单类型</label>');
-    expect(source).toContain('<option value="Fabric">面料订单</option>');
-    expect(source).toContain('<option value="Garment">成衣订单</option>');
+    expect(source).toContain('<CustomSelect');
+    expect(source).toContain("{ value: 'Fabric', label: '面料订单' }");
+    expect(source).toContain("{ value: 'Garment', label: '成衣订单' }");
   });
 
   it('确认后携带 overrides 调 convertQuotationToOrder（poNumber/millName/dueDate/type）', () => {

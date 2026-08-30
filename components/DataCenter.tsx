@@ -4,6 +4,7 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { apiService } from '../services/apiService';
 import { KnowledgeCitation } from '../types';
+import CustomSelect from './ui/CustomSelect';
 
 /** 问答归档分类（与策略文库 KnowledgeItem.category 同一枚举语义） */
 const QA_ARCHIVE_CATEGORIES = ['Company', 'Policy', 'Production', 'Product', 'Customer', 'Supplier'] as const;
@@ -142,13 +143,14 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                       <span className={`text-[11px] font-light text-[var(--success-text)]`}>已归档到企业知识库</span>
                     ) : (
                       <>
-                        <select
-                          className="bds-select max-w-40"
+                        <CustomSelect
+                          className="w-40 shrink-0"
+                          size="compact"
+                          ariaLabel="归档类别"
                           value={qaArchiveCategory}
-                          onChange={(e) => setQaArchiveCategory(e.target.value)}
-                        >
-                          {QA_ARCHIVE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                          onChange={v => setQaArchiveCategory(v)}
+                          options={QA_ARCHIVE_CATEGORIES.map(c => ({ value: c, label: c }))}
+                        />
                         <button
                           onClick={handleArchiveQa}
                           disabled={qaArchiving}

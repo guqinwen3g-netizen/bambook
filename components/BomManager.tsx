@@ -44,6 +44,7 @@ import {
 import { PageHeader } from './ui/PageHeader';
 import { useStaticEdgeMask } from './ui/useStaticEdgeMask';
 import { bdsConfirm } from './ui/BdsDialog';
+import CustomSelect from './ui/CustomSelect';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 
 // ==================== 常量 ====================
@@ -748,11 +749,16 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           </div>
           <div>
             <label className={labelCls}>币种</label>
-            <select className="bds-select sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="CNY">CNY 人民币</option>
-              <option value="USD">USD 美元</option>
-              <option value="EUR">EUR 欧元</option>
-            </select>
+            <CustomSelect
+              options={[
+                { value: 'CNY', label: 'CNY 人民币' },
+                { value: 'USD', label: 'USD 美元' },
+                { value: 'EUR', label: 'EUR 欧元' },
+              ]}
+              value={currency}
+              onChange={(v) => setCurrency(v)}
+              surface="form"
+            />
           </div>
           <div>
             <label className={labelCls}>销售单价（利润分析）</label>
@@ -774,9 +780,12 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-2">
                     <label className={labelCls}>类型</label>
-                    <select className="bds-select sm" value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)}>
-                      {MATERIAL_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      options={MATERIAL_TYPES.map(m => ({ value: m.id, label: m.label }))}
+                      value={line.materialType}
+                      onChange={(v) => handleLineChange(index, 'materialType', v)}
+                      surface="form"
+                    />
                   </div>
                   <div className="col-span-3">
                     <label className={labelCls}>品名 *</label>
@@ -792,9 +801,12 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>单位</label>
-                    <select className="bds-select sm" value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)}>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <CustomSelect
+                      options={UNITS.map(u => ({ value: u, label: u }))}
+                      value={line.unit}
+                      onChange={(v) => handleLineChange(index, 'unit', v)}
+                      surface="form"
+                    />
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>损耗%</label>
@@ -829,9 +841,12 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-3">
                     <label className={labelCls}>类型</label>
-                    <select className="bds-select sm" value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)}>
-                      {COST_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      options={COST_TYPES.map(c => ({ value: c.id, label: c.label }))}
+                      value={cost.costType}
+                      onChange={(v) => handleCostChange(index, 'costType', v)}
+                      surface="form"
+                    />
                   </div>
                   <div className="col-span-6">
                     <label className={labelCls}>描述</label>

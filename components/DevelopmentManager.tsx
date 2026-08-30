@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { CheckCircle2, ChevronLeft, FileText, Package, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2, X, XCircle } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import RelationCombobox from './ui/RelationCombobox';
 import {
   CompiledFormMapPanel,
@@ -756,28 +757,24 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               />
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
-            <select
-              className="bds-select w-36"
+            <CustomSelect
+              className="w-36"
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as DevelopmentTypeId)}
-            >
-              {DEVELOPMENT_TYPES.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.type === item.id).length}`}
-                </option>
-              ))}
-            </select>
-            <select
-              className="bds-select w-36"
+              onChange={(v) => setSelectedType(v as DevelopmentTypeId)}
+              options={DEVELOPMENT_TYPES.map(item => ({
+                value: item.id,
+                label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.type === item.id).length}`,
+              }))}
+            />
+            <CustomSelect
+              className="w-36"
               value={selectedStage}
-              onChange={(e) => setSelectedStage(e.target.value as DevelopmentStageId)}
-            >
-              {DEVELOPMENT_STAGES.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.stage === item.id).length}`}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setSelectedStage(v as DevelopmentStageId)}
+              options={DEVELOPMENT_STAGES.map(item => ({
+                value: item.id,
+                label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.stage === item.id).length}`,
+              }))}
+            />
             {/* R3：total 显示 + 截断提示（后端 limit 上限 200，超出提示用筛选缩小范围） */}
             {totalCount != null && (
               <span
@@ -1199,27 +1196,21 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">类型</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={form.type}
-                    onChange={(e) => updateField('type', e.target.value as DevType)}
-                  >
-                    {DEV_TYPE_OPTIONS.map(t => (
-                      <option key={t.id} value={t.id}>{t.label}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateField('type', v as DevType)}
+                    options={DEV_TYPE_OPTIONS.map(t => ({ value: t.id, label: t.label }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">阶段</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={form.stage}
-                    onChange={(e) => updateField('stage', e.target.value as DevStage)}
-                  >
-                    {DEV_STAGE_OPTIONS.map(s => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateField('stage', v as DevStage)}
+                    options={DEV_STAGE_OPTIONS.map(s => ({ value: s.id, label: s.label }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">负责人</label>
@@ -1361,27 +1352,27 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               >
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样品类型</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={form.sampleType}
-                    onChange={(e) => updateField('sampleType', e.target.value as SampleType | '')}
-                  >
-                    <option value="">不指定</option>
-                    {SAMPLE_TYPE_OPTIONS.map(t => (
-                      <option key={t.id} value={t.id}>{t.label}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateField('sampleType', v as SampleType | '')}
+                    options={[
+                      { value: '', label: '不指定' },
+                      ...SAMPLE_TYPE_OPTIONS.map(t => ({ value: t.id, label: t.label })),
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样衣分档</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={form.sampleCategory}
-                    onChange={(e) => updateField('sampleCategory', e.target.value as 'normal' | '5a')}
-                  >
-                    <option value="normal">普通样衣</option>
-                    <option value="5a">5A 重点样衣</option>
-                  </select>
+                    onChange={(v) => updateField('sampleCategory', v as 'normal' | '5a')}
+                    options={[
+                      { value: 'normal', label: '普通样衣' },
+                      { value: '5a', label: '5A 重点样衣' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">目标日期</label>
@@ -1428,15 +1419,12 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">单位</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={form.sampleUnit}
-                    onChange={(e) => updateField('sampleUnit', e.target.value)}
-                  >
-                    {SAMPLE_UNIT_OPTIONS.map(u => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateField('sampleUnit', v)}
+                    options={SAMPLE_UNIT_OPTIONS.map(u => ({ value: u, label: u }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">寄出日期</label>
@@ -1444,16 +1432,15 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">快递公司</label>
-                  <select
-                    className="bds-select"
+                  <CustomSelect
+                    surface="form"
                     value={form.sampleCourier}
-                    onChange={(e) => updateField('sampleCourier', e.target.value)}
-                  >
-                    <option value="">未寄出</option>
-                    {COURIER_OPTIONS.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateField('sampleCourier', v)}
+                    options={[
+                      { value: '', label: '未寄出' },
+                      ...COURIER_OPTIONS.map(c => ({ value: c, label: c })),
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">快递单号</label>

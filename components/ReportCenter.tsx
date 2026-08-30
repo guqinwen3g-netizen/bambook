@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
+import CustomSelect from './ui/CustomSelect';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsConfirm } from './ui/BdsDialog';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
@@ -619,14 +620,14 @@ function DesignerPanel(props: DesignerPanelProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className={labelClass}>数据集 *</label>
-            <select
+            <CustomSelect
+              surface="form"
+              ariaLabel="数据集"
               value={designer.datasetKey}
-              onChange={e => setDesigner(prev => ({ ...prev, datasetKey: e.target.value, dimensions: [], metrics: [], filters: [] }))}
-              className="bds-select"
+              onChange={v => setDesigner(prev => ({ ...prev, datasetKey: v, dimensions: [], metrics: [], filters: [] }))}
               disabled={Boolean(designer.editingId)}
-            >
-              {datasets.map(d => <option key={d.key} value={d.key}>{d.label}{d.description ? ` · ${d.description}` : ''}</option>)}
-            </select>
+              options={datasets.map(d => ({ value: d.key, label: `${d.label}${d.description ? ` · ${d.description}` : ''}` }))}
+            />
             {designer.editingId && (
               <div className={`mt-1 text-[10px] ${textSecondary}`}>编辑模式下数据集不可变更（维度口径已固化）</div>
             )}
@@ -643,16 +644,18 @@ function DesignerPanel(props: DesignerPanelProps) {
           </div>
           <div>
             <label className={labelClass}>定时调度</label>
-            <select
+            <CustomSelect
+              surface="form"
+              ariaLabel="定时调度"
               value={designer.schedule}
-              onChange={e => setDesigner(prev => ({ ...prev, schedule: e.target.value as DesignerState['schedule'] }))}
-              className="bds-select"
-            >
-              <option value="">仅手动运行</option>
-              <option value="daily">每日</option>
-              <option value="weekly">每周</option>
-              <option value="monthly">每月</option>
-            </select>
+              onChange={v => setDesigner(prev => ({ ...prev, schedule: v as DesignerState['schedule'] }))}
+              options={[
+                { value: '', label: '仅手动运行' },
+                { value: 'daily', label: '每日' },
+                { value: 'weekly', label: '每周' },
+                { value: 'monthly', label: '每月' },
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -683,22 +686,29 @@ function DesignerPanel(props: DesignerPanelProps) {
           <div className="space-y-2">
             {designer.metrics.map((m, idx) => (
               <div key={idx} className="flex items-center gap-2">
-                <select
-                  className="bds-select flex-1"
+                <CustomSelect
+                  className="flex-1 min-w-0"
+                  surface="form"
+                  size="compact"
+                  ariaLabel="指标字段"
                   value={m.field}
-                  onChange={e => setDesigner(prev => ({
+                  onChange={v => setDesigner(prev => ({
                     ...prev,
-                    metrics: prev.metrics.map((x, i) => (i === idx ? { ...x, field: e.target.value } : x)),
+                    metrics: prev.metrics.map((x, i) => (i === idx ? { ...x, field: v } : x)),
                   }))}
-                >
-                  {dataset.metrics.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-                  {m.agg === 'count' && <option value="*">行数 (*)</option>}
-                </select>
-                <select
-                  className="bds-select w-28"
+                  options={[
+                    ...dataset.metrics.map(f => ({ value: f.key, label: f.label })),
+                    ...(m.agg === 'count' ? [{ value: '*', label: '行数 (*)' }] : []),
+                  ]}
+                />
+                <CustomSelect
+                  className="w-28 shrink-0"
+                  surface="form"
+                  size="compact"
+                  ariaLabel="聚合方式"
                   value={m.agg}
-                  onChange={e => {
-                    const agg = e.target.value as ReportMetricAgg;
+                  onChange={v => {
+                    const agg = v as ReportMetricAgg;
                     setDesigner(prev => ({
                       ...prev,
                       metrics: prev.metrics.map((x, i) => {
@@ -709,9 +719,8 @@ function DesignerPanel(props: DesignerPanelProps) {
                       }),
                     }));
                   }}
-                >
-                  {(Object.keys(AGG_LABELS) as ReportMetricAgg[]).map(a => <option key={a} value={a}>{AGG_LABELS[a]}</option>)}
-                </select>
+                  options={(Object.keys(AGG_LABELS) as ReportMetricAgg[]).map(a => ({ value: a, label: AGG_LABELS[a] }))}
+                />
                 <button
                   onClick={() => setDesigner(prev => ({ ...prev, metrics: prev.metrics.filter((_, i) => i !== idx) }))}
                   className="p-1.5 rounded-control hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
@@ -742,41 +751,49 @@ function DesignerPanel(props: DesignerPanelProps) {
               const ops = spec ? opsForField(spec) : [];
               return (
                 <div key={idx} className="flex items-center gap-2">
-                  <select
-                    className="bds-select flex-1"
+                  <CustomSelect
+                    className="flex-1 min-w-0"
+                    surface="form"
+                    size="compact"
+                    ariaLabel="筛选字段"
                     value={f.field}
-                    onChange={e => {
-                      const next = dataset.filterFields.find(ff => ff.key === e.target.value);
+                    onChange={v => {
+                      const next = dataset.filterFields.find(ff => ff.key === v);
                       setDesigner(prev => ({
                         ...prev,
                         filters: prev.filters.map((x, i) => (i === idx && next ? { field: next.key, op: opsForField(next)[0], value: '' } : x)),
                       }));
                     }}
-                  >
-                    {dataset.filterFields.map(ff => <option key={ff.key} value={ff.key}>{ff.label}</option>)}
-                  </select>
-                  <select
-                    className="bds-select w-32"
+                    options={dataset.filterFields.map(ff => ({ value: ff.key, label: ff.label }))}
+                  />
+                  <CustomSelect
+                    className="w-32 shrink-0"
+                    surface="form"
+                    size="compact"
+                    ariaLabel="筛选操作符"
                     value={f.op}
-                    onChange={e => setDesigner(prev => ({
+                    onChange={v => setDesigner(prev => ({
                       ...prev,
-                      filters: prev.filters.map((x, i) => (i === idx ? { ...x, op: e.target.value as ReportFilterOp } : x)),
+                      filters: prev.filters.map((x, i) => (i === idx ? { ...x, op: v as ReportFilterOp } : x)),
                     }))}
-                  >
-                    {ops.map(op => <option key={op} value={op}>{OP_LABELS[op]}</option>)}
-                  </select>
+                    options={ops.map(op => ({ value: op, label: OP_LABELS[op] }))}
+                  />
                   {spec?.type === 'enum' && spec.enumValues && f.op !== 'in' ? (
-                    <select
-                      className="bds-select flex-1"
+                    <CustomSelect
+                      className="flex-1 min-w-0"
+                      surface="form"
+                      size="compact"
+                      ariaLabel="筛选值"
                       value={f.value}
-                      onChange={e => setDesigner(prev => ({
+                      onChange={v => setDesigner(prev => ({
                         ...prev,
-                        filters: prev.filters.map((x, i) => (i === idx ? { ...x, value: e.target.value } : x)),
+                        filters: prev.filters.map((x, i) => (i === idx ? { ...x, value: v } : x)),
                       }))}
-                    >
-                      <option value="">请选择</option>
-                      {spec.enumValues.map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
+                      options={[
+                        { value: '', label: '请选择' },
+                        ...spec.enumValues.map(ev => ({ value: ev, label: ev })),
+                      ]}
+                    />
                   ) : spec?.type === 'date' ? (
                     <CapsuleDateInput
                       value={f.value}
@@ -1060,14 +1077,17 @@ function RunsPanel({ isDarkMode, runs, runsTotal, runsLoadingMore, definitions, 
     <div className="space-y-3">
       {/* 工具栏 */}
       <div className="flex items-center gap-2">
-        <select
-          className="bds-select max-w-56"
+        <CustomSelect
+          className="w-56 shrink-0"
+          size="compact"
+          ariaLabel="筛选报表"
           value={filterDefId}
-          onChange={e => { setFilterDefId(e.target.value); onRefresh(e.target.value); }}
-        >
-          <option value="">全部报表</option>
-          {definitions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+          onChange={v => { setFilterDefId(v); onRefresh(v); }}
+          options={[
+            { value: '', label: '全部报表' },
+            ...definitions.map(d => ({ value: d.id, label: d.name })),
+          ]}
+        />
         <button
           onClick={() => onRefresh(filterDefId)}
           className="h-8 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]"

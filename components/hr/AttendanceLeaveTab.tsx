@@ -14,6 +14,7 @@ import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTo
 import { bdsConfirm, bdsPrompt } from '../ui/BdsDialog';
 import { bdsToast } from '../ui/bdsToast';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 
 interface AttendanceLeaveTabProps {
   isDarkMode: boolean;
@@ -233,14 +234,20 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
         {subView === 'records' ? (
           <>
             <input type="month" className={`${t.inputCls} max-w-40`} value={month} onChange={e => setMonth(e.target.value)} />
-            <select className={`${t.selectCls} max-w-36`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">全部状态</option>
-              {ATTENDANCE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className={`${t.selectCls} max-w-36`} value={attUserFilter} onChange={e => setAttUserFilter(e.target.value)}>
-              <option value="">全部员工</option>
-              {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-            </select>
+            <CustomSelect
+              className="max-w-36"
+              ariaLabel="考勤状态筛选"
+              value={statusFilter}
+              onChange={v => setStatusFilter(v)}
+              options={[{ value: '', label: '全部状态' }, ...ATTENDANCE_STATUS_OPTIONS]}
+            />
+            <CustomSelect
+              className="max-w-36"
+              ariaLabel="考勤员工筛选"
+              value={attUserFilter}
+              onChange={v => setAttUserFilter(v)}
+              options={[{ value: '', label: '全部员工' }, ...personnel.map(p => ({ value: p.id, label: p.displayName }))]}
+            />
             {canWrite && (
               <div className="ml-auto">
                 <button onClick={() => setShowAttForm(v => !v)} className={t.primaryButtonCls}>
@@ -251,10 +258,13 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
           </>
         ) : (
           <>
-            <select className={`${t.selectCls} max-w-36`} value={leaveStatusFilter} onChange={e => setLeaveStatusFilter(e.target.value)}>
-              <option value="">全部状态</option>
-              {LEAVE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <CustomSelect
+              className="max-w-36"
+              ariaLabel="请假状态筛选"
+              value={leaveStatusFilter}
+              onChange={v => setLeaveStatusFilter(v)}
+              options={[{ value: '', label: '全部状态' }, ...LEAVE_STATUS_OPTIONS]}
+            />
             {canWrite && (
               <div className="ml-auto">
                 <button onClick={() => setShowLeaveForm(v => !v)} className={t.primaryButtonCls}>
@@ -300,11 +310,13 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <div className="grid grid-cols-4 gap-3">
                 <div>
                   <div className={t.labelCls + ' mb-1'}>员工 *</div>
-                  <select className={t.selectCls} value={attForm.userId}
-                    onChange={e => setAttForm(f => ({ ...f, userId: e.target.value }))}>
-                    <option value="">请选择</option>
-                    {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    ariaLabel="考勤员工"
+                    value={attForm.userId}
+                    onChange={v => setAttForm(f => ({ ...f, userId: v }))}
+                    options={[{ value: '', label: '请选择' }, ...personnel.map(p => ({ value: p.id, label: p.displayName }))]}
+                  />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>日期 *</div>
@@ -380,18 +392,23 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <div className={t.labelCls + ' mb-1'}>员工 *</div>
-                  <select className={t.selectCls} value={leaveForm.userId}
-                    onChange={e => setLeaveForm(f => ({ ...f, userId: e.target.value }))}>
-                    <option value="">请选择</option>
-                    {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    ariaLabel="请假员工"
+                    value={leaveForm.userId}
+                    onChange={v => setLeaveForm(f => ({ ...f, userId: v }))}
+                    options={[{ value: '', label: '请选择' }, ...personnel.map(p => ({ value: p.id, label: p.displayName }))]}
+                  />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>请假类型</div>
-                  <select className={t.selectCls} value={leaveForm.type}
-                    onChange={e => setLeaveForm(f => ({ ...f, type: e.target.value as LeaveType }))}>
-                    {LEAVE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <CustomSelect
+                    surface="form"
+                    ariaLabel="请假类型"
+                    value={leaveForm.type}
+                    onChange={v => setLeaveForm(f => ({ ...f, type: v as LeaveType }))}
+                    options={[...LEAVE_TYPE_OPTIONS]}
+                  />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>天数 *</div>

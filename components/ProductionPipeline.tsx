@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight, RefreshCw } f
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ToggleSwitch from './ui/ToggleSwitch';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import CustomSelect from './ui/CustomSelect';
 import SidePanelContainer from './ui/SidePanelContainer';
 import OrderSectionHeader from './order/OrderSectionHeader';
 import { createOrderUiSpec } from './order/orderUiSpec';
@@ -479,16 +480,18 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
             </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货结论</label>
-              <select
-                className="bds-select"
+              <CustomSelect
+                surface="form"
+                disabled={!canWrite}
                 value={inspection?.result ?? ''}
-                onChange={e => handleInspectionSave('result', e.target.value || null)}
-              >
-                <option value="">未判定</option>
-                <option value="pass">合格 Pass</option>
-                <option value="conditional">有条件合格 Conditional</option>
-                <option value="fail">不合格 Fail</option>
-              </select>
+                onChange={v => handleInspectionSave('result', v || null)}
+                options={[
+                  { value: '', label: '未判定' },
+                  { value: 'pass', label: '合格 Pass' },
+                  { value: 'conditional', label: '有条件合格 Conditional' },
+                  { value: 'fail', label: '不合格 Fail' },
+                ]}
+              />
             </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>批量 / 抽样数</label>
