@@ -18,11 +18,12 @@
  * 设计：flat 无阴影、RDL 原语、tabular-nums 数字对齐
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Users, UserCheck, Scale, BellRing, Clock, FlaskConical, BarChart3 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { CompiledEdgeFade } from './ui/primitives/compiledSurfacePrimitives';
 import type { BusinessCockpit } from '../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -80,6 +81,29 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
 
   const inputCls = 'bds-input sm bds-tnum w-auto';
 
+  // ── 卡内列表滚动可供性（2026-08-31 用户拍板）：固定高度卡内列表行数超卡时，
+  // 底部内容渐隐暗示"还有更多"（Notion/Linear 同款范式），滚到底自动消失、
+  // 无溢出零渲染。复用 CompiledEdgeFade 原语，各卡滚动容器经 key 注册到 Map。 ──
+  const listRefMap = useRef(new Map<string, { current: HTMLDivElement | null }>());
+  const getListRef = (key: string) => {
+    let entry = listRefMap.current.get(key);
+    if (!entry) {
+      entry = { current: null };
+      listRefMap.current.set(key, entry);
+    }
+    return entry;
+  };
+  const setListRef = (key: string) => (el: HTMLDivElement | null) => {
+    const entry = getListRef(key);
+    entry.current = el;
+  };
+  /** 卡内滚动可供性（2026-08-31 用户拍板）：固定高度卡内列表溢出时，底部内容渐隐暗示
+      "还有更多"（Notion/Linear 同款范式）——滚到底自动消失、无溢出零渲染；
+      复用 CompiledEdgeFade 原语，各卡滚动容器按 key 注册（顶部渐隐禁用——卡头固定不动） */
+  const listFade = (listKey: string) => (
+    <CompiledEdgeFade scrollRef={getListRef(listKey)} disableTop topHeight={0} bottomHeight={26} />
+  );
+
   const sectionTitle = (icon: React.ReactNode, zh: string, en: string) => (
     <div className={cx('flex items-center gap-2 border-b px-4 pb-2 pt-2.5', divider)}>
       <span className={textFaint}>{icon}</span>
@@ -93,7 +117,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const grid = 'grid w-full min-w-0 grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(0,0.7fr))]';
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<UserCheck size={14} strokeWidth={1.5} />, '销售业绩排行', 'SALES LEADERBOARD')}
         <div className={cx(grid, 'px-4 pb-1.5 pt-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
           <div>业务员</div>
@@ -103,7 +127,8 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
           <div className="text-right">已回款</div>
           <div className="text-right">回款率</div>
         </div>
-        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-1 pb-2 text-xs">
+        {listFade('sales')}
+        <div ref={setListRef('sales')} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-1 pb-2 text-xs">
           {data.salesLeaderboard.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>该期间无订单</div>
           )}
@@ -128,9 +153,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
   const renderCustomerContribution = () => {
     if (!data) return null;
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<Users size={14} strokeWidth={1.5} />, '客户贡献度', 'CUSTOMER SHARE')}
-        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
+        {listFade('customer')}
+        <div ref={setListRef('customer')} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {data.customerContribution.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>该期间无订单</div>
           )}
@@ -172,7 +198,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const { rows, totals, excludedCount } = data.orderMargins;
     const grid = 'grid w-full min-w-0 grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_repeat(6,minmax(0,0.62fr))]';
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<Scale size={14} strokeWidth={1.5} />, '订单毛利表', 'ORDER MARGIN')}
         <div className={cx(grid, 'px-4 pb-1.5 pt-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
           <div>订单 / 客户</div>
@@ -184,7 +210,8 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
           <div className="text-right">回款率</div>
           <div className="text-right">交期</div>
         </div>
-        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-1 pb-2 text-xs">
+        {listFade('margins')}
+        <div ref={setListRef('margins')} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-1 pb-2 text-xs">
           {rows.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>该期间无订单</div>
           )}
@@ -229,10 +256,11 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
   // ── 应收应付预警 ──
   const renderArApAlerts = () => {
     if (!data) return null;
-    const oneSide = (title: string, side: BusinessCockpit['arApAlerts']['receivable']) => (
-      <div className="min-w-0 flex-1">
-        <div className={cx('px-4 pt-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>{title}</div>
-        <div className="space-y-1 px-3 py-2 text-xs">
+    const oneSide = (listKey: string, title: string, side: BusinessCockpit['arApAlerts']['receivable']) => (
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className={cx('shrink-0 px-4 pt-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>{title}</div>
+        {listFade(listKey)}
+        <div ref={setListRef(listKey)} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {side.rows.length === 0 && (
             <div className={cx('py-3 text-center font-light', textFaint)}>无逾期</div>
           )}
@@ -254,11 +282,11 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       </div>
     );
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<BellRing size={14} strokeWidth={1.5} />, '应收应付预警', 'AR/AP OVERDUE')}
-        <div className="flex min-h-0 divide-x divide-transparent">
-          {oneSide('应收逾期 TOP5', data.arApAlerts.receivable)}
-          {oneSide('应付逾期 TOP5', data.arApAlerts.payable)}
+        <div className="flex min-h-0 flex-1 divide-x divide-transparent">
+          {oneSide('ar', '应收逾期 TOP5', data.arApAlerts.receivable)}
+          {oneSide('ap', '应付逾期 TOP5', data.arApAlerts.payable)}
         </div>
       </div>
     );
@@ -280,9 +308,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       Alert: 'var(--danger)',
     };
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<BarChart3 size={14} strokeWidth={1.5} />, '订单状态分布', 'ORDER STATUS')}
-        <div className="min-h-0 space-y-1.5 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
+        {listFade('status')}
+        <div ref={setListRef('status')} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {buckets.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>该期间无订单</div>
           )}
@@ -317,9 +346,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const alerts = data.deliveryAlerts;
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<Clock size={14} strokeWidth={1.5} />, '交付预警', 'DELIVERY ALERTS')}
-        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
+        {listFade('delivery')}
+        <div ref={setListRef('delivery')} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {alerts.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>7 天内无交付预警</div>
           )}
@@ -347,9 +377,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const alerts = data.sampleProgressAlerts;
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<FlaskConical size={14} strokeWidth={1.5} />, '样品进度预警', 'SAMPLE PROGRESS')}
-        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
+        {listFade('sample')}
+        <div ref={setListRef('sample')} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {alerts.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>无逾期样衣案件</div>
           )}
@@ -379,7 +410,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const points = data.fxTrend.points;
     if (points.length === 0) {
       return (
-        <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+        <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
           {sectionTitle(<TrendingUp size={14} strokeWidth={1.5} />, '汇率走势', 'FX TREND')}
           <div className={cx('py-5 text-center text-xs font-light', textFaint)}>暂无汇率数据</div>
         </div>
@@ -392,9 +423,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       byCurrency.get(p.currency)!.push(p);
     }
     return (
-      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
+      <div className="bds-card flex h-full min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<TrendingUp size={14} strokeWidth={1.5} />, '汇率走势', 'FX TREND')}
-        <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
+        {listFade('fx')}
+        <div ref={setListRef('fx')} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {[...byCurrency.entries()].map(([currency, pts]) => {
             const rates = pts.map(p => p.rate);
             const min = Math.min(...rates);
@@ -436,15 +468,19 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     );
   };
 
-  // ── KPI 行 ──
+  // ── KPI 行（固定 4 卡，2026-08-31 用户拍板）：币种作卡内行而非按币种拆卡——
+  // 汇兑按基准币统一结算口径；应收/应付/毛利多币种逐行呈现（不加总），
+  // 卡数恒定、栅格恒齐，不再出现"币种数量决定卡数量"的拼凑感 ──
   const renderKpis = () => {
     if (!data) return null;
     const fxGain = data.fxSummary.totalGainLoss >= 0;
-    const arOverdue = data.arApAlerts.receivable.totals;
-    const apOverdue = data.arApAlerts.payable.totals;
+    const arTotals = data.arApAlerts.receivable.totals;
+    const apTotals = data.arApAlerts.payable.totals;
+    const marginTotals = data.orderMargins.totals;
+    const currencyLine = 'flex items-baseline justify-between gap-2 font-light tabular-nums';
     return (
       <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
-        <div className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
+        <div className="bds-card flex min-h-0 flex-col justify-center" style={{ padding: 'var(--space-3) var(--space-4)' }}>
           <div className={cx('flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
             {fxGain ? <TrendingUp size={14} strokeWidth={1.5} /> : <TrendingDown size={14} strokeWidth={1.5} />}
             汇兑净{fxGain ? '收益' : '损失'} · {data.fxSummary.baseCurrency}
@@ -454,27 +490,41 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
           </div>
           <div className={cx('mt-1 text-[10px] font-light', textFaint)}>{data.fxSummary.rowCount} 笔核销 · 区间内</div>
         </div>
-        {arOverdue.map(t => (
-          <div key={`ar-${t.currency}`} className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>应收逾期 · {t.currency}</div>
-            <div className={cx('bds-tnum mt-1.5 text-lg font-light', t.overdue > 0 ? 'text-[var(--danger-text)]' : textPrimary)}>{formatAmount(t.overdue, t.currency)}</div>
-            <div className={cx('bds-tnum mt-1 text-[10px] font-light', textFaint)}>未收合计 {formatAmount(t.total, t.currency)}</div>
+        {([['应收逾期', arTotals], ['应付逾期', apTotals]] as const).map(([label, rows]) => (
+          <div key={label} className="bds-card flex min-h-0 flex-col justify-center" style={{ padding: 'var(--space-3) var(--space-4)' }}>
+            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>{label}</div>
+            {rows.length === 0 ? (
+              <div className={cx('mt-1.5 text-lg font-light', textFaint)}>无逾期</div>
+            ) : (
+              <div className="mt-1.5 space-y-1">
+                {rows.map(t => (
+                  <div key={t.currency} className={cx(currencyLine, 'text-sm')}>
+                    <span className={textFaint}>{t.currency}</span>
+                    <span className="text-[var(--danger-text)]">{formatAmount(t.overdue, t.currency)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
-        {apOverdue.map(t => (
-          <div key={`ap-${t.currency}`} className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>应付逾期 · {t.currency}</div>
-            <div className={cx('bds-tnum mt-1.5 text-lg font-light', t.overdue > 0 ? 'text-[var(--danger-text)]' : textPrimary)}>{formatAmount(t.overdue, t.currency)}</div>
-            <div className={cx('bds-tnum mt-1 text-[10px] font-light', textFaint)}>未付合计 {formatAmount(t.total, t.currency)}</div>
-          </div>
-        ))}
-        {arOverdue.length === 0 && apOverdue.length === 0 && (
-          <div className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>账龄预警</div>
-            <div className={cx('mt-1.5 text-lg font-light', textPrimary)}>无未清账款</div>
-            <div className={cx('mt-1 text-[10px] font-light', textFaint)}>应收/应付均已核销</div>
-          </div>
-        )}
+        <div className="bds-card flex min-h-0 flex-col justify-center" style={{ padding: 'var(--space-3) var(--space-4)' }}>
+          <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>期间毛利</div>
+          {marginTotals.length === 0 ? (
+            <div className={cx('mt-1.5 text-lg font-light', textFaint)}>该期间无订单</div>
+          ) : (
+            <div className="mt-1.5 space-y-1">
+              {marginTotals.map(t => (
+                <div key={t.currency} className={cx(currencyLine, 'text-sm')}>
+                  <span className={textFaint}>{t.currency} · {t.orderCount} 单</span>
+                  <span className={t.margin >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}>
+                    {t.margin >= 0 ? '+' : ''}{formatAmount(t.margin, t.currency)}
+                    {t.marginRate != null && <span className="ml-1.5 text-[10px]">{formatPct(t.marginRate)}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -521,14 +571,14 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
           ) : (
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overscroll-contain xl:grid-cols-2">
               <div className="col-span-full">{renderKpis()}</div>
-              <div className="bds-well">{renderSalesLeaderboard()}</div>
-              <div className="bds-well">{renderCustomerContribution()}</div>
-              <div className="col-span-full bds-well--lg">{renderOrderMargins()}</div>
-              <div className="bds-well--sm">{renderOrderStatus()}</div>
-              <div className="bds-well--sm">{renderFxTrend()}</div>
-              <div className="bds-well--sm">{renderDeliveryAlerts()}</div>
-              <div className="bds-well--sm">{renderSampleAlerts()}</div>
-              <div className="col-span-full bds-well">{renderArApAlerts()}</div>
+              <div className="bds-well bds-well--fixed-sm">{renderSalesLeaderboard()}</div>
+              <div className="bds-well bds-well--fixed-sm">{renderCustomerContribution()}</div>
+              <div className="col-span-full bds-well--lg bds-well--fixed-lg">{renderOrderMargins()}</div>
+              <div className="bds-well--sm bds-well--fixed-sm">{renderOrderStatus()}</div>
+              <div className="bds-well--sm bds-well--fixed-sm">{renderFxTrend()}</div>
+              <div className="bds-well--sm bds-well--fixed-sm">{renderDeliveryAlerts()}</div>
+              <div className="bds-well--sm bds-well--fixed-sm">{renderSampleAlerts()}</div>
+              <div className="col-span-full bds-well bds-well--fixed-md">{renderArApAlerts()}</div>
             </div>
           )}
         </div>

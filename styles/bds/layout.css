@@ -22,6 +22,11 @@
 }
 .bds-well--sm { min-height: 180px; }
 .bds-well--lg { min-height: 280px; }
+/* 固定高度档位（2026-08-31 经营驾驶舱 bento 化）：卡片锁定大小——空时不变小、
+   内容多时不变大（列表区内部滚动），替代裸 h-[Npx] 手写。 */
+.bds-well--fixed-sm { height: 300px; }
+.bds-well--fixed-md { height: 340px; }
+.bds-well--fixed-lg { height: 420px; }
 
 /* 方形缩略图：图片/图标占位，尺寸档位化，替代裸 w-[Npx] h-[Npx]。 */
 .bds-thumb {
