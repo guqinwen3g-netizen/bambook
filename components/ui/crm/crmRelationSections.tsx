@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import CapsuleDateInput from '../CapsuleDateInput';
+import CustomSelect from '../CustomSelect';
 import { CompiledSurfacePanel } from '../primitives/compiledSurfacePrimitives';
 import { bdsConfirm } from '../BdsDialog';
 import { statusSemanticClass, StatusSemantic } from '../../rdlBusinessStatusTokens';
@@ -29,6 +30,9 @@ import { apiService } from '../../../services/apiService';
 import {
   Contact, CreditLimit, CustomerTier, CustomerTierLevel, FollowUpRecord, Opportunity, OpportunityStage,
 } from '../../../types';
+
+/** 币种枚举（商机/信用额度内联表单共用，2026-08-31 W4 原生浮层收编） */
+const CURRENCY_OPTIONS = ['CNY', 'USD', 'EUR', 'JPY', 'HKD'].map(c => ({ value: c, label: c }));
 
 // ────────────────────────────────────────────────────────────────
 // 共享：区块外壳（与 DetailPanel InfoSection 同构 inset 面板）
@@ -354,9 +358,14 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
         {canAddFollowUp ? (
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5">
-              <select className="bds-select sm shrink-0 w-auto" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                {FOLLOW_UP_TYPES.map(t => <option key={t} value={t}>{FOLLOW_UP_TYPE_LABELS[t]}</option>)}
-              </select>
+              <CustomSelect
+                className="w-24 shrink-0"
+                size="compact"
+                ariaLabel="跟进类型"
+                options={FOLLOW_UP_TYPES.map(t => ({ value: t, label: FOLLOW_UP_TYPE_LABELS[t] }))}
+                value={form.type}
+                onChange={v => setForm(p => ({ ...p, type: v }))}
+              />
               <CapsuleDateInput value={form.followUpAt} onChange={v => setForm(p => ({ ...p, followUpAt: v }))} className="bds-input sm shrink-0" />
               <input value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="跟进内容*" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
               <button type="button" onClick={handleAdd} disabled={busy || !form.content.trim()} className={addBtnCls(isDarkMode)} title="添加跟进记录">
@@ -505,9 +514,14 @@ export const CrmOpportunitiesSection: React.FC<{ relationId: string; isDarkMode:
           <div className="flex items-center gap-1.5">
             <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="商机标题*" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
             <input value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="金额*" inputMode="decimal" className={`w-24 ${inputCls(isDarkMode)}`} />
-            <select className="bds-select sm shrink-0 w-auto" value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}>
-              {['CNY', 'USD', 'EUR', 'JPY', 'HKD'].map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              className="w-20 shrink-0"
+              size="compact"
+              ariaLabel="商机币种"
+              options={CURRENCY_OPTIONS}
+              value={form.currency}
+              onChange={v => setForm(p => ({ ...p, currency: v }))}
+            />
             <button type="button" onClick={handleAdd} disabled={busy || !form.title.trim() || !form.amount.trim()} className={addBtnCls(isDarkMode)} title="创建商机">
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             </button>
@@ -636,9 +650,14 @@ export const CrmCreditLimitSection: React.FC<{ relationId: string; isDarkMode: b
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5">
               <input value={form.totalLimit} onChange={e => setForm(p => ({ ...p, totalLimit: e.target.value }))} placeholder="总额度*" inputMode="decimal" className={`w-28 ${inputCls(isDarkMode)}`} />
-              <select className="bds-select sm shrink-0 w-auto" value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}>
-                {['CNY', 'USD', 'EUR', 'JPY', 'HKD'].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <CustomSelect
+                className="w-20 shrink-0"
+                size="compact"
+                ariaLabel="额度币种"
+                options={CURRENCY_OPTIONS}
+                value={form.currency}
+                onChange={v => setForm(p => ({ ...p, currency: v }))}
+              />
               <CapsuleDateInput value={form.validFrom} onChange={v => setForm(p => ({ ...p, validFrom: v }))} className="bds-input sm shrink-0" />
               <button type="button" onClick={handleSet} disabled={busy || !form.totalLimit.trim()} className={addBtnCls(isDarkMode)} title="设置信用额度">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
@@ -732,14 +751,24 @@ export const CrmCustomerTierSection: React.FC<{ relationId: string; isDarkMode: 
         {showForm && (
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <select className="bds-select sm w-auto" value={form.level} onChange={e => setForm(p => ({ ...p, level: e.target.value as CustomerTierLevel }))}>
-                {TIER_LEVELS.map(l => <option key={l} value={l}>{TIER_LABELS[l]}</option>)}
-              </select>
+              <CustomSelect
+                className="w-24"
+                size="compact"
+                ariaLabel="客户分层等级"
+                options={TIER_LEVELS.map(l => ({ value: l, label: TIER_LABELS[l] }))}
+                value={form.level}
+                onChange={v => setForm(p => ({ ...p, level: v as CustomerTierLevel }))}
+              />
               <input value={form.discountRate} onChange={e => setForm(p => ({ ...p, discountRate: e.target.value }))} placeholder="折扣率%" inputMode="decimal" className={`w-20 ${inputCls(isDarkMode)}`} />
               <input value={form.paymentTermsDays} onChange={e => setForm(p => ({ ...p, paymentTermsDays: e.target.value }))} placeholder="账期天" inputMode="numeric" className={`w-20 ${inputCls(isDarkMode)}`} />
-              <select className="bds-select sm w-auto" value={form.creditPriority} onChange={e => setForm(p => ({ ...p, creditPriority: e.target.value }))}>
-                {['High', 'Normal', 'Low'].map(c => <option key={c} value={c}>{CREDIT_PRIORITY_LABELS[c]}</option>)}
-              </select>
+              <CustomSelect
+                className="w-20"
+                size="compact"
+                ariaLabel="信用优先级"
+                options={['High', 'Normal', 'Low'].map(c => ({ value: c, label: CREDIT_PRIORITY_LABELS[c] }))}
+                value={form.creditPriority}
+                onChange={v => setForm(p => ({ ...p, creditPriority: v }))}
+              />
               <button type="button" onClick={handleAssign} disabled={busy} className={addBtnCls(isDarkMode)} title="评定分层">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               </button>

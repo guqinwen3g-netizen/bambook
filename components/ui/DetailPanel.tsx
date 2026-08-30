@@ -20,6 +20,7 @@ import {
 import { BAMBOOK_OS } from './bambookOsTokens';
 import CapsuleDateInput from './CapsuleDateInput';
 import { bdsConfirm } from './BdsDialog';
+import CustomSelect from './CustomSelect';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 import { RelatedWorkspacesSection } from './RelatedWorkspacesSection';
@@ -485,28 +486,26 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         ))}
                     </ul>
                 )}
-                {/* 内联添加表单（C3 补全：类型 + 方向 + 日期 + 摘要 / 主题 + 关联订单/报价） */}
+                {/* 内联添加表单（C3 补全：类型 + 方向 + 日期 + 摘要 / 主题 + 关联订单/报价）
+                    2026-08-31 W4 原生浮层收编：select 全部切 CustomSelect 自绘浮层 */}
                 <div className="mt-2 space-y-1.5">
                     <div className="flex items-center gap-1.5">
-                        <select
-                            className="bds-select sm shrink-0 w-auto"
+                        <CustomSelect
+                            className="w-24 shrink-0"
+                            size="compact"
+                            ariaLabel="沟通类型"
+                            options={COMM_TYPES.map(t => ({ value: t, label: COMM_TYPE_LABELS[t] }))}
                             value={commLogForm.type}
-                            onChange={e => setCommLogForm(prev => ({ ...prev, type: e.target.value as CommunicationType }))}
-                        >
-                            {COMM_TYPES.map(t => (
-                                <option key={t} value={t}>{COMM_TYPE_LABELS[t]}</option>
-                            ))}
-                        </select>
-                        <select
-                            className="bds-select sm shrink-0 w-auto"
+                            onChange={v => setCommLogForm(prev => ({ ...prev, type: v as CommunicationType }))}
+                        />
+                        <CustomSelect
+                            className="w-24 shrink-0"
+                            size="compact"
+                            ariaLabel="沟通方向"
+                            options={(['Inbound', 'Outbound'] as CommunicationDirection[]).map(d => ({ value: d, label: COMM_DIRECTION_LABELS[d] }))}
                             value={commLogForm.direction}
-                            onChange={e => setCommLogForm(prev => ({ ...prev, direction: e.target.value as CommunicationDirection }))}
-                            title="沟通方向"
-                        >
-                            {(['Inbound', 'Outbound'] as CommunicationDirection[]).map(d => (
-                                <option key={d} value={d}>{COMM_DIRECTION_LABELS[d]}</option>
-                            ))}
-                        </select>
+                            onChange={v => setCommLogForm(prev => ({ ...prev, direction: v as CommunicationDirection }))}
+                        />
                         <CapsuleDateInput
                             value={commLogForm.occurredAt}
                             onChange={v => setCommLogForm(prev => ({ ...prev, occurredAt: v }))}
@@ -535,28 +534,28 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             placeholder="主题(可选)"
                             className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
                         />
-                        <select
-                            className="bds-select sm shrink-0 w-auto max-w-40"
+                        <CustomSelect
+                            className="w-40 shrink-0"
+                            size="compact"
+                            ariaLabel="关联订单"
+                            options={[
+                                { value: '', label: '不关联订单' },
+                                ...commLinkOrders.map(o => ({ value: o.id, label: `${o.poNumber || o.id}${o.product ? ` · ${o.product}` : ''}` })),
+                            ]}
                             value={commLogForm.orderId}
-                            onChange={e => setCommLogForm(prev => ({ ...prev, orderId: e.target.value }))}
-                            title="关联订单"
-                        >
-                            <option value="">不关联订单</option>
-                            {commLinkOrders.map(o => (
-                                <option key={o.id} value={o.id}>{o.poNumber || o.id}{o.product ? ` · ${o.product}` : ''}</option>
-                            ))}
-                        </select>
-                        <select
-                            className="bds-select sm shrink-0 w-auto max-w-36"
+                            onChange={v => setCommLogForm(prev => ({ ...prev, orderId: v }))}
+                        />
+                        <CustomSelect
+                            className="w-36 shrink-0"
+                            size="compact"
+                            ariaLabel="关联报价"
+                            options={[
+                                { value: '', label: '不关联报价' },
+                                ...commLinkQuotations.map(q => ({ value: q.id, label: q.quotationNumber })),
+                            ]}
                             value={commLogForm.quotationId}
-                            onChange={e => setCommLogForm(prev => ({ ...prev, quotationId: e.target.value }))}
-                            title="关联报价"
-                        >
-                            <option value="">不关联报价</option>
-                            {commLinkQuotations.map(q => (
-                                <option key={q.id} value={q.id}>{q.quotationNumber}</option>
-                            ))}
-                        </select>
+                            onChange={v => setCommLogForm(prev => ({ ...prev, quotationId: v }))}
+                        />
                     </div>
                 </div>
             </div>

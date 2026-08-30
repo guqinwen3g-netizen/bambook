@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box, Download, Split, Layers } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
+import CustomSelect from './ui/CustomSelect';
 import { bdsConfirm } from './ui/BdsDialog';
 import { bdsToast } from './ui/bdsToast';
 import { hasRole } from '../services/authService';
@@ -726,19 +727,17 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
         {fieldDisabled && <span className="ml-1 text-[10px] text-[var(--text-quaternary)]">（创建后不可修改）</span>}
       </label>
       {field.type === 'select' ? (
-        <select
-          className="bds-select"
+        <CustomSelect
+          surface="form"
+          ariaLabel={field.label}
+          options={[
+            ...(!field.required ? [{ value: '', label: '— 不指定 —' }] : []),
+            ...(options ?? []),
+          ]}
           value={formDraft[field.name]}
           disabled={fieldDisabled}
-          onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
-        >
-          {!field.required && (
-            <option value="">— 不指定 —</option>
-          )}
-          {options?.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+          onChange={(v) => setFormDraft(prev => ({ ...prev, [field.name]: v }))}
+        />
       ) : field.type === 'textarea' ? (
         <textarea
           value={formDraft[field.name]}
@@ -1728,17 +1727,17 @@ function PackingEditorModal({
                     <div className="mt-2 space-y-1.5">
                       {carton.items.map(item => (
                         <div key={item.key} className="flex items-center gap-2">
-                          <select
-                            className="bds-select sm flex-1"
+                          <CustomSelect
+                            className="flex-1 min-w-0"
+                            size="compact"
+                            ariaLabel="箱内关联报价行"
+                            options={lines.map(l => ({
+                              value: l.key,
+                              label: `${l.productName || l.productCode || '（未命名行）'}${l.quantity ? ` · 总量 ${l.quantity}${l.unit ? ` ${l.unit}` : ''}` : ''}`,
+                            }))}
                             value={item.lineKey}
-                            onChange={e => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, lineKey: e.target.value } : i) })}
-                          >
-                            {lines.map(l => (
-                              <option key={l.key} value={l.key}>
-                                {l.productName || l.productCode || '（未命名行）'}{l.quantity ? ` · 总量 ${l.quantity}${l.unit ? ` ${l.unit}` : ''}` : ''}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={v => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, lineKey: v } : i) })}
+                          />
                           <input
                             value={item.quantity}
                             onChange={e => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, quantity: e.target.value } : i) })}
@@ -1950,17 +1949,16 @@ function AllocationEditorModal({
             <div className="rounded-inset p-3 bg-[var(--recessed-bg)]">
               <div className={cx('text-[10px] font-light tracking-wide', textSecondary)}>添加订单到本票（合票）</div>
               <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
-                <select
-                  className="bds-select sm col-span-2"
-                  value={formOrderId}
-                  onChange={e => setFormOrderId(e.target.value)}
+                <CustomSelect
+                  className="col-span-2"
+                  size="compact"
+                  ariaLabel="选择订单"
+                  placeholder={ordersLoading ? '加载订单…' : '— 选择订单 —'}
                   disabled={ordersLoading || saving}
-                >
-                  <option value="">{ordersLoading ? '加载订单…' : '— 选择订单 —'}</option>
-                  {candidateOrders.map(o => (
-                    <option key={o.id} value={o.id}>{o.customer} · 订单 {o.id.slice(-8)}</option>
-                  ))}
-                </select>
+                  options={candidateOrders.map(o => ({ value: o.id, label: `${o.customer} · 订单 ${o.id.slice(-8)}` }))}
+                  value={formOrderId}
+                  onChange={v => setFormOrderId(v)}
+                />
                 <input value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="计划数量" className={fieldClass} />
                 <input value={formUnit} onChange={e => setFormUnit(e.target.value)} placeholder="单位 (m/yd/pcs)" className={fieldClass} />
                 <input value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="批次/箱备注（可选）" className={cx(fieldClass, 'col-span-2 md:col-span-4')} />

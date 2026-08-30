@@ -83,12 +83,16 @@ L4 落地层   逐页审计 → 修正 → 浏览器真实渲染验证（执行�
 
 ## §5 下拉选择范式
 
+> **2026-08-31 W4 原生浮层收编拍板**：原生 `<select>` 的弹出选项面板由浏览器渲染、无法定制，
+> 与 BDS 自绘浮层纪律冲突。全站 254 处存量按域分批收编至 `CustomSelect`；收编完成后
+> `check-design-tokens.sh` M4 守卫反转（出现任何 `<select` 元素即报错）。
+
 | 范式 | 组件 | 适用语境 |
 |---|---|---|
-| 原生填充式 | `select.bds-select` | filterbar 内、表单内**默认**；新代码唯一选择 |
-| 可搜索组合 | `.bds-combobox`（§54） | 选项 >10 需搜索、多选场景 |
-| 外壳存量 | CustomSelect（36px legacy 轨） | 外壳 chrome 工具条存量，不再扩散，逐步收编 |
-| compiled 专属 | CompiledSelectControl | compiled 页专属，不外溢 |
+| **自绘下拉（唯一真源）** | `CustomSelect` | **全站唯一选择**。surface 档位按语境：工具条筛选 `default` / 表单字段 `form` / filterbar 组合条 `field`(40px pill) / 密集行内 `size="compact"`；选项超视口走 `menuPortal` |
+| 可搜索组合 | `RelationCombobox` / `.bds-combobox`（§54） | 实体 FK 选择需搜索、选项数百级（客户/供应商/员工大表） |
+| compiled 专属 | CompiledSelectControl | compiled 页专属薄壳（同 CustomSelect 真身），不外溢 |
+| ~~原生填充式~~ | ~~`select.bds-select`~~ | **已退役**——存量收编中，新代码禁止 |
 
 ---
 
