@@ -332,7 +332,9 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('contentClassName="relative z-10 flex min-h-0 flex-1 flex-col"');
     expect(productsSource).toContain('className={`h-full flex flex-col rounded-card shadow-none overflow-hidden ${OS_MATERIAL.raisedCard}`}');
     expect(productsSource).toContain('data-os-compiler-role="product-detail-body-scroll"');
-    expect(productsSource).toContain('className={`flex-1 min-h-0 overflow-y-auto px-6 py-8 bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}');
+    expect(productsSource).toContain('className={`flex-1 min-h-0 overflow-y-auto bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}');
+    // 详情头部随内容滚动（2026-08-31）：标题+操作区并入滚动容器，px-6 py-8 落在内容块
+    expect(productsSource).toContain('<div className="px-6 py-8">');
     const detailHeaderSource = productsSource.slice(
       productsSource.indexOf('role="product-detail-panel"'),
       productsSource.indexOf('ref={productDetailBodyScrollRef}'),
@@ -341,10 +343,11 @@ describe('ProductsManager Bambook OS tokens', () => {
       productsSource.indexOf('ref={productDetailBodyScrollRef}'),
       productsSource.indexOf('<DetailSection title="基础识别">'),
     );
-    expect(detailHeaderSource).toContain('{selectedProduct.name}');
     expect(detailHeaderSource).not.toContain('核心档案信息已完整');
+    // 详情头部已并入滚动容器（2026-08-31）：标题与档案完整性进度条同流滚动，标题在前
+    expect(detailBodySource).toContain('{selectedProduct.name}');
     expect(detailBodySource).toContain('核心档案信息已完整');
-    expect(detailBodySource).not.toContain('{selectedProduct.name}');
+    expect(detailBodySource.indexOf('{selectedProduct.name}')).toBeLessThan(detailBodySource.indexOf('核心档案信息已完整'));
     expect(productsSource).not.toContain("bg-slate-50/80 border-slate-100");
     expect(productsSource).not.toContain("bg-[#0d1b2a]/40 border-white/10");
   });

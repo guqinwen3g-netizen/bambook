@@ -615,8 +615,10 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             compilerRole="relation-detail-main-panel"
             source="DetailPanel.MainPanel"
         >
-            {/* Header */}
-            <div className={`shrink-0 p-5 border-b ${panelDividerClass}`}>
+            {/* Header 随详情内容一并滚动（与开发/货运/财务详情同一范式）：标题+操作区不再固定，把完整高度让给详情内容 */}
+            <CompiledEdgeFade scrollRef={detailScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={64} bottomHeight={72} source="DetailPanel.edgeFade" />
+            <div ref={detailScrollRef} className={`flex-1 min-h-0 overflow-y-auto overscroll-contain ${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-detail-panel-shadow-viewport`}>
+            <div className={`p-5 border-b ${panelDividerClass}`}>
                 <div className="flex items-center gap-4">
                     {/* 图标 */}
                     {isOrg ? (
@@ -692,9 +694,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                 </div>
             </div>
 
-            {/* 内容区域 - 可滚动 */}
-            <CompiledEdgeFade scrollRef={detailScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={64} bottomHeight={72} source="DetailPanel.edgeFade" />
-            <div ref={detailScrollRef} className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-8 space-y-3 ${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-detail-panel-shadow-viewport`}>
+            {/* 内容区域 - 可滚动（头部已并入本滚动容器） */}
+            <div className="px-5 pt-5 pb-8 space-y-3">
                 {isOrg ? (
                     // ========== 组织信息布局 ==========
                     <>
@@ -902,6 +903,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         删除{isOrg ? '组织' : '联系人'}
                     </button>
                 </div>
+            </div>
             </div>
         </CompiledSurfacePanel>
         </div>

@@ -1798,13 +1798,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     ];
 
     return (
-      <>
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {vatListError && (
-          <div className="bds-alert danger shrink-0">
+          <div className="bds-alert danger">
             {vatListError}
           </div>
         )}
-        <div className="shrink-0 px-5 py-5">
+        <div className="px-5 py-5">
           {/* 与发票/凭证详情头部一致（2026-08-21）：头部行 flex-wrap + 按钮簇去 shrink-0，
               窄 panel 下按钮簇整块落到标题下方而非顶破。 */}
           <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
@@ -1859,7 +1859,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        <div className="px-5 pb-5">
           <div className="space-y-1">
             {fieldRows.map(row => (
               <div key={row.label} className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-2 py-1">
@@ -1894,7 +1894,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
           )}
         </div>
-      </>
+      </div>
     );
   };
 
@@ -1961,13 +1961,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       : { label: '收付金额', value: formatAmount(voucher!.amount, voucher!.currency) };
 
     return (
-      <>
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {voidDeleteError && (
-          <div className="bds-alert danger shrink-0">
+          <div className="bds-alert danger">
             {voidDeleteError}
           </div>
         )}
-        <div className="shrink-0 px-5 py-5">
+        <div className="px-5 py-5">
           {/* 根因修复（2026-08-21）：头部行必须 flex-wrap，否则窄 panel 下右侧按钮簇
               被左侧标题挤破、向右戳出被 overflow-hidden 裁切（"编辑/导出PDF 仍溢出"）。
               加 flex-wrap 后空间不足时按钮簇整块落到标题下方，而非顶破。 */}
@@ -2166,7 +2166,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        <div className="px-5 pb-5">
           <div className="space-y-1">
             {fieldRows.map(row => (
               <div key={row.label} className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-2 py-1">
@@ -2430,7 +2430,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             );
           })()}
         </div>
-      </>
+      </div>
     );
   };
 

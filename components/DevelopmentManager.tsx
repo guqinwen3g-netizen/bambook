@@ -885,8 +885,8 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               contentClassName="relative z-10 flex h-full min-h-0 flex-col overflow-hidden"
             >
               {selectedCase ? (
-                <>
-                  <div className="shrink-0 px-5 py-4" style={{ borderBottom: 'var(--border-subtle)' }}>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <div className="px-5 py-4" style={{ borderBottom: 'var(--border-subtle)' }}>
                     {/* 与财务管理详情头部同一范式（2026-08-21）：头部行 flex-wrap，
                         窄 panel 下按钮簇整块落到标题下方而非顶破；状态徽章归标题块，与动作按钮分离。 */}
                     <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
@@ -1000,7 +1000,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       </div>
                     </div>
                   </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                  <div className="px-5 py-4">
                     {/* 资料完备度横幅：详情头部块之下、内容之上 */}
                     {caseCompleteness && (
                       <div className="mb-4">
@@ -1076,7 +1076,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     </div>
                     )}
                   </div>
-                </>
+                </div>
               ) : (
                 <div className="bds-empty h-full justify-center">
                   <div className="glyph"><PackageCheck size={24} strokeWidth={1.5} /></div>

@@ -446,7 +446,9 @@ describe('RelationsManager title system', () => {
     expect(detailPanelSource).toContain('materialTone="nested"');
     expect(detailPanelSource).toContain('<CompiledEdgeFade scrollRef={detailScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={64} bottomHeight={72} source="DetailPanel.edgeFade" />');
     expect(detailPanelSource).toContain('ref={detailScrollRef}');
-    expect(detailPanelSource).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-8');
+    // 详情头部随内容滚动（2026-08-31）：滚动视口不再含内边距，px-5 pt-5 pb-8 落在内容块
+    expect(detailPanelSource).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain');
+    expect(detailPanelSource).toContain('<div className="px-5 pt-5 pb-8 space-y-3">');
   });
 
   it('aligns light tertiary relation containers to the selected button rim and highlight primitive', () => {
@@ -605,7 +607,9 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).not.toContain('bambook-card-glass');
     expect(contactListSource).toContain('flex-1 min-h-0 overflow-y-auto');
     expect(detailPanelSource).toContain('className={BAMBOOK_OS.layout.relationsDetailMainShellClass}');
-    expect(detailPanelSource).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-8');
+    // 详情头部随内容滚动（2026-08-31）：滚动视口不再含内边距，px-5 pt-5 pb-8 落在内容块
+    expect(detailPanelSource).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain');
+    expect(detailPanelSource).toContain('<div className="px-5 pt-5 pb-8 space-y-3">');
     expect(detailPanelSource).toContain('as="section"');
     expect(detailPanelSource).toContain('className="p-3.5 !rounded-inset"');
     expect(detailPanelSource).not.toContain('rounded-[22px] border p-4');

@@ -436,14 +436,18 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       {/* 客户选择器 + 搜索 */}
       <div className="px-7 pt-3 pb-3 flex items-center gap-3 flex-wrap">
         <div className="bds-filterbar flex-1 min-w-60">
-          <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-          <input
-            type="text"
-            placeholder="搜索客户名称..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bds-input sm flex-1"
-          />
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-0 top-0 z-10 flex h-10 w-10 items-center justify-center" aria-hidden="true">
+              <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+            </span>
+            <input
+              type="text"
+              placeholder="搜索客户名称..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bds-input sm w-full pl-10"
+            />
+          </div>
           <select
             value={selectedRelationId ?? ''}
             onChange={(e) => setSelectedRelationId(e.target.value || null)}
@@ -721,14 +725,18 @@ function OpportunitiesTab({
 
       {/* C5 检索 bar：搜索 + 阶段筛选 + 排序（共行组合 bar，icon 内嵌输入框左侧） */}
       <div className="bds-filterbar">
-        <Search className="w-4 h-4 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
-        <input
-          type="text"
-          placeholder="搜索商机标题/来源/销售..."
-          value={oppSearch}
-          onChange={(e) => setOppSearch(e.target.value)}
-          className="bds-input sm flex-1"
-        />
+        <div className="relative flex-1">
+          <span className="pointer-events-none absolute left-0 top-0 z-10 flex h-10 w-10 items-center justify-center" aria-hidden="true">
+            <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+          </span>
+          <input
+            type="text"
+            placeholder="搜索商机标题/来源/销售..."
+            value={oppSearch}
+            onChange={(e) => setOppSearch(e.target.value)}
+            className="bds-input sm w-full pl-10"
+          />
+        </div>
         <select
           value={oppStageFilter}
           onChange={(e) => setOppStageFilter(e.target.value)}
@@ -916,14 +924,18 @@ function FollowUpsTab({
 
       {/* C5 检索 bar：搜索 + 类型筛选 + 排序（共行组合 bar，icon 内嵌输入框左侧） */}
       <div className="bds-filterbar">
-        <Search className="w-4 h-4 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
-        <input
-          type="text"
-          placeholder="搜索跟进内容/主题/联系人..."
-          value={fuSearch}
-          onChange={(e) => setFuSearch(e.target.value)}
-          className="bds-input sm flex-1"
-        />
+        <div className="relative flex-1">
+          <span className="pointer-events-none absolute left-0 top-0 z-10 flex h-10 w-10 items-center justify-center" aria-hidden="true">
+            <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+          </span>
+          <input
+            type="text"
+            placeholder="搜索跟进内容/主题/联系人..."
+            value={fuSearch}
+            onChange={(e) => setFuSearch(e.target.value)}
+            className="bds-input sm w-full pl-10"
+          />
+        </div>
         <select
           value={fuTypeFilter}
           onChange={(e) => setFuTypeFilter(e.target.value)}

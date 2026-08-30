@@ -3576,8 +3576,21 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               role="product-detail-panel"
               source="CompiledProductsPage.product-detail-panel"
             >
-              {/* 1. Header (模仿 Relations DetailPanel) */}
-              <div className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${BAMBOOK_OS.tone.divider.panel}`}>
+              {/* 1. Header 随详情内容一并滚动（与开发/货运/财务详情同一范式）：标题+操作区不再固定，把完整高度让给详情内容 */}
+              <CompiledEdgeFade
+                scrollRef={productDetailBodyScrollRef}
+                isDarkMode={isDarkMode}
+                renderMode="content-mask"
+                source="CompiledProductsPage.productDetailBody.edgeFade"
+                topHeight={56}
+                bottomHeight={72}
+              />
+              <div
+                ref={productDetailBodyScrollRef}
+                data-os-compiler-role="product-detail-body-scroll"
+                className={`flex-1 min-h-0 overflow-y-auto bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}
+              >
+              <div className={`px-6 py-5 flex items-center justify-between border-b ${BAMBOOK_OS.tone.divider.panel}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <button
                     onClick={() => { setNavLevel('list'); setSelectedProduct(null); }}
@@ -3611,20 +3624,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 </div>
               </div>
 
-              {/* 2. Scrollable Body */}
-              <CompiledEdgeFade
-                scrollRef={productDetailBodyScrollRef}
-                isDarkMode={isDarkMode}
-                renderMode="content-mask"
-                source="CompiledProductsPage.productDetailBody.edgeFade"
-                topHeight={56}
-                bottomHeight={72}
-              />
-              <div
-                ref={productDetailBodyScrollRef}
-                data-os-compiler-role="product-detail-body-scroll"
-                className={`flex-1 min-h-0 overflow-y-auto px-6 py-8 bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}
-              >
+              {/* 2. Scrollable Body（头部已并入本滚动容器） */}
+                <div className="px-6 py-8">
                 <div className="max-w-[720px] mx-auto space-y-6">
                   
                   {/* 图片相册区域 (Image Gallery)：主图 + 左右翻看 + 缩略图条 */}
@@ -3970,6 +3971,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                    />
 	                  </div>
 
+                </div>
                 </div>
               </div>
             </CompiledDetailShell>

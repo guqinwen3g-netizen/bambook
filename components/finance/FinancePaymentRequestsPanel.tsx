@@ -341,8 +341,8 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
     ];
 
     return (
-      <>
-        <div className="shrink-0 px-5 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="px-5 py-5">
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>当前付款申请</div>
@@ -360,7 +360,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
             </div>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        <div className="px-5 pb-5">
           {actionError && <div className="bds-alert danger mb-3">{actionError}</div>}
           <div className="space-y-1">
             {fieldRows.map(row => (
@@ -441,7 +441,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
             </div>
           )}
         </div>
-      </>
+      </div>
     );
   };
 
