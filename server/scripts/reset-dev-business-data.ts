@@ -101,6 +101,7 @@ const DELETE_PLAN: Array<[string, string]> = [
   ['letterOfCredit', 'LetterOfCredit 信用证'],
   ['lcEvent', 'LcEvent 信用证节点事件'],
   ['taxRefund', 'TaxRefund 出口退税'],
+  ['documentVersion', 'DocumentVersion 单据版本'],
   ['tradeDocument', 'TradeDocument 单据中心归档'],
   ['importBatch', 'ImportBatch 历史导入批次'],
   ['renderedDoc', 'RenderedDoc 模板渲染产物'],
