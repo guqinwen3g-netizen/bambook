@@ -463,6 +463,14 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   border-radius: var(--radius-pill);
   background: var(--recessed-bg);
 }
+/* wrap 形态圆角降级（2026-08-31 pill 审计裁决 · 风险管理「类型」筛选两行爆形实证）：
+   声明 flex-wrap 的容器高度可增长，999px 弧度随高度爆炸成半圆——wrap 即降级固定圆角，
+   单行铁律形态（无 flex-wrap）保留 pill。全站 18 处消费点（bds-segment ×11 / bds-filterbar ×7）
+   经此规则统一根治，特异性 0-2-0 > 基类 0-1-0。新增 wrap 消费点自动受保护。 */
+.bds-segment.flex-wrap,
+.bds-filterbar.flex-wrap {
+  border-radius: var(--radius-control);
+}
 .bds-segment .seg {
   padding: 7px 16px;
   border-radius: var(--radius-pill);
