@@ -146,73 +146,56 @@ export function createCrmService(prisma: PrismaClient) {
   const now = () => Date.now();
 
   // ══════════════════════════════════════════════════════════════
-  // 1. 联系人管理（Contact）—— Relation 人物轨代理
+  // 1. 联系人管理（Contact）—— Contact 表写真源
   //
-  // 联系人统一（方案 A）：Relation(isOrganization=false) 人物记录是组织联系人的
-  // 唯一真源（与关系智库通讯录/组织架构/Agent relations.expand 同源）。本节 CRUD
-  // 以 Contact API 合约形状代理读写 Relation，字段映射：title↔role、
-  // status↔contactStatus、relationId↔parentId。Contact 表保留为迁移前历史归档，
-  // 不再写入。返回的 id 即 Relation id（跟进 contactId 引用随之统一指向 Relation）。
+  // 联系人统一（写路径收敛）：Contact 表是组织联系人的唯一写真源，与关系智库
+  // 通讯录端点（/api/v1/relations/:id/contacts）同源同表。旧 Relation
+  // (isOrganization=false) 人物子行仅为历史数据读兜底，本节不再写入。
+  // 返回的 id 即 Contact id（CTC_ 前缀），新跟进/沟通记录的 contactId 随之
+  // 指向 Contact；历史记录仍引用 Relation 人物 id——attachFollowUpContacts
+  // 与 brandLineService 的 contactId 校验保持双源兼容。
   // ══════════════════════════════════════════════════════════════
 
-  function relationToContact(row: any): Contact {
-    // 路由层 serialize 会做 BigInt→number 归一；此处形状映射（createdAt/updatedAt 从
-    // lastInteraction 兜底，Contact 合约的 number 类型由 serialize 兜底转换）
+  function serializeContactRow(row: any): Contact {
+    // BigInt（createdAt/updatedAt/deletedAt）归一为 number，保持 Contact 合约形状
+    // （路由层另有全局 BigInt.prototype.toJSON 兜底，此处保证 service 契约即 number）
     return {
-      id: row.id,
-      relationId: row.parentId,
-      name: row.name,
-      title: row.role ?? null,
-      department: row.department ?? null,
-      email: row.email ?? null,
-      phone: row.phone ?? null,
-      mobile: row.mobile ?? null,
-      wechat: row.wechat ?? null,
-      whatsapp: row.whatsapp ?? null,
-      isPrimary: !!row.isPrimary,
-      isDecisionMaker: !!row.isDecisionMaker,
-      birthday: row.birthday ?? null,
-      personalNote: row.personalNote ?? null,
-      tags: Array.isArray(row.tags) ? row.tags : [],
-      status: row.contactStatus ?? 'Active',
-      createdAt: Number(row.lastInteraction ?? 0),
-      updatedAt: Number(row.lastInteraction ?? 0),
+      ...row,
+      createdAt: Number(row.createdAt ?? 0),
+      updatedAt: Number(row.updatedAt ?? 0),
       deletedAt: row.deletedAt != null ? Number(row.deletedAt) : null,
     } as unknown as Contact;
   }
 
   async function createContact(relationId: string, input: ContactInput, actorId: string): Promise<Contact> {
-    const ts = now();
-    const contactId = `REL-${ts}-${Math.random().toString(36).slice(2, 8)}`;
+    const tsNum = now();
+    const ts = BigInt(tsNum);
     if (!input?.name?.trim()) {
       throw new CrmValidationError('body.name 必填（联系人姓名）');
     }
 
     const created = await prisma.$transaction(async (tx) => {
-      // 父组织必须存在且未删（与 Agent relation.onboard 同规约：category 继承父组织）
+      // 父组织必须存在且未删（挂靠校验，与 /api/v1/relations/:id/contacts 同规约）
       const org = await tx.relation.findFirst({
         where: { id: relationId, isOrganization: true, deletedAt: null },
-        select: { category: true },
+        select: { id: true },
       });
       if (!org) throw new CrmValidationError(`组织 ${relationId} 不存在或已删除，无法挂靠联系人`);
 
-      // 若新联系人为 primary，先清除该组织下其他 primary（同 parentId 人物轨独占）
+      // 若新联系人为 primary，先清除该组织下其他 primary（Contact 表内独占）
       if (input.isPrimary) {
-        await tx.relation.updateMany({
-          where: { parentId: relationId, isOrganization: false, isPrimary: true, deletedAt: null },
-          data: { isPrimary: false, lastInteraction: ts },
+        await tx.contact.updateMany({
+          where: { relationId, isPrimary: true, deletedAt: null },
+          data: { isPrimary: false, updatedAt: ts },
         });
       }
 
-      const rel = await tx.relation.create({
+      const row = await tx.contact.create({
         data: {
-          id: contactId,
+          id: `CTC_${tsNum.toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+          relationId,
           name: input.name,
-          category: org.category,
-          type: 'Contact',
-          isOrganization: false,
-          parentId: relationId,
-          role: input.title ?? null,
+          title: input.title ?? null,
           department: input.department ?? null,
           email: input.email ?? null,
           phone: input.phone ?? null,
@@ -221,13 +204,12 @@ export function createCrmService(prisma: PrismaClient) {
           whatsapp: input.whatsapp ?? null,
           isPrimary: input.isPrimary ?? false,
           isDecisionMaker: input.isDecisionMaker ?? false,
-          contactStatus: 'Active',
           birthday: input.birthday ?? null,
           personalNote: input.personalNote ?? null,
           tags: input.tags ?? [],
-          contactInfo: '',
-          rating: 3,
-          lastInteraction: ts,
+          status: 'Active',
+          createdAt: ts,
+          updatedAt: ts,
         },
       });
 
@@ -236,9 +218,9 @@ export function createCrmService(prisma: PrismaClient) {
           id: generateId('alog'),
           actorId: actorId || 'system',
           action: 'create_contact',
-          targetType: 'Relation',
-          targetId: contactId,
-          detail: { source: 'api:crm', after: { relationId, name: input.name, isPrimary: rel.isPrimary } } as any,
+          targetType: 'Contact',
+          targetId: row.id,
+          detail: { source: 'api:crm', after: { relationId, name: input.name, isPrimary: row.isPrimary } } as any,
           ip: null,
           operationType: 'create',
           fieldPath: null,
@@ -248,47 +230,47 @@ export function createCrmService(prisma: PrismaClient) {
         },
       });
 
-      return rel;
+      return row;
     });
 
-    logger.info('[CrmService] contact created (Relation person)', { id: contactId, parentId: relationId, name: input.name });
-    return relationToContact(created);
+    logger.info('[CrmService] contact created (Contact table)', { id: created.id, relationId, name: input.name });
+    return serializeContactRow(created);
   }
 
   async function listContacts(relationId: string): Promise<Contact[]> {
-    const rows = await prisma.relation.findMany({
-      where: { parentId: relationId, isOrganization: false, deletedAt: null },
+    const rows = await prisma.contact.findMany({
+      where: { relationId, deletedAt: null },
       orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
     });
-    return rows.map(relationToContact);
+    return rows.map(serializeContactRow);
   }
 
   async function getContact(id: string): Promise<Contact | null> {
-    const row = await prisma.relation.findFirst({
-      where: { id, isOrganization: false, deletedAt: null },
+    const row = await prisma.contact.findFirst({
+      where: { id, deletedAt: null },
     });
-    return row ? relationToContact(row) : null;
+    return row ? serializeContactRow(row) : null;
   }
 
   async function updateContact(id: string, input: Partial<ContactInput>, actorId: string): Promise<Contact> {
-    const ts = now();
-    const existing = await prisma.relation.findFirst({ where: { id, isOrganization: false, deletedAt: null } });
+    const ts = BigInt(now());
+    const existing = await prisma.contact.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new Error(`联系人 ${id} 不存在`);
 
     const updated = await prisma.$transaction(async (tx) => {
       // 若设为 primary，先清除同组织下其他 primary
       if (input.isPrimary) {
-        await tx.relation.updateMany({
-          where: { parentId: existing.parentId || '', isOrganization: false, isPrimary: true, id: { not: id }, deletedAt: null },
-          data: { isPrimary: false, lastInteraction: ts },
+        await tx.contact.updateMany({
+          where: { relationId: existing.relationId, isPrimary: true, id: { not: id }, deletedAt: null },
+          data: { isPrimary: false, updatedAt: ts },
         });
       }
 
-      return tx.relation.update({
+      return tx.contact.update({
         where: { id },
         data: {
           ...(input.name !== undefined && { name: input.name }),
-          ...(input.title !== undefined && { role: input.title }),
+          ...(input.title !== undefined && { title: input.title }),
           ...(input.department !== undefined && { department: input.department }),
           ...(input.email !== undefined && { email: input.email }),
           ...(input.phone !== undefined && { phone: input.phone }),
@@ -300,22 +282,22 @@ export function createCrmService(prisma: PrismaClient) {
           ...(input.birthday !== undefined && { birthday: input.birthday }),
           ...(input.personalNote !== undefined && { personalNote: input.personalNote }),
           ...(input.tags !== undefined && { tags: input.tags }),
-          lastInteraction: ts,
+          updatedAt: ts,
         },
       });
     });
 
-    logger.info('[CrmService] contact updated (Relation person)', { id, actorId });
-    return relationToContact(updated);
+    logger.info('[CrmService] contact updated (Contact table)', { id, actorId });
+    return serializeContactRow(updated);
   }
 
   async function deleteContact(id: string, actorId: string): Promise<void> {
-    const ts = now();
-    await prisma.relation.update({
+    const ts = BigInt(now());
+    await prisma.contact.update({
       where: { id },
-      data: { deletedAt: ts, lastInteraction: ts, isPrimary: false },
+      data: { deletedAt: ts, updatedAt: ts, isPrimary: false },
     });
-    logger.info('[CrmService] contact soft-deleted (Relation person)', { id, actorId });
+    logger.info('[CrmService] contact soft-deleted (Contact table)', { id, actorId });
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -487,17 +469,25 @@ export function createCrmService(prisma: PrismaClient) {
     return created;
   }
 
-  // 联系人统一：FollowUpRecord.contactId 已指向 Relation 人物 id。
-  // 旧 include contact（Contact 表 FK）对 Relation id 返回 null——改为从 Relation
-  // 批量拼装 contact 展示对象（name/title），兼容历史 Contact id（查不到则置空）。
+  // 联系人统一：FollowUpRecord.contactId 为裸引用——新数据指向 Contact 表 id
+  // （CRM 联系人写路径已收敛至 Contact 表），历史数据仍指向 Relation 人物 id。
+  // 展示拼装双源兼容：Contact 表优先（写真源），未命中回退 Relation 人物轨（历史数据）。
   async function attachFollowUpContacts<T extends { contactId: string | null }>(rows: T[]): Promise<(T & { contact: { name: string; title: string | null } | null })[]> {
     const contactIds = [...new Set(rows.map(r => r.contactId).filter((id): id is string => !!id))];
     if (contactIds.length === 0) return rows as any;
-    const people = await prisma.relation.findMany({
-      where: { id: { in: contactIds }, isOrganization: false },
-      select: { id: true, name: true, role: true },
-    });
-    const byId = new Map(people.map(p => [p.id, { name: p.name, title: p.role ?? null }]));
+    const [contactRows, people] = await Promise.all([
+      prisma.contact.findMany({
+        where: { id: { in: contactIds }, deletedAt: null },
+        select: { id: true, name: true, title: true },
+      }),
+      prisma.relation.findMany({
+        where: { id: { in: contactIds }, isOrganization: false },
+        select: { id: true, name: true, role: true },
+      }),
+    ]);
+    const byId = new Map<string, { name: string; title: string | null }>();
+    for (const c of contactRows) byId.set(c.id, { name: c.name, title: c.title ?? null });
+    for (const p of people) if (!byId.has(p.id)) byId.set(p.id, { name: p.name, title: p.role ?? null });
     return rows.map(row => ({
       ...row,
       contact: row.contactId ? (byId.get(row.contactId) ?? null) : null,

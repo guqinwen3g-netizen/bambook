@@ -43,7 +43,20 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
           { id: 'asc' },
         ],
       });
-      return res.json({ ok: true, relations: rows.map(serializeRelation) });
+      // 联系人计数徽标真源：Contact 表存活行（_count 不支持 deletedAt 过滤，
+      // 改 groupBy 分组聚合映射；组织规模 ~20 家，性能可接受）
+      const orgIds = rows.filter((r: any) => r.isOrganization).map((r: any) => r.id);
+      const counts = orgIds.length
+        ? await (opts.prisma as any).contact.groupBy({
+            by: ['relationId'],
+            where: { deletedAt: null, relationId: { in: orgIds } },
+            _count: { relationId: true },
+          })
+        : [];
+      const contactCountByRelation = new Map<string, number>(
+        counts.map((c: any) => [c.relationId as string, Number(c._count?.relationId ?? 0)]),
+      );
+      return res.json({ ok: true, relations: rows.map((row: any) => serializeRelation(row, contactCountByRelation)) });
     } catch (e: any) {
       logger.error('[relations/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
@@ -367,7 +380,7 @@ function normalizeJsonArray(value: unknown): unknown[] {
   }
 }
 
-function serializeRelation(row: any) {
+function serializeRelation(row: any, contactCountByRelation?: Map<string, number>) {
   const out: any = { ...row };
   if (typeof out.lastInteraction === 'bigint') out.lastInteraction = Number(out.lastInteraction);
   if (typeof out.deletedAt === 'bigint') out.deletedAt = Number(out.deletedAt);
@@ -376,6 +389,10 @@ function serializeRelation(row: any) {
   }
   delete out.coordinatesLat;
   delete out.coordinatesLng;
+  // 联系人计数徽标（Contact 表存活行聚合，GET / 列表注入）；人物子行无该字段
+  if (out.isOrganization && contactCountByRelation) {
+    out.contactCount = contactCountByRelation.get(out.id) ?? 0;
+  }
   return out;
 }
 

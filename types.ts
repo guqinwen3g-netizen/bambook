@@ -239,6 +239,7 @@ export interface Relation {
   currency?: string;             // 交易币种 (USD, CNY, EUR)
   taxId?: string;                // 税号 / 统一社会信用代码
   creditLimit?: number;          // 信用额度
+  contactCount?: number;         // 联系人计数（Contact 表存活行聚合，GET / 列表注入组织行）
 
   // 地址信息 (组织专属)
   officialAddress?: string;      // 公司注册地址

@@ -139,8 +139,8 @@ describe('CrmService', () => {
   // Contact
   // ══════════════════════════════════════════════════════════════
 
-  describe('Contact（Relation 人物轨代理——联系人统一）', () => {
-    it('creates a contact successfully (落到 Relation 人物轨)', async () => {
+  describe('Contact（Contact 表写真源——联系人统一）', () => {
+    it('creates a contact successfully (落到 Contact 表)', async () => {
       const service = createCrmService(prisma);
       const contact = await service.createContact('rel_1', {
         name: '张三',
@@ -151,12 +151,12 @@ describe('CrmService', () => {
 
       expect(contact.name).toBe('张三');
       expect(contact.isPrimary).toBe(true);
-      // 合约形状映射：title↔role、relationId↔parentId
       expect(contact.title).toBe('采购经理');
       expect(contact.relationId).toBe('rel_1');
-      expect(contact.id).toMatch(/^REL-/);
-      expect(prisma.relation.create).toHaveBeenCalledTimes(1);
-      expect(prisma.contact.create).not.toHaveBeenCalled();
+      expect(contact.id).toMatch(/^CTC_/);
+      expect(prisma.contact.create).toHaveBeenCalledTimes(1);
+      // 写路径收敛：不再创建 Relation 人物子行
+      expect(prisma.relation.create).not.toHaveBeenCalled();
       expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
     });
 
@@ -173,9 +173,9 @@ describe('CrmService', () => {
       const service = createCrmService(prisma);
       await service.createContact('rel_1', { name: '李四', isPrimary: true }, 'user_1');
 
-      expect(prisma.relation.updateMany).toHaveBeenCalledWith(
+      expect(prisma.contact.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { parentId: 'rel_1', isOrganization: false, isPrimary: true, deletedAt: null },
+          where: { relationId: 'rel_1', isPrimary: true, deletedAt: null },
           data: expect.objectContaining({ isPrimary: false }),
         }),
       );
@@ -185,7 +185,7 @@ describe('CrmService', () => {
       const service = createCrmService(prisma);
       await service.createContact('rel_1', { name: '王五', isPrimary: false }, 'user_1');
 
-      expect(prisma.relation.updateMany).not.toHaveBeenCalled();
+      expect(prisma.contact.updateMany).not.toHaveBeenCalled();
     });
 
     it('throws when audit fails (fail-closed)', async () => {
@@ -197,38 +197,38 @@ describe('CrmService', () => {
       ).rejects.toThrow('AUDIT_BOOM');
     });
 
-    it('lists contacts for a relation (Relation → Contact 形状映射)', async () => {
-      prisma.relation.findMany.mockResolvedValue([
-        { id: 'REL_1', parentId: 'rel_1', name: '张三', role: '采购经理', isPrimary: true, isDecisionMaker: false, contactStatus: 'Active', lastInteraction: 100, tags: [], deletedAt: null },
-        { id: 'REL_2', parentId: 'rel_1', name: '李四', role: null, isPrimary: false, isDecisionMaker: false, contactStatus: null, lastInteraction: 200, tags: [], deletedAt: null },
+    it('lists contacts for a relation (Contact 表真源)', async () => {
+      prisma.contact.findMany.mockResolvedValue([
+        { id: 'CTC_1', relationId: 'rel_1', name: '张三', title: '采购经理', isPrimary: true, isDecisionMaker: false, status: 'Active', tags: [], deletedAt: null, createdAt: 100, updatedAt: 100 },
+        { id: 'CTC_2', relationId: 'rel_1', name: '李四', title: null, isPrimary: false, isDecisionMaker: false, status: 'Active', tags: [], deletedAt: null, createdAt: 200, updatedAt: 200 },
       ]);
       const service = createCrmService(prisma);
       const contacts = await service.listContacts('rel_1');
 
       expect(contacts).toHaveLength(2);
       expect(contacts[0].isPrimary).toBe(true);
-      expect(contacts[0].title).toBe('采购经理'); // role → title
-      expect(contacts[1].status).toBe('Active');  // contactStatus 缺省 → Active
-      expect(prisma.relation.findMany).toHaveBeenCalledWith(
+      expect(contacts[0].title).toBe('采购经理');
+      expect(contacts[0].status).toBe('Active');
+      expect(prisma.contact.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { parentId: 'rel_1', isOrganization: false, deletedAt: null },
+          where: { relationId: 'rel_1', deletedAt: null },
         }),
       );
     });
 
-    it('updates a contact (Relation person)', async () => {
-      prisma.relation.findFirst.mockResolvedValue({ id: 'REL_1', parentId: 'rel_1', isOrganization: false, isPrimary: false });
+    it('updates a contact (Contact 表)', async () => {
+      prisma.contact.findFirst.mockResolvedValue({ id: 'CTC_1', relationId: 'rel_1', name: '张三', isPrimary: false, deletedAt: null });
       const service = createCrmService(prisma);
-      const updated = await service.updateContact('REL_1', { name: '张三丰' }, 'user_1');
+      const updated = await service.updateContact('CTC_1', { name: '张三丰' }, 'user_1');
 
-      expect(prisma.relation.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'REL_1' } }),
+      expect(prisma.contact.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'CTC_1' } }),
       );
       expect(updated.name).toBe('张三丰');
     });
 
     it('throws when contact not found on update', async () => {
-      prisma.relation.findFirst.mockResolvedValue(null);
+      prisma.contact.findFirst.mockResolvedValue(null);
       const service = createCrmService(prisma);
 
       await expect(
@@ -236,14 +236,14 @@ describe('CrmService', () => {
       ).rejects.toThrow('不存在');
     });
 
-    it('soft-deletes a contact and clears primary (Relation person)', async () => {
+    it('soft-deletes a contact and clears primary (Contact 表)', async () => {
       const service = createCrmService(prisma);
-      await service.deleteContact('REL_1', 'user_1');
+      await service.deleteContact('CTC_1', 'user_1');
 
-      expect(prisma.relation.update).toHaveBeenCalledWith(
+      expect(prisma.contact.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'REL_1' },
-          data: expect.objectContaining({ isPrimary: false }),
+          where: { id: 'CTC_1' },
+          data: expect.objectContaining({ isPrimary: false, deletedAt: expect.anything() }),
         }),
       );
     });
@@ -717,9 +717,9 @@ describe('CrmService', () => {
 
   describe('getRelationCrmOverview', () => {
     it('aggregates all CRM entities for a relation', async () => {
-      // 联系人统一：overview.contacts 经 listContacts 代理读 Relation 人物轨
-      prisma.relation.findMany.mockResolvedValue([
-        { id: 'REL_1', parentId: 'rel_1', name: '张三', role: null, isPrimary: false, isDecisionMaker: false, contactStatus: null, lastInteraction: 1, tags: [], deletedAt: null },
+      // 联系人统一：overview.contacts 经 listContacts 读 Contact 表写真源
+      prisma.contact.findMany.mockResolvedValue([
+        { id: 'CTC_1', relationId: 'rel_1', name: '张三', title: null, isPrimary: false, isDecisionMaker: false, status: 'Active', tags: [], deletedAt: null, createdAt: 1, updatedAt: 1 },
       ]);
       prisma.creditLimit.findFirst.mockResolvedValue({ id: 'cl_1', totalLimit: 100000 });
       prisma.creditLimit.findMany.mockResolvedValue([{ id: 'cl_1' }]);

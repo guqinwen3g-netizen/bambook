@@ -30,6 +30,10 @@ describe('relations route', () => {
         upsert: vi.fn().mockImplementation(async ({ create }) => create),
         updateMany: vi.fn(),
       },
+      // 联系人计数徽标聚合（GET / 列表 contactCount）
+      contact: {
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     };
 
     const res = await request(makeApp(prisma)).get('/api/v1/relations');

@@ -708,7 +708,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   // （服务端 V2 路由 relations:write/delete scope 门禁兜底，前端隐藏避免点了才 403）
   const canWriteRelations = hasPermission('relations:write');
 
-  const orgContactCount = (orgId: string) => relations.filter(r => r.parentId === orgId && !r.deletedAt).length;
+  // 联系人计数真源为 Contact 表（后端 GET / 列表 contactCount 聚合注入，排除软删）；
+  // 旧实现数 Relation 人物子行——人物轨已停止写入，计数恒 0
+  const orgContactCount = (orgId: string) => relations.find(r => r.id === orgId)?.contactCount ?? 0;
   const tierLabel = (rating?: number) => `Tier ${Math.min(5, Math.max(1, Number(rating || 3)))}`;
   const updateTagRow = (id: string, value: string) => {
     setTagRows(rows => rows.map(row => row.id === id ? { ...row, value } : row));
