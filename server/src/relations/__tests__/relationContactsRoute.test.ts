@@ -27,22 +27,46 @@ function makeContactPrisma(overrides: {
   relation?: any;
   existingContact?: any;
 } = {}) {
-  const contacts = overrides.contacts ?? [];
+  // 可变行集合：create 追加、update 原位替换——供事务内 sync（真源回写）真实查询语义
+  const rows: any[] = [...(overrides.contacts ?? [])];
   const existingContact = overrides.existingContact;
+  if (existingContact && !rows.some(r => r.id === existingContact.id)) rows.push({ ...existingContact });
   const relation = overrides.relation === undefined
     ? { id: 'SIM-SUP-01', name: '供应商一', isOrganization: true, deletedAt: null }
     : overrides.relation;
-  const contactCreate = vi.fn().mockImplementation(async ({ data }: any) => ({ id: 'CTC_NEW1', deletedAt: null, ...data }));
-  const contactUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...(existingContact || {}), id: where.id, ...data }));
+  const contactCreate = vi.fn().mockImplementation(async ({ data }: any) => {
+    // status 模拟 schema 默认值（Contact.status @default Active）
+    const row = { status: 'Active', deletedAt: null, ...data };
+    rows.push(row);
+    return row;
+  });
+  const contactUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => {
+    const idx = rows.findIndex(r => r.id === where.id);
+    const row = { ...(idx >= 0 ? rows[idx] : (existingContact || {})), id: where.id, ...data };
+    if (idx >= 0) rows[idx] = row;
+    return row;
+  });
+  // 事务内 sync（syncOrganizationPrimaryContact）的查询语义：在岗（Active+未删）优先 primary
+  const contactFindFirstInTx = vi.fn(async ({ where }: any) => {
+    return rows.find(r =>
+      r.relationId === where.relationId
+      && r.deletedAt == null
+      && (where.status === undefined || r.status === where.status)
+      && (where.isPrimary === undefined || Boolean(r.isPrimary) === where.isPrimary)
+    ) ?? null;
+  });
+  // 真源回写断言锚点：Relation.primaryContact*/contactInfo 冗余刷新
+  const relationUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where?.id, ...data }));
   const auditLogCreate = vi.fn().mockResolvedValue({ id: 'AL-1' });
   const txFn = vi.fn(async (fn: any) => fn({
-    contact: { create: contactCreate, update: contactUpdate },
+    contact: { create: contactCreate, update: contactUpdate, findFirst: contactFindFirstInTx },
     auditLog: { create: auditLogCreate },
+    relation: { update: relationUpdate },
   }));
   const prisma = {
     relation: { findFirst: vi.fn().mockResolvedValue(relation) },
     contact: {
-      findMany: vi.fn().mockResolvedValue(contacts),
+      findMany: vi.fn().mockResolvedValue(rows),
       // 模拟复合 where 语义：id + relationId（跨组织/不存在均返回 null → 404）
       findFirst: vi.fn(async ({ where }: any) => {
         if (!existingContact) return null;
@@ -56,7 +80,7 @@ function makeContactPrisma(overrides: {
     },
     $transaction: txFn,
   } as any;
-  return { prisma, contactCreate, contactUpdate, auditLogCreate, txFn };
+  return { prisma, contactCreate, contactUpdate, auditLogCreate, txFn, relationUpdate };
 }
 
 describe('GET /api/v1/relations/:id/contacts（Contact 表通讯录列表）', () => {
@@ -100,7 +124,7 @@ describe('POST /api/v1/relations/:id/contacts（创建联系人）', () => {
   });
 
   it('owner 创建成功 → Contact.create（CTC_ 前缀）+ AuditLog 同事务，onDataChange 触发', async () => {
-    const { prisma, contactCreate, auditLogCreate, txFn } = makeContactPrisma();
+    const { prisma, contactCreate, auditLogCreate, txFn, relationUpdate } = makeContactPrisma();
     const onDataChange = vi.fn();
     const res = await request(makeApp(prisma, onDataChange))
       .post('/api/v1/relations/SIM-SUP-01/contacts')
@@ -123,6 +147,15 @@ describe('POST /api/v1/relations/:id/contacts（创建联系人）', () => {
     expect(createdId.startsWith('CTC_')).toBe(true);
     expect(auditLogCreate).toHaveBeenCalledTimes(1);
     expect(onDataChange).toHaveBeenCalledWith({ entity: 'relations', action: 'upsert', ids: ['SIM-SUP-01'] });
+    // 真源回写（2026-08-31）：新 primary 同事务刷新组织冗余字段，旧轨消费点即时保鲜
+    expect(relationUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'SIM-SUP-01' },
+      data: expect.objectContaining({
+        primaryContactName: '测试联系人',
+        primaryContactEmail: 'test@sim-sup-01.example.cn',
+        contactInfo: '测试联系人 / test@sim-sup-01.example.cn',
+      }),
+    }));
   });
 
   it('挂靠组织不存在 → 404 NOT_FOUND，不进事务', async () => {
@@ -205,7 +238,7 @@ describe('PATCH/DELETE /api/v1/relations/:id/contacts/:contactId（部分更新�
   });
 
   it('DELETE → 软删（deletedAt=BigInt）而非物理删除，onDataChange 触发', async () => {
-    const { prisma, contactUpdate, txFn } = makeContactPrisma({
+    const { prisma, contactUpdate, txFn, relationUpdate } = makeContactPrisma({
       existingContact: { id: 'SIM-CTC-09A', relationId: 'SIM-SUP-01', name: '王建军', deletedAt: null },
     });
     const onDataChange = vi.fn();
@@ -223,6 +256,11 @@ describe('PATCH/DELETE /api/v1/relations/:id/contacts/:contactId（部分更新�
     expect(typeof deletedData.deletedAt).toBe('bigint');
     expect(typeof res.body.contact.deletedAt).toBe('number');
     expect(onDataChange).toHaveBeenCalledWith({ entity: 'relations', action: 'delete', ids: ['SIM-SUP-01'] });
+    // 真源回写（2026-08-31）：删除唯一联系人后组织冗余字段清空（全员离岗 → 空主联系人）
+    expect(relationUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'SIM-SUP-01' },
+      data: expect.objectContaining({ primaryContactName: null, contactInfo: '' }),
+    }));
   });
 });
 

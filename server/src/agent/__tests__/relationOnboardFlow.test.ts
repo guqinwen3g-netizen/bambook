@@ -79,20 +79,34 @@ function makeOnboardTx(opts: { upsertFail?: boolean; syncFail?: boolean } = {}) 
   const relationUpsert = opts.upsertFail
     ? vi.fn().mockRejectedValue(new Error('UPSERT_FAIL'))
     : vi.fn().mockImplementation(async ({ where, create }: any) => ({ ...where, ...create, id: where.id }));
-  const entityRefUpsert = opts.syncFail
+  // 2026-08-31 真源收敛：联系人写 Contact 表（不再建 Relation 人物轨）；
+  // syncFail 语义 = 真源回写（Relation.primaryContact* 冗余刷新）失败。
+  // contactRows 可变集合模拟真实时序：幂等查重 findFirst → create → 回写时能查到刚建的卡
+  const contactRows: any[] = [];
+  const contactFindFirst = vi.fn(async ({ where }: any) =>
+    contactRows.find(r =>
+      r.relationId === where.relationId
+      && r.deletedAt == null
+      && (where.status === undefined || r.status === where.status)
+      && (where.isPrimary === undefined || Boolean(r.isPrimary) === where.isPrimary)
+    ) ?? null);
+  const contactCreate = vi.fn().mockImplementation(async ({ data }: any) => {
+    const row = { id: 'CTC_ONBOARD1', status: 'Active', deletedAt: null, ...data };
+    contactRows.push(row);
+    return row;
+  });
+  const contactUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data }));
+  const relationUpdate = opts.syncFail
     ? vi.fn().mockRejectedValue(new Error('SYNC_FAIL'))
-    : vi.fn().mockResolvedValue({});
-  const entityLinkUpsert = vi.fn().mockResolvedValue({});
-  const entityLinkFindMany = vi.fn().mockResolvedValue([]);
+    : vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where?.id, ...data }));
   const auditCreate = vi.fn().mockResolvedValue({});
   return {
     tx: {
-      relation: { upsert: relationUpsert },
+      relation: { upsert: relationUpsert, update: relationUpdate },
+      contact: { findFirst: contactFindFirst, create: contactCreate, update: contactUpdate },
       auditLog: { create: auditCreate },
-      entityReference: { upsert: entityRefUpsert },
-      entityLink: { upsert: entityLinkUpsert, findMany: entityLinkFindMany, update: vi.fn().mockResolvedValue({}) },
     },
-    relationUpsert, auditCreate, entityRefUpsert,
+    relationUpsert, auditCreate, contactCreate, relationUpdate,
   };
 }
 
@@ -111,32 +125,42 @@ describe('task relation-onboard: commitRelationOnboard', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect((r.feedback as any).error.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');
   });
-  it('成功 commit（org+contact）→ committed（org + contact + sync + audit）', async () => {
+  it('成功 commit（org+contact）→ 联系人写 Contact 表 + 冗余回写 + audit', async () => {
     const draft = buildRelationOnboardDraft({
       organization: { id: 'O1', name: 'T', category: 'Customer' },
       contact: { id: 'C1', name: 'Zhang', email: 'z@t.com' },
     });
-    const { tx, relationUpsert, auditCreate } = makeOnboardTx();
+    const { tx, relationUpsert, auditCreate, contactCreate, relationUpdate } = makeOnboardTx();
     const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
     const r = await commitRelationOnboard({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.feedback.status).toBe('committed');
       expect(r.feedback.organizationId).toBe('O1');
-      expect(r.feedback.contactId).toBe('C1');
-      // org + contact 各 upsert 一次
-      expect(relationUpsert).toHaveBeenCalledTimes(2);
+      // 2026-08-31 真源收敛：contactId 为 Contact 表行（CTC_ 前缀），不再是 Relation 人物行
+      expect(String(r.feedback.contactId)).toMatch(/^CTC_/);
+      // 仅 org 1 次 relation upsert（联系人不再建 Relation 人物轨）
+      expect(relationUpsert).toHaveBeenCalledTimes(1);
+      // 联系人卡片创建 + 主联系人冗余回写
+      expect(contactCreate).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ relationId: 'O1', name: 'Zhang', email: 'z@t.com', isPrimary: true }),
+      }));
+      expect(relationUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'O1' },
+        data: expect.objectContaining({ primaryContactName: 'Zhang' }),
+      }));
       // audit 事务内
       expect(auditCreate).toHaveBeenCalledTimes(1);
     }
   });
   it('org-only commit（无 contact）→ committed + contactId null', async () => {
     const draft = buildRelationOnboardDraft({ organization: { id: 'O1', name: 'T', category: 'Customer' } });
-    const { tx } = makeOnboardTx();
+    const { tx, contactCreate } = makeOnboardTx();
     const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
     const r = await commitRelationOnboard({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.feedback.contactId).toBeNull();
+    expect(contactCreate).not.toHaveBeenCalled();
   });
   it('sync reject → COMMIT_TRANSACTION_FAILED（不伪成功）', async () => {
     const draft = buildRelationOnboardDraft({
@@ -156,15 +180,5 @@ describe('task relation-onboard: commitRelationOnboard', () => {
     const r = await commitRelationOnboard({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
     expect(r.ok).toBe(false);
     if (!r.ok) expect((r.feedback as any).error.code).toBe('COMMIT_TRANSACTION_FAILED');
-  });
-
-  it('org-only（无 contact）不产生 belongsTo EntityLink（sync 语义边界）', async () => {
-    const draft = buildRelationOnboardDraft({ organization: { id: 'O1', name: 'T', category: 'Customer' } });
-    const { tx, entityRefUpsert, relationUpsert } = makeOnboardTx();
-    const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
-    await commitRelationOnboard({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
-    // org-only: 仅 1 次 upsert（org），syncRelationEntityReferences 对 organization 直接 return（不产生 link）
-    expect(relationUpsert).toHaveBeenCalledTimes(1);
-    expect(entityRefUpsert).not.toHaveBeenCalled();
   });
 });

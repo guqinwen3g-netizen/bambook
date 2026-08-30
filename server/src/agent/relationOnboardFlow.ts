@@ -8,7 +8,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { syncRelationEntityReferences } from '../entities/sync';
+import { syncOrganizationPrimaryContact } from '../relations/contactSync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import {
   computeProcessDraftHash,
@@ -195,7 +195,7 @@ export async function commitRelationOnboard(
       const orgData = draft.subOperations[0].after as any;
       const orgRelation = await tx.relation.upsert({
         where: { id: orgData.id },
-        update: { name: orgData.name, category: orgData.category, type: orgData.type || orgData.category, updatedAt: now },
+        update: { name: orgData.name, category: orgData.category, type: orgData.type || orgData.category },
         create: {
           id: orgData.id, name: orgData.name, category: orgData.category, type: orgData.type || orgData.category,
           isOrganization: true, contactInfo: orgData.notes || '', lastInteraction: now,
@@ -207,32 +207,60 @@ export async function commitRelationOnboard(
         },
       });
 
-      // 2. upsert primary contact relation（如有）
-      let contactRelation: any = null;
+      // 2. 联系人（如有）——2026-08-31 真源收敛：Contact 表为唯一写真源，
+      //    不再创建 Relation 人物轨（isOrganization=false 人物行即旧轨写入口）。
+      //    主联系人冗余回写（Relation.primaryContact*/contactInfo）同事务刷新，
+      //    邮箱匹配/单据模板/订单预填等旧轨消费点即时保鲜。
+      let contactRecord: any = null;
       if (draft.subOperations.length > 1) {
         const contactData = draft.subOperations[1].after as any;
-        contactRelation = await tx.relation.upsert({
-          where: { id: contactData.id },
-          update: { name: contactData.name, parentId: orgData.id, updatedAt: now },
-          create: {
-            id: contactData.id, name: contactData.name, category: orgData.category, type: 'Contact',
-            isOrganization: false, parentId: orgData.id,
-            contactInfo: contactData.notes || '', lastInteraction: now,
-            email: contactData.email || null, phone: contactData.phone || null,
-            mobile: contactData.mobile || null,
-          },
+        const contactNow = BigInt(Date.now());
+        // 幂等：同人（同组织+同名）重放走更新，不重复建卡
+        contactRecord = await tx.contact.findFirst({
+          where: { relationId: orgRelation.id, name: contactData.name, deletedAt: null },
         });
-        // 联系人 → 组织 EntityLink sync（复用 syncRelationEntityReferences，仅 contact 产生 belongsTo link）
-        await syncRelationEntityReferences(prisma, contactRelation, { source: 'agent:relation.onboard' }, tx);
+        if (contactRecord) {
+          contactRecord = await tx.contact.update({
+            where: { id: contactRecord.id },
+            data: {
+              email: contactData.email || null,
+              phone: contactData.phone || null,
+              mobile: contactData.mobile || null,
+              personalNote: contactData.notes || null,
+              isPrimary: true,
+              updatedAt: contactNow,
+            },
+          });
+        } else {
+          contactRecord = await tx.contact.create({
+            data: {
+              id: `CTC_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+              relationId: orgRelation.id,
+              name: contactData.name,
+              email: contactData.email || null,
+              phone: contactData.phone || null,
+              mobile: contactData.mobile || null,
+              personalNote: contactData.notes || null,
+              isPrimary: true,
+              isDecisionMaker: false,
+              tags: [],
+              status: 'Active',
+              createdAt: contactNow,
+              updatedAt: contactNow,
+            },
+          });
+        }
+        // 主联系人冗余回写（Contact → Relation.primaryContact*/contactInfo）
+        await syncOrganizationPrimaryContact(tx, orgRelation.id);
       }
 
       // 3. audit（事务内闭环）——用 writeRouteAuditLog 返回的真实 audit id
       auditId = await writeRouteAuditLog({
         prisma: tx, actorId: 'agent', source: 'agent:relation.onboard:commit',
         operation: 'relation_onboard_committed', targetType: 'Relation', targetId: orgRelation.id,
-        after: { organizationId: orgRelation.id, contactId: contactRelation?.id || null, transactionId },
+        after: { organizationId: orgRelation.id, contactId: contactRecord?.id || null, transactionId },
       });
-      committed = { organizationId: orgRelation.id, contactId: contactRelation?.id || null };
+      committed = { organizationId: orgRelation.id, contactId: contactRecord?.id || null };
     });
 
     return {

@@ -40,9 +40,10 @@ describe('C1 关系智库客户导出按钮', () => {
 });
 
 describe('C2 联系人离职状态入口', () => {
-  it('名片行提供标记离职/恢复在职入口，写 Relation.contactStatus', () => {
+  it('名片行提供标记离职/恢复在职入口，写 Contact.status 真源（2026-08-31 收敛，不再绕道 Relation 人物轨）', () => {
     expect(crmSectionsSource).toContain('const handleSetStatus = async (c: Contact, status:');
-    expect(crmSectionsSource).toContain("apiService.updateRelation(c.id, { contactStatus: status })");
+    expect(crmSectionsSource).toContain("apiService.updateContact(c.id, { status })");
+    expect(crmSectionsSource).not.toContain('apiService.updateRelation(c.id');
     expect(crmSectionsSource).toContain('title="标记离职"');
     expect(crmSectionsSource).toContain('title="恢复在职"');
     expect(crmSectionsSource).toContain("handleSetStatus(c, 'Left')");

@@ -19,6 +19,7 @@ import { PrismaClient, Contact, CreditLimit, FollowUpRecord, Opportunity, Custom
 import { logger } from '../lib/logger';
 import { publishBusinessEvent } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncOpportunityReferences } from '../entities/sync';
+import { syncOrganizationPrimaryContact } from '../relations/contactSync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型定义
@@ -37,6 +38,7 @@ export interface ContactInput {
   isDecisionMaker?: boolean;
   birthday?: string;
   personalNote?: string;
+  status?: string; // Active | Inactive | Left（2026-08-31：离职/恢复在职直达 Contact 真源）
   tags?: string[];
 }
 
@@ -230,6 +232,10 @@ export function createCrmService(prisma: PrismaClient) {
         },
       });
 
+      // 联系人真源回写：组织主联系人冗余字段（primaryContact*/contactInfo）同事务刷新，
+      // 邮箱匹配/单据模板/订单预填/搜索回填等旧轨消费点即时获得新鲜数据
+      await syncOrganizationPrimaryContact(tx, relationId);
+
       return row;
     });
 
@@ -266,7 +272,10 @@ export function createCrmService(prisma: PrismaClient) {
         });
       }
 
-      return tx.contact.update({
+      // 离职/停用（status 变为非 Active）自动让出主联系人标记——在岗者才可担任 primary
+      const losingPrimary = input.status !== undefined && input.status !== 'Active' && existing.isPrimary;
+
+      const row = await tx.contact.update({
         where: { id },
         data: {
           ...(input.name !== undefined && { name: input.name }),
@@ -278,13 +287,20 @@ export function createCrmService(prisma: PrismaClient) {
           ...(input.wechat !== undefined && { wechat: input.wechat }),
           ...(input.whatsapp !== undefined && { whatsapp: input.whatsapp }),
           ...(input.isPrimary !== undefined && { isPrimary: input.isPrimary }),
+          ...(losingPrimary && { isPrimary: false }),
           ...(input.isDecisionMaker !== undefined && { isDecisionMaker: input.isDecisionMaker }),
           ...(input.birthday !== undefined && { birthday: input.birthday }),
           ...(input.personalNote !== undefined && { personalNote: input.personalNote }),
+          ...(input.status !== undefined && { status: input.status }),
           ...(input.tags !== undefined && { tags: input.tags }),
           updatedAt: ts,
         },
       });
+
+      // 联系人真源回写：主联系人变更/离职/资料修正后同事务刷新组织冗余字段
+      await syncOrganizationPrimaryContact(tx, existing.relationId);
+
+      return row;
     });
 
     logger.info('[CrmService] contact updated (Contact table)', { id, actorId });
@@ -293,9 +309,15 @@ export function createCrmService(prisma: PrismaClient) {
 
   async function deleteContact(id: string, actorId: string): Promise<void> {
     const ts = BigInt(now());
-    await prisma.contact.update({
-      where: { id },
-      data: { deletedAt: ts, updatedAt: ts, isPrimary: false },
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.contact.findFirst({ where: { id, deletedAt: null } });
+      if (!existing) throw new Error(`联系人 ${id} 不存在`);
+      await tx.contact.update({
+        where: { id },
+        data: { deletedAt: ts, updatedAt: ts, isPrimary: false },
+      });
+      // 联系人真源回写：删除后组织主联系人可能易主/清空，同事务刷新冗余字段
+      await syncOrganizationPrimaryContact(tx, existing.relationId);
     });
     logger.info('[CrmService] contact soft-deleted (Contact table)', { id, actorId });
   }

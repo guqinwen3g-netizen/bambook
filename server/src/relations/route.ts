@@ -4,6 +4,7 @@ import { resolveRelationCoordinates } from './geoResolve';
 import { expandRelation, getRelation, queryRelations } from './query';
 import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { createRelation, updateRelation, deleteRelation } from './relationMutationService';
+import { syncOrganizationPrimaryContact } from './contactSync';
 import { requireRole } from '../auth/middleware';
 import { requirePermission } from '../auth/permissionGuard';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
@@ -152,6 +153,8 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
           ip: req.ip ?? null,
           operationType: 'create',
         });
+        // 联系人真源回写：组织主联系人冗余字段同事务刷新（邮箱匹配/单据模板/订单预填等消费点即时保鲜）
+        await syncOrganizationPrimaryContact(tx, req.params.id);
         return row;
       });
       opts.onDataChange?.({ entity: 'relations', action: 'upsert', ids: [req.params.id] });
@@ -178,9 +181,14 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
       });
       if (!existing) return res.status(404).json({ error: 'NOT_FOUND', message: 'Contact not found' });
       const updated = await prisma.$transaction(async (tx: any) => {
+        // 离职/停用（status 变为非 Active）自动让出主联系人标记——与 crmService.updateContact 同规约
+        const patchData = { ...patch };
+        if (patchData.status !== undefined && patchData.status !== 'Active' && existing.isPrimary) {
+          patchData.isPrimary = false;
+        }
         const row = await tx.contact.update({
           where: { id: existing.id },
-          data: { ...patch, updatedAt: BigInt(Date.now()) },
+          data: { ...patchData, updatedAt: BigInt(Date.now()) },
         });
         await writeRouteAuditLog({
           prisma: tx,
@@ -194,6 +202,8 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
           ip: req.ip ?? null,
           operationType: 'update',
         });
+        // 联系人真源回写：主联系人变更/离职/资料修正后同事务刷新组织冗余字段
+        await syncOrganizationPrimaryContact(tx, req.params.id);
         return row;
       });
       opts.onDataChange?.({ entity: 'relations', action: 'update', ids: [req.params.id] });
@@ -228,6 +238,8 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
           ip: req.ip ?? null,
           operationType: 'delete',
         });
+        // 联系人真源回写：删除后组织主联系人可能易主/清空，同事务刷新冗余字段
+        await syncOrganizationPrimaryContact(tx, req.params.id);
         return row;
       });
       opts.onDataChange?.({ entity: 'relations', action: 'delete', ids: [req.params.id] });

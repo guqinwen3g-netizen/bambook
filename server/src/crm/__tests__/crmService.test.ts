@@ -237,14 +237,22 @@ describe('CrmService', () => {
     });
 
     it('soft-deletes a contact and clears primary (Contact 表)', async () => {
-      const service = createCrmService(prisma);
+      // 2026-08-31 真源回写：删除在事务内先查行（存在性校验）+ 回写组织冗余字段
+      const svcPrisma = makePrisma({
+        contactFindFirst: vi.fn().mockResolvedValue({ id: 'CTC_1', relationId: 'rel_1', name: '张三', isPrimary: true, deletedAt: null }),
+      });
+      const service = createCrmService(svcPrisma);
       await service.deleteContact('CTC_1', 'user_1');
 
-      expect(prisma.contact.update).toHaveBeenCalledWith(
+      expect(svcPrisma.contact.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'CTC_1' },
           data: expect.objectContaining({ isPrimary: false, deletedAt: expect.anything() }),
         }),
+      );
+      // 主联系人删除后同事务刷新组织冗余字段（旧轨消费点保鲜）
+      expect(svcPrisma.relation.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'rel_1' } }),
       );
     });
   });

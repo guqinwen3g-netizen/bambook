@@ -3395,6 +3395,7 @@ export interface ContactInput {
   isDecisionMaker?: boolean;
   birthday?: string;
   personalNote?: string;
+  status?: string; // Active | Inactive | Left（离职/恢复在职直达 Contact 真源）
   tags?: string[];
 }
 

@@ -150,14 +150,15 @@ export const CrmContactsSection: React.FC<{ relationId: string; isDarkMode: bool
     } finally { setBusy(false); }
   };
 
-  // C2 联系人离职状态入口：Contact 真源即 Relation 人物行（contactStatus 字段），
-  // crm updateContact 契约不含 status——走 relations v2 更新链路（relationMutationService
-  // 已白名单 contactStatus）。离职可逆：已离职名片提供「恢复在职」回退，不留单向死胡同。
+  // C2 联系人离职状态入口（2026-08-31 真源收敛）：Contact 表行走 v2 updateContact
+  // （crmService.updateContact 白名单已含 status，离职自动让出 primary 并回写组织冗余字段），
+  // 不再绕道 PUT /v2/relations/:id 人物轨更新——该链路对 CTC_* id 必 404（统一后未迁移的写路径）。
+  // 离职可逆：已离职名片提供「恢复在职」回退，不留单向死胡同。
   const handleSetStatus = async (c: Contact, status: 'Left' | 'Active') => {
     if (busy) return;
     setBusy(true); setError(null);
     try {
-      await apiService.updateRelation(c.id, { contactStatus: status });
+      await apiService.updateContact(c.id, { status });
       setContacts(prev => (prev ?? []).map(x => (x.id === c.id ? { ...x, status } : x)));
     } catch (e: any) {
       setError(`联系人状态更新失败：${e?.message || e}`);
