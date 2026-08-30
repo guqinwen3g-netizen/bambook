@@ -473,6 +473,9 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   border: none;
   background: none;
   font-family: var(--font-sans);
+  /* pill 家族单行保护（2026-08-31 pill 审计）：padding 撑高的 pill 元素内容换行时
+     弧度=高度一半会爆形，与 .bds-btn/.bds-badge 的 nowrap 保护对齐 */
+  white-space: nowrap;
   transition: all var(--duration-fast) var(--ease-default);
 }
 .bds-segment .seg.active {
@@ -544,7 +547,9 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   align-items: center;
   gap: var(--space-2);
   padding: 10px 18px;
-  border-radius: var(--r-toast);
+  /* 消息条族语义（2026-08-31 pill 审计裁决）：toast 文案动态可换行，容器高度可增长——
+     消息条禁用 pill（999px 弧度=高度一半，换行即爆形），归入 alert/banner 的 --radius-md 族 */
+  border-radius: var(--radius-md);
   background: var(--bg-card);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -682,6 +687,8 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   font-size: 10px;
   font-weight: 300;
   letter-spacing: var(--tracking-wide);
+  /* pill 家族单行保护（2026-08-31 pill 审计） */
+  white-space: nowrap;
   text-transform: uppercase;
   background: var(--recessed-bg-strong);
   color: var(--text-secondary);
@@ -1104,6 +1111,8 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   background: var(--recessed-bg-strong);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  /* pill 家族单行保护（2026-08-31 pill 审计） */
+  white-space: nowrap;
   color: var(--text-secondary);
 }
 .bds-toolchip .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
@@ -1580,6 +1589,8 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   font-size: var(--text-xs);
   font-family: var(--font-sans);
   cursor: pointer;
+  /* pill 家族单行保护（2026-08-31 pill 审计） */
+  white-space: nowrap;
   transition: all var(--duration-fast) var(--ease-default);
 }
 .bds-toggle:hover { background: var(--recessed-bg-hover); color: var(--text-primary); }
@@ -1748,6 +1759,8 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   background: var(--recessed-bg-strong);
   font-size: var(--text-xs);
   color: var(--text-secondary);
+  /* pill 家族单行保护（2026-08-31 pill 审计） */
+  white-space: nowrap;
 }
 .bds-chip.accent { background: var(--accent-tint); color: var(--accent-text); }
 .bds-chip.success { background: var(--success-tint); color: var(--success-text); }

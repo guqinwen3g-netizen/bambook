@@ -662,7 +662,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                     <span
                                         key={tag}
                                         className={`
-                      px-2 py-0.5 rounded-full text-[10px] font-light
+                      min-w-0 max-w-full truncate px-2 py-0.5 rounded-full text-[10px] font-light
                       ${dataChipClass}
                     `}
                                     >

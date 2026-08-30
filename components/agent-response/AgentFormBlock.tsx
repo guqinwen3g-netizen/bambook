@@ -129,7 +129,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                                 else current.push(opt);
                                 handleChange(field.key, current);
                               }}
-                              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${borderClass} ${
+                              className={`min-w-0 max-w-full truncate rounded-full border px-2.5 py-1 text-xs transition-colors ${borderClass} ${
                                 selected
                                   ? 'bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)]'
                                   : 'text-[var(--text-secondary)]'

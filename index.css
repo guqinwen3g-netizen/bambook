@@ -773,6 +773,8 @@ body {
     border-radius: 9999px;
     padding: 6px 18px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    /* pill 家族单行保护（2026-08-31 pill 审计） */
+    white-space: nowrap;
 }
 
 /* iOS 26 Glass Card with Luminous Edge */

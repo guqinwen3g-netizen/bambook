@@ -1512,9 +1512,9 @@
   border-radius: 34px !important;
 }
 
-.dashboard-hud-root :where(.os-material-inset-surface, .bambook-nested-surface, .bambook-tertiary-surface) {
-  border-radius: 999px !important;
-}
+/* 2026-08-31 pill 审计删除：dashboard-hud-root 三类 surface 强制 999px 的死规则
+   （src/ 零消费者，壁纸基建残留；nested/tertiary surface 是多行容器语义，
+   复活即全站 pill 弧爆炸——多行容器禁用 pill 的教训固化，勿恢复） */
 
 /* Bridge legacy OS vNext and "blue-white" material classes into the same
  * three-state material system. This prevents older page-local classes from

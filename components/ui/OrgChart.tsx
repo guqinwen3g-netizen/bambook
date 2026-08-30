@@ -211,7 +211,7 @@ const OrgNodeCard: React.FC<{
                     {/* 底部：部门 + 展开按钮 */}
                     <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-[var(--border-c-subtle)]">
                         {contact.department && (
-                            <span className={`text-[10px] font-light px-2 py-0.5 rounded-full ${subtleChipClass}`}>
+                            <span className={`min-w-0 max-w-full truncate text-[10px] font-light px-2 py-0.5 rounded-full ${subtleChipClass}`}>
                                 {contact.department}
                             </span>
                         )}
@@ -240,7 +240,7 @@ const OrgNodeCard: React.FC<{
                 {/* 直接下属数量标签 */}
                 {hasChildren && (
                     <div className={`
-            absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9px] font-light
+            absolute -bottom-1 left-1/2 -translate-x-1/2 max-w-full truncate px-2 py-0.5 rounded-full text-[9px] font-light
             ${childrenBadgeClass}
           `}>
                         <Users size={10} className="inline mr-1" />

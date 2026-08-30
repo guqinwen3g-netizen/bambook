@@ -374,7 +374,8 @@
   --r-card-lg: var(--radius-xl);        /* 展示大卡 30px — 注意与刻度 rung card-lg(28) 不同层 */
   --r-panel: var(--radius-2xl);
   --r-modal: var(--radius-xl);
-  --r-toast: var(--radius-pill);
+  --r-toast: var(--radius-md);          /* 2026-08-31 pill 审计：消息条族（toast/alert/banner）高度可增长禁用 pill，
+                                           归入 --radius-md 固定档——999px 弧度=高度一半，文案换行即爆形 */
   --r-tooltip: var(--radius-xs);
   --r-chip: var(--radius-pill);
   --r-avatar: var(--radius-pill);

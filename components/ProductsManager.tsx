@@ -4117,12 +4117,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               key={section.id}
                               type="button"
                               onClick={() => document.getElementById(`product-form-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                              className={`w-full text-left rounded-full border px-3 py-3 transition-colors duration-200 group ${productActionButtonClass}`}
+                              className={`w-full text-left rounded-control border px-3 py-3 transition-colors duration-200 group ${productActionButtonClass}`}
                             >
                               <div className="flex items-center gap-3">
                                 <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>
                                 <div className="min-w-0">
-                                  <div className={`text-xs font-light text-[var(--text-primary)]`}>{section.label}</div>
+                                  <div className={`text-xs font-light text-[var(--text-primary)] truncate`}>{section.label}</div>
                                   <div className={`text-[10px] mt-0.5 truncate ${productLabelClass}`}>{section.desc}</div>
                                 </div>
                               </div>

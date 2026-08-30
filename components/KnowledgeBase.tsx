@@ -668,7 +668,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   rows={5}
                   value={editingItem ? editingItem.content : newItem.content}
                   onChange={(e) => editingItem ? setEditingItem({ ...editingItem, content: e.target.value }) : setNewItem({ ...newItem, content: e.target.value })}
-                  className={`w-full px-7 py-5 border rounded-full outline-none font-light resize-none leading-relaxed transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
+                  className={`w-full px-7 py-5 border rounded-inset outline-none font-light resize-none leading-relaxed transition-colors duration-200 ${BAMBOOK_OS.controls.recessedField.base}`}
                   placeholder="请输入核心知识点内容..."
                 />
               </div>

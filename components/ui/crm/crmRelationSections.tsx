@@ -317,7 +317,7 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-light text-[var(--text-tertiary)]">共享至</span>
           {teamShares.map(s => (
-            <span key={s.teamId} className="rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]"
+            <span key={s.teamId} className="min-w-0 max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]"
               title={s.permission === 'read+followup' ? '组员可查看并添加跟进' : '组员仅可查看'}>
               {s.teamName} · {s.permission === 'read+followup' ? '可跟进' : '只读'}
             </span>

@@ -119,7 +119,7 @@ export function CompletenessBadge({
   const missingText = missingList.join('、');
 
   return (
-    <span ref={rootRef} className={`relative inline-flex items-center ${className}`} onClick={(e) => e.stopPropagation()}>
+    <span ref={rootRef} className={`relative inline-flex min-w-0 max-w-full items-center ${className}`} onClick={(e) => e.stopPropagation()}>
       <span
         role="button"
         tabIndex={0}
@@ -132,7 +132,7 @@ export function CompletenessBadge({
           e.preventDefault();
           toggleExpanded();
         }}
-        className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-transparent bg-[var(--warning-tint)] px-2 py-0.5 text-[10px] font-light text-[var(--warning-text)] transition-colors duration-200 hover:bg-[var(--warning-tint-hover)]"
+        className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 truncate rounded-full border border-transparent bg-[var(--warning-tint)] px-2 py-0.5 text-[10px] font-light text-[var(--warning-text)] transition-colors duration-200 hover:bg-[var(--warning-tint-hover)]"
       >
         {Math.round(score)}%
         {missingList.length > 0 && (

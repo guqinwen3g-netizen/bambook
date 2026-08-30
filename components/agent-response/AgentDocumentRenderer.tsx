@@ -432,7 +432,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           </div>
           <div className="flex flex-wrap gap-1">
             {draft.impactScope.map((scope, idx) => (
-              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
+              <span key={idx} className={`min-w-0 max-w-full truncate rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                 {scope}
               </span>
             ))}
@@ -448,9 +448,9 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx) => (
-            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <Mail size={14} />
-              <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
+            <span key={idx} className={`flex min-w-0 max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
+              <Mail size={14} className="shrink-0" />
+              <span className="min-w-0 truncate">提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
           ))}
         </div>

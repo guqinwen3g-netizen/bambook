@@ -45,16 +45,16 @@ export const AgentEvidenceBlock: React.FC<AgentBlockComponentProps<AgentEvidence
               </div>
               <div className={`mt-1 text-xs leading-5 ${quietTextClass}`}>{item.summary}</div>
               {anchor && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex min-w-0 max-w-full flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => onReferenceClick?.(anchor)}
                     disabled={!onReferenceClick}
-                    className={`rounded-full border px-2 py-1 text-[10px] transition-colors ${onReferenceClick ? 'hover:opacity-80' : 'cursor-default'} ${borderClass} ${quietTextClass}`}
+                    className={`min-w-0 max-w-full truncate rounded-full border px-2 py-1 text-[10px] transition-colors ${onReferenceClick ? 'hover:opacity-80' : 'cursor-default'} ${borderClass} ${quietTextClass}`}
                   >
                     {anchorKindLabel(anchor.kind)} · {anchor.label ?? anchor.sourceId ?? anchor.toolRunId ?? anchor.refId}
                   </button>
-                  {anchor.path && <span className={`rounded-full border px-2 py-1 text-[10px] ${borderClass} ${quietTextClass}`}>{anchor.path}</span>}
+                  {anchor.path && <span className={`min-w-0 max-w-full truncate rounded-full border px-2 py-1 text-[10px] ${borderClass} ${quietTextClass}`}>{anchor.path}</span>}
                 </div>
               )}
             </div>

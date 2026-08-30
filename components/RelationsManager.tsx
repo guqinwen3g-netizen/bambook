@@ -1901,12 +1901,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         key={section.id}
                         type="button"
                         onClick={() => document.getElementById(`relation-form-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className={`w-full text-left rounded-full border px-3 py-3 transition-colors duration-200 group ${relationActionButtonClass}`}
+                        className={`w-full text-left rounded-control border px-3 py-3 transition-colors duration-200 group ${relationActionButtonClass}`}
                       >
                         <div className="flex items-center gap-3">
                           <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${relationFormMapIndexClass}`}>{idx + 1}</span>
                           <div className="min-w-0">
-                            <div className={`text-xs font-light text-[var(--text-secondary)]`}>{section.label}</div>
+                            <div className={`text-xs font-light text-[var(--text-secondary)] truncate`}>{section.label}</div>
                             <div className={`text-[10px] mt-0.5 truncate ${relationFormLabelClass}`}>{section.desc}</div>
                           </div>
                         </div>
@@ -1983,7 +1983,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>组织简介</label>
-                          <textarea name="summary" defaultValue={editingItem?.summary || ''} rows={2} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
+                          <textarea name="summary" defaultValue={editingItem?.summary || ''} rows={2} className={`w-full mt-1 px-4 py-3 rounded-inset border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                       </>
                     )}
@@ -2165,7 +2165,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>Bill To / 账单地址</label>
-                          <textarea name="billingAddress" defaultValue={editingItem?.billingAddress} rows={2} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
+                          <textarea name="billingAddress" defaultValue={editingItem?.billingAddress} rows={2} className={`w-full mt-1 px-4 py-3 rounded-inset border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>Ship To / 发货地址</label>
@@ -2240,7 +2240,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>工厂地址 (每行一个)</label>
-                          <textarea name="factoryAddresses" defaultValue={editingItem?.factoryAddresses?.join('\n')} rows={3} placeholder="浙江省宁波市XX区XX路XX号&#10;江苏省苏州市XX工业园" className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
+                          <textarea name="factoryAddresses" defaultValue={editingItem?.factoryAddresses?.join('\n')} rows={3} placeholder="浙江省宁波市XX区XX路XX号&#10;江苏省苏州市XX工业园" className={`w-full mt-1 px-4 py-3 rounded-inset border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>仓库地址</label>
@@ -2299,7 +2299,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>财务备注 / 付款详细信息</label>
-                          <textarea name="financialNotes" defaultValue={editingItem?.financialNotes || ''} rows={3} className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
+                          <textarea name="financialNotes" defaultValue={editingItem?.financialNotes || ''} rows={3} className={`w-full mt-1 px-4 py-3 rounded-inset border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                       </div>
                     </CompiledSurfacePanel>
@@ -2410,7 +2410,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>个人备注</label>
-                          <textarea name="personalNote" defaultValue={editingItem?.personalNote} rows={2} placeholder="客户偏好、注意事项等..." className={`w-full mt-1 px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
+                          <textarea name="personalNote" defaultValue={editingItem?.personalNote} rows={2} placeholder="客户偏好、注意事项等..." className={`w-full mt-1 px-4 py-3 rounded-inset border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`} />
                         </div>
                       </div>
                     </CompiledSurfacePanel>
@@ -2427,7 +2427,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                     defaultValue={editingItem?.preferences}
                     rows={3}
                     placeholder="交易偏好、合作注意事项等..."
-                    className={`w-full px-4 py-3 rounded-full border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`}
+                    className={`w-full px-4 py-3 rounded-inset border outline-none font-light transition-colors duration-200 resize-none ${relationFormFieldClass}`}
                   />
                 </CompiledSurfacePanel>
 

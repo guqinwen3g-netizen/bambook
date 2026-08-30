@@ -763,7 +763,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
             className={`${activeTab === 'users' ? 'h-full min-h-0 overflow-hidden' : ADMIN_PANEL_SCROLL_CLASS} px-5 py-4`}
           >
             {loadError && (
-              <div className={`mb-3 rounded-full border px-4 py-2 text-xs font-light border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
+              <div className={`mb-3 rounded-control border px-4 py-2 text-xs font-light border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                 {loadError}
               </div>
             )}

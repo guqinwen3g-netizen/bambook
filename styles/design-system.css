@@ -424,6 +424,8 @@
     font-weight: 300;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    /* pill 家族单行保护（2026-08-31 pill 审计） */
+    white-space: nowrap;
 }
 
 .status-badge--success {

@@ -16,7 +16,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({ value, onChange, place
   return (
     <div className="h-full flex flex-col">
       <textarea
-        className={`w-full h-full p-6 border rounded-full outline-none transition-colors duration-200 resize-none text-sm leading-relaxed placeholder:text-[var(--text-tertiary)] bg-[var(--recessed-bg)] border-[var(--border-c-strong)] text-[var(--text-primary)] focus:bg-[var(--hover-darken)] focus:ring-4 focus:ring-[rgb(var(--os-vnext-brand-blue-rgb)/0.2)]`}
+        className={`w-full h-full p-6 border rounded-inset outline-none transition-colors duration-200 resize-none text-sm leading-relaxed placeholder:text-[var(--text-tertiary)] bg-[var(--recessed-bg)] border-[var(--border-c-strong)] text-[var(--text-primary)] focus:bg-[var(--hover-darken)] focus:ring-4 focus:ring-[rgb(var(--os-vnext-brand-blue-rgb)/0.2)]`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder || 'Write something...'}
