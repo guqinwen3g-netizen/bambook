@@ -7,6 +7,8 @@
  *   - CRM：每客户 2-4 条跟进 + 5 个商机（3 家客户）
  *   - 开发案 12（含三级样衣节点，4 案已转订单）；MOQ 豁免审批 3 条（approved）
  *   - 订单 56 单（W1-W6 28 单 Delivered 全链 / W7-W9 14 单 / W10-W13 14 单，详见 orders.ts）
+ *   - 二期跨域联动：报价 19 张（赢单 12 转订单）/ 采购→来料→入库→领料全链（L8 痕迹一致）+
+ *     来料退换 1 张 / 报关单 38 张 + 单据归档 114 张 / QC 指派 34 条 + 第三方测试 12 张（2 fail 整改闭环）
  *   - HR 12 员工 + 生命周期事件 + 本月绩效周期；KB 6 篇；Insight 5 条；邮件 8 封（4 线程）
  *   - 关键节点 AuditLog（actor 全部为库内真实账号）
  *
@@ -51,6 +53,22 @@ async function main(): Promise<void> {
     console.log('── 阶段 2：订单 56 单全链 ──');
     const { seedOrders } = await import('./company-sim/orders');
     const { plans } = await seedOrders(prisma, md);
+
+    console.log('── 阶段 2.5：报价单（赢单 12 转订单 + 未赢单 7） ──');
+    const { seedQuotations } = await import('./company-sim/quotations');
+    await seedQuotations(prisma, plans, md);
+
+    console.log('── 阶段 2.6：采购→来料→入库→生产领料（L8 痕迹一致 + 来料退换） ──');
+    const { seedProcurementInventory } = await import('./company-sim/procurement-inventory');
+    await seedProcurementInventory(prisma, plans, md);
+
+    console.log('── 阶段 2.7：报关单 + 单据中心归档（38 票已出运） ──');
+    const { seedTradeDocs } = await import('./company-sim/trade-docs');
+    await seedTradeDocs(prisma, plans);
+
+    console.log('── 阶段 2.8：QC 指派 + 第三方测试（fail→整改闭环） ──');
+    const { seedQcAndTests } = await import('./company-sim/qc-tr');
+    await seedQcAndTests(prisma, plans);
 
     console.log('── 阶段 3：CRM + 开发案 + 审批 ──');
     const { seedCrmAndDev } = await import('./company-sim/crm-dev');
