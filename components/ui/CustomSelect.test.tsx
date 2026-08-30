@@ -83,10 +83,11 @@ describe('CustomSelect 基础交互', () => {
 
     fire(trigger, 'click');
 
-    const listbox = r.container.querySelector('[role="listbox"]');
+    // 浮层默认 menuPortal 到 document.body（脱离宿主堆叠上下文，防 overflow-hidden/磨砂层裁剪）
+    const listbox = document.body.querySelector('[role="listbox"]');
     expect(listbox).not.toBeNull();
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    const optionEls = Array.from(r.container.querySelectorAll('[role="option"]'));
+    const optionEls = Array.from(document.body.querySelectorAll('[role="option"]'));
     expect(optionEls).toHaveLength(4);
     expect(optionEls.find(el => el.getAttribute('aria-selected') === 'true')?.textContent).toContain('待确认');
   });
@@ -99,13 +100,13 @@ describe('CustomSelect 基础交互', () => {
     cleanup.push(r.unmount);
     fire(getTrigger(r.container), 'click');
 
-    const delivered = Array.from(r.container.querySelectorAll('[role="option"]'))
+    const delivered = Array.from(document.body.querySelectorAll('[role="option"]'))
       .find(el => el.textContent?.includes('已交付')) as HTMLButtonElement;
     fire(delivered, 'click');
 
     expect(onChange).toHaveBeenCalledWith('delivered');
     await settleExit();
-    expect(r.container.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
   });
 
   it('宿主 disabled：触发器禁用且点击不展开', () => {
@@ -116,7 +117,7 @@ describe('CustomSelect 基础交互', () => {
     const trigger = getTrigger(r.container);
     expect(trigger.disabled).toBe(true);
     fire(trigger, 'click');
-    expect(r.container.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
   });
 });
 
@@ -133,7 +134,7 @@ describe('CustomSelect 键盘导航（W4 原生浮层收编）', () => {
     const trigger = getTrigger(r.container);
 
     fire(trigger, 'keydown', { key: 'ArrowDown' });
-    expect(r.container.querySelector('[role="listbox"]')).not.toBeNull();
+    expect(document.body.querySelector('[role="listbox"]')).not.toBeNull();
     // value='' 命中「全部状态」(index 0)，高亮初始在选中项
     expect(trigger.getAttribute('aria-activedescendant')).toBeTruthy();
 
@@ -150,12 +151,12 @@ describe('CustomSelect 键盘导航（W4 原生浮层收编）', () => {
     );
     cleanup.push(r.unmount);
     fire(getTrigger(r.container), 'click');
-    expect(r.container.querySelector('[role="listbox"]')).not.toBeNull();
+    expect(document.body.querySelector('[role="listbox"]')).not.toBeNull();
 
     fire(getTrigger(r.container), 'keydown', { key: 'Escape' });
 
     await settleExit();
-    expect(r.container.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
     // 合成事件 stopPropagation 透传原生——事件未冒泡到 document
     expect(documentSpy).not.toHaveBeenCalled();
     document.removeEventListener('keydown', documentSpy);
@@ -200,14 +201,14 @@ describe('CustomSelect option.disabled（原生 <option disabled> 等价语义�
     cleanup.push(r.unmount);
     fire(getTrigger(r.container), 'click');
 
-    const locked = Array.from(r.container.querySelectorAll('[role="option"]'))
+    const locked = Array.from(document.body.querySelectorAll('[role="option"]'))
       .find(el => el.textContent?.includes('锁定乙')) as HTMLButtonElement;
     expect(locked.getAttribute('aria-disabled')).toBe('true');
     expect(locked.disabled).toBe(true);
     fire(locked, 'click');
     expect(onChange).not.toHaveBeenCalled();
     // 浮层保持打开（点击无效而非关闭）
-    expect(r.container.querySelector('[role="listbox"]')).not.toBeNull();
+    expect(document.body.querySelector('[role="listbox"]')).not.toBeNull();
   });
 
   it('键盘导航跳过 disabled 项：从 a ArrowDown 直达 c', () => {

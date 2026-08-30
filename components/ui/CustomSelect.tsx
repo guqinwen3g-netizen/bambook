@@ -20,6 +20,10 @@ interface CustomSelectProps {
   isDarkMode?: boolean;
   disabled?: boolean;
   className?: string;
+  /** 浮层 createPortal 到 document.body（fixed + z-9999）——默认开启。
+   *  宿主容器的 overflow-hidden / isolate / 磨砂层 / 低 z-index 堆叠上下文都会裁剪或遮挡
+   *  absolute 浮层（2026-08-31 实机验收实证），portal 化是唯一根治路径；
+   *  显式传 false 仅限确知无裁剪且需随宿主滚动的特殊场景。 */
   menuPortal?: boolean;
   size?: 'default' | 'compact';
   /** 触发器 aria-label（迁移原生 select 的可访问名，如「状态筛选」） */
@@ -43,7 +47,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   isDarkMode = false,
   disabled = false,
   className = '',
-  menuPortal = false,
+  menuPortal = true,
   size = 'default',
   ariaLabel,
   surface = 'default',
@@ -232,7 +236,10 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       setPortalStyle({
         position: 'fixed',
         left: rect.left,
-        top: flipUp ? Math.max(VIEWPORT_PADDING, rect.top - estimate) : rect.bottom + 8,
+        // 双向 clamp：向上优先贴视口顶，向下 clamp 到视口底（浮层自身 max-h-60 滚动兜底）
+        top: flipUp
+          ? Math.max(VIEWPORT_PADDING, rect.top - estimate)
+          : Math.min(rect.bottom + 8, window.innerHeight - VIEWPORT_PADDING),
         width: rect.width,
       });
     };
