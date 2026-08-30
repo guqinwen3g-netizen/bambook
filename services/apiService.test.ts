@@ -102,6 +102,105 @@ describe('apiService listUserAccounts（审批委派/QC 选人数据源）', () 
   });
 });
 
+describe('apiService 资料完备度引擎（/api/completeness/*）', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  it('completenessSummary → GET /api/completeness/summary，解包 { ok, data } 信封', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          totalGaps: 3,
+          bySeverity: { P0: 1, P1: 1, P2: 1 },
+          groups: [{ ruleId: 'relation.credit-limit', label: '信用额度未设', severity: 'P0', count: 1, entityType: 'relation', sampleIds: ['rel_1'] }],
+        },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const summary = await apiService.completenessSummary('https://test.example.com');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/completeness/summary'),
+      expect.any(Object),
+    );
+    expect(summary.totalGaps).toBe(3);
+    expect(summary.bySeverity).toEqual({ P0: 1, P1: 1, P2: 1 });
+    expect(summary.groups[0]).toMatchObject({ ruleId: 'relation.credit-limit', severity: 'P0' });
+  });
+
+  it('completenessEntity → GET /api/completeness/entity?type=&id=（query 编码），解包 data', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          entityType: 'order',
+          id: 'ORD 1',
+          score: 62,
+          gaps: [{ ruleId: 'order.eta', label: '交期未填', severity: 'P1', hint: '填写预计交货日期', fix: { type: 'navigate', target: '/orders?id=ORD 1' } }],
+        },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const entity = await apiService.completenessEntity('order', 'ORD 1', 'https://test.example.com');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/completeness/entity?type=order&id=ORD+1'),
+      expect.any(Object),
+    );
+    expect(entity).toMatchObject({ entityType: 'order', id: 'ORD 1', score: 62 });
+    expect(entity.gaps[0]?.fix?.type).toBe('navigate');
+  });
+
+  it('completenessBatch → GET /api/completeness/batch?type=product|relation，解包 data.items', async () => {
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          items: url.includes('type=product')
+            ? [{ id: 'PDT_1', score: 62, missing: ['克重未填'] }]
+            : [{ id: 'rel_1', score: 80, missing: ['无信用额度'] }],
+        },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const products = await apiService.completenessBatch('product', 'https://test.example.com');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/completeness/batch?type=product'),
+      expect.any(Object),
+    );
+    expect(products.items).toEqual([{ id: 'PDT_1', score: 62, missing: ['克重未填'] }]);
+
+    const relations = await apiService.completenessBatch('relation', 'https://test.example.com');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/completeness/batch?type=relation'),
+      expect.any(Object),
+    );
+    expect(relations.items).toEqual([{ id: 'rel_1', score: 80, missing: ['无信用额度'] }]);
+  });
+
+  it('完备度接口失败 → 抛错语义保留（由调用方降级），不吞成空数据', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: 'not found' }),
+    })));
+
+    await expect(apiService.completenessBatch('product', 'https://test.example.com')).rejects.toThrow('not found');
+    await expect(apiService.completenessEntity('relation', 'rel_1', 'https://test.example.com')).rejects.toThrow('not found');
+    await expect(apiService.completenessSummary('https://test.example.com')).rejects.toThrow('not found');
+  });
+});
+
 describe('apiService requestJson 超时治理与网络错误语义化', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();

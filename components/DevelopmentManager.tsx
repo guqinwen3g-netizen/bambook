@@ -27,6 +27,8 @@ import type {
   Invoice,
 } from '../types';
 import { View } from '../types';
+import type { CompletenessEntityData } from '../types';
+import { CompletenessBanner } from './ui/CompletenessIndicators';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
@@ -308,6 +310,18 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       cases.find(c => c.id === navFocusEntityId);
     if (matched) setSelectedCaseId(matched.id);
   }, [navFocusEntityId, filteredCases, cases]);
+
+  // 资料完备度横幅（GET /api/completeness/entity?type=development-case）：开发单详情头部增强提示，
+  // 拉取失败或后端未就绪时静默降级为不展示（提示型数据，不阻塞详情阅读）
+  const [caseCompleteness, setCaseCompleteness] = useState<CompletenessEntityData | null>(null);
+  useEffect(() => {
+    if (!selectedCase?.id) { setCaseCompleteness(null); return; }
+    let cancelled = false;
+    apiService.completenessEntity('development-case', selectedCase.id)
+      .then((data) => { if (!cancelled) setCaseCompleteness(data ?? null); })
+      .catch(() => { if (!cancelled) setCaseCompleteness(null); });
+    return () => { cancelled = true; };
+  }, [selectedCase?.id]);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<DevCase | null>(null);
@@ -882,6 +896,12 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     </div>
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                    {/* 资料完备度横幅：详情头部块之下、内容之上 */}
+                    {caseCompleteness && (
+                      <div className="mb-4">
+                        <CompletenessBanner data={caseCompleteness} onNavigate={onNavigate} />
+                      </div>
+                    )}
                     <div className="space-y-1">
                       {inspectorRows.map(row => (
                         <div key={row.label} className="grid grid-cols-[72px_minmax(0,1fr)] items-baseline gap-3 py-2">

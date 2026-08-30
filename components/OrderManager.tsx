@@ -1,8 +1,9 @@
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Order, KnowledgeItem, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition, View } from '../types';
+import { Order, KnowledgeItem, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition, View, CompletenessEntityData } from '../types';
 import { apiService } from '../services/apiService';
+import { CompletenessBanner } from './ui/CompletenessIndicators';
 import {
   Plus, ArrowRight,
   X, AlertCircle,
@@ -449,6 +450,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
         setTimelineError(`时间线加载失败：${e?.message ?? e}`);
       }
     })();
+  }, [selectedOrder?.id]);
+
+  // 资料完备度横幅（GET /api/completeness/entity?type=order）：详情头部增强提示，
+  // 拉取失败或后端未就绪时静默降级为不展示（提示型数据，不阻塞详情阅读）
+  const [orderCompleteness, setOrderCompleteness] = useState<CompletenessEntityData | null>(null);
+  useEffect(() => {
+    if (!selectedOrder?.id) { setOrderCompleteness(null); return; }
+    let cancelled = false;
+    apiService.completenessEntity('order', selectedOrder.id)
+      .then((data) => { if (!cancelled) setOrderCompleteness(data ?? null); })
+      .catch(() => { if (!cancelled) setOrderCompleteness(null); });
+    return () => { cancelled = true; };
   }, [selectedOrder?.id]);
 
   // Push order status forward with audit trail
@@ -1714,7 +1727,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
             {/* Scrollable Content Container */}
             <div className="absolute inset-0 z-10 overflow-hidden">
               <div ref={orderDetailScrollRef} className="h-full overflow-y-auto">
-                <div className="grid w-full grid-cols-[240px_minmax(0,1fr)] gap-5 px-7 pt-24 pb-5">
+                {/* 资料完备度横幅：详情头部（标题层之下、内容之上），数据就绪后渲染；
+                    有横幅时内容区顶部让位收窄（pt-24 由横幅容器承接） */}
+                {orderCompleteness && (
+                  <div className="px-7 pt-24">
+                    <CompletenessBanner data={orderCompleteness} onNavigate={onNavigate} />
+                  </div>
+                )}
+                <div className={`grid w-full grid-cols-[240px_minmax(0,1fr)] gap-5 px-7 ${orderCompleteness ? 'pt-5' : 'pt-24'} pb-5`}>
                   {/* Detail Map：sticky 锚定（滚动时固定于标题层之下），超高时内部滚动 */}
                   <aside className="sticky top-24 z-10 max-h-[calc(100vh-8rem)] self-start overflow-y-auto">
                     <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={OVERLAY_MAP_PANEL_CLASS}>

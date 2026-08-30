@@ -727,7 +727,10 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('spotlightColor');
     expect(sharedCardSource).not.toContain('liquidSpotlight');
     expect(sharedCardSource).not.toContain('data-glass-edge-mask');
-    expect(source).toContain('currentOrganizations.map((org, idx) => renderRelationCard({');
+    // 资料完备度徽标接线后 map 改为 block body（先取徽标数据再 renderRelationCard）
+    expect(source).toContain('currentOrganizations.map((org, idx) => {');
+    expect(source).toContain('const completenessBadge = relationCompletenessBadge(org);');
+    expect(source).toContain('return renderRelationCard({');
     expect(source).toContain("navLevel === 'organizations'");
     expect(source).toContain("renderRelationListToolbar('', false)");
     expect(source).toContain('className="flex h-full flex-1 min-w-0 items-center justify-center"');
@@ -1213,16 +1216,20 @@ describe('RelationsManager title system', () => {
     const organizationGridStart = source.indexOf('{/* VIEW 2: ORGANIZATION LIST */}');
     const organizationGridSource = source.slice(
       organizationGridStart,
-      source.indexOf(')) : (', organizationGridStart)
+      source.indexOf('}) : (', organizationGridStart)
     );
 
-    expect(organizationGridSource).toContain('currentOrganizations.map((org, idx) => renderRelationCard({');
+    // 资料完备度徽标接线后 map 改为 block body；footerLabel 变为 JSX（联系人计数 + 徽标）
+    expect(organizationGridSource).toContain('currentOrganizations.map((org, idx) => {');
+    expect(organizationGridSource).toContain('return renderRelationCard({');
     expect(organizationGridSource).toContain('cardKey: org.id');
     expect(organizationGridSource).toContain('index: idx');
     expect(organizationGridSource).toContain('icon: <Building2 size={24} strokeWidth={1} />');
     expect(organizationGridSource).toContain('title: org.name');
     expect(organizationGridSource).toContain('description: org.summary || relationLocationLabel(org) || org.type');
-    expect(organizationGridSource).toContain('footerLabel: `${orgContactCount(org.id)} 活跃联系人`');
+    expect(organizationGridSource).toContain('footerLabel: (');
+    expect(organizationGridSource).toContain('{orgContactCount(org.id)} 活跃联系人');
+    expect(organizationGridSource).toContain('<CompletenessBadge score={completenessBadge.score} missing={completenessBadge.missing} expandDirection="up" />');
     expect(organizationGridSource).toContain("onClick: () => { setSelectedOrgId(org.id); setNavLevel('detail'); setSearchTerm(''); }");
     expect(organizationGridSource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS');
     expect(organizationGridSource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS');

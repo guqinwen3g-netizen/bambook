@@ -227,6 +227,11 @@ import {
   LookbookItemInput,
   FabricRecommendation,
   RecommendCriteria,
+  // 资料完备度引擎（/api/completeness/*）
+  CompletenessSummaryData,
+  CompletenessEntityData,
+  CompletenessEntityType,
+  CompletenessBatchData,
 } from '../types';
 import { getApiBaseUrl, CORPORATE_MASTER_IP, getDefaultBambookEndpoint, normalizeDataCenterEndpoint } from './apiBase';
 
@@ -4222,5 +4227,30 @@ export const apiService = {
   async getEntityWorkflowHistory(entityType: string, entityId: string, endpoint?: string): Promise<WorkflowInstance[]> {
     const data = await requestJson<{ instances: WorkflowInstance[] }>(`/v1/workflow/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`, { endpoint, method: 'GET' });
     return data.instances || [];
+  },
+
+  // ── 资料完备度引擎（GET /api/completeness/*）──
+  // 提示型增强数据：调用方（列表徽标 / 详情横幅）在失败时降级为不展示，
+  // 故本组函数保持 requestJson 标准抛错语义，由调用方统一 catch 降级。
+  async completenessSummary(endpoint?: string): Promise<CompletenessSummaryData> {
+    const data = await requestJson<{ ok: boolean; data: CompletenessSummaryData }>('/completeness/summary', { endpoint, method: 'GET' });
+    return data?.data;
+  },
+
+  async completenessEntity(entityType: CompletenessEntityType, id: string, endpoint?: string): Promise<CompletenessEntityData> {
+    const query = new URLSearchParams({ type: entityType, id });
+    const data = await requestJson<{ ok: boolean; data: CompletenessEntityData }>(
+      `/completeness/entity?${query.toString()}`,
+      { endpoint, method: 'GET' },
+    );
+    return data?.data;
+  },
+
+  async completenessBatch(entityType: 'product' | 'relation', endpoint?: string): Promise<CompletenessBatchData> {
+    const data = await requestJson<{ ok: boolean; data: CompletenessBatchData }>(
+      `/completeness/batch?type=${encodeURIComponent(entityType)}`,
+      { endpoint, method: 'GET' },
+    );
+    return data?.data;
   },
 };

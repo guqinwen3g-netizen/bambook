@@ -5246,3 +5246,64 @@ export interface MaterialPriceTrendPoint {
   source: MaterialPriceSource;
   supplierName?: string | null;
 }
+
+// ── 资料完备度引擎（GET /api/completeness/*；前端契约，与后端引擎对齐）──
+
+/** 缺口严重度：P0 = 阻断业务（错误色）/ P1 = 重要缺失（警示色）/ P2 = 建议补齐（中性色） */
+export type CompletenessSeverity = 'P0' | 'P1' | 'P2';
+
+/** 完备度评估实体类型（与后端规则引擎的 entityType 口径一致） */
+export type CompletenessEntityType = 'order' | 'development-case' | 'product' | 'relation';
+
+/** GET /api/completeness/summary → data.groups[]：按规则聚合的缺口分布 */
+export interface CompletenessSummaryGroup {
+  ruleId: string;
+  label: string;
+  severity: CompletenessSeverity;
+  count: number;
+  entityType: string;
+  sampleIds: string[];
+}
+
+/** GET /api/completeness/summary → data：全局缺口摘要 */
+export interface CompletenessSummaryData {
+  totalGaps: number;
+  bySeverity: Record<CompletenessSeverity, number>;
+  groups: CompletenessSummaryGroup[];
+}
+
+/** 缺口修复动作：跳转前端路由（形如 /relations?id=xxx，通知 link 同协议） */
+export interface CompletenessGapFix {
+  type: 'navigate';
+  target: string;
+}
+
+/** 单条缺口：label 为主文案，hint 为补充说明，fix 为可选修复跳转 */
+export interface CompletenessGap {
+  ruleId: string;
+  label: string;
+  severity: CompletenessSeverity;
+  hint?: string;
+  fix?: CompletenessGapFix;
+}
+
+/** GET /api/completeness/entity?type=&id= → data：单实体完备度（score 0-100） */
+export interface CompletenessEntityData {
+  entityType: CompletenessEntityType;
+  id: string;
+  score?: number;
+  gaps: CompletenessGap[];
+}
+
+/** GET /api/completeness/batch?type=product|relation → data.items[]：列表行徽标数据 */
+export interface CompletenessBatchItem {
+  id: string;
+  score: number;
+  /** 中文缺失维度，如「无信用额度」 */
+  missing: string[];
+}
+
+/** GET /api/completeness/batch → data */
+export interface CompletenessBatchData {
+  items: CompletenessBatchItem[];
+}

@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
-import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, Relation, RelationCategory, FactoryProfile } from '../types';
+import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, Relation, RelationCategory, FactoryProfile, CompletenessBatchItem } from '../types';
 import { apiService } from '../services/apiService';
 import { hasPermission } from '../services/authService';
 import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { sampleRoomService, SampleCardItemView } from '../services/sampleRoomService';
 import { developmentService } from '../services/developmentService';
 import RelationCombobox from './ui/RelationCombobox';
+import { CompletenessBadge } from './ui/CompletenessIndicators';
 import {
   COMPOSITION_TERMS,
   normalizeCompositionTermValue,
@@ -1008,6 +1009,23 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   }, [deleteConfirmOpen]);
   // 档案保存 in-flight 守卫：双击/连击提交会双写云端（无幂等键），保存期间禁用提交按钮
   const [productSaving, setProductSaving] = useState(false);
+  // 资料完备度徽标（GET /api/completeness/batch?type=product）：列表行增强提示，
+  // 按档案 id 映射；拉取失败或后端未就绪时降级为既有本地补全 chip。
+  // 档案集合（id 序列）变化时重拉——新增/删除档案刷新，编辑保存不触发。
+  const [completenessByProduct, setCompletenessByProduct] = useState<Map<string, CompletenessBatchItem>>(() => new Map());
+  const productIdSetKey = useMemo(() => products.map(p => p.id).sort().join(','), [products]);
+  useEffect(() => {
+    let cancelled = false;
+    apiService.completenessBatch('product')
+      .then((data) => {
+        if (cancelled) return;
+        const map = new Map<string, CompletenessBatchItem>();
+        (data?.items ?? []).forEach((item) => { if (item?.id) map.set(item.id, item); });
+        setCompletenessByProduct(map);
+      })
+      .catch(() => { if (!cancelled) setCompletenessByProduct(new Map()); });
+    return () => { cancelled = true; };
+  }, [productIdSetKey]);
   const formMainCategory = editingProd?.mainCategory || selectedMain;
   const isFabricFormContext = formMainCategory === 'Fabric';
   const isGarmentFormContext = formMainCategory === 'Garment';
@@ -2130,6 +2148,27 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         : fabricCompleteness(product)
   );
 
+  // 资料完备度引擎数据（后端规则引擎为真源）：score < 100 的档案返回批次条目用于徽标渲染，
+  // score=100 或暂无引擎数据时返回 null（回退本地补全 chip）
+  const productCompletenessBadge = (product: ProductAsset): CompletenessBatchItem | null => {
+    const item = completenessByProduct.get(product.id);
+    return item && typeof item.score === 'number' && item.score < 100 ? item : null;
+  };
+
+  // 列表行完整度渲染（table 补全列与 grid 卡片右上角共用）：
+  // 引擎有缺口 → 百分比徽标（点击展开缺项明细）；否则回退本地「完整/缺 N 项」chip
+  const renderProductCompleteness = (product: ProductAsset, chipTextClass = 'text-[10px]') => {
+    const badge = productCompletenessBadge(product);
+    if (badge) return <CompletenessBadge score={badge.score} missing={badge.missing} />;
+    const local = productCompleteness(product);
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${chipTextClass} font-light ${productStatusChipClass(local.complete)}`}>
+        {local.complete ? <CheckCircle2 size={14} strokeWidth={1.5} /> : <AlertTriangle size={14} strokeWidth={1.5} />}
+        {local.complete ? '完整' : `缺 ${local.missing.length} 项`}
+      </span>
+    );
+  };
+
   const detailValue = (value?: string | number | null) => {
     if (value === null || value === undefined || value === '') return '未填';
     return String(value);
@@ -2299,20 +2338,21 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       id: 'completeness',
       header: '补全',
       widthClass: 'w-[11%]',
-      render: (product: ProductAsset) => (
-        <div className="px-4 py-3 min-w-36">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-light ${productStatusChipClass(productCompleteness(product).complete)}`}>
-            {productCompleteness(product).complete ? <CheckCircle2 size={14} strokeWidth={1.5} /> : <AlertTriangle size={14} strokeWidth={1.5} />}
-            {productCompleteness(product).complete ? '完整' : `缺 ${productCompleteness(product).missing.length} 项`}
-          </span>
-          {!productCompleteness(product).complete && (
-            <div className={`mt-1 text-[10px] truncate text-[var(--text-tertiary)]`}>
-              {productCompleteness(product).missing.slice(0, 2).join('、')}
-              {productCompleteness(product).missing.length > 2 ? '…' : ''}
-            </div>
-          )}
-        </div>
-      ),
+      render: (product: ProductAsset) => {
+        const badge = productCompletenessBadge(product);
+        const local = productCompleteness(product);
+        return (
+          <div className="px-4 py-3 min-w-36">
+            {renderProductCompleteness(product)}
+            {!badge && !local.complete && (
+              <div className={`mt-1 text-[10px] truncate text-[var(--text-tertiary)]`}>
+                {local.missing.slice(0, 2).join('、')}
+                {local.missing.length > 2 ? '…' : ''}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: 'updatedAt',
@@ -3268,9 +3308,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]`}>
                           <Library size={24} strokeWidth={1} />
                         </div>
-                        <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
-                          {productCompleteness(product).complete ? '完整' : `待补 ${productCompleteness(product).missing.length}`}
-                        </span>
+                        {productCompletenessBadge(product) ? (
+                          renderProductCompleteness(product, 'text-[9px]')
+                        ) : (
+                          <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
+                            {productCompleteness(product).complete ? '完整' : `待补 ${productCompleteness(product).missing.length}`}
+                          </span>
+                        )}
                       </div>
 
                       <h3 className={`relative z-10 text-base font-light line-clamp-1 text-[var(--text-primary)]`}>

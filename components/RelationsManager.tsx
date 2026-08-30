@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Relation, RelationCategory, View } from '../types';
+import { Relation, RelationCategory, View, CompletenessBatchItem } from '../types';
 import { apiService } from '../services/apiService';
+import { CompletenessBadge } from './ui/CompletenessIndicators';
 import {
   Users, Search, Plus, Building2, User,
   MoreHorizontal, Edit2, Trash2, X, Save,
@@ -367,6 +368,30 @@ export const RelationsTitleSpotlightButton: React.FC<RelationsTitleSpotlightButt
 
 const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate, isDarkMode = false, sidebarCollapsed = false, cloudEndpoint, onNavigate }) => {
   const [previewState] = useState(readRelationsPreviewState);
+  // 资料完备度徽标（GET /api/completeness/batch?type=relation）：客户/供应商列表行增强提示，
+  // 按组织 id 映射；拉取失败或后端未就绪时降级为不展示。
+  // 组织集合（id 序列）变化时重拉——新增/删除组织刷新，编辑保存不触发。
+  // 注意：用 Record 而非 Map——本文件顶部 lucide-react 的 Map 图标 shadow 了全局 Map 构造器。
+  const [completenessByRelation, setCompletenessByRelation] = useState<Record<string, CompletenessBatchItem>>({});
+  const relationIdSetKey = useMemo(() => relations.map(r => r.id).sort().join(','), [relations]);
+  useEffect(() => {
+    let cancelled = false;
+    apiService.completenessBatch('relation')
+      .then((data) => {
+        if (cancelled) return;
+        const next: Record<string, CompletenessBatchItem> = {};
+        (data?.items ?? []).forEach((item) => { if (item?.id) next[item.id] = item; });
+        setCompletenessByRelation(next);
+      })
+      .catch(() => { if (!cancelled) setCompletenessByRelation({}); });
+    return () => { cancelled = true; };
+  }, [relationIdSetKey]);
+  // score < 100 的组织返回批次条目用于徽标渲染，score=100 或暂无引擎数据时返回 null
+  const relationCompletenessBadge = (org: Relation): CompletenessBatchItem | null => {
+    const item = completenessByRelation[org.id];
+    return item && typeof item.score === 'number' && item.score < 100 ? item : null;
+  };
+
   // Navigation State
   const [navLevel, setNavLevel] = useState<RelationNavLevel>(() => previewState.navLevel || 'category');
   const [selectedCategory, setSelectedCategory] = useState<RelationCategory | null>(() => previewState.selectedCategory || null);
@@ -1378,15 +1403,25 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
               transition={{ duration: 0.2 }}
               className={relationListDisplayMode === 'grid' ? `h-full w-full ${pageInsetExpandedClass} pt-[104px] pb-8 overflow-y-scroll ${RELATIONS_CARD_GRID_CLASS}` : `${BAMBOOK_OS.layout.relationsTableViewportClass} ${relationsTableBottomEdgeClass} ${pageInsetClass}`}
             >
-            {relationListDisplayMode === 'grid' ? currentOrganizations.map((org, idx) => renderRelationCard({
-              cardKey: org.id,
-              index: idx,
-              icon: <Building2 size={24} strokeWidth={1} />,
-              title: org.name,
-              description: org.summary || relationLocationLabel(org) || org.type,
-              footerLabel: `${orgContactCount(org.id)} 活跃联系人`,
-              onClick: () => { setSelectedOrgId(org.id); setNavLevel('detail'); setSearchTerm(''); },
-            })) : (
+            {relationListDisplayMode === 'grid' ? currentOrganizations.map((org, idx) => {
+              const completenessBadge = relationCompletenessBadge(org);
+              return renderRelationCard({
+                cardKey: org.id,
+                index: idx,
+                icon: <Building2 size={24} strokeWidth={1} />,
+                title: org.name,
+                description: org.summary || relationLocationLabel(org) || org.type,
+                footerLabel: (
+                  <span className="inline-flex items-center gap-2">
+                    <span>{orgContactCount(org.id)} 活跃联系人</span>
+                    {completenessBadge && (
+                      <CompletenessBadge score={completenessBadge.score} missing={completenessBadge.missing} expandDirection="up" />
+                    )}
+                  </span>
+                ),
+                onClick: () => { setSelectedOrgId(org.id); setNavLevel('detail'); setSearchTerm(''); },
+              });
+            }) : (
               <CompiledTableShell
                 isDarkMode={isDarkMode}
                 scrollRef={relationTableScrollRef}
@@ -1444,6 +1479,20 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)]`}>
                             {tierLabel(org.rating)}
                           </span>
+                          {(() => {
+                            const completenessBadge = relationCompletenessBadge(org);
+                            if (!completenessBadge) return null;
+                            return (
+                              <div className="mt-2 flex min-w-0 items-center gap-2">
+                                <CompletenessBadge score={completenessBadge.score} missing={completenessBadge.missing} />
+                                {completenessBadge.missing?.length > 0 && (
+                                  <span className="min-w-0 truncate text-[10px] font-light text-[var(--warning-text)]" title={completenessBadge.missing.join('、')}>
+                                    {completenessBadge.missing.join('、')}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="relative z-10 px-4 py-4">
                           <div className={`truncate text-[var(--text-secondary)]`}>{org.primaryContactName || '未填'}</div>
