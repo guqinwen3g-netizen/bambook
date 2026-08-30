@@ -82,7 +82,7 @@ interface OrderPlan {
   totalQty: number;
   amount: number;
   dueDate: string;
-  linePlans: { lineId: string; garmentId: string; styleNo: string; qty: number; price: number; netValue: number; color: string; category: string }[];
+  linePlans: { lineId: string; garmentId: string; sku: string; styleNo: string; qty: number; price: number; netValue: number; color: string; category: string }[];
   // 时间线（Delivered/Shipping/Production 用）
   confirmMs?: number; prodStartMs?: number; shipMs?: number; deliveredMs?: number; etaMs?: number;
   stageDone?: number; // Production 单已完成阶段数
@@ -136,7 +136,7 @@ export async function seedOrders(prisma: PrismaClient, md: MasterDataCtx): Promi
       const qty = (1500 + ((idx * 7 + li * 3100) % 10500)) - ((1500 + ((idx * 7 + li * 3100) % 10500)) % 100);
       const price = round2(6.5 + ((idx + li * 3) % 12) * 1.05);
       linePlans.push({
-        lineId: `${id}-L${li + 1}`, garmentId: g.id, styleNo: g.styleNo,
+        lineId: `${id}-L${li + 1}`, garmentId: g.id, sku: g.sku, styleNo: g.styleNo,
         qty, price, netValue: round2(qty * price), color: COLORS[(idx + li) % COLORS.length],
         category: g.styleNo.startsWith('GST-2610') ? 'Dress' : (idx + li) % 3 === 0 ? 'Dress' : (idx + li) % 3 === 1 ? 'Blouse' : 'Knit Top',
       });
@@ -210,7 +210,7 @@ export async function seedOrders(prisma: PrismaClient, md: MasterDataCtx): Promi
     p.linePlans.forEach((l, li) => {
       lineRows.push({
         id: l.lineId, orderId: p.id, lineNumber: li + 1, itemNo: String(li + 1),
-        materialCode: l.garmentId, description: `Ladies' ${l.category} — style ${l.styleNo}`,
+        materialCode: l.sku, description: `Ladies' ${l.category} — style ${l.styleNo}`,
         quantity: new Prisma.Decimal(l.qty), unit: 'PCS', unitPrice: new Prisma.Decimal(l.price),
         netValue: new Prisma.Decimal(l.netValue), deliveryDate: p.dueDate,
         status: statusByFate[p.fate], styleNo: l.styleNo, colorName: l.color,
