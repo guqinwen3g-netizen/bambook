@@ -33,6 +33,7 @@ import { createDevelopmentRouter } from './development/route';
 import { createFinanceRouter } from './finance/route';
 import { createFinanceV2Router } from './finance/routeV2';
 import { createReconciliationRouter } from './finance/reconciliationRoute';
+import { createCompletenessRouter } from './completeness/route';
 import { createReportingRouter } from './reporting/route';
 import { createShippingRouter } from './shipping/route';
 import { createDashboardRouter } from './dashboard/route';
@@ -659,6 +660,16 @@ app.use(
 app.use(
     '/api/v1/reconciliation',
     (req, res, next) => createReconciliationRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+// 资料完备度规则引擎 v1（七规则三接口，纯实时只读，不落表）
+app.use(
+    '/api/completeness',
+    (req, res, next) => createCompletenessRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
