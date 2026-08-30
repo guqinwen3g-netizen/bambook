@@ -35,6 +35,17 @@
     .glass-effect { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); }
   </style>
   <link rel="stylesheet" href="/index.css">
+  <script>
+    // DR-049：PWA 已退役，注销历史版本注册的 Service Worker。
+    // 残留 SW 会继续用旧缓存的模块清单响应请求（文件已不存在），
+    // 导致 "Importing a module script failed"。幂等执行，本段脚本
+    // 也会随 SW 返回的旧缓存 HTML 一起运行，刷新一两次即自愈。
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
+    }
+  </script>
 </head>
 <body class="bg-white text-slate-900">
   <div id="root"></div>
