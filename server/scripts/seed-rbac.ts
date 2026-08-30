@@ -296,15 +296,15 @@ const DEMO_ACCOUNTS: Array<{
   roleId: string;
   departmentId: string;
 }> = [
-  { id: 'usr_demo_boss', email: 'boss@bambook.local', displayName: '沈国强', roleId: SYSTEM_ROLE_IDS.SUPER_ADMIN, departmentId: 'dept-company' },
-  { id: 'usr_demo_gm', email: 'gm@bambook.local', displayName: '林志远', roleId: SYSTEM_ROLE_IDS.ADMIN, departmentId: 'dept-company' },
-  { id: 'usr_demo_sales_manager', email: 'sales.manager@bambook.local', displayName: '陈雅雯', roleId: SYSTEM_ROLE_IDS.SALES_MANAGER, departmentId: 'dept-sales' },
-  { id: 'usr_demo_sales_a', email: 'sales.a@bambook.local', displayName: '苏晓芸', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
-  { id: 'usr_demo_sales_b', email: 'sales.b@bambook.local', displayName: '周子墨', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
-  { id: 'usr_demo_finance_manager', email: 'finance.manager@bambook.local', displayName: '赵美玲', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
-  { id: 'usr_demo_finance', email: 'finance@bambook.local', displayName: '钱志明', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
-  { id: 'usr_demo_qc', email: 'qc@bambook.local', displayName: '吴建国', roleId: SYSTEM_ROLE_IDS.QC, departmentId: 'dept-qc' },
-  { id: 'usr_demo_logistics', email: 'logistics@bambook.local', displayName: '郑海涛', roleId: SYSTEM_ROLE_IDS.LOGISTICS, departmentId: 'dept-logistics' },
+  { id: 'usr_demo_boss', email: 'jason.shen@bambook.local', displayName: 'Jason Shen', roleId: SYSTEM_ROLE_IDS.SUPER_ADMIN, departmentId: 'dept-company' },
+  { id: 'usr_demo_gm', email: 'raymond.lin@bambook.local', displayName: 'Raymond Lin', roleId: SYSTEM_ROLE_IDS.ADMIN, departmentId: 'dept-company' },
+  { id: 'usr_demo_sales_manager', email: 'vivian.chen@bambook.local', displayName: 'Vivian Chen', roleId: SYSTEM_ROLE_IDS.SALES_MANAGER, departmentId: 'dept-sales' },
+  { id: 'usr_demo_sales_a', email: 'chloe.su@bambook.local', displayName: 'Chloe Su', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
+  { id: 'usr_demo_sales_b', email: 'marcus.zhou@bambook.local', displayName: 'Marcus Zhou', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
+  { id: 'usr_demo_finance_manager', email: 'melissa.zhao@bambook.local', displayName: 'Melissa Zhao', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
+  { id: 'usr_demo_finance', email: 'charlie.qian@bambook.local', displayName: 'Charlie Qian', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
+  { id: 'usr_demo_qc', email: 'wilson.wu@bambook.local', displayName: 'Wilson Wu', roleId: SYSTEM_ROLE_IDS.QC, departmentId: 'dept-qc' },
+  { id: 'usr_demo_logistics', email: 'hank.zheng@bambook.local', displayName: 'Hank Zheng', roleId: SYSTEM_ROLE_IDS.LOGISTICS, departmentId: 'dept-logistics' },
 ];
 
 const DEMO_ACCOUNT_PASSWORD = 'Bambook@2026';
