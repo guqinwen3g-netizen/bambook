@@ -244,3 +244,28 @@ describe('apiService requestJson 超时治理与网络错误语义化', () => {
       .rejects.toThrow('server exploded');
   });
 });
+
+describe('apiService getStoredConfig 默认端点（DEV 闭环本地 / PROD 生产行为不变）', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  it('DEV 下默认 cloudEndpoint 落本地后端，即使 env 存在生产 VITE_CLOUD_ENDPOINT 也不采用', async () => {
+    vi.stubEnv('VITE_CLOUD_ENDPOINT', 'https://jiangsupanda.com/bambook');
+
+    const { apiService } = await import('./apiService');
+
+    expect(apiService.getStoredConfig().cloudEndpoint).toBe('http://localhost:8081');
+  });
+
+  it('PROD 构建下默认 cloudEndpoint 兜底生产端点（行为不变）', async () => {
+    vi.stubEnv('DEV', false);
+
+    const { apiService } = await import('./apiService');
+
+    expect(apiService.getStoredConfig().cloudEndpoint).toBe('https://jiangsupanda.com/bambook');
+  });
+});

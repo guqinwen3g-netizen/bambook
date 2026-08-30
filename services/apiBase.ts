@@ -4,26 +4,51 @@
  * 优先级（从高到低）：
  * 1. 环境变量 VITE_API_BASE_URL   — 仅允许数据中心/相对 API 路径
  * 2. 用户在设置页填的 cloudEndpoint — Cloudflare / Bambook 数据入口
- * 3. 兜底                          — Cloudflare 公网 API
+ * 3. 兜底                          — DEV 闭环本地 8081 后端；PROD 走生产数据中心
  */
-export const DEFAULT_BAMBOOK_ENDPOINT = 'https://jiangsupanda.com/bambook';
+
+const PROD_BAMBOOK_ENDPOINT = 'https://jiangsupanda.com/bambook';
+const DEV_BAMBOOK_ENDPOINT = 'http://localhost:8081';
+
+/** DEV 运行时（vite dev / vitest）判定；调用时读取，便于测试 stub。 */
+export function isDevRuntime(): boolean {
+  return Boolean(import.meta.env.DEV);
+}
+
+/** 默认数据中心端点：DEV 闭环本地后端；PROD 构建静态替换回生产值，行为不变。 */
+export function getDefaultBambookEndpoint(): string {
+  // 直读 import.meta.env.DEV（构建期静态替换为 false），保证 DEV 端点字符串被生产打包 DCE。
+  return import.meta.env.DEV ? DEV_BAMBOOK_ENDPOINT : PROD_BAMBOOK_ENDPOINT;
+}
+
+export const DEFAULT_BAMBOOK_ENDPOINT = getDefaultBambookEndpoint();
 export const CORPORATE_MASTER_IP = 'jiangsupanda.com';
-const NON_BAMBOOK_DATA_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '47.100.99.170', 'hd.jyiba.cn']);
+const LOCAL_DATA_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1']);
+const NON_BAMBOOK_DATA_HOSTS = new Set([...LOCAL_DATA_HOSTS, '47.100.99.170', 'hd.jyiba.cn']);
+
+function isLocalDataHost(hostname: string): boolean {
+  return LOCAL_DATA_HOSTS.has(hostname.toLowerCase());
+}
 
 export function normalizeDataCenterEndpoint(endpoint?: string): string {
   const raw = endpoint?.trim().replace(/\/$/, '') || '';
-  if (!raw) return DEFAULT_BAMBOOK_ENDPOINT;
+  if (!raw) return getDefaultBambookEndpoint();
   const normalized = /^https?:\/\//.test(raw) ? raw : `http://${raw}`;
   try {
     const url = new URL(normalized);
-    if (NON_BAMBOOK_DATA_HOSTS.has(url.hostname.toLowerCase())) return DEFAULT_BAMBOOK_ENDPOINT;
-    if (url.pathname.toLowerCase().includes('/pdml')) return DEFAULT_BAMBOOK_ENDPOINT;
+    // DEV 本地闭环：显式 localhost 端点原样保留（主机+端口不丢失）；
+    // 仅 PROD 构建强制重映射回生产数据中心（业务数据不落本机库）。
+    if (isDevRuntime() && isLocalDataHost(url.hostname)) {
+      return `${url.origin}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '');
+    }
+    if (NON_BAMBOOK_DATA_HOSTS.has(url.hostname.toLowerCase())) return getDefaultBambookEndpoint();
+    if (url.pathname.toLowerCase().includes('/pdml')) return getDefaultBambookEndpoint();
     if (url.pathname.endsWith('/api')) {
       url.pathname = url.pathname.slice(0, -4) || '/';
     }
     return `${url.origin}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '');
   } catch {
-    return DEFAULT_BAMBOOK_ENDPOINT;
+    return getDefaultBambookEndpoint();
   }
 }
 
@@ -42,6 +67,10 @@ function normalizeExplicitApiBase(apiBase?: string): string {
   const normalized = /^https?:\/\//.test(raw) ? raw : `http://${raw}`;
   try {
     const url = new URL(normalized);
+    // 与 normalizeDataCenterEndpoint 同口径：DEV 下显式 localhost 端点放行（本地闭环），PROD 一律拒绝。
+    if (isDevRuntime() && isLocalDataHost(url.hostname)) {
+      return `${url.origin}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '');
+    }
     if (NON_BAMBOOK_DATA_HOSTS.has(url.hostname.toLowerCase())) return '';
     if (url.pathname.toLowerCase().includes('/pdml')) return '';
     return `${url.origin}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '');
@@ -88,5 +117,5 @@ export function getApiBaseUrl(): string {
     // localStorage 不可用或解析失败，继续走后面的逻辑
   }
 
-  return withApiSuffix(DEFAULT_BAMBOOK_ENDPOINT);
+  return withApiSuffix(getDefaultBambookEndpoint());
 }

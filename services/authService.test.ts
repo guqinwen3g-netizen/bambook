@@ -22,11 +22,14 @@ describe('authService checkAuth', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     vi.stubGlobal('localStorage', createStorage());
     vi.stubGlobal('sessionStorage', createStorage());
   });
 
   it('checks the cookie session when no auth token is stored', async () => {
+    // PROD 构建语义（vitest 下 DEV 默认 true，stub false 断言生产行为不变）
+    vi.stubEnv('DEV', false);
     const fetchSpy = vi.fn(async () => ({
       ok: false,
       status: 401,
@@ -138,7 +141,8 @@ describe('authService checkAuth', () => {
     expect(getAuthState().isAuthenticated).toBe(false);
   });
 
-  it('logs in against the default cloud API when no endpoint is stored', async () => {
+  it('logs in against the default cloud API when no endpoint is stored (PROD builds)', async () => {
+    vi.stubEnv('DEV', false);
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
       text: async () => JSON.stringify({
@@ -164,7 +168,33 @@ describe('authService checkAuth', () => {
     );
   });
 
+  it('defaults login to the local backend in DEV when no endpoint is stored (dev closed loop)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({
+        token: 'token-1',
+        user: {
+          id: 'u1',
+          displayName: 'User One',
+          email: 'user@example.com',
+          roles: ['owner'],
+          departmentIds: ['company'],
+          department: null,
+        },
+      }),
+    })));
+
+    const { login } = await import('./authService');
+    await login('user@example.com', 'correct-password');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8081/api/auth/login',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('updates the cached current user when profile avatar changes', async () => {
+    vi.stubEnv('DEV', false);
     localStorage.setItem('bambook_auth_token', 'token-1');
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
@@ -197,7 +227,8 @@ describe('authService checkAuth', () => {
     expect(JSON.parse(localStorage.getItem('bambook_auth_user') || '{}').avatarUrl).toBe('data:image/webp;base64,next');
   });
 
-  it('keeps LAN phone preview login on the default cloud API when no endpoint is stored', async () => {
+  it('keeps LAN phone preview login on the default cloud API when no endpoint is stored (PROD builds)', async () => {
+    vi.stubEnv('DEV', false);
     // window stub 必须保留 setTimeout/clearTimeout（authService fetchWithTimeout 依赖），
     // 只覆盖 location.hostname 模拟 LAN 手机预览场景
     vi.stubGlobal('window', {
@@ -266,7 +297,8 @@ describe('authService checkAuth', () => {
     );
   });
 
-  it('does not log in against a local database endpoint from stored config', async () => {
+  it('does not log in against a local database endpoint from stored config (PROD builds)', async () => {
+    vi.stubEnv('DEV', false);
     localStorage.setItem('panda_system_config', JSON.stringify({
       cloudEndpoint: 'http://127.0.0.1:8081',
     }));
@@ -290,6 +322,34 @@ describe('authService checkAuth', () => {
 
     expect(fetch).toHaveBeenCalledWith(
       'https://jiangsupanda.com/bambook/api/auth/login',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('keeps login on an explicitly stored local endpoint in DEV (no remap to production)', async () => {
+    localStorage.setItem('panda_system_config', JSON.stringify({
+      cloudEndpoint: 'http://127.0.0.1:8081',
+    }));
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({
+        token: 'token-1',
+        user: {
+          id: 'u1',
+          displayName: 'User One',
+          email: 'user@example.com',
+          roles: ['owner'],
+          departmentIds: ['company'],
+          department: null,
+        },
+      }),
+    })));
+
+    const { login } = await import('./authService');
+    await login('user@example.com', 'correct-password');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8081/api/auth/login',
       expect.objectContaining({ method: 'POST' }),
     );
   });

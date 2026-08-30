@@ -232,7 +232,7 @@ import {
   FabricRecommendation,
   RecommendCriteria,
 } from '../types';
-import { getApiBaseUrl, CORPORATE_MASTER_IP, normalizeDataCenterEndpoint } from './apiBase';
+import { getApiBaseUrl, CORPORATE_MASTER_IP, getDefaultBambookEndpoint, normalizeDataCenterEndpoint } from './apiBase';
 
 export const DEFAULT_KNOWLEDGE_API_ENDPOINT = 'https://jiangsupanda.com/bambook';
 export const DEFAULT_CLOUD_ENDPOINT = 'https://jiangsupanda.com/bambook';
@@ -516,8 +516,12 @@ export const apiService = {
     const saved = localStorage.getItem('panda_system_config');
 
     const defaultConfig: SystemConfig = {
+      // DEV 默认闭环本地后端（不读生产 VITE_CLOUD_ENDPOINT，显式配置仍可指生产）；
+      // PROD 构建静态走原兜底链，行为不变。
       // @ts-ignore
-      cloudEndpoint: import.meta.env.VITE_CLOUD_ENDPOINT || DEFAULT_CLOUD_ENDPOINT,
+      cloudEndpoint: import.meta.env.DEV
+        ? getDefaultBambookEndpoint()
+        : import.meta.env.VITE_CLOUD_ENDPOINT || DEFAULT_CLOUD_ENDPOINT,
       // @ts-ignore
       knowledgeApiEndpoint: import.meta.env.VITE_KNOWLEDGE_API_ENDPOINT || DEFAULT_KNOWLEDGE_API_ENDPOINT,
       knowledgeApiKey: '',

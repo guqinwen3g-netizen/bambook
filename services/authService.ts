@@ -1,4 +1,4 @@
-import { getApiBaseUrl, normalizeDataCenterEndpoint } from './apiBase';
+import { getApiBaseUrl, getDefaultBambookEndpoint, normalizeDataCenterEndpoint } from './apiBase';
 import { View } from '../types';
 import { getViewPermission, isAuthenticatedPublicView, isDevOnlyView } from '../lib/modulePermissions';
 
@@ -28,7 +28,8 @@ const initialState: AuthState = { user: null, isLoading: true, isAuthenticated: 
 const listeners = new Set<AuthListener>();
 const AUTH_TOKEN_KEY = 'bambook_auth_token';
 const AUTH_USER_CACHE_KEY = 'bambook_auth_user';
-const DEFAULT_AUTH_ENDPOINT = 'https://jiangsupanda.com/bambook';
+// 默认认证端点：DEV 闭环本地 8081 后端；PROD 走生产数据中心（与 apiBase 同口径，构建期静态分流）。
+const DEFAULT_AUTH_ENDPOINT = getDefaultBambookEndpoint();
 const AUTH_FETCH_TIMEOUT_MS = 8000;
 
 const DEFAULT_ROLE_PERMISSIONS: Record<AgentRole, string[] | '*'> = {
