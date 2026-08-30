@@ -3,7 +3,7 @@
  *
  * mock 边界：全量 mock PrismaClient（与 briefingService.test.ts 同风格），不连真实库：
  *   - summary 聚合正确（七规则计数 / bySeverity / sampleIds ≤5 截断 / PO 归并计数）
- *   - entity=order 行级缺口（materialCode 未建档 hint + fix 跳转）
+ *   - entity=order 行级缺口（materialCode 未建档 hint + fix 直达建档深链）
  *   - entity 评分边界（product 全空=0 分 / 全齐=100 分 / garment / trim / relation）
  *   - batch（take=200 + updatedAt 倒序）
  *   - 空库不报错（summary 全 0 / batch 空数组 / entity null）
@@ -153,7 +153,7 @@ describe('getCompletenessSummary', () => {
 // ────────────────────────────────────────────────────────────────
 
 describe('getEntityCompleteness(order)', () => {
-  it('返回行级缺口：未命中面料行逐行给 hint + fix 跳转 /products?search=', async () => {
+  it('返回行级缺口：未命中面料行逐行给 hint + fix 直达建档表单 /products?create=1&sku=', async () => {
     const prisma = makePrisma({
       productAsset: {
         findMany: vi.fn().mockResolvedValue([{ id: 'PA1', sku: 'FB-001' }]),
@@ -183,7 +183,7 @@ describe('getEntityCompleteness(order)', () => {
       label: '订单行面料未建档',
       severity: 'P0',
       hint: '订单行面料「FB-UNKNOWN」未建档',
-      fix: { type: 'navigate', target: '/products?search=FB-UNKNOWN' },
+      fix: { type: 'navigate', target: '/products?create=1&sku=FB-UNKNOWN' },
     });
     expect(result!.gaps[1].ruleId).toBe('order_no_customer_relation');
     expect(result!.gaps[1].severity).toBe('P1');
@@ -216,7 +216,7 @@ describe('getEntityCompleteness(order)', () => {
 // ────────────────────────────────────────────────────────────────
 
 describe('getEntityCompleteness(development-case)', () => {
-  it('productAssetId 为空 → P0 缺口，fix 跳开发案详情', async () => {
+  it('productAssetId 为空 → P0 缺口，fix 直达开发案详情并进入挂档案流程', async () => {
     const prisma = makePrisma({
       developmentCase: {
         findUnique: vi.fn().mockResolvedValue({ id: 'DC1', productAssetId: null, deletedAt: null }),
@@ -227,7 +227,7 @@ describe('getEntityCompleteness(development-case)', () => {
     expect(result!.gaps[0]).toMatchObject({
       ruleId: 'dev_case_unlinked_product',
       severity: 'P0',
-      fix: { type: 'navigate', target: '/development?id=DC1' },
+      fix: { type: 'navigate', target: '/development?focus=DC1&action=link-product' },
     });
   });
 });
@@ -545,7 +545,7 @@ describe('route 契约', () => {
             label: '订单行面料未建档',
             severity: 'P0',
             hint: '订单行面料「FB-UNKNOWN」未建档',
-            fix: { type: 'navigate', target: '/products?search=FB-UNKNOWN' },
+            fix: { type: 'navigate', target: '/products?create=1&sku=FB-UNKNOWN' },
           },
           {
             ruleId: 'order_no_customer_relation',

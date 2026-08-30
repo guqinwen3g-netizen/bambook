@@ -205,6 +205,47 @@ describe('CompletenessBanner（详情资料完备度横幅）', () => {
     unmount();
   });
 
+  it('fix.target 深链参数（create/sku、focus/action）全量透传进导航上下文 params', () => {
+    const data: CompletenessEntityData = {
+      entityType: 'order',
+      id: 'ORD_1',
+      gaps: [
+        { ruleId: 'order_line_material_unlinked', label: '订单行面料未建档', severity: 'P0', hint: '', fix: { type: 'navigate', target: '/products?create=1&sku=FB-902' } },
+      ],
+    };
+    const navigated: View[] = [];
+    const { container, unmount } = renderElement(
+      <CompletenessBanner data={data} onNavigate={(view) => navigated.push(view)} />,
+    );
+    const fixButton = findByText(container, '去补齐') as HTMLElement;
+    act(() => { fixButton.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(navigated).toEqual([View.Products]);
+    const ctx = JSON.parse(sessionStorage.getItem(CROSS_MODULE_NAV_KEY) || 'null');
+    expect(ctx?.view).toBe('products');
+    expect(ctx?.params).toEqual({ create: '1', sku: 'FB-902' });
+    expect(ctx?.focusEntityId).toBeUndefined();
+    unmount();
+
+    // development-case 挂档案深链：focus/action 走 parseNotificationLink 通道同样落 params
+    const devData: CompletenessEntityData = {
+      entityType: 'development-case',
+      id: 'DC_1',
+      gaps: [
+        { ruleId: 'dev_case_unlinked_product', label: '开发案未关联产品档案', severity: 'P0', hint: '', fix: { type: 'navigate', target: '/development?focus=DC_1&action=link-product' } },
+      ],
+    };
+    const { container: devContainer, unmount: devUnmount } = renderElement(
+      <CompletenessBanner data={devData} onNavigate={(view) => navigated.push(view)} />,
+    );
+    const devFixButton = findByText(devContainer, '去补齐') as HTMLElement;
+    act(() => { devFixButton.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(navigated).toEqual([View.Products, View.Development]);
+    const devCtx = JSON.parse(sessionStorage.getItem(CROSS_MODULE_NAV_KEY) || 'null');
+    expect(devCtx?.view).toBe('development');
+    expect(devCtx?.params).toEqual({ focus: 'DC_1', action: 'link-product' });
+    devUnmount();
+  });
+
   it('未传 onNavigate（宿主无跨模块通道）→ 不渲染跳转按钮，横幅仍展示', () => {
     const data: CompletenessEntityData = {
       entityType: 'order',
@@ -242,9 +283,31 @@ describe('资料完备度宿主接线（源码断言，对齐项目走查测试�
     expect(source).toContain('<CompletenessBanner data={orderCompleteness} onNavigate={onNavigate} />');
   });
 
-  it('开发单详情 DevelopmentManager：entity?type=development-case 拉取 + 详情横幅', () => {
+  it('开发单详情 DevelopmentManager：entity?type=development-case 拉取 + 详情横幅（同视图补消费接线）', () => {
     const source = sourceOf('../DevelopmentManager.tsx');
     expect(source).toContain("apiService.completenessEntity('development-case', selectedCase.id)");
-    expect(source).toContain('<CompletenessBanner data={caseCompleteness} onNavigate={onNavigate} />');
+    // 横幅接线走补消费包装（App.handleViewChange 对同视图切换不重挂本组件）
+    expect(source).toContain('<CompletenessBanner data={caseCompleteness} onNavigate={handleCompletenessNavigate} />');
+    expect(source).toContain('const handleCompletenessNavigate = useCallback((view: View) => {');
+  });
+
+  it('深链宿主接线：ProductsManager create=1 直达建档表单 / DevelopmentManager link-product 挂档案面板', () => {
+    const products = sourceOf('../ProductsManager.tsx');
+    // peek 读 params（须在 consume 之前）+ create=1 打开既有录入表单 + 预填链
+    expect(products).toContain('const [navDeepLinkParams] = useState(() => peekCrossModuleNav()?.params ?? null);');
+    expect(products).toContain("if (navDeepLinkParams?.create !== '1') return;");
+    expect(products).toContain("setShowAddProdModal(true)");
+    expect(products).toContain('defaultValue={editingProd?.sku ?? deepLinkPrefill?.sku ?? \'\'}');
+    expect(products).toContain("defaultValue={editingProd?.fabricProfile?.articleNo || deepLinkPrefill?.name || ''} name=\"articleNo\"");
+    // 关闭表单清深链预填（防残留到下一次手动录入）
+    expect(products).toContain('setDeepLinkPrefill(null)');
+
+    const dev = sourceOf('../DevelopmentManager.tsx');
+    // focus/action 深链：打开详情 + 弹出选择产品档案面板；保存走既有 updateDevelopmentCase
+    expect(dev).toContain("navCtx?.params?.action === 'link-product'");
+    expect(dev).toContain('setLinkProductPanelOpen(true)');
+    expect(dev).toContain('developmentService.updateDevelopmentCase(selectedCase.id, {\n        productAssetId: asset.id,\n        productName: asset.name,\n      })');
+    expect(dev).toContain('handleLinkProductCreate');
+    expect(dev).toContain('create: \'1\'');
   });
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { CheckCircle2, ChevronLeft, FileText, Package, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, FileText, Package, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2, X, XCircle } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import RelationCombobox from './ui/RelationCombobox';
@@ -13,7 +13,7 @@ import {
 } from './ui/primitives/compiledPrimitives';
 import { developmentService } from '../services/developmentService';
 import { apiService } from '../services/apiService';
-import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
+import { consumeCrossModuleNav, peekCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import type {
   DevelopmentCase as DevCase,
@@ -106,6 +106,11 @@ const SPOTLIGHT_SIZE = 200;
 
 const DEV_TYPE_OPTIONS = DEVELOPMENT_TYPES.filter((t): t is { id: DevType; label: string } => t.id !== 'all');
 const DEV_STAGE_OPTIONS = DEVELOPMENT_STAGES.filter((s): s is { id: DevStage; label: string } => s.id !== 'all');
+
+// 开发案类型 → 产品档案主类目（挂档案面板搜索类目与「去新建」预选类目共用）
+const devTypeToMainCategory = (type: DevType): 'Garment' | 'Fabric' | 'Trimmings' =>
+  type === 'garment' || type === 'pp' ? 'Garment' : type === 'trim' ? 'Trimmings' : 'Fabric';
+
 const SAMPLE_TYPE_OPTIONS: Array<{ id: SampleType; label: string }> = [
   { id: 'lab-dip', label: '色样 Lab-dip' },
   { id: 'handloom', label: '手织样 Handloom' },
@@ -311,9 +316,40 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
     if (matched) setSelectedCaseId(matched.id);
   }, [navFocusEntityId, filteredCases, cases]);
 
+  // ── 资料完备度「去补齐」深链（fix.target=/development?focus=<devCaseId>&action=link-product）──
+  // 横幅「去补齐」点击发生在本组件自身（开发单详情）内：App.handleViewChange 对同视图切换
+  // 不重挂本组件（条件渲染无 key），prime 进 sessionStorage 的上下文将无人消费 →
+  // 这里在 onNavigate 之前立即补消费（挂载期 useState 通道之外的第二入口）。
+  const handleCompletenessNavigate = useCallback((view: View) => {
+    if (view === View.Development) {
+      const ctx = consumeCrossModuleNav();
+      if (ctx) setNavCtx(ctx);
+    }
+    onNavigate?.(view);
+  }, [onNavigate]);
+
+  const [linkProductPanelOpen, setLinkProductPanelOpen] = useState(false);
+  // focus/action 深链：打开对应开发单详情并弹出「选择产品档案」面板。
+  // 挂载期消费与同视图横幅补消费共用本 effect；命中后清除 action params（一次性消费），
+  // 防止挂接回写 setCases 时 effect 重触发再次弹面板。
+  const linkProductFocusId = navCtx?.params?.action === 'link-product'
+    ? (navCtx.params.focus || navCtx.focusEntityId || null)
+    : null;
+  useEffect(() => {
+    if (!linkProductFocusId) return;
+    const matched = cases.find(c => c.id === linkProductFocusId) ?? null;
+    if (matched) {
+      setSelectedCaseId(matched.id);
+      setLinkProductPanelOpen(true);
+      setNavCtx(prev => (prev ? { ...prev, params: undefined } : prev));
+    }
+  }, [linkProductFocusId, cases]);
+
   // 资料完备度横幅（GET /api/completeness/entity?type=development-case）：开发单详情头部增强提示，
   // 拉取失败或后端未就绪时静默降级为不展示（提示型数据，不阻塞详情阅读）
   const [caseCompleteness, setCaseCompleteness] = useState<CompletenessEntityData | null>(null);
+  // 挂接档案等写操作后自增，驱动横幅重拉（缺口实时消除）
+  const [caseCompletenessNonce, setCaseCompletenessNonce] = useState(0);
   useEffect(() => {
     if (!selectedCase?.id) { setCaseCompleteness(null); return; }
     let cancelled = false;
@@ -321,7 +357,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       .then((data) => { if (!cancelled) setCaseCompleteness(data ?? null); })
       .catch(() => { if (!cancelled) setCaseCompleteness(null); });
     return () => { cancelled = true; };
-  }, [selectedCase?.id]);
+  }, [selectedCase?.id, caseCompletenessNonce]);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<DevCase | null>(null);
@@ -566,6 +602,75 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
 
   // R6 权限门：开发单新建/编辑/删除/评审/转订单均为 products:write（development 域写），无权限隐藏写按钮
   const canWrite = hasPermission('products:write');
+
+  // ── 资料完备度「去补齐」：选择产品档案面板（挂档案流程直达）──
+  // 搜索走既有 listProductAssets 通道（300ms 防抖，与编辑表单产品搜索同模式），
+  // 点选后经既有 updateDevelopmentCase（PUT /v1/development/:id）保存 productAssetId。
+  const [lpSearch, setLpSearch] = useState('');
+  const [lpResults, setLpResults] = useState<ProductAssetDetail[]>([]);
+  const [lpLoading, setLpLoading] = useState(false);
+  const [lpSavingId, setLpSavingId] = useState<string | null>(null);
+  const closeLinkProductPanel = useCallback(() => {
+    setLinkProductPanelOpen(false);
+    setLpSearch('');
+    setLpResults([]);
+  }, []);
+  // Esc 关闭（R2 弹层纪律）
+  useEffect(() => {
+    if (!linkProductPanelOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeLinkProductPanel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [linkProductPanelOpen, closeLinkProductPanel]);
+  useEffect(() => {
+    if (!linkProductPanelOpen || !lpSearch.trim()) { if (linkProductPanelOpen) setLpResults([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLpLoading(true);
+      try {
+        const mainCategory = selectedCase ? devTypeToMainCategory(selectedCase.type) : 'Fabric';
+        const assets = await apiService.listProductAssets(undefined, { search: lpSearch.trim(), mainCategory, limit: 8 });
+        if (!cancelled) setLpResults(assets);
+      } catch { if (!cancelled) setLpResults([]); }
+      finally { if (!cancelled) setLpLoading(false); }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [lpSearch, linkProductPanelOpen, selectedCase?.type]);
+  const handleLinkProduct = useCallback(async (asset: ProductAssetDetail) => {
+    if (!selectedCase || lpSavingId) return;
+    if (!canWrite) { bdsToast.warning('当前账号无开发单编辑权限（products:write），无法挂档案'); return; }
+    setLpSavingId(asset.id);
+    try {
+      const updated = await developmentService.updateDevelopmentCase(selectedCase.id, {
+        productAssetId: asset.id,
+        productName: asset.name,
+      });
+      setCases(prev => prev.map(c => (c.id === updated.id ? updated : c)));
+      bdsToast.success(`已挂接产品档案 ${asset.sku || asset.name}`);
+      closeLinkProductPanel();
+      // 挂接成功后重拉完备度横幅：P0 缺口实时消除
+      setCaseCompletenessNonce(n => n + 1);
+    } catch (err: any) {
+      bdsToast.danger(`挂接失败：${err?.message || err}`);
+    } finally {
+      setLpSavingId(null);
+    }
+  }, [selectedCase, lpSavingId, canWrite, setCases, closeLinkProductPanel]);
+  // 「没有合适的？去新建」→ 数字档案建档表单（预填名称，create=1 深链）
+  const handleLinkProductCreate = useCallback(() => {
+    if (!selectedCase) return;
+    const name = selectedCase.productName || selectedCase.name || '';
+    primeCrossModuleNav({
+      view: View.Products,
+      params: {
+        create: '1',
+        ...(name ? { name } : {}),
+        ...(selectedCase.type ? { cat: devTypeToMainCategory(selectedCase.type) } : {}),
+      },
+    });
+    closeLinkProductPanel();
+    onNavigate?.(View.Products);
+  }, [selectedCase, closeLinkProductPanel, onNavigate]);
 
   const inspectorRows = selectedCase
     ? [
@@ -899,7 +1004,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     {/* 资料完备度横幅：详情头部块之下、内容之上 */}
                     {caseCompleteness && (
                       <div className="mb-4">
-                        <CompletenessBanner data={caseCompleteness} onNavigate={onNavigate} />
+                        <CompletenessBanner data={caseCompleteness} onNavigate={handleCompletenessNavigate} />
                       </div>
                     )}
                     <div className="space-y-1">
@@ -1454,6 +1559,65 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               </CompiledFormSectionPanel>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 资料完备度「去补齐」→「选择产品档案」面板：搜索（sku/name）→ 点选保存 productAssetId
+          （走既有 PUT /v1/development/:id 更新链路）；Esc/遮罩关闭；「去新建」携 create=1 深链跳数字档案 */}
+      {linkProductPanelOpen && selectedCase && (
+        <div className="bds-modal-mask" onClick={closeLinkProductPanel}>
+          <div className="bds-modal" role="dialog" aria-modal="true" aria-label="选择产品档案" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <h3 className="text-base font-light text-[var(--text-primary)]">选择产品档案</h3>
+              <button type="button" onClick={closeLinkProductPanel} aria-label="关闭" className="bds-btn bds-btn-ghost bds-btn-icon">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs font-light text-[var(--text-secondary)] mb-4">
+              为开发单「{selectedCase.code} {selectedCase.name}」挂接产品档案后，打样与大货链路才能对齐到 SKU。
+            </p>
+            <div className="relative mb-3">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
+              <input
+                autoFocus
+                value={lpSearch}
+                onChange={(e) => setLpSearch(e.target.value)}
+                placeholder={`搜索${devTypeToMainCategory(selectedCase.type) === 'Garment' ? '成衣' : devTypeToMainCategory(selectedCase.type) === 'Trimmings' ? '辅料' : '面料'}档案 SKU / 名称…`}
+                className="bds-input pl-9"
+              />
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-inset border border-[var(--border-c-subtle)]">
+              {lpLoading && (
+                <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">搜索中…</div>
+              )}
+              {!lpLoading && lpResults.length === 0 && (
+                <div className="px-3 py-4 text-xs text-[var(--text-tertiary)]">
+                  {lpSearch.trim() ? '无匹配产品档案' : '输入 SKU 或名称搜索产品档案'}
+                </div>
+              )}
+              {lpResults.map(asset => (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => handleLinkProduct(asset)}
+                  disabled={lpSavingId != null}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-[var(--recessed-bg)] transition-colors duration-200 disabled:opacity-55 disabled:cursor-not-allowed"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-light text-[var(--text-primary)]">{asset.name || asset.sku}</span>
+                    <span className="block truncate text-[10px] text-[var(--text-tertiary)]">{asset.sku}{asset.mainCategory ? ` · ${asset.mainCategory}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-light text-[var(--os-vnext-brand-blue)]">{lpSavingId === asset.id ? '挂接中…' : '选择'}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <span className="text-[10px] text-[var(--text-tertiary)]">挂接后资料完备度即时更新</span>
+              <button type="button" onClick={handleLinkProductCreate} className="bds-btn bds-btn-ghost">
+                没有合适的？去新建
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, Relation, RelationCategory, FactoryProfile, CompletenessBatchItem } from '../types';
 import { apiService } from '../services/apiService';
 import { hasPermission } from '../services/authService';
-import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
+import { consumeCrossModuleNav, peekCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { sampleRoomService, SampleCardItemView } from '../services/sampleRoomService';
 import { developmentService } from '../services/developmentService';
 import RelationCombobox from './ui/RelationCombobox';
@@ -967,6 +967,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
   const [deleteProdId, setDeleteProdId] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProductAsset | null>(null);
+  // 资料完备度「去补齐」深链参数（fix.target=/products?create=1&sku=…&name=…&cat=…）：
+  // 直达新建档案表单并预填编号/名称。peek 需在下方 consume 之前读取（同一上下文一次读取、两条通道）；
+  // 参数仅作纯文本预填值（URL 参数非 HTML 面），无注入面。
+  const [navDeepLinkParams] = useState(() => peekCrossModuleNav()?.params ?? null);
+  const [deepLinkPrefill, setDeepLinkPrefill] = useState<{ sku: string; name: string } | null>(null);
   // 跨模块导航 focusEntityId 直达：从样品间/开发单等入口跳转过来时，
   // 用 focusEntityId = productAssetId 精准打开档案详情。
   // 同时携带 filter.product 锚用于列表过滤（hitRelationFilter 链已支持）。
@@ -994,6 +999,24 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   }, [detailLightboxOpen]);
   // R678-② 写按钮权限门（参照 FinancePaymentRequestsPanel canCreate 模式；服务端 products:write scope 兜底）
   const canWriteProducts = hasPermission('products:write');
+  // 深链建档动作：create=1 → 预选类目（cat 缺省 Fabric=面料建档场景）+ 未分类子桶 +
+  // 打开既有「录入档案」表单（保存走 handleAddProduct 正常建档流程）。无写权限不打开（诚实降级）。
+  useEffect(() => {
+    if (navDeepLinkParams?.create !== '1') return;
+    if (!canWriteProducts) {
+      bdsToast.warning('当前账号无数字档案写权限（products:write），无法建档');
+      return;
+    }
+    const catParam = navDeepLinkParams.cat;
+    const mainCategory = PRODUCT_MAIN_CATEGORY_DEFINITIONS.some(d => d.id === catParam)
+      ? (catParam as MainCategory)
+      : 'Fabric';
+    setSelectedMain(mainCategory);
+    setSelectedSubId(UNCATEGORIZED_CATEGORY_ID);
+    setNavLevel('list');
+    setDeepLinkPrefill({ sku: navDeepLinkParams.sku ?? '', name: navDeepLinkParams.name ?? '' });
+    setShowAddProdModal(true);
+  }, [navDeepLinkParams, canWriteProducts]);
   // R678-③ 归档/移除确认模态：Esc 关闭（遮罩点击关闭在 JSX onClick 承接）
   const deleteConfirmOpen = Boolean(deleteSubId || deleteProdId);
   useEffect(() => {
@@ -2994,6 +3017,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     }
     setShowAddProdModal(false);
     setEditingProd(null);
+    // 深链预填一次性消费：表单关闭即清，防残留到下一次手动录入
+    setDeepLinkPrefill(null);
   };
 
   const hideUnderlyingProductPage = fullscreenProductFormOpen;
@@ -4126,7 +4151,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         <div className="space-y-2">
                           <label className={productLabelClass}>唯一 SKU 识别码</label>
                           <input
-                            defaultValue={editingProd?.sku}
+                            defaultValue={editingProd?.sku ?? deepLinkPrefill?.sku ?? ''}
                             name="sku"
                             required
                             ref={skuInputRef}
@@ -4152,7 +4177,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                            </div>
 	                            <div className="space-y-2">
 	                              <label className={productLabelClass}>成衣名称</label>
-	                              <input defaultValue={editingProd?.garmentProfile?.productName || editingProd?.name || ''} name="productName" className={productInputClass} />
+	                              <input defaultValue={editingProd?.garmentProfile?.productName || editingProd?.name || deepLinkPrefill?.name || ''} name="productName" className={productInputClass} />
 	                            </div>
 	                            <div className="space-y-2">
 	                              <label className={productLabelClass}>品类</label>
@@ -4209,7 +4234,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                            </div>
 	                            <div className="space-y-2">
 	                              <label className={productLabelClass}>辅料名称</label>
-	                              <input defaultValue={editingProd?.trimmingProfile?.trimmingName || editingProd?.name || ''} name="trimmingName" className={productInputClass} />
+	                              <input defaultValue={editingProd?.trimmingProfile?.trimmingName || editingProd?.name || deepLinkPrefill?.name || ''} name="trimmingName" className={productInputClass} />
 	                            </div>
 	                            <div className="space-y-2">
 	                              <label className={productLabelClass}>辅料类别</label>
@@ -4251,7 +4276,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                            <input type="hidden" name="status" value={productStatusValue} />
 	                            <div className="space-y-2">
 	                              <label className={productLabelClass}>品号 / Article No.</label>
-	                              <input defaultValue={editingProd?.fabricProfile?.articleNo || ''} name="articleNo" className={productInputClass} />
+	                              <input defaultValue={editingProd?.fabricProfile?.articleNo || deepLinkPrefill?.name || ''} name="articleNo" className={productInputClass} />
 	                            </div>
 	                            <div className="space-y-2">
 	                              <label className={productLabelClass}>克重</label>

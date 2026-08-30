@@ -29,6 +29,8 @@ const SEVERITY_CHIP_CLASS: Record<CompletenessSeverity, string> = {
  * fix.target 前端路由 → 结构化导航目标。
  * 路由段协议与通知 link 一致（/orders?id=xxx&tab=yyy），复用 parseNotificationLink 解析；
  * products 段暂缺于 crossModuleNav 的映射表，此处本地补齐，待上游收敛后移除。
+ * query 参数（create/sku/name/focus/action 等）全量透传进导航上下文 params，
+ * 供目标页做直达动作/预填（仅纯文本值，无注入面）。
  */
 const COMPLETENESS_EXTRA_ROUTE_VIEWS: Record<string, View> = { products: View.Products };
 
@@ -39,8 +41,17 @@ const resolveGapRoute = (target: string): ParsedNotificationLink | null => {
   const path = (rawPath ?? '').replace(/^\/+/, '').toLowerCase();
   const view = COMPLETENESS_EXTRA_ROUTE_VIEWS[path];
   if (!view) return null;
-  const params = new URLSearchParams(rawQuery ?? '');
-  return { view, tab: params.get('tab') ?? undefined, id: params.get('id') ?? undefined, params: {} };
+  const query = new URLSearchParams(rawQuery ?? '');
+  const params: Record<string, string> = {};
+  query.forEach((value, key) => {
+    if (key !== 'tab' && key !== 'id' && value) params[key] = value;
+  });
+  return {
+    view,
+    tab: query.get('tab') ?? undefined,
+    id: query.get('id') ?? undefined,
+    params,
+  };
 };
 
 /**
@@ -216,10 +227,12 @@ export function CompletenessBanner({
                 <button
                   type="button"
                   onClick={() => {
+                    const extraParams = route.params && Object.keys(route.params).length > 0 ? route.params : undefined;
                     primeCrossModuleNav({
                       view: route.view,
                       tab: route.tab,
                       ...(route.id ? { focusEntityId: route.id } : {}),
+                      ...(extraParams ? { params: extraParams } : {}),
                     });
                     onNavigate(route.view);
                   }}

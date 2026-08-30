@@ -53,6 +53,11 @@ export interface CrossModuleNavContext {
    * filter 仍可同时携带（如 product 锚用于列表过滤 + focusEntityId 精确定位）。
    */
   focusEntityId?: string;
+  /**
+   * 动作/预填参数（fix.target 深链通道，如 { create: '1', sku, name }、{ focus, action: 'link-product' }）。
+   * 值恒为非空字符串——目标页只作纯文本消费（预填输入框/触发动作），不做 HTML/URL 注入面。
+   */
+  params?: Record<string, string>;
   /** 写入时间戳（调试用） */
   primedAt: number;
 }
@@ -94,6 +99,12 @@ function parseContext(raw: string | null): CrossModuleNavContext | null {
           relationRole: parsed.filter.relationRole === 'supplier' ? 'supplier' : 'customer',
         };
       }
+    }
+    if (parsed.params && typeof parsed.params === 'object') {
+      const entries = Object.entries(parsed.params).filter(
+        ([key, value]) => typeof key === 'string' && key !== '' && typeof value === 'string' && value !== '',
+      );
+      if (entries.length > 0) ctx.params = Object.fromEntries(entries);
     }
     return ctx;
   } catch {

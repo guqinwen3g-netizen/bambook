@@ -504,3 +504,30 @@ describe('ProductsManager 功能批次 C/D（数字档案车道）', () => {
     expect(fieldSource).not.toContain('rounded-[');
   });
 });
+
+describe('资料完备度「去补齐」深链建档（/products?create=1&sku=…&name=…&cat=…）', () => {
+  it('深链参数读取与 focusEntityId 同管道（peek 先于 consume，一次读取两通道）', () => {
+    expect(productsSource).toContain("import { consumeCrossModuleNav, peekCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';");
+    // peek 声明必须先于 consume（同一上下文一次读取）
+    const peekAt = productsSource.indexOf("const [navDeepLinkParams] = useState(() => peekCrossModuleNav()?.params ?? null);");
+    const consumeAt = productsSource.indexOf("const [navFocusEntityId] = useState(() => consumeCrossModuleNav()?.focusEntityId ?? null);");
+    expect(peekAt).toBeGreaterThan(-1);
+    expect(consumeAt).toBeGreaterThan(peekAt);
+  });
+
+  it('create=1 → 预选类目+未分类子桶+打开既有录入表单；预填 sku/name 按档案类型落位', () => {
+    // 深链 effect：权限门 + cat 校验（缺省 Fabric）+ 打开既有表单（保存仍走 handleAddProduct 正常建档）
+    expect(productsSource).toContain("if (navDeepLinkParams?.create !== '1') return;");
+    expect(productsSource).toContain("if (!canWriteProducts) {");
+    expect(productsSource).toContain("PRODUCT_MAIN_CATEGORY_DEFINITIONS.some(d => d.id === catParam)");
+    expect(productsSource).toContain('setSelectedSubId(UNCATEGORIZED_CATEGORY_ID);');
+    expect(productsSource).toContain("setDeepLinkPrefill({ sku: navDeepLinkParams.sku ?? '', name: navDeepLinkParams.name ?? '' });");
+    // 表单字段预填链：sku 全型通吃；name 按档案类型 → 面料 articleNo / 成衣 productName / 辅料 trimmingName
+    expect(productsSource).toContain("defaultValue={editingProd?.sku ?? deepLinkPrefill?.sku ?? ''}");
+    expect(productsSource).toContain("defaultValue={editingProd?.fabricProfile?.articleNo || deepLinkPrefill?.name || ''} name=\"articleNo\"");
+    expect(productsSource).toContain("defaultValue={editingProd?.garmentProfile?.productName || editingProd?.name || deepLinkPrefill?.name || ''} name=\"productName\"");
+    expect(productsSource).toContain("defaultValue={editingProd?.trimmingProfile?.trimmingName || editingProd?.name || deepLinkPrefill?.name || ''} name=\"trimmingName\"");
+    // 表单关闭即清深链预填（一次性消费，防残留到下一次手动录入）
+    expect(productsSource).toContain('setDeepLinkPrefill(null)');
+  });
+});

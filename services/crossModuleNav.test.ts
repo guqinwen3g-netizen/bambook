@@ -215,6 +215,46 @@ describe('focusEntityId 直达锚 round-trip', () => {
   });
 });
 
+describe('params 深链参数通道 round-trip（完备度 fix.target 直达建档/挂档案）', () => {
+  it('preserves params through prime→consume（create=1&sku 深链）', () => {
+    primeCrossModuleNav({
+      view: View.Products,
+      params: { create: '1', sku: 'FB-902' },
+    });
+    const ctx = consumeCrossModuleNav()!;
+    expect(ctx.view).toBe(View.Products);
+    expect(ctx.params).toEqual({ create: '1', sku: 'FB-902' });
+    // peek 不消费；consume 一次性读取
+    expect(peekCrossModuleNav()).toBeNull();
+  });
+
+  it('preserves focus/action params for development-case 挂档案深链', () => {
+    primeCrossModuleNav({
+      view: View.Development,
+      params: { focus: 'DEV-26001', action: 'link-product' },
+    });
+    const ctx = consumeCrossModuleNav()!;
+    expect(ctx.view).toBe(View.Development);
+    expect(ctx.params).toEqual({ focus: 'DEV-26001', action: 'link-product' });
+  });
+
+  it('drops empty / non-string param entries during parseContext normalization', () => {
+    sessionStorage.setItem(
+      KEY,
+      JSON.stringify({ view: View.Products, params: { create: '1', sku: '', bad: 123 }, primedAt: 1 }),
+    );
+    const ctx = consumeCrossModuleNav() as CrossModuleNavContext;
+    expect(ctx.params).toEqual({ create: '1' });
+
+    sessionStorage.setItem(
+      KEY,
+      JSON.stringify({ view: View.Products, params: 'not-an-object', primedAt: 1 }),
+    );
+    const ctx2 = consumeCrossModuleNav() as CrossModuleNavContext;
+    expect(ctx2.params).toBeUndefined();
+  });
+});
+
 describe('parseNotificationLink（通知 link → 结构化导航目标）', () => {
   it('解析订单通知：view + id（App 侧走 handleOpenOrderById 直达详情）', () => {
     const r = parseNotificationLink('/orders?id=ORD-123&tab=production');

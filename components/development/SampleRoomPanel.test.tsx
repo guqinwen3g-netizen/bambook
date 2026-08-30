@@ -278,7 +278,7 @@ describe('SampleRoomPanel 跨模块联动跳转（DR-057 v2.1：样品间↔档�
 
   it('ProductsManager 挂载时消费 focusEntityId 打开档案详情', () => {
     const productsSource = readFileSync(new URL('../ProductsManager.tsx', import.meta.url), 'utf8');
-    expect(productsSource).toContain("import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav'");
+    expect(productsSource).toContain("import { consumeCrossModuleNav, peekCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav'");
     expect(productsSource).toContain("const [navFocusEntityId] = useState(() => consumeCrossModuleNav()?.focusEntityId ?? null);");
     expect(productsSource).toContain('setSelectedProduct(matched)');
     expect(productsSource).toContain("setNavLevel('detail')");

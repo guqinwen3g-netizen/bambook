@@ -110,7 +110,8 @@ async function getOrderCompleteness(prisma: PrismaClient, orderId: string): Prom
         label: '订单行面料未建档',
         severity: 'P0',
         hint: `订单行面料「${line.materialCode}」未建档`,
-        fix: { type: 'navigate', target: `/products?search=${encodeURIComponent(line.materialCode)}` },
+        // 直达建档表单并预填 SKU（ProductsManager 消费 create/sku 深链），而非列表搜索页
+        fix: { type: 'navigate', target: `/products?create=1&sku=${encodeURIComponent(line.materialCode)}` },
       });
     }
   }
@@ -143,7 +144,8 @@ async function getDevelopmentCaseCompleteness(prisma: PrismaClient, caseId: stri
       label: '开发案未关联产品档案',
       severity: 'P0',
       hint: '开发案未关联产品档案，打样与大货链路无法对齐到 SKU',
-      fix: { type: 'navigate', target: `/development?id=${encodeURIComponent(devCase.id)}` },
+      // 直达开发案详情并自动进入「选择产品档案」挂档案流程（DevelopmentManager 消费 focus/action 深链）
+      fix: { type: 'navigate', target: `/development?focus=${encodeURIComponent(devCase.id)}&action=link-product` },
     });
   }
   return { entityType: 'development-case', id: devCase.id, gaps };
