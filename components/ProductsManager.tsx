@@ -3,10 +3,9 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
-import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory, FactoryProfile } from '../types';
+import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, Relation, RelationCategory, FactoryProfile } from '../types';
 import { apiService } from '../services/apiService';
 import { hasPermission } from '../services/authService';
-import { storageService } from '../services/storageService';
 import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
 import { sampleRoomService, SampleCardItemView } from '../services/sampleRoomService';
 import { developmentService } from '../services/developmentService';
@@ -402,8 +401,6 @@ type CompositionDraftLine = { id: string; percentage: string; abbreviation: stri
 
 export const ALL_PRODUCTS_CATEGORY_ID = '__all_products__';
 export const UNCATEGORIZED_CATEGORY_ID = '__uncategorized_products__';
-export const PDML_RAW_LIBRARY_ID = '__pdml_raw_library__';
-const PDML_RAW_PAGE_SIZE = 500;
 
 export type ProductMainCategoryDefinition = { id: MainCategory; label: string; icon: LucideIcon; color: string; desc: string };
 export const PRODUCT_MAIN_CATEGORY_DEFINITIONS: ProductMainCategoryDefinition[] = [
@@ -901,13 +898,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [skuForQr, setSkuForQr] = useState('');
   const [skuQrDataUrl, setSkuQrDataUrl] = useState('');
   const [compositionDraftRows, setCompositionDraftRows] = useState<CompositionDraftLine[]>([]);
-  const isPdmlRawView = selectedMain === 'Fabric' && selectedSubId === PDML_RAW_LIBRARY_ID;
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const mainCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const subIndexScrollRef = useRef<HTMLDivElement>(null);
   // 边缘渐隐由 useStaticEdgeMask 挂滚动容器自身承接（不再使用静止外壳 mask ref）——
   // 外壳 mask 会截断卡片 backdrop-filter 采样，导致溢出页 hover 毛玻璃失效
-  const pdmlRawScrollRef = useRef<HTMLDivElement | null>(null);
   const productGridScrollRef = useRef<HTMLDivElement>(null);
   const productFormScrollRef = useRef<HTMLDivElement | null>(null);
   const productDetailSidebarScrollRef = useRef<HTMLDivElement | null>(null);
@@ -940,7 +935,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   });
 
   const productTableScrollRef = useRef<HTMLDivElement | null>(null);
-  const pdmlRawHydratedRef = useRef(false);
 
   const [showAddSubModal, setshowAddSubModal] = useState(false);
   const [editingSub, setEditingSub] = useState<ProductSubCategory | null>(null);
@@ -997,11 +991,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [detailLightboxOpen]);
-  const [pdmlRawFabrics, setPdmlRawFabrics] = useState<PdmlRawFabric[]>([]);
-  const [pdmlRawLoading, setPdmlRawLoading] = useState(false);
-  const [pdmlRawSyncing, setPdmlRawSyncing] = useState(false);
-  const [pdmlRawMapping, setPdmlRawMapping] = useState(false);
-  const [pdmlRawError, setPdmlRawError] = useState('');
   // R678-② 写按钮权限门（参照 FinancePaymentRequestsPanel canCreate 模式；服务端 products:write scope 兜底）
   const canWriteProducts = hasPermission('products:write');
   // R678-③ 归档/移除确认模态：Esc 关闭（遮罩点击关闭在 JSX onClick 承接）
@@ -1019,9 +1008,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   }, [deleteConfirmOpen]);
   // 档案保存 in-flight 守卫：双击/连击提交会双写云端（无幂等键），保存期间禁用提交按钮
   const [productSaving, setProductSaving] = useState(false);
-  const [pdmlRawSyncedAt, setPdmlRawSyncedAt] = useState<number | null>(null);
-  const [pdmlRawTotal, setPdmlRawTotal] = useState(0);
-  const [pdmlRawHasMore, setPdmlRawHasMore] = useState(false);
   const formMainCategory = editingProd?.mainCategory || selectedMain;
   const isFabricFormContext = formMainCategory === 'Fabric';
   const isGarmentFormContext = formMainCategory === 'Garment';
@@ -1051,16 +1037,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     }
   };
 
-  const pollPdmlSyncJob = async (jobId: string) => {
-    const deadline = Date.now() + 120_000;
-    let job = await apiService.getPdmlRawSyncJob(cloudEndpoint, jobId);
-    while ((job.status === 'queued' || job.status === 'running') && Date.now() < deadline) {
-      await new Promise(resolve => window.setTimeout(resolve, 1200));
-      job = await apiService.getPdmlRawSyncJob(cloudEndpoint, jobId);
-    }
-    return job;
-  };
-
   // Sync editingImages when editingProd changes
   useEffect(() => {
     setEditingImages(editingProd?.images?.filter((img: ProductImage) => !img.deletedAt) || []);
@@ -1084,144 +1060,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       document.body.style.overflow = prev;
     };
   }, [fullscreenProductFormOpen]);
-
-  async function loadPdmlRawFabrics(search = '', mode: 'reset' | 'append' = 'reset') {
-    setPdmlRawLoading(true);
-    setPdmlRawError('');
-    try {
-      if (mode === 'reset' && !search.trim()) {
-        const cached = await storageService.getCachedPdmlRawFabrics();
-        if (cached.length > 0) {
-          setPdmlRawFabrics(cached);
-          setPdmlRawTotal(cached.length);
-          setPdmlRawHasMore(false);
-          setPdmlRawSyncedAt(cached[0]?.syncedAt || null);
-          return;
-        }
-      }
-      const offset = mode === 'append' ? pdmlRawFabrics.length : 0;
-      const result = await apiService.listPdmlRawFabrics(cloudEndpoint, {
-        limit: PDML_RAW_PAGE_SIZE,
-        offset,
-        search: search.trim() || undefined,
-      });
-      setPdmlRawFabrics(prev => {
-        if (mode === 'reset') return result.fabrics;
-        const seen = new Set(prev.map(row => row.id));
-        return [...prev, ...result.fabrics.filter(row => !seen.has(row.id))];
-      });
-      setPdmlRawTotal(result.total);
-      setPdmlRawHasMore(result.hasMore);
-      const syncedAt = result.fabrics[0]?.syncedAt || pdmlRawSyncedAt;
-      if (syncedAt) setPdmlRawSyncedAt(syncedAt);
-    } catch (error: any) {
-      setPdmlRawError(error?.message || String(error));
-    } finally {
-      setPdmlRawLoading(false);
-    }
-  }
-
-  async function refreshPdmlRawCacheFromCloud() {
-    setPdmlRawLoading(true);
-    setPdmlRawError('');
-    try {
-      const result = await apiService.listAllPdmlRawFabrics(cloudEndpoint, { pageSize: PDML_RAW_PAGE_SIZE });
-      const cached = await storageService.getCachedPdmlRawFabrics();
-      if (result.fabrics.length === 0 && cached.length > 0) {
-        setPdmlRawFabrics(cached);
-        setPdmlRawTotal(cached.length);
-        setPdmlRawHasMore(false);
-        setPdmlRawSyncedAt(cached[0]?.syncedAt || null);
-        setPdmlRawError('数据中心本次返回 0 条，已保留本机缓存。');
-        return;
-      }
-      await storageService.saveCachedPdmlRawFabrics(result.fabrics);
-      setPdmlRawFabrics(result.fabrics);
-      setPdmlRawTotal(result.total || result.fabrics.length);
-      setPdmlRawHasMore(false);
-      setPdmlRawSyncedAt(result.syncedAt);
-    } catch (error: any) {
-      setPdmlRawError(error?.message || String(error));
-    } finally {
-      setPdmlRawLoading(false);
-    }
-  }
-
-  async function hydratePdmlRawFabrics() {
-    if (pdmlRawHydratedRef.current) return;
-    pdmlRawHydratedRef.current = true;
-    setPdmlRawLoading(true);
-    setPdmlRawError('');
-    try {
-      const cached = await storageService.getCachedPdmlRawFabrics();
-      if (cached.length > 0) {
-        setPdmlRawFabrics(cached);
-        setPdmlRawTotal(cached.length);
-        setPdmlRawHasMore(false);
-        setPdmlRawSyncedAt(cached[0]?.syncedAt || null);
-        void refreshPdmlRawCacheFromCloud();
-        return;
-      }
-      const firstPage = await apiService.listPdmlRawFabrics(cloudEndpoint, { limit: PDML_RAW_PAGE_SIZE, offset: 0 });
-      setPdmlRawFabrics(firstPage.fabrics);
-      setPdmlRawTotal(firstPage.total);
-      setPdmlRawHasMore(firstPage.hasMore);
-      setPdmlRawSyncedAt(firstPage.fabrics[0]?.syncedAt || null);
-      void refreshPdmlRawCacheFromCloud();
-    } catch (error: any) {
-      setPdmlRawError(error?.message || String(error));
-    } finally {
-      setPdmlRawLoading(false);
-    }
-  }
-
-  async function handleSyncPdmlRawFabrics() {
-    setPdmlRawSyncing(true);
-    setPdmlRawError('');
-    try {
-      const started = await apiService.startPdmlRawSync(cloudEndpoint, { pageSize: PDML_RAW_PAGE_SIZE });
-      const job = await pollPdmlSyncJob(started.jobId);
-      if (job.status === 'failed') throw new Error(job.error || 'PDML 同步任务失败');
-      if (job.status !== 'completed' || !job.result) {
-        setPdmlRawError(`同步任务仍在后台运行：${job.jobId}。已保留当前数据。`);
-        return;
-      }
-      setPdmlRawSyncedAt(job.result.syncedAt);
-      await refreshPdmlRawCacheFromCloud();
-    } catch (error: any) {
-      await loadPdmlRawFabrics(searchTerm, 'reset');
-      setPdmlRawError(`同步未完成：${error?.message || String(error)}。已保留当前数据。`);
-    } finally {
-      setPdmlRawSyncing(false);
-    }
-  }
-
-  async function handleMapPdmlRawFabrics() {
-    setPdmlRawMapping(true);
-    setPdmlRawError('');
-    try {
-      let offset = 0;
-      let hasMore = true;
-      const limit = 500;
-      let created = 0;
-      let updated = 0;
-      while (hasMore) {
-        const result = await apiService.mapPdmlRawFabricsToProducts(cloudEndpoint, { limit, offset });
-        created += result.created;
-        updated += result.updated;
-        hasMore = result.hasMore;
-        offset += result.mapped;
-        if (result.mapped === 0) break;
-      }
-      const refreshed = await apiService.listProductAssets(cloudEndpoint, { mainCategory: 'Fabric', limit: 500 });
-      onUpdateProducts(refreshed, refreshed[0]);
-      setPdmlRawError(`已映射 ${created + updated} 条：新增 ${created}，更新 ${updated}`);
-    } catch (error: any) {
-      setPdmlRawError(error?.message || String(error));
-    } finally {
-      setPdmlRawMapping(false);
-    }
-  }
 
   const productSortOptions: Array<{ value: string; label: string; column: ProductTableSortColumn; desc: boolean }> = [
     { value: 'updatedAt:desc', label: '更新时间 最新优先', column: 'updatedAt', desc: true },
@@ -1260,16 +1098,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         : [{ id: `composition-${Date.now()}`, percentage: '', abbreviation: '', chineseName: '', englishName: '' }],
     );
   }, [editingProd, showAddProdModal]);
-
-  useEffect(() => {
-    if (selectedMain !== 'Fabric') return;
-    void hydratePdmlRawFabrics();
-  }, [selectedMain]);
-
-  useEffect(() => {
-    if (!isPdmlRawView) return;
-    void hydratePdmlRawFabrics();
-  }, [isPdmlRawView]);
 
   const handleGenerateSkuQr = async () => {
     const sku = skuInputRef.current?.value.trim() || '';
@@ -1335,15 +1163,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         count: selectedMainProducts.filter(p => p.subCategoryId === cat.id).length,
         tone: 'slate' as const,
       }));
-      if (selectedMain === 'Fabric') {
-        groups.unshift({
-          id: PDML_RAW_LIBRARY_ID,
-          name: '庞大原始库',
-          description: '来自庞大面料库的完整原始记录，尚未映射成 Bambook SKU。',
-          count: pdmlRawTotal || pdmlRawFabrics.length,
-          tone: 'slate' as const,
-        });
-      }
       return groups;
     }
 
@@ -1443,10 +1262,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       id: statusGroup(product),
       name: statusGroup(product) || '状态未填',
     })), '状态未填', 'slate');
-  }, [classificationView, currentSubCategories, pdmlRawFabrics.length, pdmlRawTotal, selectedMain, selectedMainProducts]);
+  }, [classificationView, currentSubCategories, selectedMain, selectedMainProducts]);
 
   const currentProducts = useMemo(() => {
-    if (selectedSubId === PDML_RAW_LIBRARY_ID) return [];
     let list = selectedMainProducts;
     if (selectedSubId === UNCATEGORIZED_CATEGORY_ID) {
       list = uncategorizedProducts;
@@ -1685,28 +1503,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   }, [currentProducts, sideSearchTerm, sideSortOption]);
 
   const isFabricContext = selectedMain === 'Fabric';
-
-  const currentPdmlRawFabrics = useMemo(() => {
-    const lower = searchTerm.trim().toLowerCase();
-    const valueOf = (row: PdmlRawFabric, key: string) => String(row.rawData?.[key] ?? '').trim();
-    return pdmlRawFabrics
-      .filter(row => {
-        if (!lower) return true;
-        return [
-          row.sourceId,
-          row.articleNo,
-          row.factoryArticleNo,
-          row.supplierName,
-          row.productLine,
-          row.colorCode,
-          row.factoryColorCode,
-          valueOf(row, 'CF'),
-          valueOf(row, 'KZ'),
-          valueOf(row, 'FK'),
-        ].some(value => String(value || '').toLowerCase().includes(lower));
-      })
-      .sort((a, b) => String(b.registeredDate || '').localeCompare(String(a.registeredDate || ''), 'zh-Hans-CN', { numeric: true }));
-  }, [pdmlRawFabrics, searchTerm]);
 
   const buildFabricProfileFromForm = (formData: FormData, existing?: ProductAsset): ProductAsset['fabricProfile'] => {
     if (!isFabricFormContext && existing?.mainCategory !== 'Fabric') return existing?.fabricProfile;
@@ -3150,8 +2946,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     setDeleteProdId(null);
   };
 
-  const pdmlRawValue = (row: PdmlRawFabric, key: string) => String(row.rawData?.[key] ?? '').trim();
-
   // R678-⑧ 关闭录入/编辑表单：编辑入口分详情页「编辑」（navLevel=detail、selectedProduct 已清空）
   // 与列表行「编辑」（navLevel=list）两处——取消时从哪来回哪去，详情入口恢复详情快照而非掉到列表
   const closeProductForm = () => {
@@ -3257,27 +3051,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         )}
         actions={(
         <>
-          {navLevel === 'list' && isPdmlRawView && (
-            <>
-              <button
-                onClick={handleSyncPdmlRawFabrics}
-                disabled={pdmlRawSyncing || pdmlRawMapping}
-                data-ui-lab-wallpaper-contrast="primary"
-                className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center gap-2 disabled:opacity-55`}
-              >
-                <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawSyncing ? 'animate-spin' : ''} /> 同步庞大
-              </button>
-              <button
-                onClick={handleMapPdmlRawFabrics}
-                disabled={pdmlRawSyncing || pdmlRawMapping || pdmlRawTotal === 0}
-                data-ui-lab-wallpaper-contrast="primary"
-                className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass} flex items-center justify-center gap-2 disabled:opacity-55`}
-              >
-                <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawMapping ? 'animate-spin' : ''} /> 映射入档案
-              </button>
-            </>
-          )}
-          {navLevel === 'list' && !isPdmlRawView && canWriteProducts && (
+          {navLevel === 'list' && canWriteProducts && (
             <button
               onClick={() => setShowAddProdModal(true)}
               data-ui-lab-wallpaper-contrast="primary"
@@ -3468,92 +3242,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
         {navLevel === 'list' && (
           <div className="flex-1 min-h-0 flex flex-col">
-            {isPdmlRawView ? (
-              <div className={BAMBOOK_OS.layout.desktopTablePanelShellClass}>
-                <div className={`flex h-full min-h-0 w-full flex-col rounded-card border overflow-hidden ${productGlassPanelClass}`}>
-                  <div className={`shrink-0 px-6 py-4 border-b border-[var(--border-c-subtle)]`}>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className={`text-sm font-light text-[var(--text-primary)]`}>庞大面料原始缓存</div>
-                        <div className={`mt-1 text-[11px] font-light ${productMutedTextClass}`}>
-                          {pdmlRawLoading && pdmlRawFabrics.length === 0 ? '读取中' : `已加载 ${pdmlRawFabrics.length} / ${pdmlRawTotal || pdmlRawFabrics.length} 条缓存记录`}
-                          {pdmlRawSyncedAt ? ` · 最近同步 ${new Date(pdmlRawSyncedAt).toLocaleString()}` : ''}
-                        </div>
-                      </div>
-                      {pdmlRawError && (
-                        <div className={`max-w-[420px] truncate text-[11px] font-light text-[var(--text-secondary)]`}>
-                          {pdmlRawError}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <CompiledEdgeFade
-                    scrollRef={pdmlRawScrollRef}
-                    isDarkMode={isDarkMode}
-                    variant="normal"
-                    renderMode="content-mask"
-                    source="CompiledProductsPage.pdmlRawTable.edgeFade"
-                    topHeight={PRODUCT_EDGE_FADE_TOP_HEIGHT}
-                    topFadeStartOffset={PRODUCT_EDGE_FADE_TOP_START}
-                    bottomHeight={PRODUCT_EDGE_FADE_BOTTOM_HEIGHT}
-                  />
-                  <div ref={pdmlRawScrollRef} className="flex-1 min-h-0 overflow-y-auto">
-                    <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs">
-                      <colgroup>
-                        <col className="w-[10%]" />
-                        <col className="w-[12%]" />
-                        <col className="w-[11%]" />
-                        <col className="w-[12%]" />
-                        <col className="w-[10%]" />
-                        <col className="w-[18%]" />
-                        <col className="w-[8%]" />
-                        <col className="w-[8%]" />
-                        <col className="w-[7%]" />
-                        <col className="w-[4%]" />
-                      </colgroup>
-                      <thead className={`${productTableHeaderClass} text-[var(--text-tertiary)]`}>
-                        <tr>
-                          {['条码', '公司品号', '工厂品号', '供应商', '系列', '成份', '克重', '门幅', '登记', '状态'].map(header => (
-                            <th key={header} className={`px-4 py-3 ${BAMBOOK_OS.typography.weight.tableHeader} tracking-wide whitespace-nowrap ${productTableCellBorderClass}`}>{header}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className={`divide-y divide-[var(--border-c-subtle)]`}>
-                        {currentPdmlRawFabrics.map(row => (
-                          <tr key={row.id} className={`transition-[background,box-shadow] ${productTableRowHoverClass}`}>
-                            <td className={`px-4 py-3 font-light whitespace-nowrap ${productTableCellBorderClass}`}>{row.sourceId}</td>
-                            <td className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{row.articleNo || '未填'}</td>
-                            <td className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{row.factoryArticleNo || '未填'}</td>
-                            <td className="px-4 py-3 truncate">{row.supplierName || '未填'}</td>
-                            <td className="px-4 py-3 truncate">{row.productLine || '未填'}</td>
-                            <td className={`px-4 py-3 truncate ${productMutedTextClass}`}>{pdmlRawValue(row, 'CF') || '未填'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">{[pdmlRawValue(row, 'KZ'), pdmlRawValue(row, 'KZDW')].filter(Boolean).join(' ') || '未填'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">{[pdmlRawValue(row, 'FK'), pdmlRawValue(row, 'FKDW')].filter(Boolean).join(' ') || '未填'}</td>
-                            <td className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{row.registeredDate || '未填'}</td>
-                            <td className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{row.sourceStatus || '未填'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {!pdmlRawLoading && currentPdmlRawFabrics.length === 0 && (
-                      <div className={`p-12 text-center text-sm ${productMutedTextClass}`}>暂无庞大原始缓存，点击右上角同步庞大。</div>
-                    )}
-                    {pdmlRawHasMore && currentPdmlRawFabrics.length > 0 && (
-                      <div className="px-4 py-5 flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => loadPdmlRawFabrics(searchTerm, 'append')}
-                          disabled={pdmlRawLoading}
-                          className={`h-9 px-5 rounded-control border text-xs font-light transition-colors duration-200 disabled:opacity-55 ${productActionButtonClass}`}
-                        >
-                          {pdmlRawLoading ? '加载中' : `加载更多 ${Math.min(PDML_RAW_PAGE_SIZE, Math.max((pdmlRawTotal || 0) - pdmlRawFabrics.length, 0))} 条`}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : listDisplayMode === 'grid' ? (
+            {listDisplayMode === 'grid' ? (
               <div className="relative flex-1 min-h-0 overflow-visible">
               {/* 静止外壳承载卡片滚动；边缘渐隐由 useStaticEdgeMask 固定 mask 挂滚动容器
                   自身承接（真透明度渐隐，不截断卡片 backdrop-filter）；卡片无 layout/hover 位移 */}
@@ -3689,7 +3378,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </CompiledTableShell>
             )}
             {/* R3 总数诚实化：listAllProductAssets 循环全拉后客户端过滤，列表底部明示当前视图条数（虚拟滚动留 R8） */}
-            {!isPdmlRawView && currentProducts.length > 0 && (
+            {currentProducts.length > 0 && (
               <div className={`shrink-0 px-2 pt-2 text-center text-[10px] font-light ${productMutedTextClass}`}>
                 共 {currentProducts.length} 条档案
               </div>
@@ -4815,7 +4504,6 @@ export type UiLabProductModuleSettings = {
   compositionTerms: ProductModuleCompositionTerm[];
   requireSkuUnique: boolean;
   protectManualFields: boolean;
-  pdmlAutoMap: boolean;
   updatedAt: number;
 };
 export const DEFAULT_PRODUCT_MODULE_SETTINGS: UiLabProductModuleSettings = {
@@ -4833,7 +4521,6 @@ export const DEFAULT_PRODUCT_MODULE_SETTINGS: UiLabProductModuleSettings = {
   })),
   requireSkuUnique: true,
   protectManualFields: true,
-  pdmlAutoMap: false,
   updatedAt: PRODUCT_MODULE_SETTINGS_DEMO_NOW,
 };
 
@@ -5128,7 +4815,6 @@ export const ProductModuleSettingsWorkspace = ({
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {renderSwitch('SKU 必须唯一', moduleSettings.requireSkuUnique, () => patchModuleSettings({ requireSkuUnique: !moduleSettings.requireSkuUnique }))}
           {renderSwitch('保护人工编辑字段', moduleSettings.protectManualFields, () => patchModuleSettings({ protectManualFields: !moduleSettings.protectManualFields }))}
-          {renderSwitch('PDML 同步后自动映射', moduleSettings.pdmlAutoMap, () => patchModuleSettings({ pdmlAutoMap: !moduleSettings.pdmlAutoMap }))}
         </div>
       </CompiledFormSectionPanel>
       <CompiledFormSectionPanel

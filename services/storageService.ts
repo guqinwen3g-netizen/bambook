@@ -1,5 +1,5 @@
 
-import { Order, Email, ChatMessage, Relation, ProductAsset, ProductSubCategory, PdmlRawFabric, Invoice, PaymentVoucher, Shipment, DevelopmentCase } from '../types';
+import { Order, Email, ChatMessage, Relation, ProductAsset, ProductSubCategory, Invoice, PaymentVoucher, Shipment, DevelopmentCase } from '../types';
 import { apiService } from './apiService';
 import { deviceDataCache } from './deviceDataCache';
 
@@ -34,7 +34,7 @@ export interface DeviceStorageReport {
 }
 
 const STORAGE_CATEGORY_META: Record<LocalStorageCategoryId, { label: string; description: string }> = {
-  'business-cache': { label: '业务缓存', description: '数据中心读取快照、行情、庞大原始库快照。清理后会重新从云端读取。' },
+  'business-cache': { label: '业务缓存', description: '数据中心读取快照、行情。清理后会重新从云端读取。' },
   'email-cache': { label: '邮箱缓存', description: '邮箱列表与正文缓存。清理后邮箱会重新同步。' },
   personalization: { label: '个性化数据', description: '主题、当前页面、侧边栏、数字孪生布局等本机偏好。' },
   account: { label: '账号会话', description: '本机登录 token 与当前用户缓存。清理会退出登录。' },
@@ -62,7 +62,6 @@ function classifyLocalStorageKey(key: string): LocalStorageCategoryId {
   if (key === STORAGE_KEYS.EMAILS || key.startsWith('nexus_emails')) return 'email-cache';
   if (
     key === STORAGE_KEYS.MARKET_PRICES ||
-    key === 'bambook_pdml_raw_snapshot_v1' ||
     key.startsWith('bambook:last-business-profile:')
   ) return 'business-cache';
   return 'other';
@@ -324,13 +323,8 @@ export const storageService = {
     await deviceDataCache.replaceAll('productCategories', categories.filter(category => !category.deletedAt));
   },
 
-  getCachedPdmlRawFabrics: async (): Promise<PdmlRawFabric[]> => {
-    return deviceDataCache.list('pdmlRawFabrics');
-  },
-
-  saveCachedPdmlRawFabrics: async (fabrics: PdmlRawFabric[]): Promise<void> => {
-    await deviceDataCache.replaceAll('pdmlRawFabrics', fabrics.filter(fabric => !fabric.deletedAt));
-  },
+  // PDML 庞大原始库缓存已随前端入口退役删除（2026-08-30）：IndexedDB 里同名旧原料缓存 store
+  // 不再被读写，存量设备上的旧数据自然失效，无需迁移清理。
 
   getCachedOrders: async (): Promise<Order[]> => {
     return deviceDataCache.list('orders');

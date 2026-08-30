@@ -60,10 +60,6 @@ import {
   BusinessProfileInput,
   ProductImage,
   SystemAsset,
-  PdmlRawFabric,
-  PdmlSyncResult,
-  PdmlSyncJob,
-  PdmlMapResult,
   NotificationItem,
   NotificationStats,
   NotificationTypeCatalogItem,
@@ -3468,98 +3464,6 @@ export const apiService = {
 
   async deleteProductCategory(category: ProductSubCategory, endpoint?: string): Promise<void> {
     await this.saveProductCategory({ ...category, deletedAt: category.deletedAt || Date.now() }, endpoint);
-  },
-
-  async listPdmlRawFabrics(
-    endpoint?: string,
-    params?: { limit?: number; offset?: number; search?: string; gsid?: string },
-  ): Promise<{ fabrics: PdmlRawFabric[]; total: number; limit: number; offset: number; hasMore: boolean }> {
-    const query = new URLSearchParams();
-    if (params?.limit) query.set('limit', String(params.limit));
-    if (params?.offset) query.set('offset', String(params.offset));
-    if (params?.search) query.set('search', params.search);
-    if (params?.gsid) query.set('gsid', params.gsid);
-    const suffix = query.toString() ? `?${query.toString()}` : '';
-    const data = await requestJson<{ ok: boolean; fabrics: PdmlRawFabric[]; total?: number; limit?: number; offset?: number; hasMore?: boolean }>(`/v1/pdml/raw${suffix}`, {
-      endpoint,
-      method: 'GET',
-    });
-    const fabrics = Array.isArray(data.fabrics) ? data.fabrics : [];
-    return {
-      fabrics,
-      total: Number(data.total ?? fabrics.length),
-      limit: Number(data.limit ?? params?.limit ?? fabrics.length),
-      offset: Number(data.offset ?? params?.offset ?? 0),
-      hasMore: Boolean(data.hasMore),
-    };
-  },
-
-  async listAllPdmlRawFabrics(
-    endpoint?: string,
-    params?: { search?: string; gsid?: string; pageSize?: number },
-  ): Promise<{ fabrics: PdmlRawFabric[]; total: number; syncedAt: number | null }> {
-    const pageSize = Math.min(Math.max(params?.pageSize || 500, 1), 500);
-    const all: PdmlRawFabric[] = [];
-    let offset = 0;
-    let total = 0;
-    for (let page = 0; page < 200; page += 1) {
-      const result = await this.listPdmlRawFabrics(endpoint, {
-        limit: pageSize,
-        offset,
-        search: params?.search,
-        gsid: params?.gsid,
-      });
-      total = result.total;
-      all.push(...result.fabrics);
-      if (!result.hasMore || result.fabrics.length === 0) break;
-      offset += result.fabrics.length;
-    }
-    return {
-      fabrics: all,
-      total,
-      syncedAt: all[0]?.syncedAt || null,
-    };
-  },
-
-  async startPdmlRawSync(
-    endpoint?: string,
-    params?: { limit?: number; pageSize?: number; gsid?: string },
-  ): Promise<PdmlSyncJob> {
-    return requestJson<PdmlSyncJob>('/v1/pdml/sync', {
-      endpoint,
-      method: 'POST',
-      body: JSON.stringify(params || {}),
-    });
-  },
-
-  async getPdmlRawSyncJob(endpoint: string | undefined, jobId: string): Promise<PdmlSyncJob> {
-    return requestJson<PdmlSyncJob>(`/v1/pdml/sync/${encodeURIComponent(jobId)}`, {
-      endpoint,
-      method: 'GET',
-    });
-  },
-
-  async syncPdmlRawFabrics(
-    endpoint?: string,
-    params?: { limit?: number; pageSize?: number; gsid?: string; blocking?: boolean },
-  ): Promise<PdmlSyncResult> {
-    const body = { ...(params || {}), blocking: params?.blocking ?? true };
-    return requestJson<PdmlSyncResult>('/v1/pdml/sync', {
-      endpoint,
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-  },
-
-  async mapPdmlRawFabricsToProducts(
-    endpoint?: string,
-    params?: { limit?: number; offset?: number; gsid?: string },
-  ): Promise<PdmlMapResult> {
-    return requestJson<PdmlMapResult>('/v1/pdml/map-products', {
-      endpoint,
-      method: 'POST',
-      body: JSON.stringify(params || {}),
-    });
   },
 
   async listInsights(endpoint?: string): Promise<Insight[]> {

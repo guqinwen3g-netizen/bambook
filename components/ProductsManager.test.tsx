@@ -88,7 +88,6 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('className="w-full h-full flex flex-col bg-transparent overflow-visible"');
     expect(productsSource).toContain('${productContentCanvasClass} flex-1 flex flex-col min-h-0 overflow-visible');
     expect(productsSource).toContain("shellBaseClassName={`${BAMBOOK_OS.layout.desktopTablePanelShellCompactClass} flex-1 min-h-0 flex flex-col`}");
-    expect(productsSource).toContain('className={BAMBOOK_OS.layout.desktopTablePanelShellClass}');
     expect(productsSource).toContain('form="product-fullscreen-form"');
     expect(productsSource).toContain('<form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">');
     expect(productsSource).not.toContain('className="max-w-[1130px] mx-auto w-full h-full min-h-0 px-8 pt-8 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-8 items-stretch"'); // legacy guard
@@ -221,7 +220,6 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_TABLE_HEADER_CLASS).toBe(BAMBOOK_OS.controls.table.header);
     expect(PRODUCT_TABLE_ROW_HOVER_CLASS).toBe(BAMBOOK_OS.controls.table.rowHover);
     expect(PRODUCT_TABLE_CELL_BORDER_CLASS).toBe(BAMBOOK_OS.controls.table.cellBorder);
-    expect(productsSource).toContain('className="w-full table-fixed border-separate border-spacing-0 text-left text-xs"');
     expect(productsSource).not.toContain('className="w-full table-fixed text-left text-xs"');
   });
 
@@ -369,12 +367,6 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).not.toContain('const priceHistoryRows =');
   });
 
-  it('defines the PDML raw view guard before scroll mask hooks read it', () => {
-    expect(productsSource.indexOf('const isPdmlRawView')).toBeGreaterThan(-1);
-    expect(productsSource.indexOf('useCompiledGlassSurfaceEdgeMasks({')).toBeGreaterThan(-1);
-    expect(productsSource.indexOf('const isPdmlRawView')).toBeLessThan(productsSource.indexOf('useCompiledGlassSurfaceEdgeMasks({'));
-  });
-
   it('does not reintroduce heavy font weights into the archive surface', () => {
     expect(productsSource).not.toMatch(/font-(medium|semibold|bold|normal)/);
   });
@@ -385,17 +377,11 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('name="description"');
   });
 
-  it('uses IndexedDB device cache for the PDML raw fabric library instead of a 500-row localStorage snapshot', () => {
-    expect(productsSource).toContain('getCachedPdmlRawFabrics');
-    expect(productsSource).toContain('saveCachedPdmlRawFabrics');
-    expect(productsSource).toContain('listAllPdmlRawFabrics');
-    expect(productsSource).toContain('const firstPage = await apiService.listPdmlRawFabrics');
-    expect(productsSource).toContain('apiService.startPdmlRawSync');
-    expect(productsSource).toContain('pollPdmlSyncJob');
-    expect(productsSource).toContain('已保留当前数据');
-    expect(productsSource).toContain('数据中心本次返回 0 条，已保留本机缓存。');
-    expect(productsSource).not.toContain('bambook_pdml_raw_snapshot_v1');
-    expect(productsSource).not.toContain('writePdmlRawSnapshot');
+  it('retires the PDML raw fabric library entry points entirely', () => {
+    expect(productsSource).not.toContain('PdmlRaw');
+    expect(productsSource).not.toContain('pdmlRaw');
+    expect(productsSource).not.toContain('__pdml_raw_library__');
+    expect(productsSource).not.toContain('庞大原始库');
   });
 
   it('writes product archive changes to the data center before mutating local cache state', () => {

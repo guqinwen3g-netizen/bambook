@@ -321,66 +321,6 @@ export interface ProductImage {
   url?: string;
 }
 
-export interface PdmlRawFabric {
-  id: string;
-  gsid: string;
-  sourceId: string;
-  rawData: Record<string, unknown>;
-  sourceHash: string;
-  articleNo?: string | null;
-  factoryArticleNo?: string | null;
-  colorCode?: string | null;
-  factoryColorCode?: string | null;
-  supplierName?: string | null;
-  productLine?: string | null;
-  registeredDate?: string | null;
-  imageUrl?: string | null;
-  sourceStatus?: string | null;
-  firstSeenAt: number;
-  lastSeenAt: number;
-  syncedAt: number;
-  deletedAt?: number | null;
-}
-
-export interface PdmlSyncResult {
-  ok: boolean;
-  source: 'PDML V_MLXX';
-  gsid: string;
-  totalAvailable: number;
-  fetched: number;
-  created: number;
-  updated: number;
-  unchanged: number;
-  skipped: number;
-  syncedAt: number;
-}
-
-export interface PdmlSyncJob {
-  ok: boolean;
-  jobId: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  gsid?: string;
-  startedAt?: number;
-  finishedAt?: number;
-  result?: PdmlSyncResult;
-  error?: string;
-}
-
-export interface PdmlMapResult {
-  ok: boolean;
-  source: 'PDML raw cache';
-  gsid: string;
-  total: number;
-  limit: number;
-  offset: number;
-  mapped: number;
-  created: number;
-  updated: number;
-  skipped: number;
-  hasMore: boolean;
-  updatedAt: number;
-}
-
 export interface FabricProfile {
   id: string;
   productAssetId: string;

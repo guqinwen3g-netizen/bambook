@@ -1,11 +1,10 @@
-import { Order, ProductAsset, ProductSubCategory, PdmlRawFabric, Relation, Invoice, PaymentVoucher, Shipment, DevelopmentCase } from '../types';
+import { Order, ProductAsset, ProductSubCategory, Relation, Invoice, PaymentVoucher, Shipment, DevelopmentCase } from '../types';
 
 export type DeviceCacheEntity =
   | 'orders'
   | 'relations'
   | 'products'
   | 'productCategories'
-  | 'pdmlRawFabrics'
   | 'invoices'
   | 'paymentVouchers'
   | 'shipments'
@@ -24,7 +23,6 @@ type EntityRecordMap = {
   relations: Relation;
   products: ProductAsset;
   productCategories: ProductSubCategory;
-  pdmlRawFabrics: PdmlRawFabric;
   invoices: Invoice;
   paymentVouchers: PaymentVoucher;
   shipments: Shipment;
@@ -41,7 +39,6 @@ const ENTITY_STORES: DeviceCacheEntity[] = [
   'relations',
   'products',
   'productCategories',
-  'pdmlRawFabrics',
   'invoices',
   'paymentVouchers',
   'shipments',

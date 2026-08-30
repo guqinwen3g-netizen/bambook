@@ -57,7 +57,7 @@ describe('storageService data hub reads', () => {
   });
 
   it('reports local storage categories and protects account keys when clearing business cache', async () => {
-    localStorage.setItem('bambook_pdml_raw_snapshot_v1', JSON.stringify([{ id: 'pdml-1' }]));
+    localStorage.setItem('nexus_market_prices', JSON.stringify([{ symbol: 'COTTON' }]));
     localStorage.setItem('bambook_auth_token', 'secret-token');
     localStorage.setItem('theme_preference', 'dark');
 
@@ -65,13 +65,13 @@ describe('storageService data hub reads', () => {
     const business = report.categories.find(category => category.id === 'business-cache');
     const account = report.categories.find(category => category.id === 'account');
 
-    expect(business?.keys).toContain('bambook_pdml_raw_snapshot_v1');
+    expect(business?.keys).toContain('nexus_market_prices');
     expect(account?.keys).toContain('bambook_auth_token');
 
     const removed = await storageService.clearBusinessCache();
 
     expect(removed).toBe(1);
-    expect(localStorage.getItem('bambook_pdml_raw_snapshot_v1')).toBeNull();
+    expect(localStorage.getItem('nexus_market_prices')).toBeNull();
     expect(localStorage.getItem('bambook_auth_token')).toBe('secret-token');
     expect(localStorage.getItem('theme_preference')).toBe('dark');
   });

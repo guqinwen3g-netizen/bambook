@@ -6,7 +6,7 @@ const storageSource = readFileSync(new URL('./storageService.ts', import.meta.ur
 
 describe('deviceDataCache architecture', () => {
   it('uses per-entity IndexedDB stores instead of one large KV blob', () => {
-    for (const store of ['orders', 'relations', 'products', 'productCategories', 'pdmlRawFabrics', 'meta']) {
+    for (const store of ['orders', 'relations', 'products', 'productCategories', 'meta']) {
       expect(source).toContain(store);
     }
     expect(source).toContain("db.createObjectStore(storeName, { keyPath: 'id' })");
@@ -19,8 +19,6 @@ describe('deviceDataCache architecture', () => {
   it('routes business cache helpers through deviceDataCache, not localStorage snapshots', () => {
     expect(storageSource).toContain("deviceDataCache.list('products')");
     expect(storageSource).toContain("deviceDataCache.replaceAll('products'");
-    expect(storageSource).toContain("deviceDataCache.list('pdmlRawFabrics')");
-    expect(storageSource).toContain("deviceDataCache.replaceAll('pdmlRawFabrics'");
     expect(storageSource).not.toContain('products:all');
     expect(storageSource).not.toContain('pdml:raw:fabrics');
     expect(storageSource).not.toContain('BambookDeviceCacheDB');
