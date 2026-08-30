@@ -155,6 +155,37 @@ export async function seedMasterData(prisma: PrismaClient): Promise<MasterDataCt
       status: 'Active', createdAt: nowMs, updatedAt: nowMs, deletedAt: null,
     });
   });
+  // 供应商/货代联系人（真实公司必有对接人：业务+品质/操作）
+  const SUPPLIER_CONTACT_POOL = [
+    ['王建军', '销售经理', 'sales'], ['李慧敏', '外贸业务员', 'sales'],
+    ['张伟国', '品控主管', 'qc'], ['陈丽娟', '单证专员', 'docs'],
+    ['刘志强', '业务经理', 'sales'], ['赵雅萍', '跟单员', 'merchandiser'],
+  ];
+  SUPPLIERS.forEach((s, si) => {
+    const [n1, t1] = SUPPLIER_CONTACT_POOL[si % SUPPLIER_CONTACT_POOL.length];
+    const [n2, t2] = SUPPLIER_CONTACT_POOL[(si + 2) % SUPPLIER_CONTACT_POOL.length];
+    const idx = String(si + 9).padStart(2, '0');
+    contactRows.push({
+      id: `SIM-CTC-${idx}A`, relationId: s.id, name: n1, title: t1,
+      email: `sales${si + 1}@${s.id.toLowerCase()}.example.cn`, mobile: `138-${String(1000 + si * 7).padStart(4, '0')}-${String(2000 + si * 13).padStart(4, '0')}`,
+      wechat: `wx_${s.id.toLowerCase()}_${si + 1}`, isPrimary: true, isDecisionMaker: si < 5,
+      tags: ['supplier-sales'], status: 'Active', createdAt: nowMs, updatedAt: nowMs, deletedAt: null,
+    });
+    contactRows.push({
+      id: `SIM-CTC-${idx}B`, relationId: s.id, name: n2, title: t2,
+      email: `qc${si + 1}@${s.id.toLowerCase()}.example.cn`, mobile: `139-${String(3000 + si * 11).padStart(4, '0')}-${String(4000 + si * 3).padStart(4, '0')}`,
+      isPrimary: false, isDecisionMaker: false, tags: [t2 === 'qc' ? 'supplier-qc' : 'supplier-merch'],
+      status: 'Active', createdAt: nowMs, updatedAt: nowMs, deletedAt: null,
+    });
+  });
+  FORWARDERS.forEach((f, fi) => {
+    const idx = String(fi + 21).padStart(2, '0');
+    contactRows.push({
+      id: `SIM-CTC-${idx}A`, relationId: f.id, name: fi === 0 ? '孙海燕' : '周凯文', title: '船务操作',
+      email: `ops@${f.id.toLowerCase()}.example.cn`, mobile: `137-${String(5000 + fi * 17).padStart(4, '0')}-${String(6000 + fi * 9).padStart(4, '0')}`,
+      isPrimary: true, isDecisionMaker: false, tags: ['forwarder-ops'], status: 'Active', createdAt: nowMs, updatedAt: nowMs, deletedAt: null,
+    });
+  });
   await createManyLogged(prisma, 'contact', 'Contact', contactRows);
 
   // 4. 产品档案：24 面料 + 12 成衣 + 6 辅料
