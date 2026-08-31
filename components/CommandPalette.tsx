@@ -165,7 +165,6 @@ export function buildRecordGroups(
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   open,
   onClose,
-  isDarkMode = false,
   relations,
   orders,
   products,
@@ -274,6 +273,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       <button
         key={item.key}
         type="button"
+        tabIndex={-1}
         data-palette-index={idx}
         onMouseEnter={() => setActiveIndex(idx)}
         onClick={() => execute(item)}
@@ -300,14 +300,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[90] bg-[var(--mask-bg)] backdrop-blur-sm flex items-start justify-center pt-[16vh] px-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[90] bg-[var(--mask-bg)] backdrop-blur-sm flex items-start justify-center pt-[16vh] px-6"
       onClick={onClose}
+      onKeyDown={handleKeyDown}
       role="dialog"
       aria-label="全局搜索"
+      aria-modal="true"
     >
       <RdlSurface
         tone="panel"
-        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] animate-in zoom-in duration-200"
+        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh]"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* 搜索输入 */}
@@ -317,7 +319,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder="搜索客户、订单、产品、发票、知识、邮件，或前往模块…"
             className={`flex-1 bg-transparent outline-none text-[15px] font-light placeholder:font-light ${titleTextClass} placeholder:text-[var(--text-tertiary)]`}
           />

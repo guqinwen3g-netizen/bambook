@@ -1399,7 +1399,6 @@ const App: React.FC = () => {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        isDarkMode={isDarkMode}
         relations={relations}
         orders={orders}
         products={products}
