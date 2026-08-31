@@ -5,7 +5,7 @@
 //   ③ 导入后对账单/账龄数字与 Excel 原账一致 → 发票金额合计 vs 库内发票合计（同一 Invoice 真源）
 //   软删可回滚 → rollback 后 entityIds 全部 deletedAt
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'gm@bambook.local'; // AdminPanel 属管理后台——用 gm（ADMIN）
+const EMAIL = 'raymond.lin@bambook.local'; // AdminPanel 属管理后台——用 raymond.lin（ADMIN）
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

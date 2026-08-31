@@ -4,7 +4,7 @@
 //   ② 影响计算正确（缓冲侵蚀三档判定 + planDate 缺失回退）
 //   ③ 工厂交期分下调（登记 → FactoryEvaluation(delivery) 追加，幂等不重复扣）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'gm@bambook.local';
+const EMAIL = 'raymond.lin@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

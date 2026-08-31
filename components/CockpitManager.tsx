@@ -543,9 +543,9 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
           <div className="flex min-h-0 shrink-0 items-center gap-2">
             <div className="bds-filterbar">
               <span className={cx('px-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>统计区间</span>
-              <CapsuleDateInput value={from} onChange={setFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
+              <CapsuleDateInput value={from} onChange={setFrom} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
-              <CapsuleDateInput value={to} onChange={setTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
+              <CapsuleDateInput value={to} onChange={setTo} className={inputCls} placeholder="结束日期" />
               <button type="button" onClick={load} disabled={loading} className="bds-btn bds-btn-secondary">
                 {loading && <Loader2 size={14} className="animate-spin" />}
                 查询

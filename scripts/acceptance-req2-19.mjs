@@ -5,7 +5,7 @@
 //   ③ 版本历史正序；accept → convert-to-order → 画像（firstAmount/cutPct/成交偏差）
 //   ④ 终态 revise 409；relationId 缺失 400；无报价空画像
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

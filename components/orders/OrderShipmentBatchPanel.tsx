@@ -478,7 +478,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
             ) : (
               <div className="relative w-full max-w-md">
                 <CustomSelect
-                  surface="field"
+                  surface="form"
                   menuPortal
                   options={shipmentOptions}
                   value={shipShipmentId}
@@ -490,7 +490,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
           </div>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>发运日期（可选）</label>
-            <CapsuleDateInput value={shipShippedAt} onChange={setShipShippedAt} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="缺省取运单 ATD/当日" />
+            <CapsuleDateInput value={shipShippedAt} onChange={setShipShippedAt} className="bds-input sm w-auto" placeholder="缺省取运单 ATD/当日" />
           </div>
           {shipFor?.isFinalBatch === true && (
             <div className="bds-alert warning">

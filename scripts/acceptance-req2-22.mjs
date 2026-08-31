@@ -4,7 +4,7 @@
 //   ② 校验 fail-closed（非法 kind / 缺必填 / 负值 / 二选一约束 → 400 VALIDATION_FAILED）
 //   ③ 未登录 401；端点只读零写（无任何业务表写入）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

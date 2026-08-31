@@ -5,7 +5,7 @@
 //   ③ 停用即时失效：离职者旧 token 立即 401 ACCOUNT_DISABLED（组合根守卫）+ 重新登录 403 DISABLED
 //   ④ SEC-01 防批量导出双向：业务员 403 / SuperAdmin 200 + 导出审计落库
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local'; // SuperAdmin（users:admin + data:export:full 全链）
+const EMAIL = 'jason.shen@bambook.local'; // SuperAdmin（users:admin + data:export:full 全链）
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

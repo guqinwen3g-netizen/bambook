@@ -560,7 +560,6 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 options={ORDER_CHANGE_TYPES.map((t) => ({ value: t, label: ORDER_CHANGE_TYPE_LABELS[t] }))}
                 value={changeType}
                 onChange={(v) => { setForm((p) => ({ ...p, changeType: v as OrderChangeType })); setMoqResult(null); setMoqError(null); }}
-                isDarkMode={dark}
                 surface="form"
               />
             </div>
@@ -595,7 +594,6 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 <CapsuleDateInput
                   value={form.afterDeliveryDate ?? ''}
                   onChange={(v) => setForm((p) => ({ ...p, afterDeliveryDate: v }))}
-                  isDarkMode={dark}
                   className={spec.field}
                 />
               </div>
@@ -655,7 +653,6 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                   <CapsuleDateInput
                     value={form.expectedResumeDate ?? ''}
                     onChange={(v) => setForm((p) => ({ ...p, expectedResumeDate: v }))}
-                    isDarkMode={dark}
                     className={spec.field}
                   />
                 </div>

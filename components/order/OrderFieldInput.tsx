@@ -221,7 +221,6 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
           value={(value as string | undefined) ?? ''}
           onChange={(v) => onChange({ [field.key]: v || undefined } as Partial<Order>)}
           placeholder="— 请选择 —"
-          isDarkMode={isDarkMode}
           disabled={disabled}
           surface="form"
           className="w-full"
@@ -278,7 +277,6 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
         <CapsuleDateInput
           value={(value as string | undefined) ?? ''}
           disabled={disabled}
-          isDarkMode={isDarkMode}
           className={inputCls}
           onChange={(v) => onChange({ [field.key]: v || undefined } as Partial<Order>)}
         />

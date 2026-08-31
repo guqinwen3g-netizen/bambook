@@ -331,11 +331,11 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
           <div className="flex flex-wrap gap-3">
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>签发日</label>
-              <CapsuleDateInput value={formIssued} onChange={setFormIssued} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="签发日" />
+              <CapsuleDateInput value={formIssued} onChange={setFormIssued} className="bds-input sm w-auto" placeholder="签发日" />
             </div>
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>有效期至</label>
-              <CapsuleDateInput value={formValid} onChange={setFormValid} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="留空=长期有效" />
+              <CapsuleDateInput value={formValid} onChange={setFormValid} className="bds-input sm w-auto" placeholder="留空=长期有效" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

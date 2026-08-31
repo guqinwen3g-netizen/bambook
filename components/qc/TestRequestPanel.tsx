@@ -444,11 +444,11 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
           <div className="flex flex-wrap gap-3">
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>送样日</label>
-              <CapsuleDateInput value={formSent} onChange={setFormSent} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="送样日" />
+              <CapsuleDateInput value={formSent} onChange={setFormSent} className="bds-input sm w-auto" placeholder="送样日" />
             </div>
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>预计报告日</label>
-              <CapsuleDateInput value={formExpected} onChange={setFormExpected} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="预计报告日" />
+              <CapsuleDateInput value={formExpected} onChange={setFormExpected} className="bds-input sm w-auto" placeholder="预计报告日" />
             </div>
           </div>
           <div>
@@ -481,7 +481,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
             </div>
             <div>
               <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>报告日期</label>
-              <CapsuleDateInput value={formReportDate} onChange={setFormReportDate} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="报告日期" />
+              <CapsuleDateInput value={formReportDate} onChange={setFormReportDate} className="bds-input sm w-auto" placeholder="报告日期" />
             </div>
           </div>
 
@@ -511,7 +511,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
                   <input value={formCaAction} onChange={e => setFormCaAction(e.target.value)} placeholder="如：面料返工修整后送 SGS 复测" className="bds-input sm w-full" />
                   <div className="flex flex-wrap gap-3">
                     <input value={formCaOwner} onChange={e => setFormCaOwner(e.target.value)} placeholder="责任人（如跟单小王）" className="bds-input sm w-44" />
-                    <CapsuleDateInput value={formCaDue} onChange={setFormCaDue} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="整改期限" />
+                    <CapsuleDateInput value={formCaDue} onChange={setFormCaDue} className="bds-input sm w-auto" placeholder="整改期限" />
                   </div>
                 </div>
               </div>
@@ -546,7 +546,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
           </div>
           <div className="flex flex-wrap gap-3">
             <input value={caOwner} onChange={e => setCaOwner(e.target.value)} placeholder="责任人" className="bds-input sm w-44" />
-            <CapsuleDateInput value={caDue} onChange={setCaDue} isDarkMode={isDarkMode} className="bds-input sm w-auto" placeholder="整改期限" />
+            <CapsuleDateInput value={caDue} onChange={setCaDue} className="bds-input sm w-auto" placeholder="整改期限" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => setAddCaFor(null)} className="bds-btn bds-btn-ghost">取消</button>

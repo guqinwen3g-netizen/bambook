@@ -785,7 +785,6 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
           <CapsuleDateInput
             value={openForm.declaredAt}
             onChange={v => setOpenForm(f => ({ ...f, declaredAt: v }))}
-            isDarkMode={isDarkMode}
             className="bds-input sm w-auto"
             placeholder="法院宣告/破产受理日"
           />
@@ -903,7 +902,6 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
             <CapsuleDateInput
               value={actionForm.receivedAt}
               onChange={v => setActionForm(f => ({ ...f, receivedAt: v }))}
-              isDarkMode={isDarkMode}
               className="bds-input sm w-auto"
               placeholder="清算分配到账日"
             />

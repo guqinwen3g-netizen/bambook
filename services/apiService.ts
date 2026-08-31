@@ -3011,8 +3011,12 @@ export const apiService = {
     const data = await requestJson<{ ok: boolean; item: FabricRecommendation }>(`/v1/fabric-recommendations/recommend`, { endpoint, method: 'POST', body: JSON.stringify(criteria) });
     return data.item;
   },
-  async listFabricRecommendations(endpoint?: string): Promise<FabricRecommendation[]> {
-    const data = await requestJson<{ items: FabricRecommendation[]; total?: number }>(`/v1/fabric-recommendations`, { endpoint, method: 'GET' });
+  async listFabricRecommendations(params?: { limit?: number; offset?: number }, endpoint?: string): Promise<FabricRecommendation[]> {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const data = await requestJson<{ items: FabricRecommendation[]; total?: number }>(`/v1/fabric-recommendations${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
     return data.items ?? [];
   },
   async deleteFabricRecommendation(id: string, endpoint?: string): Promise<void> {

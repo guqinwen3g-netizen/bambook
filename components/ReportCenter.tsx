@@ -801,7 +801,6 @@ function DesignerPanel(props: DesignerPanelProps) {
                         ...prev,
                         filters: prev.filters.map((x, i) => (i === idx ? { ...x, value: v } : x)),
                       }))}
-                      isDarkMode={isDarkMode}
                       className="bds-input flex-1"
                     />
                   ) : (

@@ -446,7 +446,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                 <div>
                   <div className={t.labelCls + ' mb-1'}>生效日期 *</div>
                   <CapsuleDateInput className={t.inputCls} value={salaryForm.effectiveFrom}
-                    onChange={(v) => setSalaryForm(f => ({ ...f, effectiveFrom: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setSalaryForm(f => ({ ...f, effectiveFrom: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>备注</div>

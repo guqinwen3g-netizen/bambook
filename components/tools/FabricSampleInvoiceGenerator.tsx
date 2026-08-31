@@ -978,7 +978,6 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                     className="bds-input"
                     value={invoiceDate}
                     onChange={setInvoiceDate}
-                    isDarkMode={isDarkMode}
                   />
                 </div>
                 <div className="col-span-2">

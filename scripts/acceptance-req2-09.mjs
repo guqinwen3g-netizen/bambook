@@ -3,7 +3,7 @@
 //   ① 打样单选 Pantone 色号后自动带出 RGB 参考与相近历史打色
 //   ② 相近色推荐感知合理（Lab ΔE：近似色 ΔE 小、远色 ΔE 大）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'gm@bambook.local';
+const EMAIL = 'raymond.lin@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

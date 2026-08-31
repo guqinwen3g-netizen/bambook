@@ -4,14 +4,14 @@
 //   财务管理 → 资金日历 tab 四区渲染
 // 截图证据：/tmp/acceptance-req2-ui/*.png
 //
-// 账号：sales.a（业务员容器角色：qc:write 可写 + v2 订单行级 scope 内有单——
-// UI 订单页数据源是 /api/v2/orders（DR-042 行级权限），sales.manager 名下无单）
+// 账号：chloe.su（业务员容器角色：qc:write 可写 + v2 订单行级 scope 内有单——
+// UI 订单页数据源是 /api/v2/orders（DR-042 行级权限），vivian.chen 名下无单）
 import { chromium } from 'playwright';
 import fs from 'fs';
 
 const BASE = 'http://localhost:3000';
 const API = 'http://127.0.0.1:8081';
-const EMAIL = 'sales.a@bambook.local';
+const EMAIL = 'chloe.su@bambook.local';
 const PASSWORD = 'Bambook@2026';
 const OUT_DIR = '/tmp/acceptance-req2-ui';
 

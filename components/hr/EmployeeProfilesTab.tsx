@@ -351,17 +351,17 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                 <div>
                   <div className={t.labelCls + ' mb-1'}>入职日期 *</div>
                   <CapsuleDateInput className={t.inputCls} value={profileForm.hireDate}
-                    onChange={(v) => setProfileForm(f => ({ ...f, hireDate: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setProfileForm(f => ({ ...f, hireDate: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>转正日期</div>
                   <CapsuleDateInput className={t.inputCls} value={profileForm.regularDate}
-                    onChange={(v) => setProfileForm(f => ({ ...f, regularDate: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setProfileForm(f => ({ ...f, regularDate: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>合同到期日</div>
                   <CapsuleDateInput className={t.inputCls} value={profileForm.contractEnd}
-                    onChange={(v) => setProfileForm(f => ({ ...f, contractEnd: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setProfileForm(f => ({ ...f, contractEnd: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>联系电话</div>
@@ -434,7 +434,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                     <div>
                       <div className={t.labelCls + ' mb-1'}>生效日期 *</div>
                       <CapsuleDateInput className={t.inputCls} value={eventForm.effectiveDate}
-                        onChange={(v) => setEventForm(f => ({ ...f, effectiveDate: v }))} isDarkMode={isDarkMode} />
+                        onChange={(v) => setEventForm(f => ({ ...f, effectiveDate: v }))} />
                     </div>
                   </div>
                   {(eventForm.type === 'Transfer' || eventForm.type === 'Promote') && (

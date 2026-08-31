@@ -213,7 +213,6 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
             <CapsuleDateInput
               value={stage.sentDate ?? ''}
               onChange={(v) => updateField(stage.stage, 'sentDate', v)}
-              isDarkMode={isDarkMode}
               placeholder="寄出"
               className={dateInputCls}
             />
@@ -222,7 +221,6 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
             <CapsuleDateInput
               value={stage.confirmedDate ?? ''}
               onChange={(v) => updateField(stage.stage, 'confirmedDate', v)}
-              isDarkMode={isDarkMode}
               placeholder="确认"
               className={dateInputCls}
             />

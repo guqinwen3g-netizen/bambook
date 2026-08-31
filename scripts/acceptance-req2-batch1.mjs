@@ -6,8 +6,8 @@
 //   REQ2-01: bulk 缸差登记 → 客户判定 → 封样基准 → 取证聚合
 //   REQ2-02: cash-calendar 四区结构 + asOf 窗口
 const BASE = 'http://127.0.0.1:8081';
-// sales.manager = SALES_MANAGER（业务员容器角色含 qc:write：登记/结论/整改均可写；gm=ADMIN 无业务写 scope）
-const EMAIL = 'sales.manager@bambook.local';
+// vivian.chen = SALES_MANAGER（业务员容器角色含 qc:write：登记/结论/整改均可写；raymond.lin=ADMIN 无业务写 scope）
+const EMAIL = 'vivian.chen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

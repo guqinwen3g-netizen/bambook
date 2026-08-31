@@ -1,7 +1,7 @@
 // REQ2-12 报价单产品图片 API 级实机验收
 // 验收锚点：A4——报价 PDF 含产品图（API 层验证全链：上传 → 行携带 → 落库快照 → 详情回读）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'gm@bambook.local';
+const EMAIL = 'raymond.lin@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

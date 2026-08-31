@@ -5,7 +5,7 @@
 //   ③ 图片型 fail-fast（空文本 422 NO_TEXT_LAYER）；非 PDF multipart 400；sales 无 orders:write 403
 //   ④ GET 快照回读；重复保存覆盖 + 审计 before/after
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

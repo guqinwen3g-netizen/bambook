@@ -1046,7 +1046,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
             {loanForm.loanType === 'borrow' && (
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">预计归还日</label>
-                <CapsuleDateInput className="bds-input sm w-auto" value={loanForm.dueDate} onChange={(v) => setLoanForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} />
+                <CapsuleDateInput className="bds-input sm w-auto" value={loanForm.dueDate} onChange={(v) => setLoanForm(f => ({ ...f, dueDate: v }))} />
                 <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">逾期（超过预计归还日未还）在列表标红提醒。</div>
               </div>
             )}

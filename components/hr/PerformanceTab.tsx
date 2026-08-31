@@ -333,12 +333,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
             <div>
               <div className={t.labelCls + ' mb-1'}>开始日期</div>
               <CapsuleDateInput className={t.inputCls} value={cycleForm.startDate}
-                onChange={(v) => setCycleForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
+                onChange={(v) => setCycleForm(f => ({ ...f, startDate: v }))} />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>结束日期</div>
               <CapsuleDateInput className={t.inputCls} value={cycleForm.endDate}
-                onChange={(v) => setCycleForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
+                onChange={(v) => setCycleForm(f => ({ ...f, endDate: v }))} />
             </div>
           </div>
           <div className="flex justify-end gap-2">

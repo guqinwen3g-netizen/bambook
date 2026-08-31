@@ -96,7 +96,7 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
       <div className="flex shrink-0 items-center gap-2">
         <div className="bds-filterbar">
           <span className={cx('px-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>基准日</span>
-          <CapsuleDateInput value={asOf} onChange={setAsOf} isDarkMode={isDarkMode} className={inputCls} placeholder="基准日" />
+          <CapsuleDateInput value={asOf} onChange={setAsOf} className={inputCls} placeholder="基准日" />
           <span className={cx('px-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>预测窗口</span>
           {[30, 60, 90].map(d => (
             <button

@@ -55,6 +55,10 @@
 .bds-switch:focus-visible, .bds-tab:focus-visible {
   outline: none; box-shadow: var(--focus-ring-strong);
 }
+/* CustomSelect 触发器（data-select-trigger）：对齐 .bds-btn 焦点环，替换 UA 默认 outline */
+[data-select-trigger]:focus-visible {
+  outline: none; box-shadow: var(--focus-ring-strong);
+}
 
 /* 尺寸 */
 .bds-btn.sm { height: var(--h-btn-sm); padding: var(--p-btn-sm); font-size: var(--text-xs); }

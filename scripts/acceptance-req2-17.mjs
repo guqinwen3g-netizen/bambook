@@ -4,7 +4,7 @@
 //   ② 月度对比：metric 汇总 Δ/Δ% 精确；缺上期 previous=null；上期为 0 → deltaPct null
 //   ③ 无 monthly 定义 404；periodKey 非法 400；sales 权限 403
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

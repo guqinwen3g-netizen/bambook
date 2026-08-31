@@ -576,7 +576,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>预期付款日</label>
-                  <CapsuleDateInput value={form.expectedPaymentDate} onChange={v => setForm(f => ({ ...f, expectedPaymentDate: v }))} isDarkMode={_isDarkMode} className="bds-input sm" />
+                  <CapsuleDateInput value={form.expectedPaymentDate} onChange={v => setForm(f => ({ ...f, expectedPaymentDate: v }))} className="bds-input sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

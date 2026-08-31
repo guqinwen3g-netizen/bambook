@@ -119,7 +119,6 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
             value={item.type}
             onChange={(v) => updateItem(idx, { type: v as BomItem['type'] })}
             size="compact"
-            isDarkMode={isDarkMode}
             className="w-16 shrink-0"
           />
 
@@ -158,7 +157,6 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
             value={item.unit}
             onChange={(v) => updateItem(idx, { unit: v })}
             size="compact"
-            isDarkMode={isDarkMode}
             className="w-16 shrink-0"
           />
 

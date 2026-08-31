@@ -7,7 +7,6 @@ interface CapsuleDateInputProps {
   value: string;
   onChange: (next: string) => void;
   disabled?: boolean;
-  isDarkMode?: boolean;
   /** Unified capsule field recipe supplied by the host (h-10 rounded-full …). */
   className: string;
   placeholder?: string;
@@ -35,7 +34,7 @@ const fmtYmd = (y: number, m: number, d: number) =>
  * 月历浮层（overlayMenu 玻璃容器族，与 CustomSelect 浮层同规范）——
  * W4 原生浮层收编：替代原 Chromium showPicker 原生日历。
  */
-const CapsuleDateInput: React.FC<CapsuleDateInputProps> = ({ value, onChange, disabled = false, isDarkMode = false, className, placeholder = 'YYYY-MM-DD' }) => {
+const CapsuleDateInput: React.FC<CapsuleDateInputProps> = ({ value, onChange, disabled = false, className, placeholder = 'YYYY-MM-DD' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const today = new Date();

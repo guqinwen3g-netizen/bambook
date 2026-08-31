@@ -321,7 +321,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                 <div>
                   <div className={t.labelCls + ' mb-1'}>日期 *</div>
                   <CapsuleDateInput className={t.inputCls} value={attForm.date}
-                    onChange={(v) => setAttForm(f => ({ ...f, date: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setAttForm(f => ({ ...f, date: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>签到（HH:MM）</div>
@@ -418,12 +418,12 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                 <div>
                   <div className={t.labelCls + ' mb-1'}>开始日期 *</div>
                   <CapsuleDateInput className={t.inputCls} value={leaveForm.startDate}
-                    onChange={(v) => setLeaveForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setLeaveForm(f => ({ ...f, startDate: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>结束日期 *</div>
                   <CapsuleDateInput className={t.inputCls} value={leaveForm.endDate}
-                    onChange={(v) => setLeaveForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
+                    onChange={(v) => setLeaveForm(f => ({ ...f, endDate: v }))} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>事由</div>

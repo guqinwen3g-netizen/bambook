@@ -737,7 +737,7 @@ function FabricRecommendPanel() {
     setHistoryLoading(true);
     setHistoryError(null);
     try {
-      setHistory(await apiService.listFabricRecommendations());
+      setHistory(await apiService.listFabricRecommendations({ limit: 200 }));
     } catch (e) {
       console.error('[MarketingManager] listFabricRecommendations failed', e);
       setHistoryError(`推荐历史加载失败：${e instanceof Error ? e.message : String(e)}`);
@@ -949,12 +949,12 @@ function FabricRecommendPanel() {
               </div>
             ))}
           </div>
-          {/* R3 截断诚实化：服务端 listRecommendations 默认 take 50（上限 200，服务端已支持 limit/offset），
-              但 apiService.listFabricRecommendations 签名未落地分页入参且丢弃 total——触顶即提示，不把截断伪装成全量；
-              apiService 补参落地后接「加载更多」（同画册面板 R678 模式） */}
-          {history.length >= 50 && (
+          {/* R3 截断诚实化：服务端 listRecommendations 默认 take 50（上限 200），前端透传 limit:200
+              与画册面板 LOOKBOOK_MAX_WINDOW 同款窗口语义；total 仍被丢弃——触顶即提示，不把截断伪装成全量；
+              后续接「加载更多」（同画册面板 R678 模式）需 apiService 透出 total */}
+          {history.length >= 200 && (
             <p className="text-xs text-center mt-2" style={{ color: 'var(--text-tertiary)' }}>
-              仅显示最近 50 条推荐记录（已达单次加载上限），更早的记录暂未加载
+              仅显示最近 200 条推荐记录（已达单次加载上限），更早的记录暂未加载
             </p>
           )}
           </>

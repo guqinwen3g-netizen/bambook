@@ -178,7 +178,6 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
             <CapsuleDateInput
               value={step.date ?? ''}
               onChange={(v) => updateDate(step.step, v)}
-              isDarkMode={isDarkMode}
               className={dateInputCls}
             />
           </div>

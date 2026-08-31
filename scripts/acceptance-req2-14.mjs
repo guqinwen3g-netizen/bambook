@@ -3,7 +3,7 @@
 //   ① X-04：运费涨 3 倍录入后受影响订单利润变化一屏可见
 //   ② 重估口径与利润表同源（multiplier=1 重估 == 落库利润表值）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'gm@bambook.local';
+const EMAIL = 'raymond.lin@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

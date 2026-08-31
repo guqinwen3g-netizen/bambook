@@ -453,7 +453,6 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货日期</label>
               <CapsuleDateInput
                 value={inspection?.inspectionDate ?? ''}
-                isDarkMode={isDarkMode}
                 className={cx(fieldCls, noSpinnerCls)}
                 onChange={(v) => handleInspectionSave('inspectionDate', v)}
               />

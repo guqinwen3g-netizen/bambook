@@ -5,7 +5,7 @@
 //   累计损耗 = (10500 − 10200) / 10500 = 2.857%
 //   加工费合计 = 12480 + 35700 + 8160(预估) = 56340
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'sales.a@bambook.local';
+const EMAIL = 'chloe.su@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

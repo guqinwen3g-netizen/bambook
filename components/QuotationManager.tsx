@@ -936,11 +936,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       </div>
                       <div>
                         <label className={labelCls}>报价日期 *</label>
-                        <CapsuleDateInput className="bds-input" value={form.issueDate} onChange={(v) => setForm({ ...form, issueDate: v, validUntil: defaultValidUntil(v) })} isDarkMode={isDarkMode} />
+                        <CapsuleDateInput className="bds-input" value={form.issueDate} onChange={(v) => setForm({ ...form, issueDate: v, validUntil: defaultValidUntil(v) })} />
                       </div>
                       <div>
                         <label className={labelCls}>有效期至</label>
-                        <CapsuleDateInput className="bds-input" value={form.validUntil} onChange={(v) => setForm({ ...form, validUntil: v })} isDarkMode={isDarkMode} />
+                        <CapsuleDateInput className="bds-input" value={form.validUntil} onChange={(v) => setForm({ ...form, validUntil: v })} />
                       </div>
                       <div>
                         <label className={labelCls}>客户</label>
@@ -1725,7 +1725,6 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   className="bds-input"
                   value={convertForm.dueDate}
                   onChange={(v) => setConvertForm({ ...convertForm, dueDate: v })}
-                  isDarkMode={isDarkMode}
                 />
               </div>
               <div>

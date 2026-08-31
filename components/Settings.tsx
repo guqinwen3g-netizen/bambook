@@ -405,7 +405,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   // R5：清理/重置前 bdsConfirm 确认（本地数据不可恢复，danger 语义）
   const clearStorageArea = async (kind: 'business' | 'email' | 'preferences') => {
     const meta = kind === 'business'
-      ? { title: '确认清理业务缓存', body: '将移除本机的庞大原始库与行情快照缓存，不影响云端业务数据。', confirmText: '清理' }
+      ? { title: '确认清理业务缓存', body: '将移除本机的离线业务数据缓存与行情快照缓存，不影响云端业务数据。', confirmText: '清理' }
       : kind === 'email'
         ? { title: '确认清理邮箱缓存', body: '将移除本机的邮箱列表与正文缓存，重新打开邮箱时会重新拉取。', confirmText: '清理' }
         : { title: '确认重置本机偏好', body: '主题、页面、布局状态将恢复默认，不影响云端业务数据。', confirmText: '重置' };
@@ -860,7 +860,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { id: 'business' as const, title: '清业务缓存', desc: '庞大原始库、行情快照' },
+                        { id: 'business' as const, title: '清业务缓存', desc: '离线业务数据缓存、行情快照' },
                         { id: 'email' as const, title: '清邮箱缓存', desc: '邮箱列表与正文缓存' },
                         { id: 'preferences' as const, title: '重置本机偏好', desc: '主题、页面、布局状态' },
                       ].map(action => (

@@ -3,7 +3,7 @@
 //   ① 账龄页选中客户→生成中英双语催款函→发送→登记记录 ≤5min → 全链 API 实测（选中客户→函→登记→历史可查）
 //   ② 账龄明细注入（逾期天数/分段/多发票汇总）→ letter summary 逐发票明细 + 五桶汇总 + 总额
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'gm@bambook.local';
+const EMAIL = 'raymond.lin@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

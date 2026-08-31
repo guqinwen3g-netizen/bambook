@@ -24,7 +24,7 @@ const require2 = createRequire(import.meta.url);
 const { PrismaClient } = require2('../../server/node_modules/@prisma/client');
 
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 const RUN = `WA2-${Date.now().toString(36).toUpperCase()}`;
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -95,7 +95,7 @@ async function main() {
   console.log(`W-A-2 履约主干域走查 RUN=${RUN} BASE=${BASE} 日期=${TODAY}`);
 
   // ── S0 环境自检 + 登录 ──
-  const s0 = step('S0', '环境自检 + 登录（boss@bambook.local）');
+  const s0 = step('S0', '环境自检 + 登录（jason.shen@bambook.local）');
   const health = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
   check(s0, 'health ok + database ok', health?.status === 'ok' && health?.database === 'ok', JSON.stringify(health)?.slice(0, 120));
   const loginRes = await fetch(`${BASE}/api/auth/login`, {

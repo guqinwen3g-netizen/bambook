@@ -229,14 +229,6 @@ export const BAMBOOK_OS = {
       toolbarInline:
         'bg-transparent !border-transparent shadow-none text-slate-400 dark:text-slate-500 hover:bg-transparent hover:text-slate-600 dark:hover:text-slate-300 active:bg-transparent',
       toolbarInlineOpen: 'bg-transparent !border-transparent shadow-none text-[var(--os-vnext-brand-blue)] dark:text-slate-100',
-      toolbarMenu: 'bambook-dashboard-glass-color bambook-blue-white-light',
-      defaultMenu: 'bg-white/80 dark:bg-[#0d1b2a]/88 backdrop-blur-[15px] backdrop-saturate-[104%] border border-transparent',
-      toolbarMenuSurface: 'bg-transparent',
-      defaultOption: 'hover:bg-white/42 dark:hover:bg-white/[0.055] text-slate-700 dark:text-slate-300',
-      defaultSelected:
-        'bg-white/52 dark:bg-white/[0.065] backdrop-blur-[15px] backdrop-saturate-[104%] text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]',
-      checkDefault: 'text-[var(--os-vnext-brand-blue)]',
-      checkToolbar: 'text-slate-700 dark:text-slate-100',
     },
     overlayMenu: {
       // 圆角对齐 BDS `.bds-pop` 浮层族（styles/bds/components.css #23）：

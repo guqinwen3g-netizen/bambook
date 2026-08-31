@@ -2859,11 +2859,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票日期</label>
-                  <CapsuleDateInput value={invoiceForm.issueDate} onChange={v => setInvoiceForm(f => ({ ...f, issueDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                  <CapsuleDateInput value={invoiceForm.issueDate} onChange={v => setInvoiceForm(f => ({ ...f, issueDate: v }))} className={formInputClass} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>到期日</label>
-                  <CapsuleDateInput value={invoiceForm.dueDate} onChange={v => setInvoiceForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                  <CapsuleDateInput value={invoiceForm.dueDate} onChange={v => setInvoiceForm(f => ({ ...f, dueDate: v }))} className={formInputClass} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -2962,7 +2962,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>核销日期</label>
-                  <CapsuleDateInput value={allocForm.appliedDate} onChange={v => setAllocForm(f => ({ ...f, appliedDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                  <CapsuleDateInput value={allocForm.appliedDate} onChange={v => setAllocForm(f => ({ ...f, appliedDate: v }))} className={formInputClass} />
                 </div>
               </div>
               {allocError && <div className="bds-alert danger">{allocError}</div>}
@@ -3049,7 +3049,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇日期 *</label>
-                        <CapsuleDateInput value={settlementForm.settleDate} onChange={v => setSettlementForm(f => ({ ...f, settleDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                        <CapsuleDateInput value={settlementForm.settleDate} onChange={v => setSettlementForm(f => ({ ...f, settleDate: v }))} className={formInputClass} />
                       </div>
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇外币金额（{settlementVoucher.currency}）*</label>
@@ -3176,7 +3176,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>开票日期 *</label>
-                  <CapsuleDateInput value={vatForm.issueDate} onChange={v => setVatForm(f => ({ ...f, issueDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                  <CapsuleDateInput value={vatForm.issueDate} onChange={v => setVatForm(f => ({ ...f, issueDate: v }))} className={formInputClass} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
@@ -3245,7 +3245,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>勾选认证日期</label>
-                    <CapsuleDateInput value={vatTransitionForm.verifiedDate} onChange={v => setVatTransitionForm(f => ({ ...f, verifiedDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                    <CapsuleDateInput value={vatTransitionForm.verifiedDate} onChange={v => setVatTransitionForm(f => ({ ...f, verifiedDate: v }))} className={formInputClass} />
                   </div>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
@@ -3285,7 +3285,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   </div>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>红冲日期</label>
-                    <CapsuleDateInput value={vatTransitionForm.redFlushDate} onChange={v => setVatTransitionForm(f => ({ ...f, redFlushDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                    <CapsuleDateInput value={vatTransitionForm.redFlushDate} onChange={v => setVatTransitionForm(f => ({ ...f, redFlushDate: v }))} className={formInputClass} />
                   </div>
                 </>
               )}
@@ -3373,7 +3373,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇日期 *</label>
-                        <CapsuleDateInput value={remittanceForm.remitDate} onChange={v => setRemittanceForm(f => ({ ...f, remitDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
+                        <CapsuleDateInput value={remittanceForm.remitDate} onChange={v => setRemittanceForm(f => ({ ...f, remitDate: v }))} className={formInputClass} />
                       </div>
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇外币金额（{remittanceVoucher.currency}）*</label>

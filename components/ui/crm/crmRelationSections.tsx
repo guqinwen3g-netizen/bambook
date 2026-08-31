@@ -752,7 +752,7 @@ export const CrmCustomerTierSection: React.FC<{ relationId: string; isDarkMode: 
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5 flex-wrap">
               <CustomSelect
-                className="w-24"
+                className="w-28"
                 size="compact"
                 ariaLabel="客户分层等级"
                 options={TIER_LEVELS.map(l => ({ value: l, label: TIER_LABELS[l] }))}

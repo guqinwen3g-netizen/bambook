@@ -276,12 +276,12 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
             <div>
               <div className={t.labelCls + ' mb-1'}>开始日期</div>
               <CapsuleDateInput className={t.inputCls} value={courseForm.startDate}
-                onChange={(v) => setCourseForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
+                onChange={(v) => setCourseForm(f => ({ ...f, startDate: v }))} />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>结束日期</div>
               <CapsuleDateInput className={t.inputCls} value={courseForm.endDate}
-                onChange={(v) => setCourseForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
+                onChange={(v) => setCourseForm(f => ({ ...f, endDate: v }))} />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>名额上限</div>

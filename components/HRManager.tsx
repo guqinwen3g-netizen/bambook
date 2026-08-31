@@ -1292,13 +1292,13 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         <div>
                           <div className={labelCls}>开始日期</div>
                           <CapsuleDateInput className={inputCls} value={projectForm.startDate}
-                            onChange={(v) => setProjectForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
+                            onChange={(v) => setProjectForm(f => ({ ...f, startDate: v }))} />
                         </div>
                       </div>
                       <div>
                         <div className={labelCls}>结束日期</div>
                         <CapsuleDateInput className={inputCls} value={projectForm.endDate}
-                          onChange={(v) => setProjectForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
+                          onChange={(v) => setProjectForm(f => ({ ...f, endDate: v }))} />
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <button onClick={closeProjectForm} className={actionButtonCls}>取消</button>
@@ -1372,7 +1372,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         <div>
                           <div className={labelCls}>截止日期</div>
                           <CapsuleDateInput className={inputCls} value={assignmentForm.dueDate}
-                            onChange={(v) => setAssignmentForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} />
+                            onChange={(v) => setAssignmentForm(f => ({ ...f, dueDate: v }))} />
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 pt-1">

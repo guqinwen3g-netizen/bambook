@@ -1063,11 +1063,11 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
           </div>
           <div>
             <label className={labelClass}>签发日期</label>
-            <CapsuleDateInput className="bds-input" value={form.issueDate ?? ''} onChange={(v) => set({ issueDate: v || undefined })} isDarkMode={isDarkMode} />
+            <CapsuleDateInput className="bds-input" value={form.issueDate ?? ''} onChange={(v) => set({ issueDate: v || undefined })} />
           </div>
           <div>
             <label className={labelClass}>有效期至</label>
-            <CapsuleDateInput className="bds-input" value={form.expiryDate ?? ''} onChange={(v) => set({ expiryDate: v || undefined })} isDarkMode={isDarkMode} />
+            <CapsuleDateInput className="bds-input" value={form.expiryDate ?? ''} onChange={(v) => set({ expiryDate: v || undefined })} />
           </div>
           <div><label className={labelClass}>发货人 Consignor</label><input className={inputCls} value={form.consignor ?? ''} onChange={setStr('consignor')} /></div>
           <div><label className={labelClass}>收货人 Consignee</label><input className={inputCls} value={form.consignee ?? ''} onChange={setStr('consignee')} /></div>

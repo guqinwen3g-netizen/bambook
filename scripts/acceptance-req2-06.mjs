@@ -6,7 +6,7 @@
 // 场景（DEMO-PO-2601001 无 KG 行 → 用量勾稽 checked=false 路径；
 //       再选一个 KG 行订单验证用量勾稽路径，若无则跳过该段）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'sales.a@bambook.local';
+const EMAIL = 'chloe.su@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

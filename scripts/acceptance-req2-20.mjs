@@ -4,7 +4,7 @@
 //   ② 扫描：旺月交期订单 21 天窗口预警（含分级 overdue/urgent/warning + 建议文案）；已安排出运跳过
 //   ③ 平时订单 14 天窗口；未到窗口不预警；只读零写
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

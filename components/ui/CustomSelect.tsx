@@ -17,7 +17,6 @@ interface CustomSelectProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  isDarkMode?: boolean;
   disabled?: boolean;
   className?: string;
   /** 浮层 createPortal 到 document.body（fixed + z-9999）——默认开启。
@@ -44,7 +43,6 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   value,
   onChange,
   placeholder = '请选择...',
-  isDarkMode = false,
   disabled = false,
   className = '',
   menuPortal = true,
@@ -60,6 +58,9 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  // typeahead 首字母跳选：连续击键累积 buffer，300ms 无续击自动清空
+  const typeaheadBufferRef = useRef('');
+  const typeaheadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listboxId = useId();
   const optionId = (index: number) => `${listboxId}-opt-${index}`;
 
@@ -114,6 +115,18 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     [options],
   );
 
+  // ── D-6 防越界：options 引用变化（筛选/异步刷新重建数组）时 clamp activeIndex——
+  //    越界（>= options.length）或落点已 disabled 则回退到首个可用项，避免
+  //    aria-activedescendant 指向失效项与 Enter 选中错位；仍有效的 activeIndex 原样保持
+  //    （函数式 setState 返回同一引用 → React bail out，不引入多余重渲染） ──
+  useEffect(() => {
+    setActiveIndex(prev => {
+      if (prev < 0 || (prev < options.length && !options[prev].disabled)) return prev;
+      return enabledIndices[0] ?? -1;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options]);
+
   // ── 打开时初始化键盘高亮：当前选中项，无则首个可用项 ──
   useEffect(() => {
     if (!isOpen) return;
@@ -132,6 +145,11 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     const el = itemRefs.current[activeIndex];
     el?.scrollIntoView?.({ block: 'nearest' });
   }, [activeIndex, isOpen]);
+
+  // typeahead 计时器随组件卸载清理（防泄漏）
+  useEffect(() => () => {
+    if (typeaheadTimeoutRef.current) clearTimeout(typeaheadTimeoutRef.current);
+  }, []);
 
   // ── click-outside + focusin 关闭（2026-08-31 走查 D-5）：isOpen 门控——关闭态零监听，
   //    打开态才挂载；focusin 兜住 programmatic focus() 等不产生 mousedown 的焦点移动 ──
@@ -212,8 +230,28 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       case 'Tab':
         setIsOpen(false);
         break;
-      default:
+      default: {
+        // ── typeahead 首字母跳选（原生 select 键盘能力回退）：仅展开态响应可打印字符；
+        //    buffer 以 label 开头匹配（不区分大小写），从当前高亮项之后循环查找首个命中。
+        //    收起态不处理——保持「打开」快捷键语义不变 ──
+        if (isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          if (typeaheadTimeoutRef.current) clearTimeout(typeaheadTimeoutRef.current);
+          typeaheadBufferRef.current += e.key;
+          typeaheadTimeoutRef.current = setTimeout(() => {
+            typeaheadBufferRef.current = '';
+            typeaheadTimeoutRef.current = null;
+          }, 300);
+          const buffer = typeaheadBufferRef.current.toLowerCase();
+          const startPos = enabledIndices.indexOf(activeIndex);
+          const searchOrder = startPos === -1
+            ? enabledIndices
+            : [...enabledIndices.slice(startPos + 1), ...enabledIndices.slice(0, startPos + 1)];
+          const hit = searchOrder.find(i => options[i].label.toLowerCase().startsWith(buffer));
+          if (hit !== undefined) setActiveIndex(hit);
+        }
         break;
+      }
     }
   };
 

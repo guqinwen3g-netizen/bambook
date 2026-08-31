@@ -5,7 +5,7 @@
 //   ② 坏账快照引用闭环可见性（发票号/订单号 payload 留痕）
 //   ③ 净损失 = 申报 − 转卖回收 − 回款 + 退运成本（100000 − 40000 − 7000 + 8000 = 61000）
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local'; // SuperAdmin（relations:write + crm:write + credit:freeze:write 全链）
+const EMAIL = 'jason.shen@bambook.local'; // SuperAdmin（relations:write + crm:write + credit:freeze:write 全链）
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

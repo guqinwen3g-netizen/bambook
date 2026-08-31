@@ -458,7 +458,6 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     className="bds-input"
                     value={options.shipmentDate}
                     onChange={(v) => setOptions({ ...options, shipmentDate: v })}
-                    isDarkMode={isDarkMode}
                   />
                 </div>
 

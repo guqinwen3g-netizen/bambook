@@ -2,6 +2,44 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 
+// ════════════════════════════════════════════════════════════════
+// body 滚动锁（引用计数）——走查 P2：模态打开时背景页面滚动穿透
+//
+// 为什么引用计数：BdsDialog 与 BottomSheet 并存（dialog 内开 sheet、
+// sheet 内 bdsConfirm）时，直接 set/reset 会互相覆盖——后关者一恢复
+// 就把先开者还需要的锁一并清掉。计数归 0（最后一个关闭者）才恢复原 overflow。
+//
+// bdsConfirm / bdsPrompt（createRoot 命令式挂载）复用 BdsDialog 本体，
+// lock effect 随组件生命周期自动生效，无需各自处理。BottomSheet 已迁移至同一工具对。
+// ════════════════════════════════════════════════════════════════
+
+let scrollLockCount = 0;
+let savedBodyOverflow: string | null = null;
+
+/** 获取 body 滚动锁（计数 +1；首个获取者记录原 overflow 并锁定）。返回幂等 release 函数。 */
+export function acquireBodyScrollLock(): () => void {
+  scrollLockCount += 1;
+  if (scrollLockCount === 1) {
+    savedBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    scrollLockCount -= 1;
+    if (scrollLockCount === 0) {
+      document.body.style.overflow = savedBodyOverflow ?? '';
+      savedBodyOverflow = null;
+    }
+  };
+}
+
+/** 归还滚动锁（计数 -1；归 0 恢复滚动）。与 acquireBodyScrollLock 配对使用，可安全传 null。 */
+export function releaseBodyScrollLock(release: (() => void) | null | undefined): void {
+  release?.();
+}
+
 /**
  * BdsDialog — BDS 模态对话框统一入口（page-skeleton-spec §7 弹窗区）
  *
@@ -40,6 +78,12 @@ export const BdsDialog: React.FC<BdsDialogProps> = ({
   onCancel,
 }) => {
   const isConfirm = !!onCancel;
+  // body 滚动锁：本组件无 open prop——被条件渲染或 createRoot 挂载即"打开"，
+  // effect 生命周期 = 锁生命周期（引用计数与 BottomSheet 共享，见文件头部说明）
+  useEffect(() => {
+    const release = acquireBodyScrollLock();
+    return () => releaseBodyScrollLock(release);
+  }, []);
   // ESC 关闭：与遮罩点击同语义（onCancel ?? onConfirm）；loading（提交中）不响应，避免误关
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

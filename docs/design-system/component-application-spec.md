@@ -132,6 +132,32 @@ panel(34) › card(24) › inset(22) › control(18)/field(16) › compact(14) �
 
 ---
 
+## §6.6 pill 使用纪律（2026-08-31 审计裁决）
+
+> **裁决背景**：pill（`--radius-pill: 999px`）的弧度=高度一半，只有在**高度恒定**时造型才成立；
+> 高度可增长的容器一旦换行/增行，999px 弧随高度爆炸成半圆（风险管理「类型」筛选两行爆形实机实证）。
+> 本节是 pill 的**唯一合法适用域**；对应代码已落地（tokens.css `--r-toast` 改挂 / components.css wrap 降级规则 / nowrap 补齐），新代码按本节执行，冲突旧口径一律以本节为准。
+
+**规格条款：**
+
+1. **pill 仅限高度恒定元素**：按钮 / 徽章 / 单行输入 / 分段器 / 头像 / 进度条 / 开关。**高度可增长容器禁用 pill**——换行即爆形，改用固定档圆角（control / md / inset）。
+2. **pill 家族必须单行保护**：`white-space: nowrap` 是 pill 类组件的强制配套——`.bds-btn` / `.bds-badge` 原有，segment `.seg` / toggle / chip / tag / toolchip / status-badge / glass-pill 已于本批补齐；新增 pill 类组件必须同步声明 nowrap，否则不得进入 pill 家族。
+3. **消息条族统一固定档**：toast / alert / banner 一律 `--radius-md`（16px）——`--r-toast` 已从 pill 改挂 `--radius-md`（tokens.css）。消息条高度随文案可增长，**永久禁 pill**。
+4. **多行控件 → rounded-inset**：textarea 等多行输入禁 pill，统一 `rounded-inset`（OrderFieldInput 先例；2026-08-31 审计两车道修复 8 处对齐此拍板）。
+5. **错误横幅/提示条 → rounded-control**：alert/banner 类横幅容器用 `rounded-control`（18px 固定档），审计修复 6 处。
+6. **wrap 容器自动降级**：声明 `flex-wrap` 的 `.bds-segment` / `.bds-filterbar` 由 CSS 规则强制降级 `--radius-control`（components.css「wrap 形态圆角降级」规则，特异性 0-2-0 高于基类，全站 18 处消费点一次根治）；新增 wrap 消费点自动受保护，**禁止在 TSX 层覆盖回 pill**。
+7. **旧规范失效**：与本节冲突的历史文档口径（含 page-skeleton-spec.md）已同批更新；如再发现 pill 相关旧口径残留，以本节为准并回改该文档，不得回刷。
+
+**违例反例（本批审计实际清零的三类，均为违规）：**
+
+| 反例 | 错误形态 | 正确形态 |
+|---|---|---|
+| textarea 套 pill | 多行输入用 999px 圆角，增行即爆形 | `rounded-inset` |
+| 消息条/错误横幅套 pill | toast / alert / banner 用 999px，文案换行弧度成半圆 | 消息条 `--radius-md` / 横幅 `rounded-control` |
+| wrap 容器套 pill | 声明 `flex-wrap` 的分段器/工具条保持 999px，第二行起弧度爆炸 | CSS 自动降级 `--radius-control`，禁手动覆盖 |
+
+---
+
 ## §7 列表范式
 
 | 范式 | 组件 | 适用语境 |
@@ -176,3 +202,4 @@ panel(34) › card(24) › inset(22) › control(18)/field(16) › compact(14) �
 | V7 | 模态/内联表单高度 | **34px 密集规格**（现状固化）；inline style 收编为 `.bds-select.sm` 类；独立表单页仍 44（2026-08-31 W4 后由 CustomSelect 承接，选择器族已删除） | 已写入 §1 |
 | V9 | 面板主操作归属 | 面板内 primary 绑定面板状态（disabled 依赖面板输入）时留在面板任务区内（Pricing 双轨「保存定价记录」、利润表「生成利润表」）；无状态依赖的新建类主操作统一收 PageHeader（QC ref 注册模式：Pricing 3 Panel / Marketing LookbooksPanel / Inventory 2 tab / BomManager），PageHeader primary 随任务区切换 | 已写入 §4 |
 | V10 | 组件基础类宽度纪律 | **`:where()` 零特异性宽度默认**：`:where(.bds-input, .bds-select){width:100%}`。根因：基础类内联 `width:100%` 与 Tailwind 应用类同特异性且 components.css 后加载，filterbar 内 `w-[140px]` 等声明全部失效 → select 通栏挤压换行（开发管理工具区堆叠事故）。永久纪律：基础组件类禁止内联 width（2026-08-31 W4 后由 CustomSelect 承接，`:where(.bds-input, .bds-select)` 选择器族已删除、收敛为 `:where(.bds-input)`） | 已写入 components.css 注释 |
+| P1 | pill 圆角适用域（2026-08-31 pill 审计） | **pill 仅限高度恒定元素**；高度可增长容器禁用（999px 弧度=高度一半，换行即爆形）。配套：pill 家族强制 `white-space: nowrap` 单行保护；消息条族（toast/alert/banner）统一 `--radius-md`；多行控件 `rounded-inset`；错误横幅 `rounded-control`；flex-wrap 容器 CSS 自动降级 `--radius-control`。反例（textarea 套 pill / 错误横幅套 pill / wrap 容器 pill）均为违规 | 已写入 §6.6 |

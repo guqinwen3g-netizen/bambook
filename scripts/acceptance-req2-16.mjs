@@ -6,7 +6,7 @@
 //   ④ 退役终态（在借退役 409；退役后借出/看样 409）
 //   ⑤ 权限：无 sample:room:write 角色 403；按 code 直达
 const BASE = 'http://127.0.0.1:8081';
-const EMAIL = 'boss@bambook.local';
+const EMAIL = 'jason.shen@bambook.local';
 const PASSWORD = 'Bambook@2026';
 
 const results = [];

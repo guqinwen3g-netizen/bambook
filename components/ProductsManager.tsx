@@ -202,7 +202,6 @@ const FabricSupplierField: React.FC<{
         onChange={setSelectedValue}
         options={options}
         placeholder="请选择供应商档案"
-        isDarkMode={isDarkMode}
         surface="form"
         menuPortal
         className="relative z-30 w-full"
@@ -2403,7 +2402,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             setSelectedSubId(null);
           }}
           options={classificationViews.map(view => ({ value: view.id, label: view.label }))}
-          isDarkMode={isDarkMode}
           size="compact"
           surface="toolbar"
           triggerVariant="inline"
@@ -2439,7 +2437,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             if (next) setTableSort({ column: next.column, desc: next.desc });
           }}
           options={productSortOptions.map(option => ({ value: option.value, label: option.label }))}
-          isDarkMode={isDarkMode}
           size="compact"
           surface="toolbar"
           triggerVariant="inline"
@@ -4207,7 +4204,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                              <CompiledSelectControl
 	                                value={productStatusValue}
 	                                onChange={setProductStatusValue}
-	                                isDarkMode={isDarkMode}
 	                                options={productStatusOptions}
 	                                surface="form"
 	                                menuPortal
@@ -4260,7 +4256,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                              <CompiledSelectControl
 	                                value={productStatusValue}
 	                                onChange={setProductStatusValue}
-	                                isDarkMode={isDarkMode}
 	                                options={productStatusOptions}
 	                                surface="form"
 	                                menuPortal
@@ -5105,7 +5100,6 @@ export const ProductModuleSettingsWorkspace = ({
             value={moduleSettings.defaultSortValue}
             onChange={value => patchModuleSettings({ defaultSortValue: value })}
             options={PRODUCT_MODULE_SORT_OPTIONS}
-            isDarkMode={isDarkMode}
             surface="form"
             menuPortal
           />

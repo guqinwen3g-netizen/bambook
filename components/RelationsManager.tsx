@@ -954,7 +954,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             value={relationSortMode}
             onChange={(value) => setRelationSortMode(value as RelationSortMode)}
             options={relationSortOptions}
-            isDarkMode={isDarkMode}
             className={RELATIONS_TOOLBAR_SORT_CLASS}
             size="compact"
             surface="toolbar"
@@ -1976,7 +1975,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             className="mt-1"
                           value={formSelectValues.rating || '3'}
                           onChange={(value) => setFormSelectValue('rating', value)}
-                          isDarkMode={isDarkMode}
                           surface="form"
                           options={[5, 4, 3, 2, 1].map(tier => ({ value: String(tier), label: tierLabel(tier) }))}
                         />
@@ -2265,7 +2263,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             value={formSelectValues.paymentTerms || ''}
                             onChange={(value) => setFormSelectValue('paymentTerms', value)}
                             placeholder="选择付款条款"
-                            isDarkMode={isDarkMode}
                             surface="form"
                             options={paymentTermOptions}
                           />
@@ -2278,7 +2275,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             value={formSelectValues.currency || ''}
                             onChange={(value) => setFormSelectValue('currency', value)}
                             placeholder="选择币种"
-                            isDarkMode={isDarkMode}
                             surface="form"
                             options={currencyOptions}
                           />
@@ -2391,7 +2387,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           <CapsuleDateInput
                             value={birthdayDraft}
                             onChange={setBirthdayDraft}
-                            isDarkMode={isDarkMode}
                             className="mt-1 w-full"
                           />
                         </div>
@@ -2403,7 +2398,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             value={formSelectValues.language || ''}
                             onChange={(value) => setFormSelectValue('language', value)}
                             placeholder="选择语言"
-                            isDarkMode={isDarkMode}
                             surface="form"
                             options={languageOptions}
                           />

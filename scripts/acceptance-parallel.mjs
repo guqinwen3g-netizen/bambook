@@ -6,10 +6,10 @@ const BASE = 'http://localhost:3000';
 const PASSWORD = 'Bambook@2026';
 
 const AGENTS = [
-  { name: 'A-经营总览+平台', email: 'gm@bambook.local', pages: ['全景看板', '经营驾驶舱', '报表中心', 'AI 助手', '数据中心', '人事管理', '业务工具', '管理后台', '设置'] },
-  { name: 'B-客户与市场', email: 'sales.a@bambook.local', pages: ['关系智库', '客户关系管理', '供应商管理', '智能邮箱', '季节性与趋势', '营销推广'] },
-  { name: 'C-订单履约', email: 'sales.manager@bambook.local', pages: ['数字档案', '开发管理', '报价管理', '订单管理', '生产跟单', '采购管理', '库存管理', 'QC 工作台', '货运管理', '外贸与报关', '单据中心', '生产执行 MES'] },
-  { name: 'D-财务与成本', email: 'finance.manager@bambook.local', pages: ['财务管理', '定价与利润', 'BOM 成本核算', '风险管理与合规', '发票管理'] },
+  { name: 'A-经营总览+平台', email: 'raymond.lin@bambook.local', pages: ['全景看板', '经营驾驶舱', '报表中心', 'AI 助手', '数据中心', '人事管理', '业务工具', '管理后台', '设置'] },
+  { name: 'B-客户与市场', email: 'chloe.su@bambook.local', pages: ['关系智库', '客户关系管理', '供应商管理', '智能邮箱', '季节性与趋势', '营销推广'] },
+  { name: 'C-订单履约', email: 'vivian.chen@bambook.local', pages: ['数字档案', '开发管理', '报价管理', '订单管理', '生产跟单', '采购管理', '库存管理', 'QC 工作台', '货运管理', '外贸与报关', '单据中心', '生产执行 MES'] },
+  { name: 'D-财务与成本', email: 'melissa.zhao@bambook.local', pages: ['财务管理', '定价与利润', 'BOM 成本核算', '风险管理与合规', '发票管理'] },
 ];
 
 const HARD_PH = /TODO|占位|敬请期待|coming soon|开发中|待开发|建设中|placeholder|lorem ipsum|no data/i;

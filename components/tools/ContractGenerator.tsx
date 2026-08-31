@@ -455,7 +455,6 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                   className="bds-input"
                   value={signDate}
                   onChange={(v) => setSignDate(v)}
-                  isDarkMode={isDarkMode}
                 />
               </div>
               <div>
