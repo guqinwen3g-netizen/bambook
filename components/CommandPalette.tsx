@@ -309,7 +309,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     >
       <RdlSurface
         tone="panel"
-        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh]"
+        /* 磨砂亮焦点（2026-08-31 用户实测两轮反馈定稿）：RdlSurface--panel 默认 44% 半透明白
+           叠暗遮罩融为一片灰暗（无焦点感）→ 首版实底 --bg-card 又过强（明暗对比太硬且失磨砂语言）。
+           定稿 = BDS 原生磨砂材质（与 CustomSelect 浮层同款 frosted 语言）：高不透明磨砂底
+           （浅 62% 白 / 深 64%）+ 自体 backdrop blur/saturate + 细描边——暗背景中亮起但不实心。
+           utilities 层后加载，稳定覆盖 rdl-surface--panel 默认底色。 */
+        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] bg-[var(--frosted-bg)] backdrop-blur-2xl backdrop-saturate-150 border border-white/55 dark:border-white/10"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* 搜索输入 */}
