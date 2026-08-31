@@ -129,29 +129,21 @@ const getCachedWallpaperAccentSample = (wallpaperUrl: string): WallpaperAccentRG
   // 2) 自定义壁纸：本会话内存缓存。
   const memorySample = wallpaperAccentSampleCache.get(key);
   if (memorySample) return memorySample;
-  // 3) 自定义壁纸：跨会话 localStorage 缓存（上传时写入，见 setWallpaperAccentSample）。
+  // 3) 自定义壁纸：跨会话 localStorage 缓存（异步采样成功后写入）。
   const storedSample = readStoredWallpaperAccentSamples()[key];
   if (!storedSample) return null;
   wallpaperAccentSampleCache.set(key, storedSample);
   return storedSample;
 };
 
-/**
- * 给自定义壁纸登记一份颜色档案（同步），后续切换/重载都能瞬间命中。
- * 推荐时机：在 Settings 上传壁纸成功、拿到 DataURL 之后立即调用，
- * 这样接下来的 handleUpdate('backgroundImage', url) 会走纯同步路径。
- */
-export const setWallpaperAccentSample = (wallpaperUrl: string, sample: WallpaperAccentRGB): void => {
-  const key = normalizeWallpaperUrlKey(wallpaperUrl);
-  if (!key) return;
-  wallpaperAccentSampleCache.set(key, sample);
-  writeStoredWallpaperAccentSample(key, sample);
-};
-
 export const defaultWallpaperAccentPalette = (isDarkMode: boolean): WallpaperAccentPalette => {
-  const accent = isDarkMode ? { r: 127, g: 167, b: 232 } : { r: 111, g: 143, b: 184 };
-  const strong = isDarkMode ? { r: 49, g: 90, b: 157 } : { r: 23, g: 59, b: 134 };
-  const soft = isDarkMode ? { r: 143, g: 195, b: 193 } : { r: 199, g: 226, b: 223 };
+  /* 2026-09-01 雾蓝单频道（用户实机拍板）：地图调色板由旧竹蓝（hue 217-225°）整体
+     迁入 brand-mist 频道（hue 200-206°），与侧边栏/主区同频。
+     accent 三元对齐 BDS --accent 族；globe 表面对齐深色阶梯（page #14232F /
+     card #1E3444 / sidebar 渐变 #132A36→#243F4C）。 */
+  const accent = isDarkMode ? { r: 115, g: 178, b: 201 } : { r: 52, g: 118, b: 141 };   // #73B2C9 / #34768D
+  const strong = isDarkMode ? { r: 90, g: 164, b: 191 } : { r: 39, g: 87, b: 104 };    // #5AA4BF / #275768
+  const soft = isDarkMode ? { r: 159, g: 188, b: 203 } : { r: 198, g: 217, b: 226 };   // #9FBCCB / #C6D9E2
   return {
     accent: rgbToHex(accent),
     accentStrong: rgbToHex(strong),
@@ -159,10 +151,10 @@ export const defaultWallpaperAccentPalette = (isDarkMode: boolean): WallpaperAcc
     accentRgb: rgbToTriplet(accent),
     accentStrongRgb: rgbToTriplet(strong),
     accentSoftRgb: rgbToTriplet(soft),
-    globeAtmosphere: isDarkMode ? '#10233d' : '#dce8f1',
-    globeBorder: isDarkMode ? '#8fc3c1' : '#173b86',
-    globeLand: isDarkMode ? '#294465' : '#eef3f6',
-    globeLandRim: isDarkMode ? '#6f96d2' : '#dce8f1',
+    globeAtmosphere: isDarkMode ? '#122532' : '#D3E2EA',
+    globeBorder: isDarkMode ? '#4E7A90' : '#34768D',
+    globeLand: isDarkMode ? '#2B4D60' : '#ECF2F6',
+    globeLandRim: isDarkMode ? '#79ADC2' : '#C6DAE3',
   };
 };
 
@@ -184,21 +176,6 @@ export const deriveWallpaperAccentPalette = (sample: WallpaperAccentRGB, isDarkM
     globeLand: rgbToHex(hslToRgb(hsl.h, Math.min(0.62, saturation * 1.08), isDarkMode ? 0.58 : 0.42)),
     globeLandRim: rgbToHex(hslToRgb(hsl.h, Math.min(0.72, saturation * 1.18), isDarkMode ? 0.78 : 0.58)),
   };
-};
-
-export const getCachedWallpaperAccentPalette = (wallpaperUrl: string, isDarkMode: boolean): WallpaperAccentPalette | null => {
-  const sample = getCachedWallpaperAccentSample(wallpaperUrl);
-  return sample ? deriveWallpaperAccentPalette(sample, isDarkMode) : null;
-};
-
-export const applyWallpaperAccentPaletteToElement = (element: HTMLElement | null, palette: WallpaperAccentPalette) => {
-  if (!element) return;
-  element.style.setProperty('--os-vnext-brand-blue', palette.accent);
-  element.style.setProperty('--os-vnext-brand-blue-strong', palette.accentStrong);
-  element.style.setProperty('--os-vnext-brand-blue-soft', palette.accentSoft);
-  element.style.setProperty('--os-vnext-brand-blue-rgb', palette.accentRgb);
-  element.style.setProperty('--os-vnext-brand-blue-strong-rgb', palette.accentStrongRgb);
-  element.style.setProperty('--os-vnext-brand-blue-soft-rgb', palette.accentSoftRgb);
 };
 
 const sampleWallpaperAverageColorUncached = (wallpaperUrl: string): Promise<WallpaperAccentRGB | null> => new Promise(resolve => {
@@ -257,27 +234,4 @@ export const sampleWallpaperAverageColor = (wallpaperUrl: string): Promise<Wallp
   });
   wallpaperAccentSamplePromises.set(key, next);
   return next;
-};
-
-export const resolveWallpaperAccentPalette = async (wallpaperUrl: string, isDarkMode: boolean): Promise<WallpaperAccentPalette> => {
-  const sample = await sampleWallpaperAverageColor(wallpaperUrl);
-  return sample ? deriveWallpaperAccentPalette(sample, isDarkMode) : defaultWallpaperAccentPalette(isDarkMode);
-};
-
-export const preloadWallpaperAccentPalettes = (wallpaperUrls: readonly string[]) => {
-  if (typeof window === 'undefined') return;
-  const uniqueUrls = Array.from(new Set(wallpaperUrls.map(normalizeWallpaperUrlKey).filter(Boolean)))
-    // 已在内置静态档案 / 任一缓存层命中的 URL 无需再次异步采样。
-    .filter(url => !getCachedWallpaperAccentSample(url));
-  if (uniqueUrls.length === 0) return;
-  const preload = () => {
-    uniqueUrls.forEach(url => {
-      void sampleWallpaperAverageColor(url);
-    });
-  };
-  if ('requestIdleCallback' in window) {
-    (window as Window).requestIdleCallback(preload, { timeout: 1200 });
-    return;
-  }
-  (window as Window).setTimeout(preload, 0);
 };

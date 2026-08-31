@@ -13,14 +13,12 @@ describe('OS vNext design audit', () => {
   it('detects page-local visual values outside the contract', () => {
     const root = mkdtempSync(join(tmpdir(), 'os-vnext-audit-'));
     mkdirSync(join(root, 'components'), { recursive: true });
-    mkdirSync(join(root, 'components/ui'), { recursive: true });
     mkdirSync(join(root, 'styles'), { recursive: true });
     writeFileSync(join(root, 'components/BadPanel.tsx'), [
       'export const BadPanel = () => (',
       '  <div className="rounded-[23px] bg-[#123456] shadow-[0_0_20px_rgba(0,0,0,0.2)] text-[13px]" />',
       ');',
     ].join('\n'));
-    writeFileSync(join(root, 'components/ui/osVNext.ts'), 'export const ok = "#123456";\n');
     writeFileSync(join(root, 'styles/os-vnext.css'), '.ok { color: #123456; }\n');
 
     const result = auditFiles({ rootDir: root, paths: ['components', 'styles'] });
@@ -64,15 +62,9 @@ describe('OS vNext design audit', () => {
     expect(regressedResult.violations[0].match).toBe('text-[13px]');
   });
 
-  it('is wired into package scripts and keeps OS vNext primitives as the design entry', () => {
+  it('is wired into package scripts', () => {
     const packageJson = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
-    const osVNextSource = readFileSync(new URL('../components/ui/osVNext.ts', import.meta.url), 'utf8');
-    const primitiveSource = readFileSync(new URL('../components/ui/OSPrimitives.tsx', import.meta.url), 'utf8');
 
     expect(packageJson).toContain('"audit:os-vnext": "node scripts/audit-os-vnext.mjs"');
-    expect(osVNextSource).toContain('desktop-vnext-1');
-    expect(osVNextSource).toContain('OS_VNEXT_PRIMITIVE_RECIPES');
-    expect(primitiveSource).toContain('data-os-vnext-role');
-    expect(primitiveSource).toContain('OSPanel.displayName');
   });
 });

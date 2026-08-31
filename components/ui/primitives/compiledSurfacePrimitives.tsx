@@ -310,7 +310,7 @@ export const CompiledDropdownMenuItem = React.forwardRef<HTMLButtonElement, Comp
     data-selected={selected ? 'true' : undefined}
     data-destructive={destructive ? 'true' : undefined}
     className={cx(
-      'group relative flex w-full items-center gap-2 rounded-control px-3 py-1.5 text-left text-[13px] font-light tracking-wide transition-colors',
+      'group relative flex w-full items-center gap-2 rounded-control px-3 py-1.5 text-left text-sm font-light tracking-wide transition-colors',
       'hover:bg-[var(--recessed-bg-hover)] active:bg-[var(--active-darken)]',
       selected && 'bg-[var(--recessed-bg)]',
       destructive
@@ -326,7 +326,7 @@ export const CompiledDropdownMenuItem = React.forwardRef<HTMLButtonElement, Comp
       </span>
     ) : null}
     <span className="flex-1 truncate">{children}</span>
-    {trailing ? <span className="ml-auto shrink-0 text-[11px] opacity-60">{trailing}</span> : null}
+    {trailing ? <span className="ml-auto shrink-0 text-xs opacity-60">{trailing}</span> : null}
   </button>
 ));
 

@@ -103,14 +103,14 @@ export const AgentMermaidBlock: React.FC<AgentBlockComponentProps<AgentMermaidBl
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? kindLabel}</div>
+        <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? kindLabel}</div>
         <div className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-widest ${borderClass} ${quietTextClass}`}>
           mermaid · {block.kind}
         </div>
       </div>
 
       {block.caption && (
-        <div className={`mt-1.5 text-[11px] ${quietTextClass}`}>{block.caption}</div>
+        <div className={`mt-1.5 text-xs ${quietTextClass}`}>{block.caption}</div>
       )}
 
       <div
@@ -119,7 +119,7 @@ export const AgentMermaidBlock: React.FC<AgentBlockComponentProps<AgentMermaidBl
         style={{ minHeight: 80 }}
       >
         {error ? (
-          <div className="flex flex-col gap-1 text-[11px]">
+          <div className="flex flex-col gap-1 text-xs">
             <span className="text-[var(--text-secondary)]">无法渲染 mermaid 图：{error}</span>
             <details>
               <summary className={`cursor-pointer ${quietTextClass}`}>查看源码</summary>
@@ -133,7 +133,7 @@ export const AgentMermaidBlock: React.FC<AgentBlockComponentProps<AgentMermaidBl
             className="bambook-mermaid-svg [&_svg]:max-w-full [&_svg]:h-auto"
           />
         ) : (
-          <div className={`flex h-20 items-center justify-center text-[11px] ${quietTextClass}`}>渲染中…</div>
+          <div className={`flex h-20 items-center justify-center text-xs ${quietTextClass}`}>渲染中…</div>
         )}
       </div>
     </div>

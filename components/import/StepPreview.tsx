@@ -41,7 +41,7 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
     <div className="space-y-4">
       {/* Tabs */}
       <div
-        className={`flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-custom`}
+        className={`flex gap-2 overflow-x-auto pb-2 -mx-1 px-1`}
       >
         {results.map((r, i) => (
           <button
@@ -125,7 +125,7 @@ const OrderPreview: React.FC<{
 
       {/* Mapping hint — explains how parsed fields land on the unified Order schema */}
       <div
-        className={`rounded-inset px-4 py-3 text-[11px] leading-relaxed bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}
+        className={`rounded-inset px-4 py-3 text-xs leading-relaxed bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}
       >
         <div className="font-light mb-1">入库后的字段映射：</div>
         <ul className="list-disc pl-5 space-y-0.5">

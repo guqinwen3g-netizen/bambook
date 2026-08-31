@@ -39,7 +39,7 @@ export class AgentBlockErrorBoundary extends React.Component<AgentBlockErrorBoun
 
     return (
       <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
-        <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>渲染失败</div>
+        <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>渲染失败</div>
         <div className={`mt-1 text-xs ${quietTextClass}`}>该内容块暂时无法显示，其他内容不受影响。</div>
       </div>
     );

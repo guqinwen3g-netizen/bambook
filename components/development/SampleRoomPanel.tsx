@@ -590,7 +590,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 ...warehouses.map(w => ({ value: w.id, label: w.name })),
               ]}
             />
-            <label className="flex items-center gap-1 text-[11px] font-light text-[var(--text-tertiary)] shrink-0">
+            <label className="flex items-center gap-1 text-xs font-light text-[var(--text-tertiary)] shrink-0">
               <input type="checkbox" checked={lowStockOnly} onChange={e => setLowStockOnly(e.target.checked)} />
               仅低库存
             </label>
@@ -621,7 +621,6 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
               <Virtuoso
                 data={items}
                 style={{ height: '100%' }}
-                className="custom-scrollbar"
                 itemContent={(index, item) => {
                   const isLowStock = item.minStock != null && Number(item.availableQty) <= Number(item.minStock);
                   const onLoanQty = Number(item.quantity) - Number(item.availableQty);
@@ -638,13 +637,13 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                           {STATUS_LABELS[item.status] ?? item.status}
                         </span>
                         {/* 编号 */}
-                        <span className="bds-mono text-[11px] text-[var(--text-tertiary)] shrink-0">{item.code}</span>
+                        <span className="bds-mono text-xs text-[var(--text-tertiary)] shrink-0">{item.code}</span>
                         {/* 名称 */}
                         <span className="font-light text-xs text-[var(--text-primary)] truncate flex-1 min-w-0">{item.name}</span>
                         {/* 类型 */}
                         <span className="text-[10px] font-light text-[var(--text-tertiary)] shrink-0 hidden md:inline">{CARD_TYPE_LABELS[item.cardType] ?? item.cardType}</span>
                         {/* 数量 */}
-                        <span className="bds-tnum text-[11px] font-light text-[var(--text-secondary)] shrink-0">
+                        <span className="bds-tnum text-xs font-light text-[var(--text-secondary)] shrink-0">
                           {item.availableQty}<span className="text-[var(--text-tertiary)]">/{item.quantity}</span>{item.unit ? ` ${item.unit}` : ''}
                         </span>
                         {/* 低库存标记 */}
@@ -672,7 +671,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                       {isExpanded && (
                         <div className="px-3 py-3 space-y-2" style={{ background: 'var(--recessed-bg)' }}>
                           {/* 数量明细 */}
-                          <div className="flex flex-wrap items-center gap-3 text-[11px] font-light text-[var(--text-tertiary)]">
+                          <div className="flex flex-wrap items-center gap-3 text-xs font-light text-[var(--text-tertiary)]">
                             <span>可用 <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{item.availableQty}</span></span>
                             <span>· 总 <span className="bds-tnum">{item.quantity}</span>{item.unit ? ` ${item.unit}` : ''}</span>
                             <span>· 在借 <span className="bds-tnum">{onLoanQty}</span></span>
@@ -752,26 +751,26 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                           )}
                           {/* 操作按钮簇 */}
                           <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                            <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="二维码打印" onClick={() => openQr(item)}>
+                            <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-xs" title="二维码打印" onClick={() => openQr(item)}>
                               <QrCode size={14} />二维码
                             </button>
                             {canWrite && item.status !== 'retired' && (
-                              <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="盘点" onClick={() => openAdjustSheet(item)}>
+                              <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-xs" title="盘点" onClick={() => openAdjustSheet(item)}>
                                 <ClipboardCheck size={14} />盘点
                               </button>
                             )}
                             {canWrite && item.status === 'in_stock' && Number(item.availableQty) > 0 && (
-                              <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => openLoanSheet(item)}>
+                              <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-xs" onClick={() => openLoanSheet(item)}>
                                 借出/看样
                               </button>
                             )}
                             {canWrite && item.status === 'borrowed' && item.activeLoan && (
-                              <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => handleReturn(item)}>
+                              <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-xs" onClick={() => handleReturn(item)}>
                                 <RotateCcw size={14} />归还
                               </button>
                             )}
                             {canWrite && item.status !== 'retired' && (
-                              <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="退役" onClick={() => handleRetire(item)}>
+                              <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-xs" title="退役" onClick={() => handleRetire(item)}>
                                 <Archive size={14} />退役
                               </button>
                             )}
@@ -888,7 +887,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                         }}
                         className="w-full rounded-compact px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
                       >
-                        <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{d.code}</div>
+                        <div className="truncate text-xs font-light text-[var(--text-primary)]">{d.code}</div>
                         <div className="truncate text-[10px] font-light text-[var(--text-tertiary)]">{d.name}</div>
                       </button>
                     ))}
@@ -925,7 +924,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                         }}
                         className="w-full rounded-compact px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
                       >
-                        <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{o.poNumber}</div>
+                        <div className="truncate text-xs font-light text-[var(--text-primary)]">{o.poNumber}</div>
                         <div className="truncate text-[10px] font-light text-[var(--text-tertiary)]">{o.customer || o.id}</div>
                       </button>
                     ))}
@@ -961,7 +960,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                         }}
                         className="w-full rounded-compact px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
                       >
-                        <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{a.name}</div>
+                        <div className="truncate text-xs font-light text-[var(--text-primary)]">{a.name}</div>
                         <div className="truncate text-[10px] font-light text-[var(--text-tertiary)]">
                           {(a as any).sku ? `SKU ${(a as any).sku}` : a.id}
                         </div>
@@ -994,7 +993,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
         <BottomSheet isOpen onClose={() => !loanSaving && setLoanTarget(null)} title={`借出 / 看样 · ${loanTarget.code}`} isDarkMode={isDarkMode}>
           <form className="space-y-4 px-6 py-5" onSubmit={(e) => { e.preventDefault(); void handleCreateLoan(); }}>
             {/* 库存摘要 */}
-            <div className="rounded-inset px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
+            <div className="rounded-inset px-3 py-2 text-xs font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
               可用 {loanTarget.availableQty} / 总 {loanTarget.quantity}{loanTarget.unit ? ` ${loanTarget.unit}` : ''}
               {loanTarget.minStock != null && ` · 最低 ${loanTarget.minStock}`}
             </div>
@@ -1065,7 +1064,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
       {adjustTarget && (
         <BottomSheet isOpen onClose={() => !adjustSaving && setAdjustTarget(null)} title={`盘点 · ${adjustTarget.code}`} isDarkMode={isDarkMode}>
           <form className="space-y-4 px-6 py-5" onSubmit={(e) => { e.preventDefault(); void handleAdjust(); }}>
-            <div className="rounded-inset px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
+            <div className="rounded-inset px-3 py-2 text-xs font-light text-[var(--text-tertiary)]" style={{ background: 'var(--recessed-bg)' }}>
               当前 · 总 {adjustTarget.quantity} · 可用 {adjustTarget.availableQty}{adjustTarget.unit ? ` ${adjustTarget.unit}` : ''} · 在借 {Number(adjustTarget.quantity) - Number(adjustTarget.availableQty)}
             </div>
             <div className="grid grid-cols-3 gap-3">

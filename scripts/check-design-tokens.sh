@@ -161,7 +161,7 @@ echo "▸ 检查 Tailwind 类中的 hex 颜色..."
 hex_tailwind_count=$(rg -c '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$hex_tailwind_count" -gt "$BASELINE_HEX_TAILWIND" ]; then
   echo "  ❌ Tailwind 类中的 hex 颜色增加（基线 ${BASELINE_HEX_TAILWIND} → 当前 ${hex_tailwind_count}）"
-  echo "  请使用语义类：bg-deep/text-link/border-action/accent-cyan 等"
+  echo "  请使用语义类：bg-deep/text-link/border-action/bg-accent 等"
   rg -n '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.{ts,tsx}' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$hex_tailwind_count" -lt "$BASELINE_HEX_TAILWIND" ]; then

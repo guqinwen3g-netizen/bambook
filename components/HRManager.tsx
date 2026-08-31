@@ -857,7 +857,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             <Users className="w-4 h-4 opacity-60" />
             <h2 className={sectionTitleClass}>全部人员</h2>
           </div>
-          <div className={`${sectionMutedClass} mt-0.5 text-[11px]`}>
+          <div className={`${sectionMutedClass} mt-0.5 text-xs`}>
             {personnel.length} 人 · 在职 {personnel.filter(p => p.status === 'active').length} · 待审批 {personnel.filter(p => p.status === 'pending').length}
           </div>
         </div>
@@ -871,7 +871,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             <h2 className={sectionTitleClass}>{selectedDept.name}</h2>
             <span className={statusChipCls(selectedDept.status)}>{selectedDept.status === 'active' ? '活跃' : selectedDept.status}</span>
           </div>
-          <div className={`${sectionMutedClass} mt-0.5 text-[11px]`}>
+          <div className={`${sectionMutedClass} mt-0.5 text-xs`}>
             部门 · {deptPersonnel.length} 人 · {deptTeams.length} 个团队{parentDept ? ` · 上级 ${parentDept.name}` : ''}
           </div>
         </div>
@@ -885,7 +885,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             <h2 className={sectionTitleClass}>{selectedTeam.name}</h2>
             <span className={statusChipCls(selectedTeam.status)}>{selectedTeam.status === 'active' ? '活跃' : selectedTeam.status}</span>
           </div>
-          <div className={`${sectionMutedClass} mt-0.5 text-[11px]`}>
+          <div className={`${sectionMutedClass} mt-0.5 text-xs`}>
             团队 · {selectedTeam.memberCount} 成员 · {teamProjects.length} 个项目{teamLeader ? ` · 负责人 ${teamLeader.displayName}` : ''}
           </div>
         </div>
@@ -901,7 +901,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             <span className={statusChipCls(selectedProject.status)}>{statusLabel(selectedProject.status, PROJECT_STATUS_OPTIONS)}</span>
             <span className={priorityChipCls(selectedProject.priority)}>{statusLabel(selectedProject.priority, PRIORITY_OPTIONS)}</span>
           </div>
-          <div className={`${sectionMutedClass} mt-0.5 text-[11px]`}>
+          <div className={`${sectionMutedClass} mt-0.5 text-xs`}>
             项目 · {selectedProject.memberCount} 成员 · {projectAssignments.length} 任务
             {selectedProject.endDate && ` · 截止 ${formatDate(selectedProject.endDate)}`}
           </div>
@@ -1142,7 +1142,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         contextLabel="Organization & Teams"
         actions={activeView === 'org' && canWriteHr ? (
           <RdlToolbar density="compact">
-            <RdlPill type="button" active tone="accent" onClick={() => openProjectForm()} className="min-h-8 px-4 text-[11px]">
+            <RdlPill type="button" active tone="accent" onClick={() => openProjectForm()} className="min-h-8 px-4 text-xs">
               <Plus className="w-3.5 h-3.5" /> 新建项目
             </RdlPill>
           </RdlToolbar>
@@ -1159,7 +1159,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
               active={activeView === v.id}
               tone={activeView === v.id ? 'accent' : undefined}
               onClick={() => setActiveView(v.id)}
-              className="min-h-8 px-4 text-[11px]"
+              className="min-h-8 px-4 text-xs"
             >
               {v.label}
             </RdlPill>
@@ -1202,7 +1202,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                 placeholder="搜索部门 / 团队 / 项目"
               />
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 space-y-0.5">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-0.5">
               <button
                 className={treeBtnClass(effectiveNode.type === 'all')}
                 style={{ paddingLeft: 10 }}
@@ -1441,7 +1441,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             </AnimatePresence>
 
             {/* Content scroll area */}
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-4">
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
               {loading ? (
                 <div className={`text-center py-12 ${sectionMutedClass}`}>
                   <div className="inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin opacity-40 mb-2" />

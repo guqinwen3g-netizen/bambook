@@ -1,6 +1,5 @@
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { OS_MATERIAL, OS_SHADOW } from './osMaterial';
-import { OS_VNEXT_ALLOWED_TOKEN_FILES } from './osVNext';
 
 export const BAMBOOK_DESIGN_SYSTEM_VERSION = 'bambook-os-design-system-v1';
 
@@ -89,14 +88,6 @@ export const BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES = [
       'Bambook RDL pill, search, filter, card, row, and overlay-control dialect',
       'shared component transfer rules before page migration',
     ],
-  },
-] as const;
-
-export const BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES = [
-  {
-    path: 'styles/design-system.css',
-    status: 'legacy-command-center',
-    rule: 'Do not add new Bambook OS material values here. Migrate repeated values into os-vnext or bambookOsTokens first.',
   },
 ] as const;
 
@@ -743,9 +734,8 @@ export const BAMBOOK_DESIGN_SYSTEM_RULES = [
 export const BAMBOOK_DESIGN_SYSTEM_CONTRACT = {
   version: BAMBOOK_DESIGN_SYSTEM_VERSION,
   authoritativeSources: BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES,
-  legacySources: BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES,
   retiredDocs: BAMBOOK_DESIGN_SYSTEM_RETIRED_DOCS,
-  allowedTokenFiles: OS_VNEXT_ALLOWED_TOKEN_FILES,
+  allowedTokenFiles: ['styles/os-vnext.css'] as const,
   materialRoles: OS_MATERIAL,
   shadowRoles: OS_SHADOW,
   semanticTokens: BAMBOOK_OS.patterns,

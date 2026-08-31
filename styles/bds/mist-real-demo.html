@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>真规格 Demo · 雾蓝频道 × 功能栏方案 A</title>
+<!-- 生产 BDS CSS —— 本页一切尺寸/圆角/字号/间距均为生产真值，零手造 -->
+<link rel="stylesheet" href="/styles/bds/tokens.css">
+<link rel="stylesheet" href="/styles/bds/components.css">
+<style>
+/* ============ 雾蓝频道配色覆盖（demo 专用，落地时回写 tokens.css） ============ */
+:root {
+  --bg-page: #ECF1F5;
+  --page-aurora:
+    radial-gradient(52% 38% at 18% 8%, rgba(159,188,203,0.35) 0%, transparent 100%),
+    radial-gradient(44% 34% at 84% 78%, rgba(198,217,226,0.22) 0%, transparent 100%);
+  --frosted-bg: rgba(250,252,254,0.92);
+  --bg-raised: #FFFFFF;
+  --recessed-bg: rgba(15,29,39,0.05);
+  --recessed-bg-hover: rgba(15,29,39,0.075);
+  --recessed-bg-strong: rgba(15,29,39,0.09);
+  --text-primary: #0F1D27;
+  --text-secondary: #47596A;
+  --text-tertiary: #6E8291;
+  --hover-darken: rgba(15,29,39,0.04);
+}
+html.dark {
+  --bg-page: #0F1D27;
+  --page-aurora:
+    radial-gradient(52% 38% at 18% 8%, rgba(78,122,144,0.42) 0%, transparent 100%),
+    radial-gradient(44% 34% at 84% 78%, rgba(46,74,92,0.30) 0%, transparent 100%);
+  --frosted-bg: rgba(24,44,59,0.92);
+  --bg-raised: #1B3040;
+  --recessed-bg: rgba(3,8,12,0.34);
+  --recessed-bg-hover: rgba(3,8,12,0.42);
+  --recessed-bg-strong: rgba(3,8,12,0.5);
+  --text-primary: #E8EEF2;
+  --text-secondary: #9FB0BC;
+  --text-tertiary: #6E8291;
+  --hover-darken: rgba(232,238,242,0.05);
+}
+
+/* ============ demo 页框架（仅布局壳，组件本体全走生产类） ============ */
+body {
+  margin: 0; min-height: 100vh;
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  background-image: var(--page-aurora);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  transition: background-color .25s;
+}
+.demo-wrap { max-width: 1100px; margin: 0 auto; padding: 0 28px 80px; }
+.demo-topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 12px;
+  padding: 14px 28px; margin: 0 -28px 8px; backdrop-filter: none; }
+.demo-topbar h1 { font-size: 15px; font-weight: 300; letter-spacing: .3px; margin: 0; }
+.demo-topbar .sub { font-size: 11px; color: var(--text-tertiary); }
+.demo-topbar .spacer { flex: 1; }
+
+/* 真实页面标题区 —— px-7 pt-5 pb-4 生产间距 */
+.page-head { display: flex; align-items: baseline; justify-content: space-between; padding: 20px 28px 16px; }
+.page-title { font-size: 20px; font-weight: 300; letter-spacing: .2px; }
+.page-title .en { font-size: 12px; color: var(--text-tertiary); margin-left: 10px; letter-spacing: 1.5px; text-transform: uppercase; }
+.page-crumb { font-size: 12px; color: var(--text-tertiary); }
+
+.study-tag { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-tertiary); margin: 34px 28px 10px; }
+.study-tag b { color: var(--accent-text); font-weight: 500; }
+.study-note { font-size: 11.5px; color: var(--text-tertiary); margin: 8px 28px 0; line-height: 1.7; }
+
+/* ============ 方案 A · 组合行设计（先定行再定件） ============ */
+/* 行基准：单行 40px 锚——搜索/分段/按钮同高垂直居中成「一排」，不是各做各的 */
+.pa-row { display: flex; align-items: center; gap: 10px; padding: 0 28px; }
+
+/* 搜索 — 999 胶囊磨砂主件：40px 高、收窄 280px、靠左定锚 */
+.pa-row .bds-search { width: 280px; flex-shrink: 0; }
+.pa-row .bds-search .bds-input {
+  height: 40px;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-pill);
+  background: var(--frosted-bg);
+  border: 1px solid var(--border-default, rgba(127,163,179,0.35));
+  padding-left: 38px;
+}
+.pa-row .bds-search .bds-search-icon { left: 13px; }
+.pa-row .bds-search .bds-input:hover { background: var(--frosted-bg); filter: brightness(1.015); }
+.pa-row .bds-search .bds-input:focus { background: var(--frosted-bg); border-color: var(--accent); }
+
+/* 分段器 — 回归组合件身份：紧凑 32px 段高嵌行内，不与主件抢体量 */
+.pa-row .bds-segment { padding: 4px; gap: 2px; border-radius: var(--radius-pill); }
+.pa-row .bds-segment .seg { padding: 6px 16px; font-size: var(--text-xs); }
+
+/* 按钮 — 行基准 40px（bds-btn 默认 h-btn-md 40px，不动） */
+
+/* 行与内容区的节奏：底部分隔（hairline）+ 呼吸间距 */
+.toolrow-wrap { padding: 0 0 18px; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+
+/* 图标（生产走 lucide-react，此处等效内联 SVG，规格 w-4 h-4 stroke 1.5） */
+.svg16 { width: 16px; height: 16px; stroke-width: 1.5; }
+.svg18 { width: 18px; height: 18px; stroke-width: 1.5; }
+</style>
+</head>
+<body>
+<div class="demo-wrap">
+
+  <div class="demo-topbar">
+    <div>
+      <h1>真规格 Demo · 雾蓝频道 × 功能栏方案 A</h1>
+      <div class="sub">组件全走生产 BDS CSS（tokens.css + components.css）——尺寸/圆角/字号/间距均为生产真值，仅配色为雾蓝新档</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="bds-btn bds-btn-secondary" onclick="toggleDark()">切换深浅色</button>
+  </div>
+
+  <!-- ════════ 现行形态 ════════ -->
+  <div class="study-tag">现行 · 嵌套底座 bds-filterbar（生产标记照抄 CrmManager）</div>
+  <div style="padding: 0 28px">
+    <div class="bds-filterbar" style="max-width: 860px">
+      <div style="position:relative; flex:1; min-width:180px">
+        <span style="pointer-events:none; position:absolute; left:0; top:0; z-index:10; display:flex; width:40px; height:40px; align-items:center; justify-content:center" aria-hidden="true">
+          <svg class="svg16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </span>
+        <input type="text" placeholder="搜索订单 / 客户 / SKU..." class="bds-input sm" style="width:100%; padding-left:40px">
+      </div>
+      <div class="bds-segment">
+        <button class="seg active">全部</button>
+        <button class="seg">生产中</button>
+        <button class="seg">已出运</button>
+      </div>
+      <button class="bds-btn bds-btn-primary">新建订单</button>
+    </div>
+  </div>
+  <div class="study-note">生产现行形态：pill 底座（padding 6px）内嵌搜索输入 + 分段器 + 主按钮——三层容器、三重描边的嵌套税。</div>
+
+  <!-- ════════ 方案 A ════════ -->
+  <div class="study-tag">方案 A · 裸排无底座 <b>待验收</b></div>
+  <div class="toolrow-wrap">
+    <div class="pa-row">
+      <div class="bds-search">
+        <span class="bds-search-icon" aria-hidden="true">
+          <svg class="svg16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </span>
+        <input type="text" placeholder="搜索订单 / 客户 / SKU..." class="bds-input">
+      </div>
+      <div class="bds-segment">
+        <button class="seg active">全部</button>
+        <button class="seg">生产中</button>
+        <button class="seg">已出运</button>
+      </div>
+      <div style="flex:1"></div>
+      <button class="bds-btn bds-btn-primary">新建订单</button>
+    </div>
+  </div>
+  <div class="study-note">组合行设计：整行 40px 基准（搜索/按钮同高成排）——搜索为 999 胶囊磨砂主件（280px 靠左），分段器回归紧凑组合件（32px 段高，不与主件抢体量），主按钮右侧；行底 hairline 分隔与内容区拉开节奏。</div>
+
+  <!-- ════════ 真实页面上下文（真实标题区 + 真实卡片表格） ════════ -->
+  <div class="study-tag">页面上下文 · 方案 A 落在真实布局中</div>
+  <div style="max-width: 1100px">
+    <div class="page-head">
+      <div class="page-title">订单管理<span class="en">Orders</span></div>
+      <div class="page-crumb">首页 / 订单管理</div>
+    </div>
+    <div class="toolrow-wrap">
+      <div class="pa-row">
+        <div class="bds-search">
+          <span class="bds-search-icon" aria-hidden="true">
+            <svg class="svg16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <input type="text" placeholder="搜索订单号 / 客户 / SKU..." class="bds-input">
+        </div>
+        <div class="bds-segment">
+          <button class="seg active">全部</button>
+          <button class="seg">待确认</button>
+          <button class="seg">生产中</button>
+          <button class="seg">已出运</button>
+        </div>
+        <div style="flex:1"></div>
+        <button class="bds-btn bds-btn-secondary">导出</button>
+        <button class="bds-btn bds-btn-primary">新建订单</button>
+      </div>
+    </div>
+
+    <div class="bds-card" style="padding: 0; overflow: hidden">
+      <table class="bds-table">
+        <thead>
+          <tr><th>订单号</th><th>客户</th><th>品类</th><th class="num">数量</th><th class="num">金额</th><th>状态</th><th>交期</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SO-2608-014</td><td>Nordwind GmbH</td><td>摇粒绒卫衣</td><td class="num">12,400</td><td class="num">$86,400</td><td><span class="bds-badge success">生产中</span></td><td>09-18</td></tr>
+          <tr><td>SO-2608-021</td><td>Pacific Apparel</td><td>全棉针织T恤</td><td class="num">28,000</td><td class="num">$52,150</td><td><span class="bds-badge warning">待确认</span></td><td>09-25</td></tr>
+          <tr><td>SO-2607-036</td><td>Maison Vert</td><td>亚麻连衣裙</td><td class="num">5,600</td><td class="num">$118,900</td><td><span class="bds-badge danger">逾期</span></td><td>08-30</td></tr>
+          <tr><td>SO-2608-009</td><td>Alpine Textil</td><td>功能性夹克</td><td class="num">8,200</td><td class="num">$43,700</td><td><span class="bds-badge info">已出运</span></td><td>已完成</td></tr>
+          <tr><td>SO-2608-027</td><td>Kyoto Trade</td><td>真丝衬衫</td><td class="num">3,150</td><td class="num">$67,300</td><td><span class="bds-badge neutral">待采购</span></td><td>10-06</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="study-note" style="margin-top: 26px">说明：字体回退系统 PingFang（生产为 Urbanist + HarmonyOS Sans SC 打包加载），字重/字号档位与生产一致；配色为雾蓝频道新档（page #ECF1F5 / #0F1D27，卡片 frosted 92%，text ink 同频道），深浅切换看两模式。</div>
+</div>
+
+<script>
+function toggleDark() { document.documentElement.classList.toggle('dark'); }
+</script>
+</body>
+</html>

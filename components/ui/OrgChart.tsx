@@ -548,7 +548,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
                     <span className={`text-xs font-light text-[var(--text-tertiary)]`}>下级关系</span>
                 </div>
-                <span className="text-[11px] ml-auto font-light text-[var(--text-tertiary)]">
+                <span className="text-xs ml-auto font-light text-[var(--text-tertiary)]">
                     拖动人员卡片到另一张卡片下方，或拖到组织卡片设为顶层
                 </span>
             </CompiledSurfacePanel>

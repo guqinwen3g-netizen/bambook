@@ -306,7 +306,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
       <div className="grid flex-1 min-h-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 px-1">
         {/* 左：课程列表 */}
         <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {courses.map(c => (
               <button key={c.id} onClick={() => setSelectedCourseId(c.id)}
                 className={`block w-full px-4 py-3 text-left ${t.rowCls(selectedCourseId === c.id)}`}>
@@ -316,7 +316,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                     {hrOptionLabel(COURSE_STATUS_OPTIONS, c.status)}
                   </span>
                 </div>
-                <div className={`mt-1 text-[11px] font-light ${t.textSecondaryClass}`}>
+                <div className={`mt-1 text-xs font-light ${t.textSecondaryClass}`}>
                   {c.type === 'Internal' ? '内部' : '外部'}
                   {c.instructor ? ` · ${c.instructor}` : ''}
                   {c.startDate ? ` · ${hrFormatDate(c.startDate)}` : ''}
@@ -380,7 +380,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                 <div className={t.thCls}>证书</div>
                 <div className={t.thCls}></div>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {enrollments.map(e => (
                   <React.Fragment key={e.id}>
                     <div className="grid grid-cols-[minmax(0,1fr)_96px_80px_minmax(0,1fr)_80px] items-center">

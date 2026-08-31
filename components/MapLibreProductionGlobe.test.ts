@@ -209,8 +209,8 @@ describe('MapLibreProductionGlobe', () => {
     const source = readFileSync(new URL('./MapLibreProductionGlobe.tsx', import.meta.url), 'utf8');
 
     expect(source).toContain("import { defaultWallpaperAccentPalette, type WallpaperAccentPalette } from '../utils/wallpaperAccent'");
-    expect(source).toContain('accentPalette?: WallpaperAccentPalette');
-    expect(source).toContain('const palette = useMemo(() => accentPalette ?? defaultWallpaperAccentPalette(isDarkMode)');
+    expect(source).not.toContain('accentPalette');
+    expect(source).toContain('const palette = useMemo(() => defaultWallpaperAccentPalette(isDarkMode), [isDarkMode])');
     expect(source).toContain('const paletteRef = useRef<WallpaperAccentPalette>(palette)');
     expect(source).toContain('function resolveThemedMapColors(palette: WallpaperAccentPalette, isDarkMode: boolean)');
     expect(source).toContain("water: mixHexColor(palette.globeAtmosphere");

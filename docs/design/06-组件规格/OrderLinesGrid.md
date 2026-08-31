@@ -173,7 +173,7 @@ const inputCls = `${spec.subFieldInput} ${spec.subFieldFocus}`;
 ```
 
 - `subFieldInput`：h-9 px-3 rounded-control border + recessedField.base（雕刻质感）
-- `subFieldFocus`：focus 态 border + ring（accent-blue 主题色）
+- `subFieldFocus`：focus 态 border + ring（主题色）
 - 所有视觉配方来自 `orderUiSpec.ts`——禁止硬编码颜色（BDS 基线纪律）
 
 ### §5.2 updateEntry（更新尺码名或数量）
@@ -466,11 +466,11 @@ SizeBreakdownEditor.onChange(v)
 |---|---|---|
 | `spec.fieldReadOnlyEmpty` | `orderUiSpec.ts` 第 369 行 | 空态文案文字色（italic 极淡） |
 | `spec.fieldSlotEmpty` | 第 371 行 | 柱状图底容器弱底色 |
-| `spec.timelineDotActive` | 第 394 行 | 柱状图 active 柱色（accent-blue + ring 光晕） |
+| `spec.timelineDotActive` | 第 394 行 | 柱状图 active 柱色（accent 雾青 + ring 光晕） |
 | `spec.listRowPrimary` | 第 376 行 | 数量文字色（primary） |
 | `spec.listRowSecondary` | 第 378 行 | 尺码名文字色（secondary） |
 | `spec.subFieldInput` | 第 497 行 | 输入框基础样式（h-9 + recessedField） |
-| `spec.subFieldFocus` | 第 500 行 | 输入框 focus 态（accent-blue ring） |
+| `spec.subFieldFocus` | 第 500 行 | 输入框 focus 态（主题色 ring） |
 | `spec.deleteBtn` | 第 503 行 | 删除按钮（h-9 w-9 ghost → hover 变红） |
 | `spec.addBtn` | 第 508 行 | 自定义添加按钮（dashed border 胶囊） |
 | `spec.quickAddBtn` | 第 513 行 | 常用尺码按钮可用态 |
@@ -480,14 +480,14 @@ SizeBreakdownEditor.onChange(v)
 
 - ❌ 禁止硬编码颜色——所有颜色走 `spec.*` 配方
 - ❌ 禁止硬编码 `rounded-[Npx]`——用 `rounded-inset` / `rounded-control` / `rounded-full` 语义类
-- ❌ 禁止 `box-shadow`——flat 设计无阴影；柱状图的"光晕"由 `ring-4 ring-accent-blue/15` 实现（属于 focus ring 范畴，允许）
+- ❌ 禁止 `box-shadow`——flat 设计无阴影；柱状图的"光晕"由 `ring-4 ring-accent/15` 实现（属于 focus ring 范畴，允许）
 - ✅ 字重仅 `font-light`（300）——所有文字（尺码名/数量/引导文字）统一 `font-light`
 - ✅ 柱状图过渡用 `transition-all duration-500`（查阅态）/ `duration-300`（编辑态预览）——编辑态更快反馈
 - ✅ 输入框用 `recessedField.base`（雕刻质感）——与 `OrderClusterBlock` 主字段同源
 
 ### §13.4 视觉特征
 
-- **柱状图**：每尺码一列，柱高度按 `qty / maxQty` 比例；柱色 `timelineDotActive`（accent-blue + ring 光晕）；底容器 `fieldSlotEmpty`（弱底色档案感）
+- **柱状图**：每尺码一列，柱高度按 `qty / maxQty` 比例；柱色 `timelineDotActive`（accent 雾青 + ring 光晕）；底容器 `fieldSlotEmpty`（弱底色档案感）
 - **行列表**：尺码输入框 `w-20` 固定窄宽 + 数量输入框 `flex-1` 自适应 + 删除按钮 `h-9 w-9` 方形
 - **快捷添加**：胶囊按钮 `rounded-full px-2.5 py-1 text-[10px]`；可用态 hover 变深，禁用态极淡 + `cursor-not-allowed`
 - **自定义按钮**：dashed border 胶囊，与快捷按钮形成视觉区分（虚线暗示"非预设"）

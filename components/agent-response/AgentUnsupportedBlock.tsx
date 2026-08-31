@@ -10,7 +10,7 @@ export const AgentUnsupportedBlock: React.FC<AgentBlockComponentProps<AgentRespo
 
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3`}>
-      <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '暂未支持的内容块'}</div>
+      <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '暂未支持的内容块'}</div>
       <div className={`mt-1 text-xs ${quietTextClass}`}>类型：{block.type}</div>
     </div>
   );

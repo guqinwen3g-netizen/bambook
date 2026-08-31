@@ -185,7 +185,7 @@ export default function ImageUploader({
 
               {/* Primary badge */}
               {img.isPrimary && (
-                <div className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[8px] font-light tracking-wide bg-[var(--os-vnext-brand-blue)] text-white`}>
+                <div className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[8px] font-light tracking-wide bg-[var(--os-vnext-brand-blue)] text-[var(--on-accent)]`}>
                   主图
                 </div>
               )}

@@ -251,7 +251,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   };
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
-  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
+  const labelCls = `text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
   const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-colors duration-200 ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
   const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const brandIconCls = BAMBOOK_OS.tone.text.brandEmphasis;
@@ -601,7 +601,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           className={`text-left p-4 rounded-control border transition-colors duration-200 ${modelId === m.id ? optionActiveCls : optionIdleCls}`}
                         >
                           <div className={`text-sm font-light ${modelId === m.id ? 'text-current' : primaryTextCls}`}>{m.title}</div>
-                          <div className={`text-[11px] mt-1 ${weakTextCls}`}>{m.sub}</div>
+                          <div className={`text-xs mt-1 ${weakTextCls}`}>{m.sub}</div>
                         </button>
                       ))}
                     </div>
@@ -785,7 +785,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     />
                   </div>
 
-                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar bg-[var(--recessed-bg-strong)] border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}>
+                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto bg-[var(--recessed-bg-strong)] border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}>
                     {testLogs.map((log, i) => (
                       <div key={i} className={`mb-1 ${log.type === 'error' ? 'text-[var(--text-tertiary)]' : log.type === 'success' ? 'text-[var(--text-secondary)]' : ''}`}>
                         {log.msg}
@@ -836,7 +836,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       <div key={category.id} className={`rounded-control border p-4 flex items-center justify-between gap-4 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
                         <div className="min-w-0">
                           <div className={`text-sm font-light ${primaryTextCls}`}>{category.label}</div>
-                          <div className={`mt-1 text-[11px] leading-relaxed ${weakTextCls}`}>{category.description}</div>
+                          <div className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>{category.description}</div>
                         </div>
                         <div className="text-right shrink-0">
                           <div className={`text-sm font-light ${primaryTextCls}`}>{formatBytes(category.bytes)}</div>
@@ -947,7 +947,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                                   移除头像
                                 </button>
                               )}
-                              <span className={`text-[11px] text-[var(--text-tertiary)]`}>
+                              <span className={`text-xs text-[var(--text-tertiary)]`}>
                                 触碰头像后点击右下角编辑按钮；自动居中裁切，所有场景统一圆形显示。
                               </span>
                             </div>
@@ -981,7 +981,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <div className="text-sm font-light">切换账号</div>
-                              <div className={`mt-1 text-[11px] ${weakTextCls}`}>退出当前会话后重新登录</div>
+                              <div className={`mt-1 text-xs ${weakTextCls}`}>退出当前会话后重新登录</div>
                             </div>
                             <ArrowRight size={16} strokeWidth={1.5} />
                           </div>
@@ -994,7 +994,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <div className="text-sm font-light">退出登录</div>
-                              <div className={`mt-1 text-[11px] text-[var(--text-tertiary)]`}>清除本机登录状态</div>
+                              <div className={`mt-1 text-xs text-[var(--text-tertiary)]`}>清除本机登录状态</div>
                             </div>
                             <LogOut size={16} strokeWidth={1.5} />
                           </div>
@@ -1009,7 +1009,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         <div className="flex items-center justify-between gap-4">
                           <div>
                             <div className={`text-sm font-light ${primaryTextCls}`}>账号修改</div>
-                            <div className={`mt-1 text-[11px] ${weakTextCls}`}>
+                            <div className={`mt-1 text-xs ${weakTextCls}`}>
                               修改密码等敏感账户操作
                             </div>
                           </div>
@@ -1095,7 +1095,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     </div>
                   </div>
 
-                  <div className={`${card} p-5 text-[11px] ${weakTextCls}`}>
+                  <div className={`${card} p-5 text-xs ${weakTextCls}`}>
                     开发者选项入口位于设置页左下角，默认隐藏；关闭开发者模式后，导航栏不再显示本页。
                   </div>
                 </div>
@@ -1123,7 +1123,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                   <div className={`text-sm font-light ${primaryTextCls}`}>调整头像</div>
-                  <div className={`mt-1 text-[11px] ${weakTextCls}`}>拖动图片位置，缩放后保存圆形头像。</div>
+                  <div className={`mt-1 text-xs ${weakTextCls}`}>拖动图片位置，缩放后保存圆形头像。</div>
                 </div>
                 <button
                   type="button"
@@ -1171,7 +1171,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <span className={labelCls}>缩放</span>
-                      <span className={`text-[11px] font-mono text-[var(--text-tertiary)]`}>{avatarCrop.scale.toFixed(2)}x</span>
+                      <span className={`text-xs font-mono text-[var(--text-tertiary)]`}>{avatarCrop.scale.toFixed(2)}x</span>
                     </div>
                     <input
                       type="range"

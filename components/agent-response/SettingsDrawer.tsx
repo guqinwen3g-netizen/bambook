@@ -45,12 +45,12 @@ const ToolCatalogSection: React.FC<{
   const groups = catalog?.groupedByDomain ?? [];
 
   if (status === 'idle' || status === 'loading') {
-    return <div className={`text-[11px] ${quietText} py-2`}>{status === 'loading' ? '加载中…' : '准备中'}</div>;
+    return <div className={`text-xs ${quietText} py-2`}>{status === 'loading' ? '加载中…' : '准备中'}</div>;
   }
 
   if (status === 'error') {
     return (
-      <div className={`text-[11px] py-2 text-[var(--text-secondary)]`}>
+      <div className={`text-xs py-2 text-[var(--text-secondary)]`}>
         {error || '加载失败'}
         <button type="button" onClick={onRetry} className="ml-2 underline">重试</button>
       </div>
@@ -58,7 +58,7 @@ const ToolCatalogSection: React.FC<{
   }
 
   if (!catalog || catalog.tools.length === 0) {
-    return <div className={`text-[11px] ${quietText} py-2`}>暂无可用工具</div>;
+    return <div className={`text-xs ${quietText} py-2`}>暂无可用工具</div>;
   }
 
   return (
@@ -77,7 +77,7 @@ const ToolCatalogSection: React.FC<{
               className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--hover-darken)] rounded-inset`}
             >
               <Wrench size={14} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
-              <span className={`text-[11px] font-light flex-1 text-[var(--text-primary)]`}>{meta.label}</span>
+              <span className={`text-xs font-light flex-1 text-[var(--text-primary)]`}>{meta.label}</span>
               <span className={`text-[10px] ${quietText}`}>{group.tools.length}</span>
               <ChevronRight size={14} strokeWidth={1.5} className={`transition-transform ${isOpen ? 'rotate-90' : ''} ${quietText}`} />
             </button>
@@ -86,7 +86,7 @@ const ToolCatalogSection: React.FC<{
                 {group.tools.map(tool => (
                   <div key={tool.id} className={`rounded-compact px-2 py-1.5 hover:bg-[var(--hover-darken)]`}>
                     <div className="flex items-center gap-1.5">
-                      <span className={`text-[11px] font-light truncate text-[var(--text-primary)]`}>{tool.name}</span>
+                      <span className={`text-xs font-light truncate text-[var(--text-primary)]`}>{tool.name}</span>
                       <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded-bds-sm border ${riskPillClass(tool.risk, isDarkMode)}`}>{tool.risk}</span>
                       <ApprovalIcon
                         approval={tool.safety.approval}
@@ -154,7 +154,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             <div className={`shrink-0 flex items-center justify-between px-4 h-12 border-b ${surfaceClass}`}>
               <div className="flex items-center gap-2">
                 <Settings size={16} className={quietText} />
-                <span className={`text-[13px] font-light ${mainText}`}>设置</span>
+                <span className={`text-sm font-light ${mainText}`}>设置</span>
               </div>
               <button
                 type="button"
@@ -167,7 +167,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </div>
 
             {/* 内容区：工具目录（当前唯一设置内容，无 tab 栏） */}
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 py-3">
+            <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
               <ToolCatalogSection
                 catalog={catalog}
                 status={catalogStatus}

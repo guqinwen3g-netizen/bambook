@@ -91,7 +91,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
           className={`rounded-card bg-[var(--bg-card)] border border-[var(--border-c-default)] overflow-hidden`}
         >
           <div
-            className={`flex items-center justify-between px-4 py-2 text-[11px] uppercase tracking-widest text-[var(--text-tertiary)] border-b border-[var(--border-c-default)]`}
+            className={`flex items-center justify-between px-4 py-2 text-xs uppercase tracking-widest text-[var(--text-tertiary)] border-b border-[var(--border-c-default)]`}
           >
             <span>已选择 {files.length} 个文件</span>
             <button

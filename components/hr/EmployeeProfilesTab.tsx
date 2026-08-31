@@ -274,11 +274,11 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
             <div className={t.thCls}>入职日期</div>
             <div className={t.thCls}>状态</div>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {employees.map(p => (
               <button key={p.userId} onClick={() => openProfile(p)}
                 className={`grid w-full grid-cols-[88px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_88px] items-center ${t.rowCls(selectedUserId === p.userId)}`}>
-                <div className={`${t.tdCls} font-mono text-[11px]`}>{p.employeeNo}</div>
+                <div className={`${t.tdCls} font-mono text-xs`}>{p.employeeNo}</div>
                 <div className={`${t.tdCls} truncate`}>{p.displayName || '-'}</div>
                 <div className={`${t.tdCls} truncate ${t.textSecondaryClass}`}>
                   {[p.department, p.position].filter(Boolean).join(' / ') || '-'}
@@ -302,7 +302,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
         </div>
 
         {/* 右：档案编辑 + 异动 */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
           {showProfileForm ? (
             <div className={`${t.cardClass} p-5 space-y-3`}>
               <div className="flex items-center justify-between">
@@ -482,7 +482,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                       {hrOptionLabel(EMPLOYMENT_EVENT_OPTIONS, ev.type)}
                     </span>
                     <span className={`text-xs font-light ${t.textPrimaryClass}`}>{hrFormatDate(ev.effectiveDate)}</span>
-                    <span className={`flex-1 truncate text-[11px] font-light ${t.textSecondaryClass}`}>{ev.reason || ''}</span>
+                    <span className={`flex-1 truncate text-xs font-light ${t.textSecondaryClass}`}>{ev.reason || ''}</span>
                   </div>
                 ))}
                 {events.length === 0 && <div className={t.sectionMutedClass}>暂无异动记录</div>}

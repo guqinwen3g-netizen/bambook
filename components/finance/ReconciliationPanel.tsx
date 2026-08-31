@@ -219,31 +219,31 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
         {summary && (
           <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-inset p-3 bds-inset">
-              <div className={cx('text-[11px] font-light', textSecondary)}>差异订单</div>
+              <div className={cx('text-xs font-light', textSecondary)}>差异订单</div>
               <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>
                 {summary.discrepancyOrders} / {summary.totalOrders}
               </div>
             </div>
             <div className="rounded-inset p-3 bds-inset">
-              <div className={cx('text-[11px] font-light', textSecondary)}>订单总额</div>
+              <div className={cx('text-xs font-light', textSecondary)}>订单总额</div>
               <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(summary.totalOrderAmount)}</div>
             </div>
             <div className="rounded-inset p-3 bds-inset">
-              <div className={cx('text-[11px] font-light', textSecondary)}>已开票</div>
+              <div className={cx('text-xs font-light', textSecondary)}>已开票</div>
               <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(summary.totalInvoicedAmount)}</div>
             </div>
             <div className="rounded-inset p-3 bds-inset">
-              <div className={cx('text-[11px] font-light', textSecondary)}>已收款</div>
+              <div className={cx('text-xs font-light', textSecondary)}>已收款</div>
               <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(summary.totalPaidAmount)}</div>
             </div>
             <div className="rounded-inset p-3 bds-inset">
-              <div className={cx('text-[11px] font-light', textSecondary)}>严重 / 警示</div>
+              <div className={cx('text-xs font-light', textSecondary)}>严重 / 警示</div>
               <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>
                 {summary.criticalCount} / {summary.warningCount}
               </div>
             </div>
             <div className="rounded-inset p-3 bds-inset">
-              <div className={cx('text-[11px] font-light', textSecondary)}>提示</div>
+              <div className={cx('text-xs font-light', textSecondary)}>提示</div>
               <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{summary.infoCount}</div>
             </div>
           </div>
@@ -286,7 +286,7 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
               { value: 'fx_payment_to_settlement', label: '汇率·收付→结汇' },
             ]}
           />
-          <span className={cx('ml-auto text-[11px] font-light', textSecondary)}>
+          <span className={cx('ml-auto text-xs font-light', textSecondary)}>
             共 {total} 条 · 第 {page}/{totalPages} 页
           </span>
           <div className="bds-segment">
@@ -307,7 +307,7 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className={cx('text-left text-[11px] font-light', textSecondary)}>
+                <tr className={cx('text-left text-xs font-light', textSecondary)}>
                   <th className="pb-2 pr-3 font-light">级别</th>
                   <th className="pb-2 pr-3 font-light">类型</th>
                   <th className="pb-2 pr-3 font-light">订单</th>
@@ -363,21 +363,21 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
               <div className="grid shrink-0 grid-cols-2 gap-2 xl:grid-cols-4">
                 {summary.fxGainLossTotal.map(row => (
                   <div key={row.currency} className="rounded-inset p-3 bds-inset">
-                    <div className={cx('text-[11px] font-light', textSecondary)}>{row.currency} · 锁汇覆盖率</div>
+                    <div className={cx('text-xs font-light', textSecondary)}>{row.currency} · 锁汇覆盖率</div>
                     <div className={cx('mt-1 text-sm font-light tabular-nums', row.coveragePct > 0 ? 'text-[var(--success-text)]' : textPrimary)}>
                       {(row.coveragePct * 100).toFixed(1)}%
                     </div>
-                    <div className={cx('mt-1 text-[11px] font-light tabular-nums', textSecondary)}>
+                    <div className={cx('mt-1 text-xs font-light tabular-nums', textSecondary)}>
                       锁定 {formatAmount(row.lockedAmount, row.currency)} / 应收 {formatAmount(row.invoicedAmount, row.currency)}
                     </div>
-                    <div className={cx('mt-1 text-[11px] font-light tabular-nums', row.realizedGainLossCny >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
+                    <div className={cx('mt-1 text-xs font-light tabular-nums', row.realizedGainLossCny >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                       已实现汇兑{row.realizedGainLossCny >= 0 ? '收益' : '损失'} {formatSigned(row.realizedGainLossCny, 'CNY')}
                     </div>
                   </div>
                 ))}
               </div>
             ) : summary ? (
-              <div className={cx('py-2 text-[11px] font-light', textSecondary)}>该客户暂无外币应收（纯 CNY 口径无汇率链）</div>
+              <div className={cx('py-2 text-xs font-light', textSecondary)}>该客户暂无外币应收（纯 CNY 口径无汇率链）</div>
             ) : null}
 
             {/* 订单汇率链清单（点击进入抽屉看三段对照表） */}
@@ -393,7 +393,7 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
               ) : (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className={cx('text-left text-[11px] font-light', textSecondary)}>
+                    <tr className={cx('text-left text-xs font-light', textSecondary)}>
                       <th className="pb-2 pr-3 font-light">订单</th>
                       <th className="pb-2 pr-3 font-light">币种</th>
                       <th className="pb-2 pr-3 font-light text-right">应收（外币）</th>
@@ -433,7 +433,7 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
                               ? o.fx.locks.map(l => (
                                   <span key={l.id} className="bds-badge sm info mr-1">锁 {l.currency} {formatRate(l.rate)}</span>
                                 ))
-                              : <span className={cx('text-[11px] font-light', textSecondary)}>—</span>}
+                              : <span className={cx('text-xs font-light', textSecondary)}>—</span>}
                           </td>
                           <td className={cx('py-2 pr-3 font-light text-right tabular-nums', o.fx.realizedGainLossCny >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                             {formatSigned(o.fx.realizedGainLossCny, o.fx.baseCurrency)}
@@ -468,7 +468,7 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
         ) : detail ? (
           <div className="flex flex-col gap-3 pb-4">
             <div className="flex items-center gap-2">
-              <span className={cx('text-[11px] font-light', textSecondary)}>
+              <span className={cx('text-xs font-light', textSecondary)}>
                 {detail.customerName || '—'} · 状态 {ORDER_STATUS_LABELS[detail.orderStatus] || detail.orderStatus} · 币种 {detail.currency || '—'}
               </span>
               <button
@@ -485,27 +485,27 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
             {/* 四单对照 */}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <div className="rounded-inset p-3 bds-inset">
-                <div className={cx('text-[11px] font-light', textSecondary)}>订单金额</div>
+                <div className={cx('text-xs font-light', textSecondary)}>订单金额</div>
                 <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(detail.orderAmount, detail.currency)}</div>
               </div>
               <div className="rounded-inset p-3 bds-inset">
-                <div className={cx('text-[11px] font-light', textSecondary)}>出运数量</div>
+                <div className={cx('text-xs font-light', textSecondary)}>出运数量</div>
                 <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>
                   {detail.shippedQty} / {detail.orderedQty}{detail.delivered ? ' · 已交付' : ''}
                 </div>
               </div>
               <div className="rounded-inset p-3 bds-inset">
-                <div className={cx('text-[11px] font-light', textSecondary)}>已开票（{detail.invoiceCount} 张）</div>
+                <div className={cx('text-xs font-light', textSecondary)}>已开票（{detail.invoiceCount} 张）</div>
                 <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(detail.invoicedAmount, detail.currency)}</div>
               </div>
               <div className="rounded-inset p-3 bds-inset">
-                <div className={cx('text-[11px] font-light', textSecondary)}>已收款</div>
+                <div className={cx('text-xs font-light', textSecondary)}>已收款</div>
                 <div className={cx('mt-1 text-sm font-light tabular-nums', textPrimary)}>{formatAmount(detail.paidAmount, detail.currency)}</div>
               </div>
             </div>
 
             {detail.referenceActualPaymentAmount != null && (
-              <div className={cx('text-[11px] font-light', textSecondary)}>
+              <div className={cx('text-xs font-light', textSecondary)}>
                 参考：手工实收字段 actualPaymentAmount = {formatAmount(detail.referenceActualPaymentAmount, detail.currency)}（非收款真源，建议废弃）
               </div>
             )}
@@ -520,9 +520,9 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
                     <div className="flex items-center gap-2">
                       <span className={SEVERITY_BADGE[d.severity]}>{SEVERITY_LABELS[d.severity]}</span>
                       <span className={cx('text-sm font-light', textPrimary)}>{DISCREPANCY_TYPE_LABELS[d.type] || d.type}</span>
-                      <span className={cx('ml-auto text-[11px] font-light tabular-nums', textSecondary)}>{d.expected} → {d.actual}</span>
+                      <span className={cx('ml-auto text-xs font-light tabular-nums', textSecondary)}>{d.expected} → {d.actual}</span>
                     </div>
-                    <div className={cx('mt-1 text-[11px] font-light', textSecondary)}>{d.message}</div>
+                    <div className={cx('mt-1 text-xs font-light', textSecondary)}>{d.message}</div>
                   </div>
                 ))}
               </div>
@@ -536,14 +536,14 @@ export function ReconciliationPanel({ isDarkMode, endpoint, relations }: Reconci
                   {detail.fx.locks.map(l => (
                     <span key={l.id} className="bds-badge sm info">锁汇 {l.currency} {formatRate(l.rate)}</span>
                   ))}
-                  <span className={cx('ml-auto text-[11px] font-light tabular-nums', detail.fx.realizedGainLossCny >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
+                  <span className={cx('ml-auto text-xs font-light tabular-nums', detail.fx.realizedGainLossCny >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                     已实现汇兑{detail.fx.realizedGainLossCny >= 0 ? '收益' : '损失'} {formatSigned(detail.fx.realizedGainLossCny, detail.fx.baseCurrency)}
                   </span>
                 </div>
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className={cx('text-left text-[11px] font-light', textSecondary)}>
+                      <tr className={cx('text-left text-xs font-light', textSecondary)}>
                         <th className="pb-2 pr-3 font-light">阶段</th>
                         <th className="pb-2 pr-3 font-light">单据</th>
                         <th className="pb-2 pr-3 font-light text-right">金额</th>

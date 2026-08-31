@@ -892,7 +892,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       <div className="min-w-0">
                         <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>当前开发单</div>
                         <div className={cx('mt-2 truncate text-base', textPrimaryClass)}>{selectedCase.name}</div>
-                        <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedCase.code} · {typeLabelMap[selectedCase.type]} · S{selectedCase.currentRound}</div>
+                        <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{selectedCase.code} · {typeLabelMap[selectedCase.type]} · S{selectedCase.currentRound}</div>
                         <div className="mt-2"><span className={`bds-badge sm ${stageTone(selectedCase.stage)}`}>{stageLabelMap[selectedCase.stage]}</span></div>
                       </div>
                       {/* 按钮簇只放纯动作按钮；flex-wrap + justify-start：窄 panel 下可换行且左对齐整齐 */}
@@ -1105,14 +1105,14 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   <button type="button" onClick={closeFormModal} aria-label="返回开发管理" className="bds-btn bds-btn-secondary bds-btn-icon">
                     <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
-                  <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+                  <h3 className="flex h-9 max-w-[260px] items-center truncate text-xs font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     {editingCase ? '编辑开发单' : '新建开发单'}
                   </h3>
                 </div>
               )}
               actions={(
                 <div className="flex h-full items-center gap-2 shrink-0">
-                  <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">
+                  <div className="text-xs font-light tracking-wide text-[var(--text-tertiary)]">
                     开发管理
                   </div>
                   <button type="button" onClick={closeFormModal} disabled={isSubmitting} className="bds-btn bds-btn-secondary">

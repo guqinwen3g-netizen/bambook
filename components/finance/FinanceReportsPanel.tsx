@@ -423,7 +423,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   }, [tab, supplierId, loadSupplierStatement]);
 
   const inputCls = cx(
-    'h-8 rounded-field border bg-transparent px-2.5 text-[11px] font-light outline-none tabular-nums',
+    'h-8 rounded-field border bg-transparent px-2.5 text-xs font-light outline-none tabular-nums',
     divider, textPrimary,
   );
 
@@ -636,7 +636,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                     <button
                       type="button"
                       onClick={() => setDunningRow({ customerRelationId: row.customerRelationId, customerName: row.customerName, currency: row.currency })}
-                      className={cx('flex items-center gap-1 rounded-control px-2.5 py-1.5 text-[11px] font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
+                      className={cx('flex items-center gap-1 rounded-control px-2.5 py-1.5 text-xs font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
                       aria-label={`对 ${row.customerName} 发起催款`}
                     >
                       <Mail size={14} strokeWidth={1.5} /> 催款
@@ -940,7 +940,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', 'text-[var(--warning-text)]')}>
               未折算内部交易披露（{r.unconverted.length} 笔，排除在抵销外）
             </div>
-            <div className="space-y-0.5 text-[11px]">
+            <div className="space-y-0.5 text-xs">
               {r.unconverted.map(u => (
                 <div key={u.transferId} className="flex items-baseline justify-between gap-2">
                   <span className={cx('min-w-0 truncate font-light', textSecondary)}>{u.transferId} · {u.direction === 'incoming' ? '内部采购' : '内部销售'}</span>
@@ -1166,7 +1166,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                         <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>交付记录（分批出运/到货/差异）</div>
                         <div className="space-y-0.5">
                           {payload.deliveries.map(d => (
-                            <div key={d.id} className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] items-center px-1 py-1 text-[11px]">
+                            <div key={d.id} className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] items-center px-1 py-1 text-xs">
                               <div className={cx('font-light tabular-nums', textSecondary)}>{d.deliveryDate}</div>
                               <div className={cx('truncate font-light', textPrimary)}>{d.shipmentNumber ?? d.shipmentId}</div>
                               <div className={cx('text-right font-light tabular-nums', textPrimary)}>出运 {d.quantity.toLocaleString('zh-CN')}</div>
@@ -1186,7 +1186,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                         <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>状态流转</div>
                         <div className="space-y-0.5">
                           {payload.history.map((h, i) => (
-                            <div key={`${h.at}-${i}`} className="flex items-baseline gap-2 px-1 py-0.5 text-[11px]">
+                            <div key={`${h.at}-${i}`} className="flex items-baseline gap-2 px-1 py-0.5 text-xs">
                               <span className={cx('shrink-0 font-light tabular-nums', textFaint)}>{h.at.slice(0, 16).replace('T', ' ')}</span>
                               <span className={cx('shrink-0 font-light', statusCls(h.to))}>
                                 {h.from ? `${INTERNAL_TRANSFER_STATUS_LABEL[h.from]} → ` : ''}{INTERNAL_TRANSFER_STATUS_LABEL[h.to]}
@@ -1201,17 +1201,17 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                     {(payload.status === 'PendingConfirm' || payload.status === 'Effective' || payload.status === 'Delivering' || payload.status === 'Draft') && (
                       <div className={cx('flex items-center gap-2 border-t pt-2', divider)}>
                         {payload.status === 'PendingConfirm' && (
-                          <RdlPill type="button" tone="accent" onClick={() => openConfirmTransfer({ record, payload })} className="min-h-8 px-3 text-[11px]">
+                          <RdlPill type="button" tone="accent" onClick={() => openConfirmTransfer({ record, payload })} className="min-h-8 px-3 text-xs">
                             面料部确认生效
                           </RdlPill>
                         )}
                         {(payload.status === 'Effective' || payload.status === 'Delivering') && (
-                          <RdlPill type="button" tone="accent" onClick={() => openDeliveryTransfer({ record, payload })} className="min-h-8 px-3 text-[11px]">
+                          <RdlPill type="button" tone="accent" onClick={() => openDeliveryTransfer({ record, payload })} className="min-h-8 px-3 text-xs">
                             交付登记
                           </RdlPill>
                         )}
                         {(payload.status === 'Draft' || payload.status === 'PendingConfirm') && (
-                          <RdlPill type="button" onClick={() => openCancelTransfer({ record, payload })} className="min-h-8 px-3 text-[11px]">
+                          <RdlPill type="button" onClick={() => openCancelTransfer({ record, payload })} className="min-h-8 px-3 text-xs">
                             取消申请
                           </RdlPill>
                         )}
@@ -1224,10 +1224,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           })}
         </div>
         {/* R3：total 披露 + offset 加载更多（原 limit:200 硬截断无感知） */}
-        <div className={cx('flex shrink-0 items-center justify-between gap-2 border-t px-4 py-2 text-[11px] font-light', divider, textSecondary)}>
+        <div className={cx('flex shrink-0 items-center justify-between gap-2 border-t px-4 py-2 text-xs font-light', divider, textSecondary)}>
           <span className="tabular-nums">共 {transfersTotal} 单 · 已加载 {transfers.length} 单</span>
           {transfers.length < transfersTotal && (
-            <RdlPill type="button" onClick={loadMoreTransfers} disabled={transfersLoadingMore} className="min-h-8 px-3 text-[11px]">
+            <RdlPill type="button" onClick={loadMoreTransfers} disabled={transfersLoadingMore} className="min-h-8 px-3 text-xs">
               {transfersLoadingMore ? <Loader2 size={14} className="animate-spin" /> : null}
               加载更多（剩余 {transfersTotal - transfers.length} 单）
             </RdlPill>
@@ -1250,7 +1250,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
       <div className="flex min-h-0 shrink-0 items-center gap-2">
         <RdlToolbar density="compact">
           {REPORT_TABS.map(t => (
-            <RdlPill key={t.id} type="button" onClick={() => setTab(t.id)} active={tab === t.id} className="min-h-8 px-4 text-[11px]">
+            <RdlPill key={t.id} type="button" onClick={() => setTab(t.id)} active={tab === t.id} className="min-h-8 px-4 text-xs">
               {t.label}
             </RdlPill>
           ))}
@@ -1258,10 +1258,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         <div className="ml-auto flex items-center gap-2">
           {tab === 'aging' && (
             <>
-              <RdlPill type="button" active={agingType === 'Receivable'} onClick={() => setAgingType('Receivable')} className="min-h-8 px-3 text-[11px]">应收</RdlPill>
-              <RdlPill type="button" active={agingType === 'Payable'} onClick={() => setAgingType('Payable')} className="min-h-8 px-3 text-[11px]">应付</RdlPill>
-              <RdlPill type="button" active tone="accent" onClick={loadAging} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
-              <RdlPill type="button" onClick={() => void runExport('aging', () => apiService.exportAgingReportXlsx(agingType, undefined, endpoint))} className="min-h-8 px-3 text-[11px]">
+              <RdlPill type="button" active={agingType === 'Receivable'} onClick={() => setAgingType('Receivable')} className="min-h-8 px-3 text-xs">应收</RdlPill>
+              <RdlPill type="button" active={agingType === 'Payable'} onClick={() => setAgingType('Payable')} className="min-h-8 px-3 text-xs">应付</RdlPill>
+              <RdlPill type="button" active tone="accent" onClick={loadAging} className="min-h-8 px-3 text-xs">刷新</RdlPill>
+              <RdlPill type="button" onClick={() => void runExport('aging', () => apiService.exportAgingReportXlsx(agingType, undefined, endpoint))} className="min-h-8 px-3 text-xs">
                 {exporting === 'aging' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
               </RdlPill>
             </>
@@ -1281,11 +1281,11 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <CapsuleDateInput value={stmtFrom} onChange={setStmtFrom} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={stmtTo} onChange={setStmtTo} className={inputCls} placeholder="结束日期" />
-              <RdlPill type="button" active tone="accent" onClick={loadStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
-              <RdlPill type="button" onClick={() => void handlePreviewStatement()} className="min-h-8 px-3 text-[11px]">
+              <RdlPill type="button" active tone="accent" onClick={loadStatement} className="min-h-8 px-3 text-xs">查询</RdlPill>
+              <RdlPill type="button" onClick={() => void handlePreviewStatement()} className="min-h-8 px-3 text-xs">
                 <Eye size={14} /> 预览 A4
               </RdlPill>
-              <RdlPill type="button" onClick={() => void runExport('stmt', () => apiService.exportCustomerStatementXlsx({ customerRelationId: customerId, from: stmtFrom || undefined, to: stmtTo || undefined }, endpoint))} className="min-h-8 px-3 text-[11px]">
+              <RdlPill type="button" onClick={() => void runExport('stmt', () => apiService.exportCustomerStatementXlsx({ customerRelationId: customerId, from: stmtFrom || undefined, to: stmtTo || undefined }, endpoint))} className="min-h-8 px-3 text-xs">
                 {exporting === 'stmt' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
               </RdlPill>
             </>
@@ -1305,8 +1305,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <CapsuleDateInput value={supFrom} onChange={setSupFrom} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={supTo} onChange={setSupTo} className={inputCls} placeholder="结束日期" />
-              <RdlPill type="button" active tone="accent" onClick={loadSupplierStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
-              <RdlPill type="button" onClick={() => void runExport('supStmt', () => apiService.exportSupplierStatementXlsx({ supplierRelationId: supplierId, from: supFrom || undefined, to: supTo || undefined }, endpoint))} className="min-h-8 px-3 text-[11px]">
+              <RdlPill type="button" active tone="accent" onClick={loadSupplierStatement} className="min-h-8 px-3 text-xs">查询</RdlPill>
+              <RdlPill type="button" onClick={() => void runExport('supStmt', () => apiService.exportSupplierStatementXlsx({ supplierRelationId: supplierId, from: supFrom || undefined, to: supTo || undefined }, endpoint))} className="min-h-8 px-3 text-xs">
                 {exporting === 'supStmt' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
               </RdlPill>
             </>
@@ -1316,7 +1316,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <CapsuleDateInput value={fxFrom} onChange={setFxFrom} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={fxTo} onChange={setFxTo} className={inputCls} placeholder="结束日期" />
-              <RdlPill type="button" active tone="accent" onClick={loadFx} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
+              <RdlPill type="button" active tone="accent" onClick={loadFx} className="min-h-8 px-3 text-xs">查询</RdlPill>
             </>
           )}
           {tab === 'fx-ledger' && (
@@ -1324,7 +1324,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <CapsuleDateInput value={ledgerFrom} onChange={setLedgerFrom} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={ledgerTo} onChange={setLedgerTo} className={inputCls} placeholder="结束日期" />
-              <RdlPill type="button" active tone="accent" onClick={loadLedger} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
+              <RdlPill type="button" active tone="accent" onClick={loadLedger} className="min-h-8 px-3 text-xs">查询</RdlPill>
             </>
           )}
           {tab === 'consolidated' && (
@@ -1343,13 +1343,13 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 placeholder="结束日期"
               />
               {(conFrom || conTo) && (
-                <RdlPill type="button" onClick={() => { setConFrom(''); setConTo(''); }} className="min-h-8 px-3 text-[11px]">清空</RdlPill>
+                <RdlPill type="button" onClick={() => { setConFrom(''); setConTo(''); }} className="min-h-8 px-3 text-xs">清空</RdlPill>
               )}
-              <RdlPill type="button" active={consolidatedMode === 'company'} onClick={() => setConsolidatedMode('company')} className="min-h-8 px-3 text-[11px]">合并视图</RdlPill>
-              <RdlPill type="button" active={consolidatedMode === 'department'} onClick={() => setConsolidatedMode('department')} className="min-h-8 px-3 text-[11px]">部门视角</RdlPill>
-              <RdlPill type="button" active tone="accent" onClick={loadConsolidated} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
+              <RdlPill type="button" active={consolidatedMode === 'company'} onClick={() => setConsolidatedMode('company')} className="min-h-8 px-3 text-xs">合并视图</RdlPill>
+              <RdlPill type="button" active={consolidatedMode === 'department'} onClick={() => setConsolidatedMode('department')} className="min-h-8 px-3 text-xs">部门视角</RdlPill>
+              <RdlPill type="button" active tone="accent" onClick={loadConsolidated} className="min-h-8 px-3 text-xs">刷新</RdlPill>
               {/* R678：合并利润导出入口（后端 format=xlsx 已就绪，随当前 from/to 口径导出） */}
-              <RdlPill type="button" onClick={() => void runExport('consolidated', exportConsolidatedXlsx)} className="min-h-8 px-3 text-[11px]">
+              <RdlPill type="button" onClick={() => void runExport('consolidated', exportConsolidatedXlsx)} className="min-h-8 px-3 text-xs">
                 {exporting === 'consolidated' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
               </RdlPill>
             </>
@@ -1366,8 +1366,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   ...INTERNAL_TRANSFER_STATUSES.map(s => ({ value: s, label: INTERNAL_TRANSFER_STATUS_LABEL[s] })),
                 ]}
               />
-              <RdlPill type="button" active tone="accent" onClick={loadTransfers} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
-              <RdlPill type="button" tone="accent" onClick={openCreateTransfer} className="min-h-8 px-3 text-[11px]">
+              <RdlPill type="button" active tone="accent" onClick={loadTransfers} className="min-h-8 px-3 text-xs">刷新</RdlPill>
+              <RdlPill type="button" tone="accent" onClick={openCreateTransfer} className="min-h-8 px-3 text-xs">
                 <span className="inline-flex items-center gap-1"><Plus size={14} strokeWidth={1.5} />新建申请</span>
               </RdlPill>
             </>
@@ -1404,7 +1404,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         <div className="bds-modal-mask" onClick={closeTransferDialog}>
           <div className="bds-modal" style={{ width: transferDialog.mode === 'create' ? '32rem' : '26rem' }} onClick={e => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between gap-2">
-              <h2 className={cx('text-[13px] font-light tracking-[0.02em]', textPrimary)}>
+              <h2 className={cx('text-sm font-light tracking-[0.02em]', textPrimary)}>
                 {transferDialog.mode === 'create' && '发起内部供料申请'}
                 {transferDialog.mode === 'confirm' && '面料部确认生效'}
                 {transferDialog.mode === 'delivery' && '交付登记'}
@@ -1424,7 +1424,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             <div className="space-y-3">
               {/* 目标单摘要（非新建模式） */}
               {transferDialog.mode !== 'create' && (
-                <div className={cx('rounded-inset px-3 py-2 text-[11px] font-light', 'bg-[var(--recessed-bg)]', textSecondary)}>
+                <div className={cx('rounded-inset px-3 py-2 text-xs font-light', 'bg-[var(--recessed-bg)]', textSecondary)}>
                   供料单 <span className={textPrimary}>{transferDialog.item.record.id}</span>
                   {transferDialog.item.payload && (
                     <>
@@ -1440,7 +1440,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>服装订单 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>服装订单 *</label>
                       <CustomSelect
                         surface="form"
                         value={createForm.garmentOrderId}
@@ -1453,7 +1453,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                       />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>面料订单 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>面料订单 *</label>
                       <CustomSelect
                         surface="form"
                         value={createForm.fabricOrderId}
@@ -1476,38 +1476,38 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   )}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>申请部门 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>申请部门 *</label>
                       <input value={createForm.requestDepartmentId} onChange={e => setCreateForm(f => ({ ...f, requestDepartmentId: e.target.value }))} className="bds-input sm" />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>供料部门 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>供料部门 *</label>
                       <input value={createForm.supplyDepartmentId} onChange={e => setCreateForm(f => ({ ...f, supplyDepartmentId: e.target.value }))} className="bds-input sm" />
                     </div>
                   </div>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>物料编码 *</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondary)}>物料编码 *</label>
                     <input value={createForm.materialCode} onChange={e => setCreateForm(f => ({ ...f, materialCode: e.target.value }))} placeholder="如 FAB-COTTON-40S" className="bds-input sm" />
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>数量 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>数量 *</label>
                       <input type="number" value={createForm.quantity} onChange={e => setCreateForm(f => ({ ...f, quantity: e.target.value }))} className="bds-input sm" />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>单位</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>单位</label>
                       <input value={createForm.unit} onChange={e => setCreateForm(f => ({ ...f, unit: e.target.value }))} className="bds-input sm" />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>内部结算价 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>内部结算价 *</label>
                       <input type="number" value={createForm.settlementPrice} onChange={e => setCreateForm(f => ({ ...f, settlementPrice: e.target.value }))} className="bds-input sm" />
                     </div>
                   </div>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交期 *</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondary)}>交期 *</label>
                     <CapsuleDateInput value={createForm.dueDate} onChange={v => setCreateForm(f => ({ ...f, dueDate: v }))} className="bds-input sm" />
                   </div>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>备注</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondary)}>备注</label>
                     <input value={createForm.memo} onChange={e => setCreateForm(f => ({ ...f, memo: e.target.value }))} className="bds-input sm" />
                   </div>
                   <div className={cx('text-[10px] font-light', textFaint)}>
@@ -1520,7 +1520,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>确认数量（缺省=申请数量）</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>确认数量（缺省=申请数量）</label>
                       <input
                         type="number"
                         value={confirmForm.confirmedQuantity}
@@ -1530,7 +1530,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                       />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>确认交期（缺省=申请交期）</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>确认交期（缺省=申请交期）</label>
                       <CapsuleDateInput
                         value={confirmForm.confirmedDueDate}
                         onChange={v => setConfirmForm(f => ({ ...f, confirmedDueDate: v }))}
@@ -1547,7 +1547,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               {transferDialog.mode === 'delivery' && (
                 <>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>关联运单 *（面料订单名下非取消运单）</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondary)}>关联运单 *（面料订单名下非取消运单）</label>
                     {shipmentOptions && shipmentOptions.length > 0 ? (
                       <CustomSelect
                         surface="form"
@@ -1570,21 +1570,21 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交付数量 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>交付数量 *</label>
                       <input type="number" value={deliveryForm.quantity} onChange={e => setDeliveryForm(f => ({ ...f, quantity: e.target.value }))} className="bds-input sm" />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交付日期 *</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>交付日期 *</label>
                       <CapsuleDateInput value={deliveryForm.deliveryDate} onChange={v => setDeliveryForm(f => ({ ...f, deliveryDate: v }))} className="bds-input sm" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>到货数量（可后补）</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>到货数量（可后补）</label>
                       <input type="number" value={deliveryForm.receivedQuantity} onChange={e => setDeliveryForm(f => ({ ...f, receivedQuantity: e.target.value }))} className="bds-input sm" />
                     </div>
                     <div>
-                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>到货日期</label>
+                      <label className={cx('mb-1 block text-xs font-light', textSecondary)}>到货日期</label>
                       <CapsuleDateInput value={deliveryForm.receivedDate} onChange={v => setDeliveryForm(f => ({ ...f, receivedDate: v }))} className="bds-input sm" />
                     </div>
                   </div>
@@ -1597,7 +1597,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               {transferDialog.mode === 'cancel' && (
                 <>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>取消原因</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondary)}>取消原因</label>
                     <input value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="记入状态流转历史" className="bds-input sm" />
                   </div>
                   <div className={cx('text-[10px] font-light', textFaint)}>

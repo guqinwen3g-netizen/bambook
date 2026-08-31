@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
     DASHBOARD_CARD_ROTATION_MS,
@@ -134,6 +134,7 @@ describe('Dashboard HUD polish', () => {
         const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
         const osVnextCss = readFileSync(new URL('../styles/os-vnext.css', import.meta.url), 'utf8');
         const flatCss = readFileSync(new URL('../styles/flat-experimental.css', import.meta.url), 'utf8');
+        const bdsComponentsCss = readFileSync(new URL('../styles/bds/components.css', import.meta.url), 'utf8');
 
         expect(DASHBOARD_CARD_RADIUS_CLASS).toBe('!rounded-panel');
         expect(DASHBOARD_RAISED_CARD_CLASS).toBe(`${OS_MATERIAL.raisedCard} ${DASHBOARD_CARD_RADIUS_CLASS}`);
@@ -161,10 +162,19 @@ describe('Dashboard HUD polish', () => {
         expect(osVnextCss).toContain('--ui-lab-panel-surface-border: transparent;');
         expect(osVnextCss).toContain('--ui-lab-panel-highlight-opacity: 0;');
         expect(flatCss).toContain('BAMBOOK FLAT DESIGN');
+        // 2026-09-01 材质分层定稿：os-material 卡片（Dashboard 等）保持基线半透磨砂；
+        // 主区 .bds-card 族实面化走 components.css 的 --frosted-bg（见下方防回刷断言）。
         expect(flatCss).toContain('--bambook-rdl-panel-fill-light: rgb(255 255 255 / 0.50)');
         expect(flatCss).toContain('--bambook-rdl-card-fill-light: rgb(255 255 255 / 0.44)');
         expect(flatCss).toContain('--bambook-rdl-inset-fill-light: rgb(255 255 255 / 0.30)');
         expect(flatCss).toContain('--bambook-rdl-floating-fill-light: rgb(255 255 255 / 0.70)');
+        // 2026-09-01 材质分层防回刷：主区 .bds-card 族必须走 --frosted-bg 92% 实面（无 backdrop-filter），
+        // 不得回流 --bambook-rdl-* 半透磨砂（那是 Dashboard os-material 卡片与小组件浮层的专属语言）
+        expect(bdsComponentsCss).toContain('.bds-card {\n  background: var(--frosted-bg);');
+        expect(bdsComponentsCss).toContain('.bds-surface {\n  background: var(--frosted-bg);\n}');
+        expect(bdsComponentsCss).not.toContain('background: var(--bambook-rdl-card-fill)');
+        expect(bdsComponentsCss).not.toContain('background: var(--bambook-rdl-panel-fill)');
+        expect(bdsComponentsCss).not.toContain('background: var(--bambook-rdl-inset-fill)');
         expect(flatCss).toContain('--ui-lab-panel-frame-depth-shadow: none !important');
         expect(flatCss).toContain('--ui-lab-panel-raised-depth-shadow: none !important');
         expect(flatCss).toContain('.bambook-os-root[data-wallpaper-mode="on"]');
@@ -175,7 +185,7 @@ describe('Dashboard HUD polish', () => {
         expect(css).not.toContain('radial-gradient(360px 240px at 18% 8%');
         expect(css).not.toContain('radial-gradient(380px 250px at 18% 8%');
         expect(osVnextCss).toContain('--ui-lab-panel-glass-film-color: rgba(255, 255, 255, 0.50)');
-        expect(osVnextCss).toContain('--ui-lab-panel-glass-film-color: rgba(20, 28, 42, 0.42)');
+        expect(osVnextCss).toContain('--ui-lab-panel-glass-film-color: rgba(20, 35, 47, 0.42)');
         expect(osVnextCss).not.toContain('--ui-lab-panel-glass-film-background: radial-gradient(360px 240px');
         expect(osVnextCss).not.toContain('--ui-lab-panel-glass-film-background: radial-gradient(380px 250px');
         expect(osVnextCss).not.toContain('--ui-lab-panel-glass-film-background: radial-gradient(900px 180px');
@@ -256,7 +266,8 @@ describe('Dashboard HUD polish', () => {
         expect(statusSource).toContain('className={`${dashboardCardLabelClass} mb-3 block pb-2`}>Status Index');
         expect(statusSource).toContain('className="space-y-3"');
         expect(statusSource).toContain('text-os-adaptive-subtitle');
-        expect(statusSource).toContain('className="text-[13px] font-light tabular-nums text-os-adaptive-subtitle"');
+        // 2026-09-01 字号归一拍板：text-[13px] 已归一为语义类 text-sm
+        expect(statusSource).toContain('className="text-sm font-light tabular-nums text-os-adaptive-subtitle"');
     });
 
     it('does not clip the market glass edge inside its height wrapper', () => {
@@ -334,5 +345,29 @@ describe('Dashboard HUD polish', () => {
         expect(source).toContain('DASHBOARD_EXPANDED_STATUS_MIN_WIDTH_PX');
         expect(source).toContain('DASHBOARD_EXPANDED_PIPELINE_MIN_WIDTH_PX');
         expect(source).toContain('DASHBOARD_EXPANDED_VELOCITY_MIN_WIDTH_PX');
+    });
+});
+
+// ═══ 2026-09-01 字号归一拍板守卫 ═══
+// text-[11px]~text-[18px] 等任意值字号已归一为语义类（xs=11/sm=13/base=15/lg=17，tailwind.config.js fontSize 对齐 BDS token）。
+// 刻度外微字号（text-[9px]/[10px]/[11.5px] 等）属另批，不在此列。
+describe('Font size normalization guard [2026-09-01 字号归一拍板]', () => {
+    const collectSourceFiles = (dir: string): string[] => {
+        const out: string[] = [];
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const full = `${dir}/${entry.name}`;
+            if (entry.isDirectory()) out.push(...collectSourceFiles(full));
+            else if ((entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) && !entry.name.includes('.test.')) out.push(full);
+        }
+        return out;
+    };
+
+    it('components 源码无 text-[11px]~text-[18px] 任意值字号（应使用语义类 text-xs/sm/base/lg）', () => {
+        const files = collectSourceFiles(new URL('./', import.meta.url).pathname);
+        const offenders = files
+            .map((f) => ({ f, hit: readFileSync(f, 'utf8').match(/text-\[(11|12|13|14|15|16|17|18)px\]/) }))
+            .filter((x) => x.hit)
+            .map((x) => `${x.f}: ${x.hit?.[0]}`);
+        expect(offenders).toEqual([]);
     });
 });

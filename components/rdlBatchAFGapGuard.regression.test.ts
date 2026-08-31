@@ -139,10 +139,16 @@ describe('W3 旁路回归 [ProductionGlobe 3D 豁免区]', () => {
   it('BeamTooltip font-black 已收编为 font-light（批F 防回退）', () => {
     expect(GLOBE_SRC).not.toContain('font-black');
   });
-  it('BeamTooltip 保留 3D overlay 豁免色（bg-blue-950/90 border-blue-400/50）', () => {
-    // 3D WebGL overlay 属豁免清单（评审报告豁免：3D 地球 WebGL 色值）
-    expect(GLOBE_SRC).toContain('bg-blue-950/90');
-    expect(GLOBE_SRC).toContain('border-blue-400/50');
+  it('BeamTooltip DOM 覆盖卡已 token 化（bg-deep/90 + --text-on-dark-*，2026-09-01 P0 色彩纪律）', () => {
+    // DOM 覆盖卡不属 3D canvas 豁免（仅 WebGL 色值豁免）；深色玻璃 = bg-deep 恒深底 + on-dark 锁定文字
+    expect(GLOBE_SRC).toContain('bg-deep/90');
+    expect(GLOBE_SRC).toContain('border-[var(--text-on-dark-2)]');
+    expect(GLOBE_SRC).toContain('text-[var(--text-on-dark-2)]');
+    expect(GLOBE_SRC).not.toContain('bg-blue-950');
+    expect(GLOBE_SRC).not.toContain('bg-slate-950');
+    expect(GLOBE_SRC).not.toContain('border-blue-400');
+    expect(GLOBE_SRC).not.toContain('text-slate-400');
+    expect(GLOBE_SRC).not.toContain('text-slate-500');
   });
   it('BeamTooltip 无新增手写主按钮', () => {
     expect(countMatches(GLOBE_SRC, HW_BTN_FWD_RE)).toBe(0);

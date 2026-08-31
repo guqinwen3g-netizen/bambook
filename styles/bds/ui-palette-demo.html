@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bambook UI 配色方案 · 完整界面 Demo</title>
+<!-- 统一配色：全站走 BDS token（雾青体系）。浅/深两态，标注可见性可切换 -->
+<link rel="stylesheet" href="./tokens.css" />
+<style>
+  :root { color-scheme: light; }
+  .dark { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root, body { font-family: "Urbanist","HarmonyOS Sans SC","PingFang SC",system-ui,sans-serif; font-weight:300; }
+  body { -webkit-font-smoothing: antialiased; }
+  /* 全屏应用骨架 */
+  .os { display:flex; height:100vh; background:var(--bg-page); color:var(--text-primary); }
+  /* ── 侧边栏：品牌雾蓝 ● 唯一彩色大面积，其余全部中性 ── */
+  .sidebar { width:232px; height:100%; flex:none; display:flex; flex-direction:column;
+    background-image: radial-gradient(130% 160% at 18% -22%, rgba(255,255,255,.30), rgba(255,255,255,0) 55%), var(--brand-mist);
+    padding:0 8px; }
+  .sb-logo { padding:20px 20px 12px; display:flex; align-items:center; gap:9px; color:var(--on-mist); }
+  .sb-logo .dot { width:22px; height:22px; border-radius:7px; background:rgba(255,255,255,.30); }
+  .sb-logo b { font-weight:400; font-size:13px; }
+  .sb-nav { flex:1; overflow:auto; }
+  .sb-sec { padding:14px 20px 6px; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--on-mist-3); }
+  .sb-item { margin:1px 6px; display:flex; align-items:center; gap:11px; height:44px; padding:0 14px; border-radius:14px; color:var(--on-mist-2); font-size:13px; }
+  .sb-item.act { background:rgba(255,255,255,.18); color:var(--on-mist); }
+  .sb-item i { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.45); flex:none; }
+  .sb-item.act i { background:var(--on-mist); }
+  .sb-foot { padding:12px; border-radius:16px; margin:8px; background:rgba(255,255,255,.13); color:var(--on-mist); display:flex; align-items:center; gap:10px; }
+  .sb-foot .a { width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.28); flex:none; }
+
+  /* ── 主区 ── */
+  .main { flex:1; min-width:0; height:100%; padding:22px clamp(16px,3vw,40px); display:flex; flex-direction:column; gap:14px; overflow:auto;
+    background-image: var(--page-aurora); }
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .tt { font-size:24px; font-weight:300; }
+  .tt small { font-size:12px; opacity:.55; margin-left:10px; letter-spacing:.04em; }
+  .top-actions { display:flex; gap:8px; align-items:center; }
+  /* ── 控件（唯一彩色=accent 雾青） ── */
+  .btn { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 18px; border:0; border-radius:18px; font:inherit; font-size:13px; cursor:pointer; }
+  .btn.primary { background:var(--accent); color:var(--on-accent); }
+  .btn.ghost { background:var(--recessed-bg); color:var(--text-primary); }
+  .btn.soft { background:var(--accent-tint); color:var(--accent-text); }
+  .btn.iconbtn { width:40px; padding:0; justify-content:center; }
+  .btn.sm { height:34px; padding:0 14px; border-radius:16px; font-size:12px; }
+  /* 状态语义 button */
+  .btn.scs { background:var(--success-tint); color:var(--success-text); }
+  .btn.war { background:var(--warning-tint); color:var(--warning-text); }
+  .btn.dng { background:var(--danger-tint); color:var(--danger-text); }
+
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .kpi { background:var(--bg-card); border:1px solid var(--border-c-default); border-radius:20px; padding:16px 18px; }
+  .kpi .k { font-size:11px; color:var(--text-quaternary); letter-spacing:.08em; text-transform:uppercase; }
+  .kpi .v { font-size:24px; font-weight:300; margin-top:6px; }
+  .kpi .d { font-size:11px; color:var(--accent-text); margin-top:2px; }
+
+  .cols { display:grid; grid-template-columns:1.6fr 1fr; gap:14px; }
+  .panel { background:var(--bg-panel); border-radius:20px; padding:16px; min-height:120px; }
+  .panel .ph { font-size:12px; color:var(--text-secondary); letter-spacing:.06em; margin-bottom:12px; }
+
+  /* 表格 */
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; font-weight:400; color:var(--text-tertiary); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:7px 10px; border-bottom:1px solid var(--border-c-default); }
+  td { padding:9px 10px; border-bottom:1px solid var(--border-c-subtle); }
+  tr:hover td { background:var(--hover-darken); }
+
+  /* 标签 / 状态点（分类色仅溯源图用，界面极少） */
+  .tag { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; font-size:10px; }
+  .tag.suc { background:var(--success-tint); color:var(--success-text); }
+  .tag.war { background:var(--warning-tint); color:var(--warning-text); }
+  .tag.dng { background:var(--danger-tint); color:var(--danger-text); }
+  .tag.inf { background:var(--accent-tint); color:var(--accent-text); }
+  .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .dot.on { background:var(--success); } .dot.off{ background:var(--text-quaternary); }
+  .dot.bz { background:var(--warning); } .dot.er { background:var(--danger); }
+
+  /* 表单 */
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field label { font-size:10.5px; color:var(--text-secondary); }
+  .input { height:36px; border:1px solid var(--border-c-default); border-radius:16px; background:var(--bg-card); padding:0 12px; font:inherit; font-size:12.5px; color:var(--text-primary); }
+  select.input { background:var(--bg-card); }
+  .formgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+  /* 分页 / tabs */
+  .pager { display:flex; gap:6px; align-items:center; } .pg { width:30px; height:30px; border-radius:999px; display:grid; place-items:center; font-size:12px; background:var(--bg-card); } .pg.act{ background:var(--accent); color:var(--on-accent); }
+  .tabs { display:flex; gap:2px; background:var(--recessed-bg); border-radius:999px; padding:3px; } .ts { padding:6px 14px; border-radius:999px; font-size:12px; color:var(--text-secondary); cursor:pointer; } .ts.a { background:var(--bg-raised); color:var(--text-primary); }
+
+  /* 标注开关 */
+  .mark-toggle { position:fixed; bottom:16px; right:16px; z-index:99; display:flex; gap:3px; background:var(--bg-card); border:1px solid var(--border-c-default); border-radius:999px; padding:4px; box-shadow:var(--bds-shadow-sm); }
+  .mark-toggle button { border:0; background:transparent; font:inherit; font-size:11px; padding:6px 14px; border-radius:999px; color:var(--text-secondary); cursor:pointer; }
+  .mark-toggle button.on { background:var(--accent); color:var(--on-accent); }
+  .annot { font-size:9px; letter-spacing:.04em; margin-left:8px; color:var(--accent-text); opacity:0; transition:opacity .2s; white-space:nowrap; }
+  body.show-annot .annot { opacity:.85; }
+  .note-line { font-size:10px; color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div class="os" id="os">
+  <!-- ▓ 侧边栏 -->
+  <aside class="sidebar">
+    <div class="sb-logo"><span class="dot"></span><b>Bambook</b><span class="annot">--brand-mist</span></div>
+    <nav class="sb-nav">
+      <div class="sb-sec">总览</div>
+      <div class="sb-item act"><i></i>经营驾驶舱 <span class="annot">on-mist</span></div>
+      <div class="sb-item"><i></i>数字档案</div>
+      <div class="sb-sec">业务</div>
+      <div class="sb-item"><i></i>报价单</div>
+      <div class="sb-item"><i></i>订单管理</div>
+      <div class="sb-item"><i></i>生产阶段</div>
+      <div class="sb-sec">支撑</div>
+      <div class="sb-item"><i></i>财务</div>
+      <div class="sb-item"><i></i>邮件</div>
+      <div class="sb-item"><i></i>设置</div>
+    </nav>
+    <div class="sb-foot"><span class="a"></span><div><div style="font-size:12.5px">Jason Shen</div><div style="font-size:10px;opacity:.7">Super Admin</div></div></div>
+  </aside>
+
+  <!-- ▓ 主区 -->
+  <main class="main">
+    <!-- 顶栏 -->
+    <div class="topbar">
+      <div class="tt">经营驾驶舱 <small>Business Dashboard</small></div>
+      <div class="top-actions">
+        <button class="btn ghost iconbtn">⌕</button>
+        <button class="btn ghost">导出</button>
+        <button class="btn primary">新建订单 <span class="annot">--accent</span></button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="kpis">
+      <div class="kpi"><div class="k">本期销售额</div><div class="v">₹ 1.26M</div><div class="d">▲ 12%</div><span class="annot">--bg-card</span></div>
+      <div class="kpi"><div class="k">在运订单</div><div class="v">34</div><div class="d">3 待审</div></div>
+      <div class="kpi"><div class="k">本月回款</div><div class="v">₹ 870K</div><div class="d">2 逾期</div></div>
+      <div class="kpi"><div class="k">库存占用</div><div class="v">₹ 412K</div><div class="d">-6%</div></div>
+    </div>
+
+    <!-- 分栏：列表 + 面板 -->
+    <div class="cols">
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="tabs" style="margin:14px 16px"><span class="ts a">全部</span><span class="ts">待审</span><span class="ts">已放行</span><span class="annot">--recessed/-bg-raised</span></div>
+        <table>
+          <tr><th>单据号</th><th>客户</th><th>金额</th><th>状态</th><th>操作</th></tr>
+          <tr><td>QU-2401</td><td>Alva Textile</td><td>₹ 45,200</td><td><span class="tag war">待复核</span></td><td><button class="btn sm ghost">查看</button></td></tr>
+          <tr><td>QU-2402</td><td>Nordco Wool</td><td>₹ 89,000</td><td><span class="tag inf">已报价</span></td><td><button class="btn sm ghost">跟进</button></td></tr>
+          <tr><td>QU-2403</td><td>Summit Garments</td><td>₹ 12,400</td><td><span class="tag suc">已成交</span></td><td><button class="btn sm ghost">转订单</button></td></tr>
+          <tr><td>QU-2404</td><td>Jade Weave</td><td colspan="2"><span class="tag dng">已失效</span></td><td><button class="btn sm ghost">删除</button></td></tr>
+        </table>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border-c-subtle)">
+          <span class="note-line">第 1 / 4 页 · 共 38 条</span>
+          <div class="pager"><span class="pg">‹</span><span class="pg act">1</span><span class="pg">2</span><span class="pg">3</span><span class="pg">›</span></div>
+        </div>
+        <span class="annot" style="margin-left:16px">--bg-panel / th / td / hover-darken</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="panel">
+          <div class="ph">新建报价 <span class="annot">--bg-panel</span></div>
+          <div class="formgrid">
+            <div class="field"><label>客户</label><input class="input" value="Nordco Wool" /></div>
+            <div class="field"><label>面料</label><select class="input"><option>涤纶 75D</option><option>棉 40S</option></select></div>
+            <div class="field"><label>单价</label><input class="input" placeholder="0.00" /></div>
+            <div class="field"><label>交期</label><input class="input" placeholder="2026-09" /></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn primary sm">保存草稿</button>
+            <button class="btn soft sm">设为模板</button>
+            <span class="annot">--input / --accent-tint</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="ph">运行状态 <span class="annot">状态点</span></div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <span class="tag suc"><span class="dot on"></span>自动化运行中</span>
+            <span class="tag war"><span class="dot bz"></span>3 待人工</span>
+            <span class="tag dng"><span class="dot er"></span>1 失败</span>
+            <span class="tag inf">邮件已同步</span>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn scs sm">重试</button>
+            <button class="btn war sm">转为待审</button>
+            <button class="btn dng sm">停止</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="mark-toggle">
+  <button data-t="light" class="on">浅色</button>
+  <button data-t="dark">深色</button>
+  <button data-a="1">标注</button>
+</div>
+
+<script>
+const mt = document.querySelectorAll('.mark-toggle button[data-t]');
+function set(t){document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.setAttribute('data-theme',t);mt.forEach(b=>b.classList.toggle('on',b.dataset.t===t));}
+mt.forEach(b=>b.addEventListener('click',()=>set(b.dataset.t)));
+document.querySelector('[data-a]').addEventListener('click',e=>{document.body.classList.toggle('show-annot');e.target.classList.toggle('on');});
+set('light');
+</script>
+</body>
+</html>

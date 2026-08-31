@@ -144,7 +144,7 @@ export function FactoryDelayPanel({ relationId, supplierName }: FactoryDelayPane
             </div>
             <div className="space-y-1">
               {g.items.map(it => (
-                <div key={it.orderId} className={cx('flex flex-wrap items-center gap-2 rounded-control px-2.5 py-1.5 text-[11px] font-light', 'bg-[var(--recessed-bg)]')}>
+                <div key={it.orderId} className={cx('flex flex-wrap items-center gap-2 rounded-control px-2.5 py-1.5 text-xs font-light', 'bg-[var(--recessed-bg)]')}>
                   <span className={cx('tabular-nums', textPrimary)}>{it.poNumber}</span>
                   <span className={cx('truncate', textSecondary)}>{it.customer ?? '—'} · {it.product ?? '—'}</span>
                   {it.quantity != null && <span className={cx('tabular-nums', textFaint)}>{it.quantity.toLocaleString()} {it.unit ?? ''}</span>}
@@ -193,7 +193,7 @@ export function FactoryDelayPanel({ relationId, supplierName }: FactoryDelayPane
               <span className={cx('font-light tabular-nums', textPrimary)}>延迟 {r.delayDays} 天</span>
               {r.reason && <span className="bds-badge sm warning">{REASON_LABEL[r.reason] ?? r.reason}</span>}
               {r.impactSummary && (
-                <span className={cx('text-[11px] tabular-nums', textSecondary)}>
+                <span className={cx('text-xs tabular-nums', textSecondary)}>
                   受影响 {r.impactSummary.total} 单
                   {r.impactSummary.critical > 0 && <span className="text-[var(--danger-text)]"> · 急 {r.impactSummary.critical}</span>}
                   {r.impactSummary.warning > 0 && ` · 缓冲 ${r.impactSummary.warning}`}
@@ -203,7 +203,7 @@ export function FactoryDelayPanel({ relationId, supplierName }: FactoryDelayPane
                 {r.recordNumber} · {r.registeredBy ?? '—'} · {fmtDate(r.createdAt)}
               </span>
             </div>
-            {r.reasonNote && <div className={cx('mt-1 truncate text-[11px] font-light', textSecondary)}>{r.reasonNote}</div>}
+            {r.reasonNote && <div className={cx('mt-1 truncate text-xs font-light', textSecondary)}>{r.reasonNote}</div>}
           </div>
         ))}
       </div>
@@ -257,10 +257,10 @@ export function FactoryDelayPanel({ relationId, supplierName }: FactoryDelayPane
               {previewLoading && <Loader2 size={14} className="animate-spin" />}
             </div>
             {!previewLoading && !preview && (
-              <div className={cx('px-1 text-[11px] font-light', textFaint)}>输入天数后自动计算该工厂活跃订单的交期影响</div>
+              <div className={cx('px-1 text-xs font-light', textFaint)}>输入天数后自动计算该工厂活跃订单的交期影响</div>
             )}
             {!previewLoading && preview && preview.items.length === 0 && (
-              <div className={cx('px-1 text-[11px] font-light', textFaint)}>该工厂当前无活跃订单，延迟无直接影响</div>
+              <div className={cx('px-1 text-xs font-light', textFaint)}>该工厂当前无活跃订单，延迟无直接影响</div>
             )}
             {!previewLoading && preview && preview.items.length > 0 && renderImpactItems(preview)}
           </div>

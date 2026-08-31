@@ -260,7 +260,7 @@ const TXT_SECONDARY = 'text-[var(--text-secondary)]';
 const TXT_MUTED = 'text-[var(--text-tertiary)]';
 const TXT_FAINT = 'text-[var(--text-quaternary)]';
 /** 分区 kicker（小字 EN 标签） */
-const KICKER_CLASS = `text-[11px] font-light uppercase tracking-[0.22em] ${TXT_MUTED}`;
+const KICKER_CLASS = `text-xs font-light uppercase tracking-[0.22em] ${TXT_MUTED}`;
 /** 1px 细分隔条底色（竖/横共用） */
 const DIVIDER_CLASS = 'bg-[var(--border-c-strong)]';
 
@@ -298,7 +298,7 @@ const OVERLAY_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel'
 const OVERLAY_MAP_BUTTON_CLASS = `w-full text-left rounded-full border border-transparent px-3 py-3 transition-colors duration-200 ${TXT_SECONDARY} hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-subtle)] hover:text-[var(--text-primary)]`;
 const OVERLAY_MAP_INDEX_CLASS = `border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] ${TXT_MUTED}`;
 /** 覆盖层头部 meta（编辑/查阅模式、录入标记等降级元信息） */
-const HEADER_META_CLASS = `shrink-0 text-[12px] font-light ${TXT_MUTED}`;
+const HEADER_META_CLASS = `shrink-0 text-xs font-light ${TXT_MUTED}`;
 /** 状态步骤条连接线（done=accent 45% / pending=border token） */
 const STEP_CONNECTOR_DONE_STYLE: React.CSSProperties = { background: 'color-mix(in srgb, var(--accent) 45%, transparent)' };
 const STEP_CONNECTOR_PENDING_CLASS = 'bg-[var(--border-c-strong)]';
@@ -313,8 +313,8 @@ const TIMELINE_LATEST_BADGE_CLASS = 'rounded-full bg-[var(--accent-tint)] px-1.5
 /** 查阅态字段槽位/文字（有值= sunken 底 + secondary 墨；空值=更淡底 + faint 斜体） */
 const FIELD_SLOT_FILLED_CLASS = 'bg-[var(--recessed-bg)]';
 const FIELD_SLOT_EMPTY_CLASS = 'bg-[var(--hover-darken)]';
-const FIELD_READONLY_VALUE_CLASS = `text-[14px] font-normal leading-relaxed ${TXT_SECONDARY}`;
-const FIELD_READONLY_EMPTY_CLASS = `text-[13px] font-light italic leading-relaxed ${TXT_FAINT}`;
+const FIELD_READONLY_VALUE_CLASS = `text-sm font-normal leading-relaxed ${TXT_SECONDARY}`;
+const FIELD_READONLY_EMPTY_CLASS = `text-sm font-light italic leading-relaxed ${TXT_FAINT}`;
 /** 数字输入框去原生步进器（与 bds-input 组合使用） */
 const FIELD_NO_SPINNER_CLASS = '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
 
@@ -1207,11 +1207,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
   const effectiveViewMode = allowGlobeView ? viewMode : 'list';
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支，暗色由 tokens.css [data-theme]/.dark 统一覆盖 ──
   // 表格行三档文字（密集阅读场景，token 墨色）
-  const listRowPrimaryCls = `truncate text-[13px] font-light leading-[1.25] tracking-normal ${TXT_TITLE}`;
-  const listRowRegularCls = `truncate text-[13px] font-light leading-[1.25] tracking-normal ${TXT_SECONDARY}`;
-  const listRowSecondaryCls = `mt-1 truncate text-[11px] font-light leading-[1.2] tracking-normal ${TXT_MUTED}`;
+  const listRowPrimaryCls = `truncate text-sm font-light leading-[1.25] tracking-normal ${TXT_TITLE}`;
+  const listRowRegularCls = `truncate text-sm font-light leading-[1.25] tracking-normal ${TXT_SECONDARY}`;
+  const listRowSecondaryCls = `mt-1 truncate text-xs font-light leading-[1.2] tracking-normal ${TXT_MUTED}`;
   // 行内"查看详情"交互暗示（hover 变 accent）
-  const listRowActionHintCls = `mt-1 flex items-center gap-1 text-[11px] font-light leading-[1.2] tracking-normal transition-colors duration-200 ${TXT_MUTED} group-hover:text-[var(--accent-text)]`;
+  const listRowActionHintCls = `mt-1 flex items-center gap-1 text-xs font-light leading-[1.2] tracking-normal transition-colors duration-200 ${TXT_MUTED} group-hover:text-[var(--accent-text)]`;
   // 字段按订单类型过滤：面料订单只看面料字段，成衣订单只看成衣字段
   const detailTypeKey = dbValueToTypeKey(selectedOrder?.type);
   const manualTypeKey: 'fabric' | 'garment' | 'other' = orderType === 'all' ? 'fabric' : orderType;
@@ -1455,7 +1455,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
 
       <div className={`flex-1 overflow-hidden relative ${desktopFullscreenOpen ? 'hidden' : ''}`}>
         {effectiveViewMode === 'globe' ? (
-          <div className="w-full h-full relative animate-in fade-in duration-700">
+          <div className="w-full h-full relative duration-300">
             {/*
                GLOBAL GLOBE INTEGRATION:
                ProductionGlobe is now rendered at the App level (underlying layer).
@@ -1622,7 +1622,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                     {(hasMoreOrders || ordersTotalLocal != null) && (
                       <div className={`flex shrink-0 items-center justify-center gap-3 border-t px-4 py-3 ${BORDER_SUBTLE_CLASS}`}>
                         {ordersTotalLocal != null && (
-                          <span className={`text-[11px] font-light ${TXT_MUTED}`}>已加载 {orders.length} / 共 {ordersTotalLocal} 条</span>
+                          <span className={`text-xs font-light ${TXT_MUTED}`}>已加载 {orders.length} / 共 {ordersTotalLocal} 条</span>
                         )}
                         {hasMoreOrders && (
                           <button
@@ -1792,12 +1792,12 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
                           <div key={stat.label} className={`px-6 py-3 min-w-0 ${i < 3 ? `md:border-r ${BORDER_SUBTLE_CLASS}` : ''}`}>
                             <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${TXT_FAINT}`}>{stat.sub}</p>
                             {/* 数据带主角：大号超轻数字 + 小号单位/币种缀，编辑级数据排版 */}
-                            <p className={`mt-2.5 flex items-baseline min-w-0 leading-none tracking-tight ${stat.compact ? `text-[15px] font-light` : 'text-[26px] font-extralight tabular-nums'} ${TXT_TITLE}`}>
-                              {stat.affix && stat.affixPos === 'prefix' && <span className={`mr-1.5 shrink-0 text-[12px] font-light tracking-wide ${TXT_MUTED}`}>{stat.affix}</span>}
+                            <p className={`mt-2.5 flex items-baseline min-w-0 leading-none tracking-tight ${stat.compact ? `text-base font-light` : 'text-[26px] font-extralight tabular-nums'} ${TXT_TITLE}`}>
+                              {stat.affix && stat.affixPos === 'prefix' && <span className={`mr-1.5 shrink-0 text-xs font-light tracking-wide ${TXT_MUTED}`}>{stat.affix}</span>}
                               <span className="truncate">{stat.num}</span>
-                              {stat.affix && stat.affixPos === 'suffix' && <span className={`ml-1.5 shrink-0 text-[12px] font-light tracking-wide ${TXT_MUTED}`}>{stat.affix}</span>}
+                              {stat.affix && stat.affixPos === 'suffix' && <span className={`ml-1.5 shrink-0 text-xs font-light tracking-wide ${TXT_MUTED}`}>{stat.affix}</span>}
                             </p>
-                            <p className={`mt-2.5 text-[11px] font-light ${TXT_MUTED}`}>{stat.label}</p>
+                            <p className={`mt-2.5 text-xs font-light ${TXT_MUTED}`}>{stat.label}</p>
                           </div>
                         ))}
                       </div>
@@ -2401,8 +2401,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
       )}
 
       {showDeleteConfirm && (
-        <div className="bds-modal-mask !absolute !z-[100] animate-in fade-in duration-300 pointer-events-auto">
-          <div className="bds-modal overflow-hidden animate-in zoom-in duration-300">
+        <div className="bds-modal-mask !absolute !z-[100] duration-300 pointer-events-auto">
+          <div className="bds-modal overflow-hidden duration-300">
             <div className="text-center space-y-6">
               <div className={`w-20 h-20 rounded-field flex items-center justify-center mx-auto mb-2 border ${BORDER_SUBTLE_CLASS} bg-[var(--recessed-bg)]`}>
                 <AlertTriangle size={24} strokeWidth={1.5} className="text-[var(--warning)]" />

@@ -59,7 +59,7 @@ const CrmSection: React.FC<{
       >
         <div className={`flex items-center gap-2 mb-2.5 pb-2 border-b ${sectionDividerClass}`}>
           <span className="text-[var(--text-secondary)]">{icon}</span>
-          <h4 className={`text-[11px] font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
+          <h4 className={`text-xs font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
             {title}
           </h4>
         </div>
@@ -378,7 +378,7 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
             </div>
           </div>
         ) : (
-          <p className={`mt-2 text-[11px] ${mutedTextCls(isDarkMode)}`}>
+          <p className={`mt-2 text-xs ${mutedTextCls(isDarkMode)}`}>
             {accessMode === 'team-read' ? '组共享为只读档位，仅可查看跟进历史（DR-042 read 档）' : '无该客户的跟进权限（仅跟进人与协作组可操作，DR-042 v2.2 L2）'}
           </p>
         )}

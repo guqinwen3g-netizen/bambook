@@ -16,8 +16,6 @@ export const OS_VNEXT_FORBIDDEN_VALUE_PATTERNS = [
 const DEFAULT_PATHS = ['App.tsx', 'components', 'styles', 'index.css'];
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.css', '.html']);
 const EXEMPT_FILES = new Set([
-  'components/ui/osVNext.ts',
-  'components/ui/OSPrimitives.tsx',
   'styles/os-vnext.css',
 ]);
 

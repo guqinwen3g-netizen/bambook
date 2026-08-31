@@ -59,8 +59,6 @@ describe('RDL global container contract', () => {
     [
       '.glass-panel',
       '.glass-card',
-      '.os-vnext-panel',
-      '.os-vnext-card',
       '.bambook-selected-surface',
       '.os-material-frame-panel',
       '.os-material-raised-card',

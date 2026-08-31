@@ -353,7 +353,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
       <div className="grid flex-1 min-h-0 grid-cols-[280px_minmax(0,1fr)] gap-3 px-1">
         {/* 左：周期列表 */}
         <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {cycles.map(c => (
               <button key={c.id} onClick={() => setSelectedCycleId(c.id)}
                 className={`block w-full px-4 py-3 text-left ${t.rowCls(selectedCycleId === c.id)}`}>
@@ -363,7 +363,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                     {c.status === 'Open' ? '开放' : '已关闭'}
                   </span>
                 </div>
-                <div className={`mt-1 text-[11px] font-light ${t.textSecondaryClass}`}>
+                <div className={`mt-1 text-xs font-light ${t.textSecondaryClass}`}>
                   {c.period} · 评定 {c.reviewCount} · 已确认 {c.confirmedCount}
                 </div>
               </button>
@@ -451,7 +451,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                       </div>
                     </div>
                     {reviewForm.kpis.length === 0 && (
-                      <div className={`py-2 text-center text-[11px] ${t.sectionMutedClass}`}>
+                      <div className={`py-2 text-center text-xs ${t.sectionMutedClass}`}>
                         暂无 KPI 指标 — 可添加「订单转化率」「样品准交率」等指标，并关联 HR 项目
                       </div>
                     )}
@@ -519,7 +519,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel, 
                 <div className={t.thCls}>状态</div>
                 <div className={t.thCls}>操作</div>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {reviews.map(r => (
                   <React.Fragment key={r.id}>
                     <div className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px_72px_96px_minmax(0,1.2fr)] items-center">

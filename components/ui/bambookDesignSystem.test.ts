@@ -9,7 +9,6 @@ import {
   BAMBOOK_CONTAINER_LEVELS,
   BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES,
   BAMBOOK_DESIGN_SYSTEM_CONTRACT,
-  BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES,
   BAMBOOK_DESIGN_SYSTEM_RETIRED_DOCS,
   BAMBOOK_DESIGN_SYSTEM_RULES,
   BAMBOOK_DESIGN_SYSTEM_VERSION,
@@ -43,8 +42,6 @@ describe('Bambook OS design system contract', () => {
     expect(BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES.find(source => source.path === 'components/ui/RDLPrimitives.tsx')?.owns).toContain('RDL shared pill and search primitive');
     expect(BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES.find(source => source.path === 'docs/design-system/rdl-component-authority.md')?.owns).toContain('Bambook RDL pill, search, filter, card, row, and overlay-control dialect');
     expect(BAMBOOK_DESIGN_SYSTEM_CONTRACT.authoritativeSources).toBe(BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES);
-    expect(BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES[0].path).toBe('styles/design-system.css');
-    expect(BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES[0].rule).toContain('Do not add new Bambook OS material values');
     expect(BAMBOOK_DESIGN_SYSTEM_CONTRACT.retiredDocs).toBe(BAMBOOK_DESIGN_SYSTEM_RETIRED_DOCS);
   });
 
@@ -275,7 +272,7 @@ describe('Bambook OS design system contract', () => {
     expect(osVNextCss).toContain('--bambook-rdl-theme-strong-rgb: 10 10 10;');
     expect(osVNextCss).toContain('--bambook-rdl-panel-fill-light: rgb(255 255 255 / 0.44);');
     expect(osVNextCss).toContain('--bambook-rdl-card-fill-light: rgb(255 255 255 / 0.38);');
-    expect(osVNextCss).toContain('--bambook-rdl-panel-fill-dark: rgb(24 31 42 / 0.48);');
+    expect(osVNextCss).toContain('--bambook-rdl-panel-fill-dark: rgb(20 35 47 / 0.48);');
     expect(osVNextCss).toContain('--bambook-rdl-primary-text: rgb(7 10 14);');
     expect(osVNextCss).toContain('--bambook-rdl-secondary-text: rgb(52 58 65);');
     expect(osVNextCss).toContain('--bambook-rdl-muted-text: rgb(82 90 100);');
@@ -307,12 +304,6 @@ describe('Bambook OS design system contract', () => {
     expect(flatCss).toContain('Bridge legacy OS vNext and "blue-white" material classes');
     expect(flatCss).toContain('.bambook-blue-white-light');
     expect(flatCss).toContain('.bambook-blue-white-surface');
-    expect(flatCss).toContain('.os-vnext-panel');
-    expect(flatCss).toContain('.os-vnext-card');
-    expect(flatCss).toContain('.os-vnext-toolbar');
-    expect(flatCss).toContain('.os-vnext-dialog');
-    expect(flatCss).toContain('.os-vnext-button--state[data-os-vnext-active="true"]');
-    expect(flatCss).toContain('.bambook-os-root[data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button)');
     expect(osVNextCss).toContain('--bambook-rdl-panel-filter: saturate(124%) blur(15px);');
     expect(osVNextCss).toContain('--bambook-rdl-floating-filter: saturate(128%) blur(20px);');
     expect(flatCss).toContain('--ui-lab-panel-surface-filter: var(--bambook-rdl-panel-filter) !important;');
@@ -382,6 +373,7 @@ describe('Bambook OS design system contract', () => {
     expect(existsSync(resolve(archiveRoot, 'Bambook-OS-UI-Guidelines.md'))).toBe(true);
     expect(existsSync(resolve(archiveRoot, 'UI_AUDIT_REPORT.md'))).toBe(true);
     expect(readRepoFile('docs/archive/design-history/README.md')).toContain('historical records only');
-    expect(readRepoFile('styles/design-system.css')).toContain('LEGACY RUNTIME STYLESHEET');
+    // styles/design-system.css 已于 2026-09-01 物理删除（legacy 死文件，运行时零引用）——断言不可复活。
+    expect(existsSync(resolve(repoRoot, 'styles/design-system.css'))).toBe(false);
   });
 });

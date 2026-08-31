@@ -458,7 +458,7 @@ export const compileBambookPage = (input: OSCompilerPageInput): OSCompilerPageBl
       metadata: { component: 'CompiledMetadataText', className: 'text-xs font-light leading-relaxed', source: 'BAMBOOK metadata rhythm' },
       fieldLabel: { component: 'CompiledFieldLabel', className: 'text-[10px] font-light tracking-wide', source: 'BAMBOOK field label rhythm' },
       tableHeader: { component: 'CompiledTableHeader', className: BAMBOOK_OS.layout.relationsTableHeaderCellClass, source: 'BAMBOOK_OS.layout.relationsTableHeaderCellClass' },
-      buttonLabel: { component: 'CompiledButtonLabel', className: 'text-[11px] font-light tracking-wide', source: 'BAMBOOK_OS.controls.title.actionButton' },
+      buttonLabel: { component: 'CompiledButtonLabel', className: 'text-xs font-light tracking-wide', source: 'BAMBOOK_OS.controls.title.actionButton' },
     },
     motion: {
       hover: { durationMs: BAMBOOK_OS.motion.microDuration, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', transform: 'material-dependent' },

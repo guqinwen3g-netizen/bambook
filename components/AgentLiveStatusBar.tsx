@@ -48,7 +48,7 @@ export const AgentLiveStatusBar: React.FC<AgentLiveStatusBarProps> = ({
   const Icon = (tone === 'danger' || tone === 'warning') ? AlertCircle : Activity;
 
   return (
-    <div className="mb-2 flex items-center gap-2 text-[12px]">
+    <div className="mb-2 flex items-center gap-2 text-xs">
       <Icon size={14} className={`${iconColor} ${isLoading ? 'animate-pulse' : ''}`} />
       <span className={textClass}>{text}</span>
     </div>

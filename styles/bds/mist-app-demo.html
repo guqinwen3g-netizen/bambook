@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bambook · 雾蓝频道全屏仿真</title>
+<!-- 生产 BDS CSS —— 一切尺寸/圆角/字号/间距均为生产真值 -->
+<link rel="stylesheet" href="/styles/bds/tokens.css">
+<link rel="stylesheet" href="/styles/bds/components.css">
+<style>
+/* ═══════════ 雾蓝频道配色（demo 覆盖层，落地时回写 tokens.css） ═══════════ */
+:root {
+  --bg-page: #ECF1F5;
+  --page-aurora:
+    radial-gradient(52% 38% at 18% 8%, rgba(159,188,203,0.35) 0%, transparent 100%),
+    radial-gradient(44% 34% at 84% 78%, rgba(198,217,226,0.22) 0%, transparent 100%);
+  --frosted-bg: rgba(250,252,254,0.92);
+  --bg-raised: #FFFFFF;
+  --recessed-bg: rgba(15,29,39,0.05);
+  --recessed-bg-hover: rgba(15,29,39,0.075);
+  --recessed-bg-strong: rgba(15,29,39,0.09);
+  --text-primary: #0F1D27;
+  --text-secondary: #47596A;
+  --text-tertiary: #6E8291;
+  --hover-darken: rgba(15,29,39,0.04);
+  --border-subtle: 1px solid rgba(15,29,39,0.07);
+  --border-default: 1px solid rgba(15,29,39,0.10);
+}
+html.dark {
+  --bg-page: #0F1D27;
+  --page-aurora:
+    radial-gradient(52% 38% at 18% 8%, rgba(78,122,144,0.42) 0%, transparent 100%),
+    radial-gradient(44% 34% at 84% 78%, rgba(46,74,92,0.30) 0%, transparent 100%);
+  --frosted-bg: rgba(24,44,59,0.92);
+  --bg-raised: #1B3040;
+  --recessed-bg: rgba(3,8,12,0.34);
+  --recessed-bg-hover: rgba(3,8,12,0.42);
+  --recessed-bg-strong: rgba(3,8,12,0.5);
+  --text-primary: #E8EEF2;
+  --text-secondary: #9FB0BC;
+  --text-tertiary: #6E8291;
+  --hover-darken: rgba(232,238,242,0.05);
+  --border-subtle: 1px solid rgba(232,238,242,0.07);
+  --border-default: 1px solid rgba(232,238,242,0.10);
+}
+
+/* ═══════════ 应用骨架 ═══════════ */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  font-family: var(--font-sans); font-weight: 300;
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+  background-image: var(--page-aurora);
+  transition: background-color .25s;
+}
+.app { display: flex; height: 100vh; }
+
+/* ═══════════ 侧边栏（brand-mist 锚点） ═══════════ */
+.sidebar { width: 232px; flex-shrink: 0; position: relative; display: flex; flex-direction: column; }
+.sidebar .mist-material { position: absolute; inset: 0; border-radius: 22px 0 0 22px; }
+html:not(.dark) .sidebar .mist-material {
+  background:
+    radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,0.35) 0%, transparent 60%),
+    linear-gradient(155deg, #7FA3B3 0%, #A2C0CD 52%, #C6DAE3 100%);
+}
+html.dark .sidebar .mist-material {
+  background:
+    radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,0.06) 0%, transparent 55%),
+    linear-gradient(155deg, #132A36 0%, #1A3543 52%, #243F4C 100%);
+}
+.sidebar .inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; padding: 18px 12px 14px; }
+html:not(.dark) .sidebar .inner { color: #FFFFFF; }
+html.dark .sidebar .inner { color: #F2F5F4; }
+.side-logo { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; }
+.side-logo .mark { width: 30px; height: 30px; border-radius: 9px; background: rgba(255,255,255,0.24); display: grid; place-items: center; font-size: 14px; font-weight: 500; }
+.side-logo .name { font-size: 14px; font-weight: 400; letter-spacing: 1.5px; }
+.nav-group { font-size: 10px; letter-spacing: 2px; opacity: .55; padding: 14px 12px 6px; text-transform: uppercase; white-space: nowrap; }
+.nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 12px; margin: 1px 0; border-radius: 12px; font-size: 13px; color: inherit; cursor: pointer; white-space: nowrap; transition: background .15s; }
+.nav-item svg { width: 17px; height: 17px; stroke-width: 1.5; opacity: .85; flex-shrink: 0; }
+.nav-item:hover { background: rgba(255,255,255,0.16); }
+html.dark .nav-item:hover { background: rgba(255,255,255,0.07); }
+html:not(.dark) .nav-item.active { background: rgba(255,255,255,0.62); color: #0F2A3C; font-weight: 400; }
+html:not(.dark) .nav-item.active svg { opacity: 1; }
+html.dark .nav-item.active { background: rgba(255,255,255,0.14); }
+.nav-item .cnt { margin-left: auto; font-size: 10px; opacity: .7; }
+.side-account { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; cursor: pointer; }
+.side-account:hover { background: rgba(255,255,255,0.16); }
+html.dark .side-account:hover { background: rgba(255,255,255,0.07); }
+.side-account .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.30); display: grid; place-items: center; font-size: 11px; font-weight: 500; }
+.side-account .nm { font-size: 12px; font-weight: 400; line-height: 1.25; }
+.side-account .rl { font-size: 10px; opacity: .65; }
+
+/* ═══════════ 主区 ═══════════ */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.main-scroll { flex: 1; overflow-y: auto; padding: 0 28px 48px; }
+.main-scroll::-webkit-scrollbar { width: 0; }
+
+/* 标题区 — 生产间距 px-7 pt-5 pb-4 等效 */
+.page-head { display: flex; align-items: baseline; justify-content: space-between; padding: 20px 0 16px; }
+.page-title { font-size: 20px; font-weight: 300; letter-spacing: .2px; }
+.page-title .en { font-size: 11px; color: var(--text-tertiary); margin-left: 10px; letter-spacing: 2px; text-transform: uppercase; }
+.page-crumb { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
+
+/* ═══════════ 工具行 · 方案 A（组合行） ═══════════ */
+.toolrow { display: flex; align-items: center; gap: 10px; padding-bottom: 18px; margin-bottom: 20px; border-bottom: var(--border-subtle); }
+.toolrow .bds-search { width: 280px; flex-shrink: 0; }
+.toolrow .bds-search .bds-input {
+  height: 40px; font-size: var(--text-sm);
+  border-radius: var(--radius-pill);
+  background: var(--frosted-bg);
+  border: 1px solid rgba(127,163,179,0.35);
+  padding-left: 38px;
+}
+.toolrow .bds-search .bds-search-icon { left: 13px; color: var(--text-tertiary); }
+.toolrow .bds-search .bds-input:hover { background: var(--frosted-bg); filter: brightness(1.015); }
+.toolrow .bds-search .bds-input:focus { background: var(--frosted-bg); border-color: var(--accent); }
+.toolrow .bds-segment .seg { padding: 6px 16px; font-size: var(--text-xs); }
+.toolrow .spacer { flex: 1; }
+
+/* ═══════════ KPI ═══════════ */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.kpi .bds-stat-num { font-size: 26px; }
+.kpi-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+
+/* 布局行 */
+.cols { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; }
+.panel-head h3 { font-size: 14px; font-weight: 400; margin: 0; }
+.panel-head .more { font-size: 12px; color: var(--accent-text); cursor: pointer; }
+.tbl-card { padding: 0 !important; overflow: hidden; }
+
+/* 迷你条形图（纯 CSS） */
+.bars { display: flex; align-items: flex-end; gap: 7px; height: 130px; padding: 4px 18px 0; }
+.bar { flex: 1; border-radius: 6px 6px 2px 2px; background: linear-gradient(to top, var(--accent-tint), var(--accent-tint)); position: relative; }
+.bar.hot { background: var(--accent); opacity: .85; }
+.bar .v { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--text-tertiary); white-space: nowrap; }
+.bar-labels { display: flex; gap: 7px; padding: 6px 18px 14px; }
+.bar-labels span { flex: 1; text-align: center; font-size: 10px; color: var(--text-tertiary); }
+
+/* 交期列表 */
+.due-list { display: flex; flex-direction: column; }
+.due-item { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-top: var(--border-subtle); font-size: 12.5px; }
+.due-item:first-child { border-top: 0; }
+.due-item .date { width: 44px; text-align: center; border-radius: 10px; padding: 5px 0; background: var(--recessed-bg); flex-shrink: 0; }
+.due-item .date b { display: block; font-size: 15px; font-weight: 400; }
+.due-item .date i { font-style: normal; font-size: 9px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; }
+.due-item .meta { flex: 1; min-width: 0; }
+.due-item .meta .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.due-item .meta .s { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+/* 表单区（展示卡片内嵌字段层级） */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.form-grid .field { display: flex; flex-direction: column; gap: 6px; }
+.form-grid .field label { font-size: 11px; color: var(--text-tertiary); letter-spacing: .5px; }
+
+/* 深浅切换浮钮 */
+.float-toggle { position: fixed; right: 20px; bottom: 20px; z-index: 99; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══════════ 侧边栏 ══════════ -->
+  <aside class="sidebar">
+    <div class="mist-material"></div>
+    <div class="inner">
+      <div class="side-logo"><div class="mark">B</div><div class="name">Bambook</div></div>
+
+      <div class="nav-group">经营</div>
+      <div class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        经营驾驶舱
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+        订单管理 <span class="cnt">14</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        客户关系
+      </div>
+
+      <div class="nav-group">供应链</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h3m0 0h-3m3 0v3m0-3v-3M6.7 6.7 4 4m2.7 2.7L4 9.4M6.7 6.7 9.4 4"/><circle cx="14" cy="14" r="6"/></svg>
+        数字档案
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M5 20V8m7 12V4m7 16v-9"/></svg>
+        生产看板
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v9M3 16H2m3 0h14m0 0h1v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3Z"/></svg>
+        出运报关 <span class="cnt">3</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        质量工作台
+      </div>
+
+      <div class="nav-group">支撑</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3M6 13V3"/></svg>
+        财务结算
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 13 4-4 4 3 5-6"/></svg>
+        数据分析
+      </div>
+
+      <div class="side-account">
+        <div class="avatar">KG</div>
+        <div><div class="nm">Kevin Gu</div><div class="rl">管理员</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════ 主区 ══════════ -->
+  <main class="main">
+    <div class="main-scroll">
+
+      <div class="page-head">
+        <div class="page-title">经营驾驶舱<span class="en">Cockpit</span></div>
+        <div class="page-crumb">首页 / 经营 / 驾驶舱</div>
+      </div>
+
+      <!-- 工具行 · 方案 A -->
+      <div class="toolrow">
+        <div class="bds-search">
+          <span class="bds-search-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <input type="text" placeholder="搜索订单 / 客户 / SKU..." class="bds-input">
+        </div>
+        <div class="bds-segment">
+          <button class="seg active">全部</button>
+          <button class="seg">待确认</button>
+          <button class="seg">生产中</button>
+          <button class="seg">已出运</button>
+        </div>
+        <div class="spacer"></div>
+        <button class="bds-btn bds-btn-secondary">导出</button>
+        <button class="bds-btn bds-btn-primary">新建订单</button>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="bds-card kpi">
+          <div class="bds-stat-label">在手订单</div>
+          <div class="bds-stat-num"><span class="unit">$</span>1.24M</div>
+          <div class="kpi-foot"><span class="bds-stat-delta up">▲ 12.4% 环比</span><span style="font-size:11px;color:var(--text-tertiary)">56 单</span></div>
+        </div>
+        <div class="bds-card kpi">
+          <div class="bds-stat-label">本月出货</div>
+          <div class="bds-stat-num"><span class="unit">$</span>486K</div>
+          <div class="kpi-foot"><span class="bds-stat-delta up">▲ 6.1% 环比</span><span style="font-size:11px;color:var(--text-tertiary)">9 票</span></div>
+        </div>
+        <div class="bds-card kpi">
+          <div class="bds-stat-label">回款率</div>
+          <div class="bds-stat-num">92.4<span class="unit">%</span></div>
+          <div class="kpi-foot"><span class="bds-stat-delta down">▼ 1.8% 环比</span><span style="font-size:11px;color:var(--text-tertiary)">36/39</span></div>
+        </div>
+        <div class="bds-card kpi">
+          <div class="bds-stat-label">逾期应收</div>
+          <div class="bds-stat-num"><span class="unit">$</span>37.2K</div>
+          <div class="kpi-foot"><span class="bds-stat-delta down">2 单待催</span><span style="font-size:11px;color:var(--text-tertiary)">最久 23 天</span></div>
+        </div>
+      </div>
+
+      <!-- 订单表 + 交期提醒 -->
+      <div class="cols">
+        <div class="bds-card tbl-card">
+          <div class="panel-head"><h3>订单跟踪</h3><span class="more">查看全部 →</span></div>
+          <table class="bds-table">
+            <thead><tr><th>订单号</th><th>客户</th><th>品类</th><th class="num">金额</th><th>状态</th><th>交期</th></tr></thead>
+            <tbody>
+              <tr><td>SO-2608-014</td><td>Nordwind GmbH</td><td>摇粒绒卫衣</td><td class="num">$86,400</td><td><span class="bds-badge success">生产中</span></td><td>09-18</td></tr>
+              <tr><td>SO-2608-021</td><td>Pacific Apparel</td><td>全棉针织T恤</td><td class="num">$52,150</td><td><span class="bds-badge warning">待确认</span></td><td>09-25</td></tr>
+              <tr><td>SO-2607-036</td><td>Maison Vert</td><td>亚麻连衣裙</td><td class="num">$118,900</td><td><span class="bds-badge danger">逾期</span></td><td>08-30</td></tr>
+              <tr><td>SO-2608-009</td><td>Alpine Textil</td><td>功能性夹克</td><td class="num">$43,700</td><td><span class="bds-badge info">已出运</span></td><td>已完成</td></tr>
+              <tr><td>SO-2608-027</td><td>Kyoto Trade</td><td>真丝衬衫</td><td class="num">$67,300</td><td><span class="bds-badge neutral">待采购</span></td><td>10-06</td></tr>
+              <tr><td>SO-2608-031</td><td>Baltic Fashion</td><td>羊毛大衣</td><td class="num">$142,600</td><td><span class="bds-badge success">生产中</span></td><td>10-15</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div class="bds-card" style="padding:0;overflow:hidden">
+            <div class="panel-head"><h3>月度出货</h3><span class="more">$ 万</span></div>
+            <div class="bars">
+              <div class="bar" style="height:42%"><span class="v">32</span></div>
+              <div class="bar" style="height:58%"><span class="v">45</span></div>
+              <div class="bar" style="height:36%"><span class="v">28</span></div>
+              <div class="bar" style="height:70%"><span class="v">54</span></div>
+              <div class="bar hot" style="height:92%"><span class="v">71</span></div>
+              <div class="bar" style="height:64%"><span class="v">49</span></div>
+            </div>
+            <div class="bar-labels"><span>4月</span><span>5月</span><span>6月</span><span>7月</span><span>8月</span><span>9月</span></div>
+          </div>
+          <div class="bds-card" style="padding:0;overflow:hidden;flex:1">
+            <div class="panel-head"><h3>近期交期</h3><span class="more">日历 →</span></div>
+            <div class="due-list">
+              <div class="due-item">
+                <div class="date"><b>09</b><i>Sep</i></div>
+                <div class="meta"><div class="t">SO-2608-014 · Nordwind</div><div class="s">面料已到厂，裁剪中</div></div>
+                <span class="bds-badge success" style="flex-shrink:0">正常</span>
+              </div>
+              <div class="due-item">
+                <div class="date"><b>18</b><i>Sep</i></div>
+                <div class="meta"><div class="t">SO-2608-021 · Pacific</div><div class="s">待客户确认工艺单</div></div>
+                <span class="bds-badge warning" style="flex-shrink:0">跟进</span>
+              </div>
+              <div class="due-item">
+                <div class="date"><b>25</b><i>Sep</i></div>
+                <div class="meta"><div class="t">SO-2608-027 · Kyoto</div><div class="s">面料在途（海运 12 天）</div></div>
+                <span class="bds-badge neutral" style="flex-shrink:0">在途</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 表单区（卡内嵌字段层级展示） -->
+      <div class="bds-card" style="padding:0;overflow:hidden">
+        <div class="panel-head"><h3>快捷建档</h3><span class="more">完整表单 →</span></div>
+        <div style="padding: 2px 18px 18px">
+          <div class="form-grid">
+            <div class="field"><label>客户名称</label><input class="bds-input" placeholder="输入客户全称"></div>
+            <div class="field"><label>订单品类</label>
+              <div class="bds-segment" style="width:fit-content">
+                <button class="seg active">成衣</button><button class="seg">面料</button><button class="seg">辅料</button>
+              </div>
+            </div>
+            <div class="field"><label>目标交期</label><input class="bds-input" placeholder="YYYY-MM-DD"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- 深浅切换 -->
+<div class="float-toggle">
+  <button class="bds-btn bds-btn-secondary" onclick="toggleDark()">切换深浅色</button>
+</div>
+
+<script>
+function toggleDark() { document.documentElement.classList.toggle('dark'); }
+</script>
+</body>
+</html>

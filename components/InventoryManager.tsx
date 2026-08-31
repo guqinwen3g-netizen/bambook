@@ -389,7 +389,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           {/* 顶部 Tab 切换 */}
           <div className="bds-segment mb-4">
             <button onClick={() => setActiveTab('items')} className={`seg ${activeTab === 'items' ? 'active' : ''}`}>
@@ -645,7 +645,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
 
               {/* R3：分页状态 + 加载更多（后端 total 真实计数，limit=200/页） */}
               {!loading && items.length > 0 && (
-                <div className="flex items-center justify-center gap-3 pt-3 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="flex items-center justify-center gap-3 pt-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                   <span>已加载 {items.length} / 共 {itemsTotal} 条</span>
                   {items.length < itemsTotal && (
                     <button

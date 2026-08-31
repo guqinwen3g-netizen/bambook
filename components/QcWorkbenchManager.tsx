@@ -184,7 +184,7 @@ function LoadErrorCard({ message, onRetry }: { message: string; onRetry: () => v
   return (
     <div className="bds-card flat text-center" style={{ padding: 'var(--space-6) var(--space-4)' }}>
       <span className="bds-badge sm danger">加载失败</span>
-      <div className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{message}</div>
+      <div className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>{message}</div>
       <button onClick={onRetry} className="bds-btn bds-btn-ghost mt-2">
         <RefreshCw size={14} />
         <span>重试</span>
@@ -524,7 +524,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     <div className="h-full flex flex-col min-h-0 gap-4">
       {/* 操作条：QC 人员筛选 + 刷新 + 新建（bds-filterbar：内控 40px 等高 + pill 同形） */}
       <div className="shrink-0 bds-filterbar flex-wrap">
-        <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
+        <span className="text-xs shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
         <CustomSelect
           className="w-32"
           surface="field"
@@ -533,7 +533,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
           options={[{ value: '', label: '全部' }, ...users.map((u) => ({ value: u.id, label: u.displayName }))]}
         />
         {usersLoadFailed && (
-          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>人员列表需管理角色权限，当前仅支持查看全部任务</span>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>人员列表需管理角色权限，当前仅支持查看全部任务</span>
         )}
         <button
           onClick={loadWorkbench}
@@ -549,7 +549,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
           <span>导出台账</span>
         </button>
         {/* R678⑧：completed 列后端口径披露（qcService：仅近 30 天且按 completedAt 降序限 20 条），避免把列计数误读为全量 */}
-        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }} title="已完成列仅显示近 30 天内完成的前 20 条">共 {totalCount} 项任务（已完成列仅近 30 天前 20 条）</span>
+        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }} title="已完成列仅显示近 30 天内完成的前 20 条">共 {totalCount} 项任务（已完成列仅近 30 天前 20 条）</span>
       </div>
 
       {/* 看板三列 */}
@@ -578,7 +578,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
                 <span className={`bds-badge sm ${QC_STATUS_BADGE_VARIANT[col.status]}`}>
                   {QC_STATUS_LABELS[col.status]}
                 </span>
-                <span className="text-[11px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{col.items.length} 项</span>
+                <span className="text-xs ml-auto" style={{ color: 'var(--text-tertiary)' }}>{col.items.length} 项</span>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
                 {col.items.length === 0 ? (
@@ -605,7 +605,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
                         <div className="mt-1 text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                           {a.order ? `${a.order.customer} · ${a.order.product}` : a.orderId}
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                        <div className="mt-1.5 flex items-center gap-2 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                           <span className={overdue ? 'bds-badge sm danger' : ''}>
                             要求 {formatDate(a.dueDate)}{overdue ? '（已过期）' : ''}
                           </span>
@@ -618,12 +618,12 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
                           <span className="truncate">{userNameById.get(a.qcUserId) ?? a.qcUserId}</span>
                         </div>
                         {a.status === 'Completed' && a.completedAt != null && (
-                          <div className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                          <div className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                             完成于 {formatTs(a.completedAt)}{a.reportId ? ` · 报告 ${a.reportId}` : ''}
                           </div>
                         )}
                         {a.notes && (
-                          <div className="mt-1.5 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>{a.notes}</div>
+                          <div className="mt-1.5 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>{a.notes}</div>
                         )}
                         <div className="mt-2 flex items-center gap-1.5">
                           {a.status === 'Assigned' && (
@@ -874,14 +874,14 @@ function AssignmentForm({
                   ))}
                 </div>
                 {matchedOrders.length > filteredOrders.length && (
-                  <div className="text-[11px] px-2 py-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="text-xs px-2 py-1" style={{ color: 'var(--text-tertiary)' }}>
                     匹配 {matchedOrders.length} 条，仅显示前 {filteredOrders.length} 条，请继续输入缩小范围
                   </div>
                 )}
               </div>
             )}
             {!ordersLoading && orders.length === 0 && (
-              <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>暂无可选订单，请先在「订单管理」创建订单</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>暂无可选订单，请先在「订单管理」创建订单</div>
             )}
           </>
         )}
@@ -1179,7 +1179,7 @@ function CompleteAssignmentForm({
               placeholder="缺陷位置 / 类型 / 程度"
             />
           </Field>
-          <div className="text-[11px] mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
             放行口径：合格率 ≥90% + 致命疵点 = 0 + 业务部批准（与生产门禁一致）
           </div>
         </>
@@ -1280,7 +1280,7 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
     <div className="bds-card h-full flex flex-col min-h-0" style={{ padding: 0, overflow: 'hidden' }}>
       {/* 操作条 */}
       <div className="p-3 flex items-center gap-2" style={{ borderBottom: 'var(--border-subtle)' }}>
-        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>QC 常驻验货驻地（如 温州驻场-服装 / 苏州驻场-面料）</span>
+        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>QC 常驻验货驻地（如 温州驻场-服装 / 苏州驻场-面料）</span>
         <button
           onClick={loadLocations}
           className="bds-btn bds-btn-ghost"
@@ -1321,12 +1321,12 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 flex items-center gap-2 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="mt-1.5 flex items-center gap-2 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                   {location.region && <span>区域 {location.region}</span>}
                   {location.address && <span className="truncate">地址 {location.address}</span>}
                 </div>
                 {location.notes && (
-                  <div className="mt-1.5 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>{location.notes}</div>
+                  <div className="mt-1.5 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>{location.notes}</div>
                 )}
                 <div className="mt-2.5 flex items-center gap-1.5">
                   <button
@@ -1349,7 +1349,7 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
           </div>
         )}
       </div>
-      <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+      <div className="px-4 py-2 text-xs" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
         共 {locations.length} 个驻地
       </div>
 
@@ -1420,7 +1420,7 @@ function LocationForm({
             autoFocus={!location}
           />
           {!location && (
-            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>如 wenzhou / suzhou，创建后不可修改</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>如 wenzhou / suzhou，创建后不可修改</div>
           )}
         </Field>
         <Field label="驻地名称 *">
@@ -1542,7 +1542,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
     <div className="bds-card h-full flex flex-col min-h-0" style={{ padding: 0, overflow: 'hidden' }}>
       {/* 表头说明 + 操作条 */}
       <div className="p-3 flex items-center gap-2" style={{ borderBottom: 'var(--border-subtle)' }}>
-        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>业务线影响 MOQ 校验与报表口径</span>
+        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>业务线影响 MOQ 校验与报表口径</span>
         <button
           onClick={loadLines}
           className="bds-btn bds-btn-ghost"
@@ -1634,7 +1634,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
           </table>
         </div>
       )}
-      <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+      <div className="px-4 py-2 text-xs" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
         共 {lines.length} 条业务线
       </div>
 
@@ -1724,7 +1724,7 @@ function BusinessLineForm({
             autoFocus={!line}
           />
           {!line && (
-            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>如 fabric / garment / capsule，创建后不可修改</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>如 fabric / garment / capsule，创建后不可修改</div>
           )}
         </Field>
         <Field label="业务线名称 *">
@@ -1927,7 +1927,7 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
                   ))}
                 </div>
                 {matchedOrders.length > filteredOrders.length && (
-                  <div className="text-[11px] px-2 py-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="text-xs px-2 py-1" style={{ color: 'var(--text-tertiary)' }}>
                     匹配 {matchedOrders.length} 条，仅显示前 {filteredOrders.length} 条，请继续输入缩小范围
                   </div>
                 )}
@@ -1935,14 +1935,14 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
             )}
             {!ordersLoading && ordersLoadFailed && (
               <div className="mt-1.5 flex items-center gap-2">
-                <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>订单列表加载失败</span>
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>订单列表加载失败</span>
                 <button onClick={loadOrders} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="重试">
                   <RefreshCw size={14} />
                 </button>
               </div>
             )}
             {!ordersLoading && !ordersLoadFailed && orders.length === 0 && (
-              <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>暂无可选订单，请先在「订单管理」创建订单</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>暂无可选订单，请先在「订单管理」创建订单</div>
             )}
           </>
         )}
@@ -2070,7 +2070,7 @@ function GarmentChainView({ order }: { order: Order }) {
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck size={16} style={{ color: 'var(--text-secondary)' }} />
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>内部门禁 Gate</span>
-            <span className="text-[11px] ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-xs ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
               {CHAIN_FLOW_HINTS.garment}
             </span>
           </div>
@@ -2097,12 +2097,12 @@ function GarmentChainView({ order }: { order: Order }) {
           {gateLoading ? (
             <div className="flex items-center gap-2 py-2">
               <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
-              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>门禁查询中...</span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>门禁查询中...</span>
             </div>
           ) : gateError ? (
             <div className="bds-card flat flex items-center gap-2" style={{ padding: 'var(--space-2) var(--space-3)' }}>
               <span className="bds-badge sm danger shrink-0">查询失败</span>
-              <span className="text-[11px] truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>{gateError}</span>
+              <span className="text-xs truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>{gateError}</span>
               <button onClick={loadGate} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="重试">
                 <RefreshCw size={14} />
               </button>
@@ -2123,16 +2123,16 @@ function GarmentChainView({ order }: { order: Order }) {
                 )}
               </div>
               {gate.blockedMessage && (
-                <div className="mt-1.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{gate.blockedMessage}</div>
+                <div className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>{gate.blockedMessage}</div>
               )}
               {gate.reportId && (
-                <div className="mt-1 text-[11px] bds-mono truncate" style={{ color: 'var(--text-quaternary)' }}>
+                <div className="mt-1 text-xs bds-mono truncate" style={{ color: 'var(--text-quaternary)' }}>
                   报告 {gate.reportId}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-[11px] py-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs py-1" style={{ color: 'var(--text-tertiary)' }}>
               输入有效轮次后自动查询门禁（fail-closed：未评审 / 未通过 / 已打回均禁止寄客户）
             </div>
           )}
@@ -2341,7 +2341,7 @@ function FabricChainView({ order }: { order: Order }) {
           <div className="flex items-center gap-2 mb-3">
             <Truck size={16} style={{ color: 'var(--text-secondary)' }} />
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>评审对象 Sample</span>
-            <span className="text-[11px] ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-xs ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
               {CHAIN_FLOW_HINTS.fabric}
             </span>
           </div>
@@ -2358,11 +2358,11 @@ function FabricChainView({ order }: { order: Order }) {
               {samplesLoading ? (
                 <div className="flex items-center gap-2 py-2">
                   <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
-                  <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>样品加载中...</span>
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>样品加载中...</span>
                 </div>
               ) : samplesError ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>样品列表加载失败</span>
+                  <span className="text-xs truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>样品列表加载失败</span>
                   <button onClick={loadSampleOptions} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="重试">
                     <RefreshCw size={14} />
                   </button>
@@ -2378,7 +2378,7 @@ function FabricChainView({ order }: { order: Order }) {
             </Field>
           </div>
           {!samplesLoading && !samplesError && sampleOptions.length === 0 && (
-            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
               该订单暂无{FABRIC_SAMPLE_KIND_LABELS[sampleKind]}记录，请先由业务员在样品域登记
             </div>
           )}
@@ -2519,7 +2519,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
       <div className="px-4 py-2.5 flex items-center gap-2 shrink-0" style={{ borderBottom: 'var(--border-subtle)' }}>
         <span className={`bds-badge sm ${chain === 'garment' ? 'info' : 'warning'}`}>{CHAIN_LABELS[chain]}</span>
         <span className="text-xs" style={{ color: 'var(--text-primary)' }}>链评审报告 Reports</span>
-        <span className="text-[11px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{reports.length} 条</span>
+        <span className="text-xs ml-auto" style={{ color: 'var(--text-tertiary)' }}>{reports.length} 条</span>
         <button onClick={load} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="刷新">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -2532,7 +2532,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
         ) : error ? (
           <div className="bds-card flat text-center" style={{ padding: 'var(--space-6) var(--space-4)' }}>
             <span className="bds-badge sm danger">加载失败</span>
-            <div className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{error}</div>
+            <div className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>{error}</div>
             <button onClick={load} className="bds-btn bds-btn-ghost mt-2">
               <RefreshCw size={14} />
               <span>重试</span>
@@ -2568,21 +2568,21 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                   检验日期 {formatDate(r.inspectionDate)} · 缺陷 致命 {r.criticalDefects} / 严重 {r.majorDefects} / 轻微 {r.minorDefects}
                 </div>
                 {r.defectSummary && (
-                  <div className="mt-1 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="mt-1 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
                     {r.defectSummary}
                   </div>
                 )}
                 {rejectReason && (
-                  <div className="mt-1 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="mt-1 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
                     打回原因：{rejectReason}
                   </div>
                 )}
                 {factoryAdjustment?.requirement && (
-                  <div className="mt-1 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="mt-1 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
                     工厂调整要求：{factoryAdjustment.requirement}
                     {factoryAdjustment.factoryName ? `（${factoryAdjustment.factoryName}）` : ''}
                   </div>

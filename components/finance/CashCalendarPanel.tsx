@@ -103,7 +103,7 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
               key={d}
               type="button"
               onClick={() => setDays(d)}
-              className={cx('rounded-full border px-3 py-1 text-[11px] font-light transition-colors',
+              className={cx('rounded-full border px-3 py-1 text-xs font-light transition-colors',
                 days === d
                   ? 'border-[var(--accent-tint)] bg-[var(--accent-tint-light)] text-[var(--text-primary)]'
                   : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]')}
@@ -150,7 +150,7 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
                     </div>
                     <div className="text-right">{overdueBadge(a.daysOverdue)}</div>
                     <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(a.openAmount, a.currency)}</div>
-                    <div className={cx('text-right text-[11px] font-light tabular-nums', textFaint)}>{a.dueDate}</div>
+                    <div className={cx('text-right text-xs font-light tabular-nums', textFaint)}>{a.dueDate}</div>
                   </div>
                 ))}
               </div>
@@ -170,7 +170,7 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
                       <span className={cx('text-sm font-light', textPrimary)}>{f.currency}</span>
                       <span className={cx('text-[10px] font-light', textFaint)}>{f.itemCount} 张未结清</span>
                     </div>
-                    <div className={cx('mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-light tabular-nums')}>
+                    <div className={cx('mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-light tabular-nums')}>
                       <span className={textSecondary}>应收到期</span>
                       <span className={cx('text-right', textPrimary)}>{formatAmount(f.windowInflow, f.currency)}</span>
                       <span className={textSecondary}>应付到期</span>
@@ -201,7 +201,7 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
               <div className={cx('max-h-44 space-y-1 overflow-y-auto border-t px-2 py-2 text-xs', divider)}>
                 {data.upcoming.map(u => (
                   <div key={u.invoiceId} className={cx('grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1.2fr)_130px] items-center rounded-control px-3 py-1.5', rowBg)}>
-                    <div className={cx('text-[11px] font-light tabular-nums', textSecondary)}>{u.dueDate}</div>
+                    <div className={cx('text-xs font-light tabular-nums', textSecondary)}>{u.dueDate}</div>
                     <div className={cx('truncate font-light', textPrimary)}>{u.counterparty ?? '—'}</div>
                     <div className={cx('truncate font-light', textFaint)}>{u.type === 'Receivable' ? '应收' : '应付'} · {u.invoiceNumber}</div>
                     <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(u.openAmount, u.currency)}</div>
@@ -239,9 +239,9 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
                   {data.unappliedVouchers.map(u => (
                     <div key={`${u.voucherCategory}-${u.currency}`} className={cx('grid grid-cols-[minmax(0,1fr)_60px_minmax(0,1fr)_50px] items-center rounded-control px-3 py-2', rowBg)}>
                       <span className={cx('truncate font-light', textPrimary)}>{VOUCHER_CATEGORY_LABELS[u.voucherCategory] ?? u.voucherCategory}</span>
-                      <span className={cx('text-center text-[11px] font-light', textFaint)}>{u.currency}</span>
+                      <span className={cx('text-center text-xs font-light', textFaint)}>{u.currency}</span>
                       <span className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(u.unapplied, u.currency)}</span>
-                      <span className={cx('text-right text-[11px] font-light', textFaint)}>{u.count} 笔</span>
+                      <span className={cx('text-right text-xs font-light', textFaint)}>{u.count} 笔</span>
                     </div>
                   ))}
                 </div>

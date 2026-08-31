@@ -2298,7 +2298,7 @@ const Assistant: React.FC<AssistantProps> = ({
         <div className="-mt-2 flex flex-col min-h-0 shrink-0 space-y-1.5 no-drag">
           <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>Agent 功能</div>
           <div className="relative min-h-0">
-            <div ref={agentScrollRef} className="max-h-[180px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
+            <div ref={agentScrollRef} className="max-h-[180px] overflow-y-auto space-y-1 pr-0.5">
               {AGENTS.map(agent => {
                 const Icon = agent.icon;
                 const isActive = activeAgentId === agent.id;
@@ -2319,7 +2319,7 @@ const Assistant: React.FC<AssistantProps> = ({
                         : 'text-[var(--text-tertiary)]'
                     }`} />
                     <div className="min-w-0 flex-1">
-                      <div className={`text-[12px] font-light leading-4 ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{agent.name}</div>
+                      <div className={`text-xs font-light leading-4 ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{agent.name}</div>
                       <div className={`text-[10px] font-light leading-3 truncate ${isActive ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>{agent.desc}</div>
                     </div>
                   </button>
@@ -2339,7 +2339,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 onChange={(event) => setHistorySearchInput(event.target.value)}
                 placeholder="搜索标题或内容"
                 aria-label="搜索历史对话"
-                className={`min-w-0 flex-1 bg-transparent text-[11px] font-light outline-none ${bodyTextClass}`}
+                className={`min-w-0 flex-1 bg-transparent text-xs font-light outline-none ${bodyTextClass}`}
               />
               {historySearchInput && (
                 <button
@@ -2355,20 +2355,20 @@ const Assistant: React.FC<AssistantProps> = ({
             </div>
           </div>
           {isHistoryLoading && sessions.length === 0 && (
-            <div className={`rounded-inset border px-2.5 py-2 text-[11px] shrink-0 ${actionControlClass}`}>正在加载...</div>
+            <div className={`rounded-inset border px-2.5 py-2 text-xs shrink-0 ${actionControlClass}`}>正在加载...</div>
           )}
           {!isHistoryLoading && historyError && (
-            <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 border-[var(--border-c-default)] bg-[var(--hover-darken)] text-[var(--text-tertiary)]`}>
+            <div className={`rounded-inset border px-2.5 py-2 text-xs leading-4 shrink-0 border-[var(--border-c-default)] bg-[var(--hover-darken)] text-[var(--text-tertiary)]`}>
               {historyError === 'Login required.' ? '登录后显示个人历史对话。' : historyError}
             </div>
           )}
           {!isHistoryLoading && !historyError && sessions.length === 0 && (
-            <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${actionControlClass}`}>
+            <div className={`rounded-inset border px-2.5 py-2 text-xs leading-4 shrink-0 ${actionControlClass}`}>
               {historySearchQuery ? '没有匹配的对话。' : '还没有历史对话。'}
             </div>
           )}
           <div className="relative flex-1 min-h-0">
-            <div ref={historyScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
+            <div ref={historyScrollRef} className="absolute inset-0 overflow-y-auto space-y-1 pr-0.5">
               {sessions.map(session => {
                 const isActive = session.id === activeSessionId;
                 const isEditing = editingSessionId === session.id;
@@ -2398,7 +2398,7 @@ const Assistant: React.FC<AssistantProps> = ({
                             }
                           }}
                           autoFocus
-                          className={`h-8 w-full rounded-compact border bg-transparent px-2 text-[12px] font-light outline-none ${fieldClass}`}
+                          className={`h-8 w-full rounded-compact border bg-transparent px-2 text-xs font-light outline-none ${fieldClass}`}
                         />
                         <div className="mt-1.5 flex justify-end gap-1">
                           <button
@@ -2427,7 +2427,7 @@ const Assistant: React.FC<AssistantProps> = ({
                           onClick={() => loadSession(session.id)}
                           className="block min-h-10 w-full py-1.5 pl-2.5 pr-[32px] text-left"
                         >
-                          <div className={`truncate text-[12px] font-light leading-4 text-[var(--text-primary)]`}>{session.title}</div>
+                          <div className={`truncate text-xs font-light leading-4 text-[var(--text-primary)]`}>{session.title}</div>
                           <div className={`mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[10px] font-light leading-3 ${quietTextClass}`}>
                             <span>{formatSessionTime(session.updatedAt)}</span>
                             {typeof session.messageCount === 'number' && <span className="truncate">{session.messageCount} 条</span>}
@@ -2468,7 +2468,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     type="button"
                     onClick={() => void loadMoreSessions()}
                     disabled={isHistoryAppending}
-                    className={`h-8 rounded-compact border px-3 text-[11px] font-light transition-colors duration-200 disabled:opacity-45 ${actionControlClass}`}
+                    className={`h-8 rounded-compact border px-3 text-xs font-light transition-colors duration-200 disabled:opacity-45 ${actionControlClass}`}
                   >
                     {isHistoryAppending ? '加载中...' : '加载更多'}
                   </button>
@@ -2488,7 +2488,7 @@ const Assistant: React.FC<AssistantProps> = ({
           title="设置"
         >
           <Settings size={14} strokeWidth={1.5} className="shrink-0" />
-          <span className="text-[11px] font-light">设置</span>
+          <span className="text-xs font-light">设置</span>
         </button>
       </div>
     </div>
@@ -2671,9 +2671,9 @@ const Assistant: React.FC<AssistantProps> = ({
                             sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
                           />
                         ) : activeWorkspaceItem.kind === 'artifact' && activeWorkspaceItem.artifactBlock ? (
-                          <div className="h-full overflow-y-auto p-5 custom-scrollbar">
+                          <div className="h-full overflow-y-auto p-5">
                             <div className={`mx-auto max-w-3xl rounded-control border px-5 py-4 text-left ${OS_MATERIAL.insetSurface}`}>
-                              <div className={`text-[11px] font-light ${quietTextClass}`}>Artifact Workspace</div>
+                              <div className={`text-xs font-light ${quietTextClass}`}>Artifact Workspace</div>
                               <div className="mt-2 flex items-start justify-between gap-3">
                                 <div>
                                   <div className={`text-lg font-light ${bodyTextClass}`}>{activeWorkspaceItem.artifactBlock.title || activeWorkspaceItem.artifactBlock.artifactId}</div>
@@ -2707,7 +2707,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 ))}
                               </div>
                               <div className={`mt-4 rounded-compact border px-3 py-3 ${actionControlClass}`}>
-                                <div className={`text-[11px] font-light ${quietTextClass}`}>Preview</div>
+                                <div className={`text-xs font-light ${quietTextClass}`}>Preview</div>
                                 <pre className={`mt-2 max-h-[420px] overflow-auto whitespace-pre-wrap break-words text-xs font-light leading-5 ${bodyTextClass}`}>
                                   {formatReferenceJson(activeWorkspaceItem.artifactBlock.preview ?? activeWorkspaceItem.artifactBlock.contentRef ?? '当前 artifact 仅包含引用信息，后续阶段可通过 contentRef 拉取完整产物内容。')}
                                 </pre>
@@ -2715,9 +2715,9 @@ const Assistant: React.FC<AssistantProps> = ({
                             </div>
                           </div>
                         ) : activeWorkspaceItem.kind === 'reference' && activeWorkspaceItem.referenceAnchor ? (
-                          <div className="h-full overflow-y-auto p-5 custom-scrollbar">
+                          <div className="h-full overflow-y-auto p-5">
                             <div className={`mx-auto max-w-3xl rounded-control border px-5 py-4 text-left ${OS_MATERIAL.insetSurface}`}>
-                              <div className={`text-[11px] font-light ${quietTextClass}`}>Reference Anchor</div>
+                              <div className={`text-xs font-light ${quietTextClass}`}>Reference Anchor</div>
                               <div className="mt-2 flex items-start justify-between gap-3">
                                 <div>
                                   <div className={`text-lg font-light ${bodyTextClass}`}>{activeWorkspaceItem.title}</div>
@@ -2774,11 +2774,11 @@ const Assistant: React.FC<AssistantProps> = ({
                                   </div>
                                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                                     <div className={`rounded-compact border px-3 py-3 ${actionControlClass}`}>
-                                      <div className={`text-[11px] font-light ${quietTextClass}`}>Input</div>
+                                      <div className={`text-xs font-light ${quietTextClass}`}>Input</div>
                                       <pre className={`mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs font-light leading-5 ${bodyTextClass}`}>{formatReferenceJson(activeWorkspaceItem.toolRunDetail.input)}</pre>
                                     </div>
                                     <div className={`rounded-compact border px-3 py-3 ${actionControlClass}`}>
-                                      <div className={`text-[11px] font-light ${quietTextClass}`}>Output</div>
+                                      <div className={`text-xs font-light ${quietTextClass}`}>Output</div>
                                       <pre className={`mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs font-light leading-5 ${bodyTextClass}`}>{formatReferenceJson(activeWorkspaceItem.toolRunDetail.output)}</pre>
                                     </div>
                                   </div>
@@ -2800,9 +2800,9 @@ const Assistant: React.FC<AssistantProps> = ({
                             </div>
                           </div>
                         ) : activeWorkspaceItem.kind === 'review' && activeWorkspaceItem.entity ? (
-                          <div className="h-full overflow-y-auto p-5 custom-scrollbar">
+                          <div className="h-full overflow-y-auto p-5">
                             <div className={`mx-auto max-w-2xl rounded-control border px-5 py-4 text-left ${OS_MATERIAL.insetSurface}`}>
-                              <div className={`text-[11px] font-light ${quietTextClass}`}>
+                              <div className={`text-xs font-light ${quietTextClass}`}>
                                 {getWorkspaceEntityTypeLabel(activeWorkspaceItem.entity.entityType)}
                                 {activeWorkspaceItem.entity.sourceModel && ` · ${activeWorkspaceItem.entity.sourceModel}`}
                               </div>
@@ -2819,7 +2819,7 @@ const Assistant: React.FC<AssistantProps> = ({
                               {activeWorkspaceItem.entity.subtitle && (
                                 <div className={`mt-1 text-sm font-light ${quietTextClass}`}>{activeWorkspaceItem.entity.subtitle}</div>
                               )}
-                              <div className={`mt-3 flex flex-wrap items-center gap-2 text-[11px] font-light ${quietTextClass}`}>
+                              <div className={`mt-3 flex flex-wrap items-center gap-2 text-xs font-light ${quietTextClass}`}>
                                 <span>{activeWorkspaceItem.entity.entityType}</span>
                                 <span>{activeWorkspaceItem.entity.id}</span>
                                 {activeWorkspaceItem.entity.confidence !== undefined && (
@@ -2850,7 +2850,7 @@ const Assistant: React.FC<AssistantProps> = ({
                               )}
                               {activeWorkspaceItem.entity.links && activeWorkspaceItem.entity.links.length > 0 && (
                                 <div className="mt-4">
-                                  <div className={`text-[11px] font-light ${quietTextClass}`}>关联对象</div>
+                                  <div className={`text-xs font-light ${quietTextClass}`}>关联对象</div>
                                   <div className="mt-2 flex flex-wrap gap-2">
                                     {activeWorkspaceItem.entity.links.slice(0, 12).map((link, index) => (
                                       <div key={`${link.targetType}:${link.targetId}:${index}`} className={`rounded-compact border px-3 py-1.5 text-xs font-light ${actionControlClass}`}>
@@ -2920,7 +2920,7 @@ const Assistant: React.FC<AssistantProps> = ({
                               搜索
                             </button>
                           </form>
-                          <div className={`mt-3 flex-1 overflow-y-auto rounded-field border px-3 py-3 text-left text-xs font-light leading-6 custom-scrollbar ${OS_MATERIAL.insetSurface} ${quietTextClass}`}>
+                          <div className={`mt-3 flex-1 overflow-y-auto rounded-field border px-3 py-3 text-left text-xs font-light leading-6 ${OS_MATERIAL.insetSurface} ${quietTextClass}`}>
                             <div className={`mb-2 flex items-center justify-between border-b pb-2 ${sectionDividerClass}`}>
                               <span>
                                 {isWorkspaceSearching
@@ -3067,7 +3067,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={() => scrollMainToBottom('smooth')}
-                className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-light shadow-none transition-opacity border-[var(--border-c-default)] bg-[var(--recessed-bg)]/85 backdrop-blur-md backdrop-saturate-150 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--recessed-bg)]/95`}
+                className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border px-3 py-1.5 text-xs font-light shadow-none transition-opacity border-[var(--border-c-default)] bg-[var(--recessed-bg)]/85 backdrop-blur-md backdrop-saturate-150 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--recessed-bg)]/95`}
                 aria-label="滚动到最新"
               >
                 ↓ 跳到最新
@@ -3086,7 +3086,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     </div>
                     <div className="min-w-0">
                       <div className={`truncate text-sm font-light ${bodyTextClass}`}>{activeAttachment.name}</div>
-                      <div className={`mt-0.5 text-[11px] ${quietTextClass}`}>{activeObjectType} context attached</div>
+                      <div className={`mt-0.5 text-xs ${quietTextClass}`}>{activeObjectType} context attached</div>
                     </div>
                   </div>
                 </section>
@@ -3214,7 +3214,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 </div>
               )}
               {isLoading && currentAgentStatusText && (
-                <div className={`mb-2 flex min-w-0 items-center gap-2 px-1 text-[11px] ${currentAgentEvent ? getAgentEventToneClass(currentAgentEvent) : quietTextClass}`}>
+                <div className={`mb-2 flex min-w-0 items-center gap-2 px-1 text-xs ${currentAgentEvent ? getAgentEventToneClass(currentAgentEvent) : quietTextClass}`}>
                   <span className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-current animate-pulse" />
                   <span className="min-w-0 flex-1 truncate">{currentAgentStatusText}</span>
 
@@ -3235,7 +3235,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 className={`block w-full resize-none bg-transparent px-1 text-sm leading-6 outline-none disabled:opacity-50 text-[var(--text-primary)] placeholder-[var(--text-tertiary)]`}
               />
               {voiceStatus && (
-                <div className={`mt-1 px-1 text-[11px] ${isVoiceRecording
+                <div className={`mt-1 px-1 text-xs ${isVoiceRecording
                   ? 'text-[var(--text-secondary)]'
                   : quietTextClass}`}
                 >
@@ -3270,7 +3270,7 @@ const Assistant: React.FC<AssistantProps> = ({
                   title={`当前模型：${selectedModel}`}
                 >
                   <Cpu size={14} className="text-[var(--text-tertiary)]" />
-                  <span className="max-w-[132px] truncate text-[11px] text-[var(--text-secondary)]">{selectedModel}</span>
+                  <span className="max-w-[132px] truncate text-xs text-[var(--text-secondary)]">{selectedModel}</span>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileSelect} />
                 <button

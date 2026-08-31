@@ -146,8 +146,8 @@ const TABS: { id: TabId; label: string; icon: typeof Users }[] = [
 
 export const ADMIN_PANEL_BODY_CLASS = `${BAMBOOK_OS.layout.desktopPanelRowClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`;
 export const ADMIN_PANEL_SURFACE_CLASS = 'h-full min-h-0 overflow-hidden';
-export const ADMIN_PANEL_SCROLL_CLASS = 'h-full min-h-0 overflow-y-auto custom-scrollbar';
-export const ADMIN_USER_LIST_SCROLL_CLASS = 'min-h-0 flex-1 overflow-y-auto custom-scrollbar';
+export const ADMIN_PANEL_SCROLL_CLASS = 'h-full min-h-0 overflow-y-auto';
+export const ADMIN_USER_LIST_SCROLL_CLASS = 'min-h-0 flex-1 overflow-y-auto';
 export const ADMIN_PANEL_GLASS_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-transparent bg-[var(--recessed-bg)] shadow-none`;
 export const ADMIN_USER_CARD_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-strong)] bg-[var(--recessed-bg)]`;
 export const ADMIN_USER_FIELD_CLASS = 'bds-input';
@@ -298,15 +298,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   // v2.3 字段统一裁决：BDS .bds-input 已胶囊化（36px/描边/rounded-control），
   // 与原 recessedField 胶囊配方完全同规格——表单字段直接用 BDS 类，消灭双真源
   const inputCls = 'bds-input';
-  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
-  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`;
+  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-xs font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
+  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-xs font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`;
   const brandTextCls = BAMBOOK_OS.tone.text.brandEmphasis;
   const neutralChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`;
   const brandChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)]`;
   const dangerChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`;
-  const brandActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--os-vnext-brand-blue)]/12`;
-  const dangerActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`;
-  const quietDangerActionCls = `h-9 px-3 rounded-control border text-[11px] font-light transition-colors disabled:opacity-50 inline-flex items-center gap-1 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`;
+  const brandActionCls = `h-9 px-3 rounded-control text-xs font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--os-vnext-brand-blue)]/12`;
+  const dangerActionCls = `h-9 px-3 rounded-control text-xs font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`;
+  const quietDangerActionCls = `h-9 px-3 rounded-control border text-xs font-light transition-colors disabled:opacity-50 inline-flex items-center gap-1 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`;
   const adminTitleClass = `${BAMBOOK_OS.layout.desktopTitleTextClass} text-os-adaptive-title`;
   const adminPanelEyebrowClass = `text-[10px] font-light uppercase ${BAMBOOK_OS.typography.tracking.overline} text-[var(--text-tertiary)]`;
   const sectionTitleClass = `text-sm font-light text-[var(--text-primary)]`;
@@ -314,7 +314,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const inlinePanelClass = 'rounded-control border border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
   const inlineRowClass = `rounded-compact bg-[var(--recessed-bg)]`;
   const subtleButtonCls = `h-8 px-2.5 rounded-field border inline-flex items-center justify-center gap-1 text-[10px] font-light transition-colors border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]`;
-  const navItemBaseClass = `flex items-center gap-2.5 px-3 h-9 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200`;
+  const navItemBaseClass = `flex items-center gap-2.5 px-3 h-9 rounded-full text-xs font-light tracking-wide transition-colors duration-200`;
   const navItemActiveClass = 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]';
   const navItemIdleClass = 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]';
 
@@ -743,7 +743,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                 data-os-vnext-active={on ? 'true' : 'false'}
                 className={`${navItemBaseClass} ${on ? navItemActiveClass : navItemIdleClass}`}>
                 <Icon size={14} strokeWidth={1.25} className="shrink-0 opacity-80" />
-                <span className="text-[11px]">{tab.label}</span>
+                <span className="text-xs">{tab.label}</span>
               </button>
             );
           })}
@@ -788,7 +788,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     <div className="min-w-0">
                       <p className={adminPanelEyebrowClass}>Identity Control</p>
                       <p data-ui-lab-wallpaper-contrast="primary" className={`mt-1 text-sm font-light text-[var(--text-primary)]`}>用户管理</p>
-                      <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)]`}>
+                      <p className={`mt-1 text-xs font-light text-[var(--text-tertiary)]`}>
                         {users.length} 个用户 · {activeUsers.length} 个账号 · {pendingUsers.length} 个待审批
                       </p>
                     </div>
@@ -806,7 +806,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     <div className={card + ' p-5 space-y-4'}>
                       <div>
                         <h3 className={`text-sm font-light text-[var(--text-primary)]`}>新建用户</h3>
-                        <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)]`}>
+                        <p className={`mt-1 text-xs font-light text-[var(--text-tertiary)]`}>
                           用户 ID 将自动生成；密码只在创建/重置时可设置，数据库不会保存明文密码。
                         </p>
                       </div>
@@ -864,7 +864,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <p className={`text-sm font-light text-[var(--text-primary)]`}>编辑用户</p>
-                          <p className={`mt-1 truncate text-[11px] font-light text-[var(--text-tertiary)]`}>
+                          <p className={`mt-1 truncate text-xs font-light text-[var(--text-tertiary)]`}>
                             {editingUser.displayName} 的账号信息、密码管理与角色权限
                           </p>
                         </div>
@@ -1028,7 +1028,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   {u.displayName}
                                   {emailVerified && <span className={brandChipCls + ' ml-2'}>邮箱已验证</span>}
                                 </div>
-                                <div className={`text-[11px] truncate text-[var(--text-tertiary)]`}>
+                                <div className={`text-xs truncate text-[var(--text-tertiary)]`}>
                                   {maskAdminEmail(u.email)}
                                   {requestedDept && <><span className="mx-1 opacity-50">·</span>{requestedDept}</>}
                                 </div>
@@ -1120,7 +1120,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <tbody>
                         {visibleUsers.length === 0 && (
                           <tr>
-                            <td colSpan={4} className="px-4 py-6 text-center text-[11px] text-[var(--text-tertiary)]">
+                            <td colSpan={4} className="px-4 py-6 text-center text-xs text-[var(--text-tertiary)]">
                               {activeUsers.length === 0 ? '暂无账号' : '无匹配账号，调整搜索或状态筛选'}
                             </td>
                           </tr>
@@ -1216,7 +1216,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                 const on = permDraft.includes(p.scope);
                                 return (
                                   <button key={p.id} type="button" onClick={() => setPermDraft(prev => on ? prev.filter(s => s !== p.scope) : [...prev, p.scope])}
-                                    className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                                       on
                                         ? 'bg-[var(--os-vnext-brand-blue)]/8 border-[var(--os-vnext-brand-blue)]/20 text-[var(--text-primary)]'
                                         : 'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
@@ -1274,7 +1274,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             <span className={`text-[10px] ml-2 text-[var(--text-tertiary)]`}>{a.risk} risk</span>
                             {/* PRD 8.6 双轨偏差业务审批上下文（报价单号 + 轨道 A/B + 偏差） */}
                             {a.actionType === 'quotation:price-deviation' && a.payload && (
-                              <div className={`mt-1 text-[11px] text-[var(--text-tertiary)]`}>
+                              <div className={`mt-1 text-xs text-[var(--text-tertiary)]`}>
                                 报价单 {a.payload.quotationNumber || a.targetId}
                                 {' · '}轨道 A 中位 ${Number(a.payload.trackAMedianUsd ?? 0).toFixed(4)}/{a.payload.trackAUnit === 'PC' ? '件' : '米'}
                                 {' · '}轨道 B 终价 ${Number(a.payload.trackBFinalUsd ?? 0).toFixed(4)}
@@ -1516,7 +1516,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               <div className={`text-sm font-light truncate text-[var(--text-primary)]`}>
                                 {acl.documentTitle || acl.documentId}
                               </div>
-                              <div className={`text-[11px] text-[var(--text-tertiary)]`}>
+                              <div className={`text-xs text-[var(--text-tertiary)]`}>
                                 {acl.roleName && <span className="mr-2">角色: {formatRoleLabel(acl.roleName)}</span>}
                                 {acl.departmentName && <span className="mr-2">部门: {acl.departmentName}</span>}
                                 {!acl.roleName && !acl.departmentName && <span className="mr-2">适用所有</span>}
@@ -1699,7 +1699,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-light truncate text-[var(--text-primary)]">{handoverTarget.displayName}</div>
-                <div className="text-[11px] truncate text-[var(--text-tertiary)]">{maskAdminEmail(handoverTarget.email)}</div>
+                <div className="text-xs truncate text-[var(--text-tertiary)]">{maskAdminEmail(handoverTarget.email)}</div>
               </div>
               <span className={handoverTarget.status === 'active' ? brandChipCls : neutralChipCls}>{handoverTarget.status}</span>
             </div>
@@ -1818,7 +1818,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                 <div className={`mb-2 text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>最近交接记录</div>
                 <div className="space-y-1.5">
                   {handoverRecords.map((r: any) => (
-                    <div key={r.id} className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[11px] font-light ${inlineRowClass}`}>
+                    <div key={r.id} className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-xs font-light ${inlineRowClass}`}>
                       <span className="text-[var(--text-primary)]">{r.fromUserName}</span>
                       <ArrowLeftRight size={14} className="text-[var(--text-tertiary)]" />
                       <span className="text-[var(--text-primary)]">{r.toUserName}</span>

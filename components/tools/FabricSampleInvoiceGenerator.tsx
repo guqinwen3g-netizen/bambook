@@ -879,7 +879,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-4 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto mt-4 pb-4">
           {savedInvoices.length === 0 ? (
             <section className={`${panelClass(isDarkMode)} bds-well--lg flex flex-col items-center justify-center text-center`}>
               <History size={24} strokeWidth={1.25} className="text-[var(--text-secondary)]" />
@@ -908,7 +908,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                     <div className={`mt-1 text-sm truncate ${'text-[var(--text-tertiary)]'}`}>
                       {invoice.billToName || 'No Bill To'} · PO {invoice.poNumber || '-'}
                     </div>
-                    <div className={`mt-2 text-[11px] ${'text-[var(--text-tertiary)]'}`}>
+                    <div className={`mt-2 text-xs ${'text-[var(--text-tertiary)]'}`}>
                       Invoice Date {invoice.invoiceDate || '-'} · 保存于 {new Date(invoice.savedAt).toLocaleString('zh-CN')}
                     </div>
                   </button>
@@ -955,7 +955,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-3">
+      <div className="flex-1 min-h-0 overflow-y-auto mt-3">
         <div className="grid grid-cols-1 2xl:grid-cols-[minmax(520px,0.9fr)_minmax(560px,1.1fr)] gap-4 pb-4">
           <div className="space-y-3">
             <section className={panelClass(isDarkMode)}>

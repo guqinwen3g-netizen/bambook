@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bambook 配色系统 · Color System</title>
+<!-- 直接引用真源 token，色值实时与 tokens.css 一致，不手抄。独立色相视图：同一色相的深浅档位折叠为卡内小点 -->
+<link rel="stylesheet" href="./tokens.css" />
+<style>
+  :root { color-scheme: light; }
+  .dark { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: var(--bg-page); color: var(--text-primary);
+    font-family: "Urbanist", "HarmonyOS Sans SC", "PingFang SC", system-ui, sans-serif;
+    font-weight: 300; padding: 40px clamp(16px,6vw,72px) 72px; min-height: 100vh; transition: background .25s;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:6px; }
+  h1 { font-size: 25px; font-weight:300; letter-spacing:.01em; }
+  h1 small { font-size:12.5px; opacity:.6; margin-left:10px; letter-spacing:.04em; }
+  .sub { font-size:13px; opacity:.6; margin-bottom:5px; }
+  .themeToggle { display:inline-flex; gap:3px; padding:5px; background:var(--recessed-bg); border-radius:999px; }
+  .themeToggle button { border:0; background:transparent; color:var(--text-secondary); font:inherit; font-size:12.5px; padding:6px 17px; border-radius:999px; cursor:pointer; transition:all .18s; }
+  .themeToggle button.active { background:var(--bg-raised); color:var(--text-primary); }
+  .src { font-size:12px; opacity:.45; margin-bottom:26px; font-variant-numeric:tabular-nums; }
+
+  section { margin-bottom: 38px; }
+  h2 { font-size:14.5px; font-weight:400; letter-spacing:.12em; text-transform:uppercase; color:var(--text-secondary); margin-bottom:14px; display:flex; align-items:center; gap:12px; }
+  h2::after { content:""; flex:1; height:1px; background:var(--border-c-default); }
+  .note { font-size:12px; opacity:.55; margin:-8px 0 14px; }
+
+  /* ── 独立色相卡 ── */
+  .family { display:grid; grid-template-columns: 150px 1fr; gap:0; background:var(--bg-card); border:1px solid var(--border-c-default); border-radius:16px; overflow:hidden; margin-bottom:12px; }
+  .family .lead { display:flex; flex-direction:column; justify-content:space-between; min-height:120px; position:relative; }
+  .family .lead .lv { position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:center; padding:12px; font-size:12px; font-weight:400; letter-spacing:.04em; }
+  .family .body { padding:14px 18px; display:flex; flex-direction:column; gap:10px; }
+  .family .fn { font-size:14px; font-weight:400; }
+  .family .fv { font-size:11.5px; opacity:.55; font-variant-numeric:tabular-nums; }
+  .dots { display:flex; flex-wrap:wrap; gap:8px; }
+  .dot { display:flex; flex-direction:column; gap:3px; align-items:center; }
+  .dot i { width:22px; height:22px; border-radius:7px; border:1px solid var(--border-c-default); }
+  .dot span { font-size:9.5px; opacity:.6; }
+
+  /* 语义家族三张并排在行内？更简洁用竖排大框 */
+  .semanticalign { display:grid; grid-template-columns:1fr; gap:12px; }
+
+  /* 分类色列表 — 紧凑 */
+  .masklist { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; }
+  .mrow { display:flex; align-items:center; gap:10px; background:var(--bg-card); border:1px solid var(--border-c-default); border-radius:10px; padding:8px 12px; }
+  .mrow .chip { width:26px; height:26px; border-radius:8px; flex:none; }
+  .mrow .mi { flex:1; min-width:0; }
+  .mrow .mn { font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mrow .mv { font-size:10px; opacity:.55; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .mrow .raw { font-size:10px; opacity:.55; font-variant-numeric:tabular-nums; }
+
+  /* 中性行 */
+  .row { display:flex; flex-wrap:wrap; gap:10px; }
+  .mini { flex:1; min-width:120px; background:var(--bg-card); border:1px solid var(--border-c-default); border-radius:12px; overflow:hidden; }
+  .mini .bar { height:52px; }
+  .mini .m2 { padding:7px 10px; }
+  .mini .mn { font-size:11px; }
+  .mini .mv { font-size:9.5px; opacity:.55; font-variant-numeric:tabular-nums; }
+
+  .sig { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .sigcard { border-radius:16px; overflow:hidden; min-height:120px; display:flex; flex-direction:column; justify-content:flex-end; padding:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>消费色板 · Bambook Color System<small>独立色相视图</small></h1>
+      <div class="sub">同一色相的深浅档位折叠为卡内小点，一张卡 = 一个颜色家族。</div>
+    </div>
+    <div class="themeToggle" id="themeToggle">
+      <button data-theme="light" class="active">浅色</button>
+      <button data-theme="dark">深色</button>
+    </div>
+  </header>
+  <div class="src" id="src"></div>
+  <div id="app"></div>
+</div>
+
+<script>
+const root = () => getComputedStyle(document.documentElement);
+const V = t => root().getPropertyValue(t).trim();
+function luma(hex){const m=hex.match(/^#([0-9a-f]{6})$/i);let r,g,b;if(m){const h=m[1];r=parseInt(h.slice(0,2),16);g=parseInt(h.slice(2,4),16);b=parseInt(h.slice(4,6),16);}else{const rr=hex.match(/rgba?\(([^)]+)\)/);const p=rr?rr[1].split(/[ ,/]+/).map(Number):[128,128,128];r=p[0];g=p[1];b=p[2];}return .299*r+.587*g+.114*b;}
+const on = hex => luma(hex)>155?"rgba(11,12,11,.85)":"rgba(255,255,255,.92)";
+
+function render(){
+  const app=document.getElementById("app"), src=document.getElementById("src");
+  src.textContent="来源 styles/bds/tokens.css · 当前 "+document.documentElement.getAttribute("data-theme")+" 模式 · 值由 getComputedStyle 实时解析";
+  app.innerHTML="";
+
+  // 01 中性表面
+  const surf=["bg-page","bg-card","bg-panel","bg-sunken","bg-raised"];
+  app.innerHTML+=`<section><h2>01 · 中性表面层级</h2><div class="row">`
+    +surf.map(t=>`<div class="mini"><div class="bar" style="background:var(--${t})"></div><div class="m2"><div class="mn">${t}</div><div class="mv">${V(t)}</div></div></div>`).join("")
+    +`</div></section>`;
+
+  // 02 文字
+  const inks=[["ink","实色"],["text-primary","主"],["text-secondary","次"],["text-tertiary","三级"],["text-quaternary","四级"]];
+  app.innerHTML+=`<section><h2>02 · 文字 Ink</h2><div class="row">`
+    +inks.map(([t,n])=>`<div class="mini"><div class="bar" style="background:var(--ink);display:flex;align-items:center;justify-content:center;"><span style="color:var(--${t});font-size:13px">${n}</span></div><div class="m2"><div class="mn">${t}</div><div class="mv">${V(t)}</div></div></div>`).join("")
+    +`</div></section>`;
+
+  // 03 功能色 accent 家族
+  app.innerHTML+=`<section><h2>03 · 功能色 — 品牌 Accent</h2><div class="note">系统唯一行动色：主按钮 / 链接 / 选中 / 开关 / 勾。此家族所有档位都是同一个雾青蓝。</div>`
+    +familyCard("accent","雾青蓝 · 功能/行动（主按钮·链接）","on-accent",
+      [["accent-hover","hover"],["accent-active","active"],["accent-text","tint字"],["accent-tint","tint"],["accent-tint-strong","tint强"]])
+    +`</section>`;
+
+  // 04 语义三色
+  app.innerHTML+=`<section><h2>04 · 语义状态色</h2><div class="note">好/等/坏 · 仅小面积 dot / tint / 实底。每卡一个色相，档位折叠。</div><div class="semanticalign">`
+    +familyCard("success","success · 雾松绿（成功/完成）",null,[["success-text","文字"],["success-tint","tint"]])
+    +familyCard("warning","warning · 雾琥珀（待审/预警）",null,[["warning-text","文字"],["warning-tint","tint"]])
+    +familyCard("danger","danger · 雾绯红（错误/删除/危急）",null,[["danger-text","文字"],["danger-tint","tint"]])
+    +`</div><div class="note" style="margin-top:10px">info 语义归并 accent 系（info 徽章 = accent tint）。</div></section>`;
+
+  // 05 分类 10 色（14 并组）
+  const cats=[["mask-violet","订单"],["mask-violet-soft","订单行/采购"],["mask-pink","报价单"],["mask-emerald","发票/生产"],["mask-amber","收付款/库存/仓库"],["mask-cyan","出货/收货"],["mask-rose","报关"],["mask-orange","样品"],["mask-green","检验/退税"],["mask-blue","产品/业务伙伴/贸易单据"]];
+  app.innerHTML+=`<section><h2>05 · 雾化分类色板 — 10 色</h2><div class="note">业务实体分类编码 · 三击追溯图例（2026-08-31 由 14 并组到 10：sky/olive/teal/indigo 并入同色系，靠文字区分实体）。每色 基色 + 文字 二元。</div><div class="masklist">`
+    +cats.map(([t,label])=>`
+      <div class="mrow">
+        <div class="chip" style="background:var(--${t})"></div>
+        <div class="mi"><div class="mn">${label}</div><div class="mv">${t} · ${V(t)}</div></div>
+        <div class="raw" style="color:var(--${t}-text)">${t}-text</div>
+      </div>`).join("")
+    +`</div></section>`;
+
+  // 06 签名材质
+  app.innerHTML+=`<section><h2>06 · 签名材质</h2><div class="note">品牌面：雾蓝渐变（hero/品牌卡）+ 淡紫藤（AI/特殊标记）。</div><div class="sig">
+    <div class="sigcard" style="background:var(--brand-mist);color:var(--on-mist)">雾蓝渐变 brand-mist<div style="font-size:11px;opacity:.7;margin-top:3px">hero 数据卡 · 白字落雾面</div></div>
+    <div class="sigcard" style="background:var(--brand-wisteria);color:var(--on-wisteria)">淡紫藤 brand-wisteria<div style="font-size:11px;opacity:.7;margin-top:3px">AI 助手 · 特殊标记</div></div>
+    </div></section>`;
+
+  // 07 结构
+  const str=[["border-c-subtle","细"],["border-c-default","中"],["border-c-strong","强"],["recessed-bg","内凹"],["recessed-bg-strong","内凹强"],["mask-bg","遮罩"],["frosted-bg","磨砂"]];
+  app.innerHTML+=`<section><h2>07 · 结构 / 氛围</h2><div class="row">`
+    +str.map(t=>`<div class="mini"><div class="bar" style="background:var(--${t[0]})"></div><div class="m2"><div class="mn">${t[0]}</div><div class="mv">${V(t[0])}</div></div></div>`).join("")
+    +`</div></section>`;
+}
+function familyCard(main,title,onAccent,dots){
+  const bg=`var(--${main})`;
+  const cv=V(main);
+  const lv= onAccent?`<span style="color:var(--${onAccent})">Aa</span>`:`<span style="color:${on(cv)}">Aa</span>`;
+  return `<div class="family">
+    <div class="lead" style="background:${bg}"><div class="lv">${lv}</div></div>
+    <div class="body">
+      <div class="fn">${title}</div>
+      <div class="fv">${main} · ${Q(main)}</div>
+      <div class="dots">`+
+    dots.map(([t,n])=>`<div class="dot"><i style="background:var(--${t})"></i><span>${n}</span></div>`).join("")
+    +`</div>
+    </div></div>`;
+}
+function Q(t){return V(t);}
+
+// 初始化：深浅主题切换 + 首帧渲染（此前漏调 render() 导致 #app 为空）
+const themeBtns = document.querySelectorAll(".themeToggle button");
+function setTheme(name){
+  document.documentElement.classList.toggle("dark", name === "dark");
+  document.documentElement.setAttribute("data-theme", name);
+  themeBtns.forEach(b => b.classList.toggle("active", b.dataset.theme === name));
+  render();
+}
+themeBtns.forEach(b => b.addEventListener("click", () => setTheme(b.dataset.theme)));
+setTheme(document.documentElement.getAttribute("data-theme") || "light");
+</script>
+</body>
+</html>

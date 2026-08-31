@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="demo-mist">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bambook · 高保真配色 Demo（真实编译 CSS）</title>
+<!-- ═══ 真实生产编译 CSS（Tailwind + os-vnext + flat + BDS 全链，含全部真实字体） ═══ -->
+<link rel="stylesheet" href="/out/renderer/assets/main-CIjdWYRo.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   雾蓝频道配色覆盖层（demo 专用 — 落地时回写 tokens.css，程序本体零改动）
+   关键：tokens.css 的 .dark 块直接命中 .bambook-os-root 根元素（根带 dark 类），
+   继承打不过直接规则——覆盖必须打在根元素作用域上并以更高特异性压过。
+   ═══════════════════════════════════════════════════════════════ */
+html.demo-mist .bambook-os-root {
+  --bg-page: #ECF1F5;
+  --os-vnext-bg-light: #ECF1F5;
+  --page-aurora:
+    radial-gradient(52% 38% at 18% 8%, rgba(159,188,203,0.35), rgba(159,188,203,0) 100%),
+    radial-gradient(44% 34% at 84% 78%, rgba(198,217,226,0.22), rgba(198,217,226,0) 100%),
+    var(--bg-page);
+  --bg-panel: #E4EBF1;
+  --bg-sunken: #DCE5EC;
+  --frosted-bg: rgba(250,252,254,0.92);
+  background-color: var(--bg-page);      /* 压过 bg-app-light/dark 的近黑实底 */
+  background-image: var(--page-aurora);
+}
+html.demo-mist .bambook-os-root.dark {
+  /* 明度阶梯对齐侧边栏雾带（L14-22）：page L13 → card L19（侧边栏中段同族） */
+  --bg-page: #14232F;
+  --os-vnext-bg-dark: #14232F;
+  --page-aurora:
+    radial-gradient(62% 48% at 22% 8%, rgba(88,134,156,0.50), rgba(88,134,156,0) 100%),
+    radial-gradient(50% 40% at 86% 80%, rgba(52,82,102,0.38), rgba(52,82,102,0) 100%),
+    var(--bg-page);
+  --bg-card: #1E3444;
+  --bg-panel: #0E1B24;
+  --bg-sunken: #0B161E;
+  --bg-raised: #26434F;
+  --frosted-bg: rgba(30,52,68,0.92);
+  background-color: var(--bg-page);
+  background-image: var(--page-aurora);
+}
+
+/* ═══ 方案 A 工具行（demo 载体 — 验收后落 components.css） ═══ */
+.demo-toolrow { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.demo-toolrow-wrap { padding-bottom: 18px; margin-bottom: 20px; border-bottom: var(--border-subtle); }
+.demo-search { position: relative; display: flex; align-items: center; width: 280px; flex-shrink: 0; }
+.demo-search .demo-search-icon { position: absolute; left: 13px; width: 16px; height: 16px; color: var(--text-tertiary); pointer-events: none; display: flex; }
+.demo-search .bds-input {
+  height: var(--h-btn-md);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-pill);
+  background: var(--frosted-bg);
+  border: 1px solid var(--border-c-default);
+  padding-left: 38px;
+}
+.demo-search .bds-input:hover { background: var(--frosted-bg); filter: brightness(1.015); }
+.demo-search .bds-input:focus { background: var(--frosted-bg); border-color: var(--accent); }
+
+/* demo 页辅助（不参与生产） */
+.demo-note { font-size: 11px; color: var(--text-tertiary); margin: 8px 0 14px; line-height: 1.7; }
+.demo-float { position: fixed; right: 20px; bottom: 20px; z-index: 999; display: flex; gap: 8px; }
+.demo-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+.demo-cols { display: grid; grid-template-columns: 5fr 3fr; gap: 14px; }
+.demo-field { display: flex; flex-direction: column; gap: 6px; }
+.demo-field > label { font-size: 11px; color: var(--text-tertiary); letter-spacing: .5px; }
+.demo-select-fake { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+
+/* 侧边栏文字 — 统一继承制：浅色全深藏青 / 深色全白，层级只靠透明度（真实产品纪律） */
+html.demo-mist .app-sidebar { color: rgb(9 31 58); }
+html.demo-mist.dark .app-sidebar { color: #F2F5F4; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ 真实 App 壳结构（类名照抄 App.tsx / Sidebar.tsx / CrmManager.tsx） ═══════════ -->
+<div class="bambook-os-root flex h-screen overflow-visible relative bg-app-light"
+     data-sidebar-state="expanded"
+     data-wallpaper-mode="off"
+     data-appearance-mode="light"
+     style="--app-sidebar-w: 232px; --app-sidebar-visual-w: 232px;">
+
+  <!-- 侧边栏雾蓝材质层（真实类） -->
+  <div class="app-reveal-underlay-material" aria-hidden="true"></div>
+
+  <!-- ═══ 侧边栏（真实结构：shell + nav-scroll + nav-item + 账号区） ═══ -->
+  <div class="app-sidebar !absolute !left-0 !top-0 !bottom-0 w-[232px] z-10 flex flex-col ![border-radius:0] app-sidebar-underlay-content relative z-10 min-h-0 overflow-hidden">
+    <div class="relative z-10 flex-1 min-h-0">
+      <div data-sidebar-nav-scroll class="bambook-sidebar-nav-scroll-viewport h-full min-h-0 px-4 pb-3.5 pt-14 space-y-1.5 overflow-y-auto no-scrollbar">
+
+        <div data-sidebar-nav-group-label="经营" class="select-none pl-5 pr-4 text-xs font-light tracking-wider opacity-60">经营</div>
+        <button data-sidebar-nav-item data-sidebar-nav-active="true"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="bambook-selected-surface absolute inset-0 rounded-control z-0"></div>
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-100">经营驾驶舱</span>
+          </div>
+        </button>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">订单管理</span>
+          </div>
+        </button>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">客户关系</span>
+          </div>
+        </button>
+
+        <div data-sidebar-nav-group-label="供应链" class="select-none pl-5 pr-4 text-xs font-light tracking-wider opacity-60 pt-3">供应链</div>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h3m0 0h-3m3 0v3m0-3v-3M6.7 6.7 4 4m2.7 2.7L4 9.4M6.7 6.7 9.4 4"/><circle cx="14" cy="14" r="6"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">数字档案</span>
+          </div>
+        </button>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M5 20V8m7 12V4m7 16v-9"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">生产看板</span>
+          </div>
+        </button>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v9M3 16H2m3 0h14m0 0h1v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3Z"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">出运报关</span>
+          </div>
+        </button>
+
+        <div data-sidebar-nav-group-label="支撑" class="select-none pl-5 pr-4 text-xs font-light tracking-wider opacity-60 pt-3">支撑</div>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3M6 13V3"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">财务结算</span>
+          </div>
+        </button>
+        <button data-sidebar-nav-item data-sidebar-nav-active="false"
+          class="w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control">
+          <div class="relative z-10 flex items-center gap-4 pointer-events-none">
+            <svg data-sidebar-nav-icon width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 13 4-4 4 3 5-6"/></svg>
+            <span data-sidebar-nav-label class="text-sm font-light tracking-tight opacity-80">数据分析</span>
+          </div>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- 底部账号区（真实结构） -->
+    <div class="mt-auto shrink-0 p-4 relative z-10" data-sidebar-account-bar>
+      <button class="group relative flex w-full items-center gap-3 px-3 py-2 rounded-inset text-left">
+        <div class="h-11 w-11 rounded-full bg-[rgb(var(--bambook-rdl-theme-rgb)/0.18)] grid place-items-center text-sm font-light shrink-0">KG</div>
+        <div class="relative z-10 min-w-0 flex-1">
+          <div class="text-sm font-light truncate">Kevin Gu</div>
+          <div class="text-xs font-light opacity-60 truncate">管理员 · admin@bambook.cn</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ 主区（真实结构：app-main + viewport p-6） ═══ -->
+  <main class="app-main app-main-cover app-main-cover-flush flex flex-col min-w-0 overflow-hidden opacity-100">
+    <div class="app-main-viewport flex-1 min-h-0 relative overflow-y-auto scroll-smooth p-6">
+      <div class="h-full flex flex-col">
+
+        <!-- 真实 PageHeader（bds-pagehead 真实类） -->
+        <header class="bds-pagehead shrink-0">
+          <div class="ph-main">
+            <h1 class="ph-title" style="margin:0">客户关系管理<span class="en">CRM Customer Relationship Management</span></h1>
+          </div>
+          <div class="ph-side">
+            <span class="bds-text-xs" style="color: var(--text-tertiary);">Relation Desk</span>
+          </div>
+        </header>
+
+        <!-- ── 工具行 · 方案 A（新设计唯一形态） ── -->
+        <div class="px-7 pb-3">
+          <div class="demo-toolrow-wrap" style="padding-top: 12px;">
+            <div class="demo-toolrow">
+              <div class="demo-search">
+                <span class="demo-search-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                </span>
+                <input type="text" placeholder="搜索客户名称..." class="bds-input w-full">
+              </div>
+              <div class="bds-segment">
+                <button class="seg active">全部</button>
+                <button class="seg">客户</button>
+                <button class="seg">供应商</button>
+              </div>
+              <div class="flex-1"></div>
+              <button class="bds-btn bds-btn-secondary">导出</button>
+              <button class="bds-btn bds-btn-primary">新建客户</button>
+            </div>
+          </div>
+
+          <!-- KPI 行（真实 bds-card / bds-stat 族） -->
+          <div class="demo-kpi-grid">
+            <div class="bds-card">
+              <div class="bds-stat-label">在手订单</div>
+              <div class="bds-stat-num"><span class="unit">$</span>1.24M</div>
+              <div class="bds-stat-delta up" style="margin-top:10px">▲ 12.4% 环比</div>
+            </div>
+            <div class="bds-card">
+              <div class="bds-stat-label">本月出货</div>
+              <div class="bds-stat-num"><span class="unit">$</span>486K</div>
+              <div class="bds-stat-delta up" style="margin-top:10px">▲ 6.1% 环比</div>
+            </div>
+            <div class="bds-card">
+              <div class="bds-stat-label">回款率</div>
+              <div class="bds-stat-num">92.4<span class="unit">%</span></div>
+              <div class="bds-stat-delta down" style="margin-top:10px">▼ 1.8% 环比</div>
+            </div>
+            <div class="bds-card">
+              <div class="bds-stat-label">逾期应收</div>
+              <div class="bds-stat-num"><span class="unit">$</span>37.2K</div>
+              <div class="bds-stat-delta down" style="margin-top:10px">2 单待催</div>
+            </div>
+          </div>
+
+          <!-- 表格卡 + 表单卡（真实 bds-table / bds-input 凹槽层级） -->
+          <div class="demo-cols">
+            <div class="bds-card" style="padding:0; overflow:hidden;">
+              <div class="flex items-center justify-between" style="padding:16px 18px 12px;">
+                <h3 style="font-size:14px; font-weight:400; margin:0;">客户订单跟踪</h3>
+                <span style="font-size:12px; color:var(--accent-text); cursor:pointer;">查看全部 →</span>
+              </div>
+              <table class="bds-table">
+                <thead>
+                  <tr><th>订单号</th><th>客户</th><th>品类</th><th class="num">金额</th><th>状态</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>SO-2608-014</td><td>Nordwind GmbH</td><td>摇粒绒卫衣</td><td class="num">$86,400</td><td><span class="bds-badge success">生产中</span></td></tr>
+                  <tr><td>SO-2608-021</td><td>Pacific Apparel</td><td>全棉针织T恤</td><td class="num">$52,150</td><td><span class="bds-badge warning">待确认</span></td></tr>
+                  <tr><td>SO-2607-036</td><td>Maison Vert</td><td>亚麻连衣裙</td><td class="num">$118,900</td><td><span class="bds-badge danger">逾期</span></td></tr>
+                  <tr><td>SO-2608-009</td><td>Alpine Textil</td><td>功能性夹克</td><td class="num">$43,700</td><td><span class="bds-badge info">已出运</span></td></tr>
+                  <tr><td>SO-2608-027</td><td>Kyoto Trade</td><td>真丝衬衫</td><td class="num">$67,300</td><td><span class="bds-badge neutral">待采购</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="bds-card">
+              <h3 style="font-size:14px; font-weight:400; margin:0 0 14px;">快捷建档（卡内字段凹槽层级）</h3>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div class="demo-field">
+                  <label>客户名称</label>
+                  <input class="bds-input" placeholder="输入客户全称">
+                </div>
+                <div class="demo-field">
+                  <label>客户分类</label>
+                  <div class="bds-segment" style="width:fit-content">
+                    <button class="seg active">客户</button>
+                    <button class="seg">供应商</button>
+                    <button class="seg">货代</button>
+                  </div>
+                </div>
+                <div class="demo-field">
+                  <label>信用额度</label>
+                  <div class="bds-input demo-select-fake">
+                    <span>$ 50,000</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
+                <button class="bds-btn bds-btn-primary" style="margin-top:4px;">保存建档</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 深浅切换 + 说明 -->
+<div class="demo-float">
+  <button class="bds-btn bds-btn-secondary" onclick="toggleDark()">切换深浅色</button>
+</div>
+
+<script>
+function toggleDark() {
+  const el = document.documentElement;
+  el.classList.toggle('dark');
+  const root = document.querySelector('.bambook-os-root');
+  if (root) {
+    const dark = el.classList.contains('dark');
+    root.classList.toggle('dark', dark);
+    root.classList.toggle('bambook-os-root--dark', dark);   /* 真实 App 的深色材质钩子（侧边栏深雾蓝渐变等） */
+    root.classList.toggle('bg-app-dark', dark);
+    root.classList.toggle('bg-app-light', !dark);
+    root.setAttribute('data-appearance-mode', dark ? 'dark' : 'light');
+  }
+}
+</script>
+</body>
+</html>

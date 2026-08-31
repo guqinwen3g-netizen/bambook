@@ -35,7 +35,7 @@ export const AgentTableBlock: React.FC<AgentBlockComponentProps<AgentTableBlockM
     <div className={`${OS_MATERIAL.insetSurface} overflow-hidden rounded-inset border ${borderClass}`}>
       {(block.title || block.caption) && (
         <div className={`border-b px-4 py-3 ${borderClass}`}>
-          {block.title && <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title}</div>}
+          {block.title && <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title}</div>}
           {block.caption && <div className={`mt-1 text-xs ${quietTextClass}`}>{block.caption}</div>}
           {toolRunIds.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">

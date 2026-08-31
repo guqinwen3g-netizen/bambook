@@ -133,7 +133,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
               管理员审核通过后会向 <span className="text-[var(--text-primary)]">{submittedEmail}</span> 发送通知邮件，届时即可使用同一邮箱登录。
             </p>
 
-            <div className={`mt-5 w-full flex items-center gap-2 px-3 py-2.5 rounded-inset border text-[11px] border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
+            <div className={`mt-5 w-full flex items-center gap-2 px-3 py-2.5 rounded-inset border text-xs border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
               <MailCheck size={14} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue)] shrink-0" />
               <span>请留意邮箱（含垃圾邮件夹），如长时间未收到通知可联系您的管理员。</span>
             </div>
@@ -145,7 +145,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
             >
               立即返回登录
             </button>
-            <p className={`mt-3 text-[11px] text-[var(--text-tertiary)]`}>
+            <p className={`mt-3 text-xs text-[var(--text-tertiary)]`}>
               {redirectCountdown > 0 ? `${redirectCountdown} 秒后自动返回登录` : '正在返回登录…'}
             </p>
           </div>
@@ -164,7 +164,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
             申请加入 Bambook Neural
           </h1>
           <p
-            className={`mt-1 text-[11px] min-h-4 text-center px-2 leading-4 ${
+            className={`mt-1 text-xs min-h-4 text-center px-2 leading-4 ${
               error ? 'text-[var(--text-tertiary)]' : success ? 'text-[var(--text-secondary)]' : info ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-tertiary)]'
             }`}
           >
@@ -174,7 +174,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>姓名</label>
+            <label className={`block text-xs font-light mb-1.5 text-[var(--text-tertiary)]`}>姓名</label>
             <input
               type="text"
               value={displayName}
@@ -186,7 +186,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
           </div>
 
           <div>
-            <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>工作邮箱</label>
+            <label className={`block text-xs font-light mb-1.5 text-[var(--text-tertiary)]`}>工作邮箱</label>
             <input
               type="email"
               value={email}
@@ -198,7 +198,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
           </div>
 
           <div>
-            <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>邮箱验证码</label>
+            <label className={`block text-xs font-light mb-1.5 text-[var(--text-tertiary)]`}>邮箱验证码</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -226,7 +226,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>密码</label>
+              <label className={`block text-xs font-light mb-1.5 text-[var(--text-tertiary)]`}>密码</label>
               <input
                 type="password"
                 value={password}
@@ -237,7 +237,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
               />
             </div>
             <div>
-              <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>确认密码</label>
+              <label className={`block text-xs font-light mb-1.5 text-[var(--text-tertiary)]`}>确认密码</label>
               <input
                 type="password"
                 value={confirm}

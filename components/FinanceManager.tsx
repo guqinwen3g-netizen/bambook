@@ -323,9 +323,9 @@ const KpiCard: React.FC<{ card: KpiCard }> = ({ card }) => (
   <div className="bds-card flex flex-col justify-between">
     <div className="text-[10px] font-light tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>{card.label}</div>
     <div className="bds-tnum mt-2 text-lg font-light" style={{ color: 'var(--text-primary)' }}>{card.primary}</div>
-    <div className="mt-1 text-[11px] font-light" style={{ color: 'var(--text-tertiary)' }}>{card.secondary}</div>
+    <div className="mt-1 text-xs font-light" style={{ color: 'var(--text-tertiary)' }}>{card.secondary}</div>
     {card.tertiary && (
-      <div className="bds-tnum mt-1 text-[11px] font-light" style={{ color: 'var(--text-tertiary)' }}>{card.tertiary}</div>
+      <div className="bds-tnum mt-1 text-xs font-light" style={{ color: 'var(--text-tertiary)' }}>{card.tertiary}</div>
     )}
   </div>
 );
@@ -1600,21 +1600,21 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       >
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimaryClass)}>{item.invoiceNumber}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{invoiceTypeLabel(item.type)} · {item.currency || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{invoiceTypeLabel(item.type)} · {item.currency || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <span className={invoiceStatusBadge(item.status)}>
             {INVOICE_STATUS_LABEL[item.status] ?? item.status}
           </span>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{invoiceTypeLabel(item.type)}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{invoiceTypeLabel(item.type)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimaryClass)}>{item.customerName || '—'}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.orderId ? `订单 ${item.orderId.slice(-8)}` : '无关联订单'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{item.orderId ? `订单 ${item.orderId.slice(-8)}` : '无关联订单'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light tabular-nums', textPrimaryClass)}>{formatAmount(item.amount, item.currency)}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.dueDate || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{item.dueDate || '—'}</div>
         </div>
       </button>
     );
@@ -1638,7 +1638,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       >
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimaryClass)}>{item.voucherNumber}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{voucherTypeLabel(item.type)} · {item.currency || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{voucherTypeLabel(item.type)} · {item.currency || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className="flex min-w-0 items-center gap-1">
@@ -1649,15 +1649,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <span className={FINANCE_STATUS_BADGE}>{voucherCategoryLabel((item as PaymentVoucherWithCategory).voucherCategory)}</span>
             )}
           </div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{voucherTypeLabel(item.type)}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{voucherTypeLabel(item.type)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimaryClass)}>{item.customerName || '—'}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.invoiceId ? `发票 ${item.invoiceId.slice(-8)}` : '未核销'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{item.invoiceId ? `发票 ${item.invoiceId.slice(-8)}` : '未核销'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light tabular-nums', textPrimaryClass)}>{formatAmount(item.amount, item.currency)}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.paymentDate || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{item.paymentDate || '—'}</div>
         </div>
       </button>
     );
@@ -1683,21 +1683,21 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       >
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimaryClass)}>{item.vatNumber}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(item.direction)} · {vatTypeLabel(item.invoiceType)}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{vatDirectionLabel(item.direction)} · {vatTypeLabel(item.invoiceType)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <span className={vatStatusBadge(item.status)}>
             {VAT_STATUS_LABELS[item.status] || item.status}
           </span>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(item.direction)}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{vatDirectionLabel(item.direction)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimaryClass)}>{partnerName || '—'}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.orderId ? `订单 ${item.orderId.slice(-8)}` : item.taxRefundId ? `退税 ${item.taxRefundId.slice(-8)}` : '无关联单据'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{item.orderId ? `订单 ${item.orderId.slice(-8)}` : item.taxRefundId ? `退税 ${item.taxRefundId.slice(-8)}` : '无关联单据'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light tabular-nums', textPrimaryClass)}>{formatAmount(Number(item.totalAmount), item.currency)}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.issueDate || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{item.issueDate || '—'}</div>
         </div>
       </button>
     );
@@ -1812,7 +1812,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>当前增值税发票</div>
               <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{vat.vatNumber}</div>
-              <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(vat.direction)}{vatTypeLabel(vat.invoiceType)} · {vat.currency || 'CNY'}</div>
+              <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{vatDirectionLabel(vat.direction)}{vatTypeLabel(vat.invoiceType)} · {vat.currency || 'CNY'}</div>
               {/* 状态徽章归到标题信息区，与动作按钮分离，避免混排显得杂乱 */}
               <div className="mt-2"><span className={vatStatusBadge(vat.status)}>
                 {VAT_STATUS_LABELS[vat.status] || vat.status}
@@ -1871,7 +1871,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
           <div className="mt-3 rounded-inset p-3 bds-inset">
             <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
-            <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
+            <div className={cx('mt-1 text-xs font-light leading-relaxed', textPrimaryClass)}>
               {VAT_STATUS_LABELS[vat.status] || vat.status}：{VAT_STATUS_GUIDE[vat.status] || '请检查发票状态。'}
             </div>
           </div>
@@ -1879,7 +1879,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           <div className="rounded-inset p-4 bds-inset">
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>价税合计</div>
             <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{formatAmount(Number(vat.totalAmount), vat.currency)}</div>
-            <div className={cx('mt-1 text-[11px] font-light tabular-nums', textSecondaryClass)}>
+            <div className={cx('mt-1 text-xs font-light tabular-nums', textSecondaryClass)}>
               不含税 {formatAmount(Number(vat.netAmount), vat.currency)} + 税额 {formatAmount(Number(vat.taxAmount), vat.currency)}
             </div>
           </div>
@@ -1976,7 +1976,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>{headerLabel}</div>
               <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{headerValue}</div>
-              <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{headerMeta}</div>
+              <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{headerMeta}</div>
               {/* 状态徽章归到标题信息区，与动作按钮分离，避免混排显得杂乱 */}
               <div className="mt-2"><span className={statusChipClassApplied}>{statusLabel}</span></div>
             </div>
@@ -2180,7 +2180,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           {!isInvoice && voucher && (
             <div className="mt-3 rounded-inset p-3 bds-inset">
               <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
-              <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
+              <div className={cx('mt-1 text-xs font-light leading-relaxed', textPrimaryClass)}>
                 {VOUCHER_STATUS_GUIDE[voucher.status as VoucherStatus]?.label ?? '未知状态'}：{VOUCHER_STATUS_GUIDE[voucher.status as VoucherStatus]?.nextStep ?? '请检查凭证核销状态。'}
               </div>
             </div>
@@ -2196,15 +2196,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="rounded-inset p-4 bds-inset">
                 <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>关联订单（{invoiceDetail?.orderAllocations?.length ?? 0}）</div>
                 {invoiceDetailLoading ? (
-                  <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>加载中...</div>
+                  <div className={cx('mt-2 text-xs font-light', textSecondaryClass)}>加载中...</div>
                 ) : !invoiceDetail?.orderAllocations || invoiceDetail.orderAllocations.length === 0 ? (
-                  <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>暂无关联订单。在「编辑」中分配一个或多个订单。</div>
+                  <div className={cx('mt-2 text-xs font-light', textSecondaryClass)}>暂无关联订单。在「编辑」中分配一个或多个订单。</div>
                 ) : (
                   <div className="mt-2 space-y-1.5">
                     {invoiceDetail.orderAllocations.map((oa: InvoiceOrderAllocation) => (
                       <div key={oa.id} className="rdl-data-row min-h-0 justify-between px-2.5 py-1.5">
                         <div className="min-w-0">
-                          <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                          <div className={cx('truncate text-xs font-light', textPrimaryClass)}>
                             {oa.orderNumber ? `订单 ${oa.orderNumber}` : `订单 ${oa.orderId.slice(-8)}`}
                             {oa.poNumber ? ` · PO ${oa.poNumber}` : ''}
                           </div>
@@ -2238,7 +2238,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       className="rdl-data-row min-h-0 w-full justify-between px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
                     >
                       <div className="min-w-0">
-                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                        <div className={cx('truncate text-xs font-light', textPrimaryClass)}>
                           开发 {dc.code}
                         </div>
                         <div className={cx('mt-0.5 truncate text-[10px] font-light', textSecondaryClass)}>
@@ -2267,7 +2267,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 {invoiceTradeDoc ? (
                   <div className="rdl-data-row mt-2 min-h-0 justify-between px-2.5 py-1.5">
                     <div className="min-w-0">
-                      <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                      <div className={cx('truncate text-xs font-light', textPrimaryClass)}>
                         交单 {invoiceTradeDoc.documentNumber}（与记账号同号）
                       </div>
                       <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
@@ -2277,7 +2277,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className={cx('mt-2 text-[11px] font-light leading-relaxed', textSecondaryClass)}>
+                  <div className={cx('mt-2 text-xs font-light leading-relaxed', textSecondaryClass)}>
                     尚未在单据中心登记交单。出货后可在单据中心「从运单生成」批量建档，商业发票将自动回链本发票（交单号=记账号）。
                   </div>
                 )}
@@ -2320,7 +2320,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 {(() => {
                   const arts = (Array.isArray((invoiceDetail as any)?.attachments) ? (invoiceDetail as any).attachments : []) as InvoiceAttachment[];
                   if (arts.length === 0) {
-                    return <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>暂无附件。上传发票文件以便归档留痕。</div>;
+                    return <div className={cx('mt-2 text-xs font-light', textSecondaryClass)}>暂无附件。上传发票文件以便归档留痕。</div>;
                   }
                   return (
                     <div className="mt-2 space-y-1.5">
@@ -2329,7 +2329,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                           <div className="flex min-w-0 items-center gap-2">
                             <Paperclip size={14} strokeWidth={1.75} className={textSecondaryClass} />
                             <div className="min-w-0">
-                              <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>{att.fileName}</div>
+                              <div className={cx('truncate text-xs font-light', textPrimaryClass)}>{att.fileName}</div>
                               {att.fileSize != null && (
                                 <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
                                   {Math.round(att.fileSize / 1024)} KB{att.uploadedAt ? ` · ${new Date(att.uploadedAt).toLocaleString()}` : ''}
@@ -2369,15 +2369,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 )}
               </div>
               {allocLoading ? (
-                <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>加载中...</div>
+                <div className={cx('mt-2 text-xs font-light', textSecondaryClass)}>加载中...</div>
               ) : allocations.length === 0 ? (
-                <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>暂无核销记录。点击「添加核销」关联{isInvoice ? '收付款凭证' : '发票'}。</div>
+                <div className={cx('mt-2 text-xs font-light', textSecondaryClass)}>暂无核销记录。点击「添加核销」关联{isInvoice ? '收付款凭证' : '发票'}。</div>
               ) : (
                 <div className="mt-2 space-y-1.5">
                   {allocations.map(alloc => (
                     <div key={alloc.id} className="rdl-data-row min-h-0 justify-between px-2.5 py-1.5">
                       <div className="min-w-0">
-                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                        <div className={cx('truncate text-xs font-light', textPrimaryClass)}>
                           {isInvoiceContext ? `凭证: ${alloc.voucherId}` : `发票: ${alloc.invoiceId}`}
                         </div>
                         <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
@@ -2510,7 +2510,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 ))}
               </div>
             </div>
-            <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
+            <div className={cx('ml-auto text-xs font-light', textSecondaryClass)}>
               {activeTab === 'reports'
                 ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
                 : activeTab === 'cashCalendar'
@@ -2670,23 +2670,23 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {showCreateVoucher && (
         <div className="bds-modal-mask" onClick={() => !voucherCreating && setShowCreateVoucher(false)}>
           <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>{editingVoucher ? '编辑收付款凭证' : '新建收付款凭证'}</h2>
+            <h2 className={cx('mb-4 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>{editingVoucher ? '编辑收付款凭证' : '新建收付款凭证'}</h2>
             <div className="space-y-3">
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证号 *</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>凭证号 *</label>
                 <input value={voucherForm.voucherNumber} onChange={e => setVoucherForm(f => ({ ...f, voucherNumber: e.target.value }))}
                   placeholder="PAY-20260628-001"
                   className={formInputClass} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>类型</label>
                   <CustomSelect surface="form" size="compact" value={voucherForm.type}
                     onChange={v => setVoucherForm(f => ({ ...f, type: v as 'Receipt' | 'Disbursement', customerRelationId: '', paymentRequestId: '' }))}
                     options={[{ value: 'Receipt', label: '收款' }, { value: 'Disbursement', label: '付款' }]} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>金额 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>金额 *</label>
                   <input type="number" value={voucherForm.amount} onChange={e => setVoucherForm(f => ({ ...f, amount: e.target.value }))}
                     className={formInputClass} />
                 </div>
@@ -2695,7 +2695,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   下拉即唯一合法数据源；无申请时明确指引去「付款申请」页签，不再填完一屏才撞门禁 */}
               {voucherForm.type === 'Disbursement' && !editingVoucher && (
                 <div className="rounded-field bg-[var(--recessed-bg)] px-4 py-3">
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>关联付款申请 *（先申请后付款）</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>关联付款申请 *（先申请后付款）</label>
                   {payableRequests.length > 0 ? (
                     <CustomSelect
                       surface="form"
@@ -2711,11 +2711,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       ]}
                     />
                   ) : (
-                    <div className={cx('text-[11px] font-light', textSecondaryClass)}>
+                    <div className={cx('text-xs font-light', textSecondaryClass)}>
                       {payableRequestsLoading ? '正在加载已批准的付款申请…' : '暂无已批准未付款的付款申请。'}
                     </div>
                   )}
-                  <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>
+                  <div className={cx('mt-2 text-xs font-light', textSecondaryClass)}>
                     付款凭证必须关联审批通过的付款申请，未关联将无法创建。尚无申请？请先到「付款申请」页签提交并获批。
                     <button
                       type="button"
@@ -2728,26 +2728,26 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
               )}
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>凭证分类</label>
                 <CustomSelect surface="form" size="compact" value={voucherForm.voucherCategory}
                   onChange={v => setVoucherForm(f => ({ ...f, voucherCategory: v as VoucherCategory }))}
                   options={VOUCHER_CATEGORIES.map(c => ({ value: c, label: VOUCHER_CATEGORY_LABELS[c] }))} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>币种</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>币种</label>
                   <input value={voucherForm.currency} onChange={e => setVoucherForm(f => ({ ...f, currency: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付款方式</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>付款方式</label>
                   <CustomSelect surface="form" size="compact" value={voucherForm.paymentMethod}
                     onChange={v => setVoucherForm(f => ({ ...f, paymentMethod: v }))}
                     options={[{ value: 'TT', label: 'TT' }, { value: 'LC', label: 'LC' }, { value: 'Cash', label: 'Cash' }, { value: 'Other', label: 'Other' }]} />
                 </div>
               </div>
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象档案</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>交易对象档案</label>
                 {/* R678：原生 select 全量渲染（上限 500 条不可搜索）→ 可搜索 combobox，超 50 条截断提示 */}
                 <RelationPickerCombobox
                   value={voucherForm.customerRelationId}
@@ -2759,7 +2759,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               {!voucherForm.customerRelationId && (
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象名称</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>交易对象名称</label>
                   <input value={voucherForm.customerName} onChange={e => setVoucherForm(f => ({ ...f, customerName: e.target.value }))}
                     className={formInputClass} />
                 </div>
@@ -2810,35 +2810,35 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {showInvoiceModal && (
         <div className="bds-modal-mask" onClick={() => !invoiceSaving && setShowInvoiceModal(false)}>
           <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>{editingInvoice ? '编辑发票' : '新建发票'}</h2>
+            <h2 className={cx('mb-4 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>{editingInvoice ? '编辑发票' : '新建发票'}</h2>
             <div className="space-y-3">
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票号 *</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>发票号 *</label>
                 <input value={invoiceForm.invoiceNumber} onChange={e => setInvoiceForm(f => ({ ...f, invoiceNumber: e.target.value }))}
                   placeholder="INV-20260629-001"
                   className={formInputClass} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>类型</label>
                   <CustomSelect surface="form" size="compact" value={invoiceForm.type}
                     onChange={v => setInvoiceForm(f => ({ ...f, type: v as 'Receivable' | 'Payable', customerRelationId: '' }))}
                     options={[{ value: 'Receivable', label: '应收' }, { value: 'Payable', label: '应付' }]} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>金额 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>金额 *</label>
                   <input type="number" value={invoiceForm.amount} onChange={e => setInvoiceForm(f => ({ ...f, amount: e.target.value }))}
                     className={formInputClass} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>币种</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>币种</label>
                   <input value={invoiceForm.currency} onChange={e => setInvoiceForm(f => ({ ...f, currency: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}</label>
                   {/* R678：原生 select 全量渲染 → 可搜索 combobox（同凭证弹窗交易对象） */}
                   <RelationPickerCombobox
                     value={invoiceForm.customerRelationId}
@@ -2850,7 +2850,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 {!invoiceForm.customerRelationId && (
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商名称' : '客户名称'}</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商名称' : '客户名称'}</label>
                     <input value={invoiceForm.customerName} onChange={e => setInvoiceForm(f => ({ ...f, customerName: e.target.value }))}
                       className={formInputClass} />
                   </div>
@@ -2858,23 +2858,23 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票日期</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>发票日期</label>
                   <CapsuleDateInput value={invoiceForm.issueDate} onChange={v => setInvoiceForm(f => ({ ...f, issueDate: v }))} className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>到期日</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>到期日</label>
                   <CapsuleDateInput value={invoiceForm.dueDate} onChange={v => setInvoiceForm(f => ({ ...f, dueDate: v }))} className={formInputClass} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>汇率（→本位币）</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>汇率（→本位币）</label>
                 <input type="number" step="0.0001" value={invoiceForm.exchangeRate} onChange={e => setInvoiceForm(f => ({ ...f, exchangeRate: e.target.value }))}
                   placeholder="如 7.25"
                   className={formInputClass} />
               </div>
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>关联订单（多选）</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>关联订单（多选）</label>
                 {orderOptions.length === 0 ? (
                   <input value={invoiceForm.orderId} onChange={e => setInvoiceForm(f => ({ ...f, orderId: e.target.value }))}
                     placeholder="订单列表不可用时可手动输入 1 个订单 ID"
@@ -2894,7 +2894,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                             }))}
                             className="bds-checkbox"
                           />
-                          <span className={cx('truncate text-[11px] font-light', checked ? textPrimaryClass : textSecondaryClass)}>
+                          <span className={cx('truncate text-xs font-light', checked ? textPrimaryClass : textSecondaryClass)}>
                             {o.customer || o.id.slice(-8)}
                           </span>
                         </label>
@@ -2932,10 +2932,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {showAllocModal && (
         <div className="bds-modal-mask" onClick={() => !allocSaving && setShowAllocModal(false)}>
           <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>{editingAllocId ? '编辑核销' : '添加核销'}</h2>
+            <h2 className={cx('mb-4 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>{editingAllocId ? '编辑核销' : '添加核销'}</h2>
             <div className="space-y-3">
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>
                   关联{isInvoiceContext ? '收付款凭证' : '发票'} {!editingAllocId && '*'}
                 </label>
                 {editingAllocId ? (
@@ -2956,12 +2956,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>核销金额 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>核销金额 *</label>
                   <input type="number" value={allocForm.appliedAmount} onChange={e => setAllocForm(f => ({ ...f, appliedAmount: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>核销日期</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>核销日期</label>
                   <CapsuleDateInput value={allocForm.appliedDate} onChange={v => setAllocForm(f => ({ ...f, appliedDate: v }))} className={formInputClass} />
                 </div>
               </div>
@@ -2983,9 +2983,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {settlementVoucher && (
         <div className="bds-modal-mask" onClick={() => !settlementSaving && setSettlementVoucher(null)}>
           <div className="bds-modal flex max-h-[85vh] flex-col" style={{ width: '32rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-3 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+            <h2 className={cx('mb-3 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>
               结汇核销 · {settlementVoucher.voucherNumber}
-              <span className={cx('ml-2 text-[11px]', textSecondaryClass)}>{settlementVoucher.customerName || '—'}</span>
+              <span className={cx('ml-2 text-xs', textSecondaryClass)}>{settlementVoucher.customerName || '—'}</span>
             </h2>
 
             {/* 核销摘要（服务端真源） */}
@@ -3012,13 +3012,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   结汇记录{settlementSummary ? `（${settlementSummary.settlements.length} 笔）` : ''}
                 </div>
                 {settlementSummary && settlementSummary.settlements.length === 0 && (
-                  <div className={cx('py-3 text-center text-[11px] font-light', textSecondaryClass)}>暂无结汇记录</div>
+                  <div className={cx('py-3 text-center text-xs font-light', textSecondaryClass)}>暂无结汇记录</div>
                 )}
                 <div className="space-y-1">
                   {settlementSummary?.settlements.map(s => (
                     <div key={s.id} className="flex items-center gap-2 rounded-control px-3 py-2 bds-inset">
                       <div className="min-w-0 flex-1">
-                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                        <div className={cx('truncate text-xs font-light', textPrimaryClass)}>
                           {s.settleDate}
                           <span className={cx('ml-2 text-[10px]', textSecondaryClass)}>{s.settlementNumber}</span>
                         </div>
@@ -3048,11 +3048,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   <div className="space-y-2.5">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇日期 *</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>结汇日期 *</label>
                         <CapsuleDateInput value={settlementForm.settleDate} onChange={v => setSettlementForm(f => ({ ...f, settleDate: v }))} className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇外币金额（{settlementVoucher.currency}）*</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>结汇外币金额（{settlementVoucher.currency}）*</label>
                         <input type="number" step="0.0001" value={settlementForm.foreignAmount} onChange={e => setSettlementForm(f => ({ ...f, foreignAmount: e.target.value }))}
                           placeholder={settlementSummary ? `未结汇 ${settlementSummary.remainingAmount}` : ''}
                           className={formInputClass} />
@@ -3060,13 +3060,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇汇率（{settlementVoucher.currency} → CNY）*</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>结汇汇率（{settlementVoucher.currency} → CNY）*</label>
                         <input type="number" step="0.00000001" value={settlementForm.fxRate} onChange={e => setSettlementForm(f => ({ ...f, fxRate: e.target.value }))}
                           placeholder="7.12345678"
                           className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇银行</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>结汇银行</label>
                         <input value={settlementForm.bank} onChange={e => setSettlementForm(f => ({ ...f, bank: e.target.value }))}
                           placeholder="中国银行"
                           className={formInputClass} />
@@ -3074,19 +3074,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>银行水单号</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>银行水单号</label>
                         <input value={settlementForm.slipNumber} onChange={e => setSettlementForm(f => ({ ...f, slipNumber: e.target.value }))}
                           className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>备注</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>备注</label>
                         <input value={settlementForm.notes} onChange={e => setSettlementForm(f => ({ ...f, notes: e.target.value }))}
                           className={formInputClass} />
                       </div>
                     </div>
                     {/* 折人民币预览（本地估算，真源以服务端计算为准） */}
                     {Number(settlementForm.foreignAmount) > 0 && Number(settlementForm.fxRate) > 0 && (
-                      <div className={cx('text-[11px] font-light tabular-nums', textSecondaryClass)}>
+                      <div className={cx('text-xs font-light tabular-nums', textSecondaryClass)}>
                         折人民币约 {formatAmount(Number(settlementForm.foreignAmount) * Number(settlementForm.fxRate), 'CNY')}（以服务端计算为准）
                       </div>
                     )}
@@ -3115,19 +3115,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {showVatModal && (
         <div className="bds-modal-mask" onClick={() => !vatSaving && setShowVatModal(false)}>
           <div className="bds-modal flex max-h-[85vh] flex-col" style={{ width: '32rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-3 shrink-0 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+            <h2 className={cx('mb-3 shrink-0 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>
               {editingVat ? `编辑增值税发票 · ${editingVat.vatNumber}` : '新建增值税发票'}
             </h2>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票号码 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>发票号码 *</label>
                   <input value={vatForm.vatNumber} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, vatNumber: e.target.value }))}
                     placeholder="02345678"
                     className={cx(formInputClass, editingVat && 'opacity-50')} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票代码（纸质票）</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>发票代码（纸质票）</label>
                   <input value={vatForm.vatCode} onChange={e => setVatForm(f => ({ ...f, vatCode: e.target.value }))}
                     placeholder="可选"
                     className={formInputClass} />
@@ -3135,13 +3135,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>方向</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>方向</label>
                   <CustomSelect surface="form" size="compact" value={vatForm.direction} disabled={!!editingVat}
                     onChange={v => setVatForm(f => ({ ...f, direction: v as VatInvoiceDirection }))}
                     options={[{ value: 'Input', label: '进项' }, { value: 'Output', label: '销项' }]} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>票种</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>票种</label>
                   <CustomSelect surface="form" size="compact" value={vatForm.invoiceType} disabled={!!editingVat}
                     onChange={v => setVatForm(f => ({ ...f, invoiceType: v as VatInvoiceType }))}
                     options={[{ value: 'Special', label: '专票' }, { value: 'Normal', label: '普票' }]} />
@@ -3149,12 +3149,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>销售方 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>销售方 *</label>
                   <input value={vatForm.sellerName} onChange={e => setVatForm(f => ({ ...f, sellerName: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>销售方税号</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>销售方税号</label>
                   <input value={vatForm.sellerTaxNo} onChange={e => setVatForm(f => ({ ...f, sellerTaxNo: e.target.value }))}
                     placeholder="可选"
                     className={formInputClass} />
@@ -3162,12 +3162,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>购买方 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>购买方 *</label>
                   <input value={vatForm.buyerName} onChange={e => setVatForm(f => ({ ...f, buyerName: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>购买方税号</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>购买方税号</label>
                   <input value={vatForm.buyerTaxNo} onChange={e => setVatForm(f => ({ ...f, buyerTaxNo: e.target.value }))}
                     placeholder="可选"
                     className={formInputClass} />
@@ -3175,11 +3175,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>开票日期 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>开票日期 *</label>
                   <CapsuleDateInput value={vatForm.issueDate} onChange={v => setVatForm(f => ({ ...f, issueDate: v }))} className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
                   <input value={vatForm.deductionPeriod} onChange={e => setVatForm(f => ({ ...f, deductionPeriod: e.target.value }))}
                     placeholder="2026-08"
                     className={formInputClass} />
@@ -3188,12 +3188,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {/* 金额三栏 + 税率：服务端校验 totalAmount ≈ netAmount + taxAmount（容忍 ±0.01） */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>不含税金额 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>不含税金额 *</label>
                   <input type="number" step="0.0001" value={vatForm.netAmount} onChange={e => setVatForm(f => ({ ...f, netAmount: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>税率（%）*</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>税率（%）*</label>
                   <input type="number" step="0.01" value={vatForm.taxRate} onChange={e => setVatForm(f => ({ ...f, taxRate: e.target.value }))}
                     placeholder="13"
                     className={formInputClass} />
@@ -3201,18 +3201,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>税额 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>税额 *</label>
                   <input type="number" step="0.0001" value={vatForm.taxAmount} onChange={e => setVatForm(f => ({ ...f, taxAmount: e.target.value }))}
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>价税合计 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>价税合计 *</label>
                   <input type="number" step="0.0001" value={vatForm.totalAmount} onChange={e => setVatForm(f => ({ ...f, totalAmount: e.target.value }))}
                     className={formInputClass} />
                 </div>
               </div>
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>备注</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>备注</label>
                 <input value={vatForm.notes} onChange={e => setVatForm(f => ({ ...f, notes: e.target.value }))}
                   className={formInputClass} />
               </div>
@@ -3234,21 +3234,21 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {vatTransitionTarget && (
         <div className="bds-modal-mask" onClick={() => !vatTransitionSaving && setVatTransitionTarget(null)}>
           <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-1 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+            <h2 className={cx('mb-1 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>
               {VAT_TRANSITION_LABELS[vatTransitionAction]} · {vatTransitionTarget.vatNumber}
             </h2>
-            <div className={cx('mb-4 text-[11px] font-light', textSecondaryClass)}>
+            <div className={cx('mb-4 text-xs font-light', textSecondaryClass)}>
               {VAT_STATUS_LABELS[vatTransitionTarget.status]} → {VAT_STATUS_LABELS[vatTransitionAction]}
             </div>
             <div className="space-y-3">
               {vatTransitionAction === 'Verified' && (
                 <>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>勾选认证日期</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>勾选认证日期</label>
                     <CapsuleDateInput value={vatTransitionForm.verifiedDate} onChange={v => setVatTransitionForm(f => ({ ...f, verifiedDate: v }))} className={formInputClass} />
                   </div>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
                     <input value={vatTransitionForm.deductionPeriod} onChange={e => setVatTransitionForm(f => ({ ...f, deductionPeriod: e.target.value }))}
                       placeholder="2026-08"
                       className={formInputClass} />
@@ -3257,7 +3257,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               )}
               {vatTransitionAction === 'Declared' && (
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>退税申报单 *</label>
                   <CustomSelect surface="form" size="compact" value={vatTransitionForm.taxRefundId}
                     onChange={v => setVatTransitionForm(f => ({ ...f, taxRefundId: v }))}
                     disabled={vatRefundOptionsLoading}
@@ -3278,13 +3278,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {vatTransitionAction === 'RedFlushed' && (
                 <>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>红字发票号</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>红字发票号</label>
                     <input value={vatTransitionForm.redFlushNumber} onChange={e => setVatTransitionForm(f => ({ ...f, redFlushNumber: e.target.value }))}
                       placeholder="可选"
                       className={formInputClass} />
                   </div>
                   <div>
-                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>红冲日期</label>
+                    <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>红冲日期</label>
                     <CapsuleDateInput value={vatTransitionForm.redFlushDate} onChange={v => setVatTransitionForm(f => ({ ...f, redFlushDate: v }))} className={formInputClass} />
                   </div>
                 </>
@@ -3307,9 +3307,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       {remittanceVoucher && (
         <div className="bds-modal-mask" onClick={() => !remittanceSaving && setRemittanceVoucher(null)}>
           <div className="bds-modal flex max-h-[85vh] flex-col" style={{ width: '32rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-3 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+            <h2 className={cx('mb-3 text-sm font-light tracking-[0.02em]', textPrimaryClass)}>
               付汇核销 · {remittanceVoucher.voucherNumber}
-              <span className={cx('ml-2 text-[11px]', textSecondaryClass)}>{remittanceVoucher.customerName || '—'}</span>
+              <span className={cx('ml-2 text-xs', textSecondaryClass)}>{remittanceVoucher.customerName || '—'}</span>
             </h2>
 
             {/* 付汇摘要（服务端真源） */}
@@ -3336,13 +3336,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   付汇记录{remittanceSummary ? `（${remittanceSummary.remittances.length} 笔）` : ''}
                 </div>
                 {remittanceSummary && remittanceSummary.remittances.length === 0 && (
-                  <div className={cx('py-3 text-center text-[11px] font-light', textSecondaryClass)}>暂无付汇记录</div>
+                  <div className={cx('py-3 text-center text-xs font-light', textSecondaryClass)}>暂无付汇记录</div>
                 )}
                 <div className="space-y-1">
                   {remittanceSummary?.remittances.map(r => (
                     <div key={r.id} className="flex items-center gap-2 rounded-control px-3 py-2 bds-inset">
                       <div className="min-w-0 flex-1">
-                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                        <div className={cx('truncate text-xs font-light', textPrimaryClass)}>
                           {r.remitDate}
                           <span className={cx('ml-2 text-[10px]', textSecondaryClass)}>{r.remittanceNumber}</span>
                         </div>
@@ -3372,11 +3372,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   <div className="space-y-2.5">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇日期 *</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>付汇日期 *</label>
                         <CapsuleDateInput value={remittanceForm.remitDate} onChange={v => setRemittanceForm(f => ({ ...f, remitDate: v }))} className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇外币金额（{remittanceVoucher.currency}）*</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>付汇外币金额（{remittanceVoucher.currency}）*</label>
                         <input type="number" step="0.0001" value={remittanceForm.foreignAmount} onChange={e => setRemittanceForm(f => ({ ...f, foreignAmount: e.target.value }))}
                           placeholder={remittanceSummary ? `未付汇 ${remittanceSummary.remainingAmount}` : ''}
                           className={formInputClass} />
@@ -3384,13 +3384,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇汇率（{remittanceVoucher.currency} → CNY）*</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>付汇汇率（{remittanceVoucher.currency} → CNY）*</label>
                         <input type="number" step="0.00000001" value={remittanceForm.fxRate} onChange={e => setRemittanceForm(f => ({ ...f, fxRate: e.target.value }))}
                           placeholder="7.12345678"
                           className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇用途</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>付汇用途</label>
                         <CustomSelect surface="form" size="compact" value={remittanceForm.purpose}
                           onChange={v => setRemittanceForm(f => ({ ...f, purpose: v }))}
                           options={REMITTANCE_PURPOSE_OPTIONS.map(o => ({ value: o.id, label: o.label }))} />
@@ -3398,12 +3398,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>收款人名称</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>收款人名称</label>
                         <input value={remittanceForm.payeeName} onChange={e => setRemittanceForm(f => ({ ...f, payeeName: e.target.value }))}
                           className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇银行</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>付汇银行</label>
                         <input value={remittanceForm.bank} onChange={e => setRemittanceForm(f => ({ ...f, bank: e.target.value }))}
                           placeholder="中国银行"
                           className={formInputClass} />
@@ -3411,19 +3411,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>银行水单号</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>银行水单号</label>
                         <input value={remittanceForm.slipNumber} onChange={e => setRemittanceForm(f => ({ ...f, slipNumber: e.target.value }))}
                           className={formInputClass} />
                       </div>
                       <div>
-                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>备注</label>
+                        <label className={cx('mb-1 block text-xs font-light', textSecondaryClass)}>备注</label>
                         <input value={remittanceForm.notes} onChange={e => setRemittanceForm(f => ({ ...f, notes: e.target.value }))}
                           className={formInputClass} />
                       </div>
                     </div>
                     {/* 折人民币预览（本地估算，真源以服务端计算为准） */}
                     {Number(remittanceForm.foreignAmount) > 0 && Number(remittanceForm.fxRate) > 0 && (
-                      <div className={cx('text-[11px] font-light tabular-nums', textSecondaryClass)}>
+                      <div className={cx('text-xs font-light tabular-nums', textSecondaryClass)}>
                         折人民币约 {formatAmount(Number(remittanceForm.foreignAmount) * Number(remittanceForm.fxRate), 'CNY')}（以服务端计算为准）
                       </div>
                     )}

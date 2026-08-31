@@ -67,7 +67,7 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
             <div className="relative z-10 w-full h-full">
                 {/* Top Tab Title */}
                 <div className="absolute top-0 left-0 w-36 h-14 flex items-center px-8">
-                    <span className={`text-[13px] font-light tracking-tight text-[var(--text-primary)]`}>
+                    <span className={`text-sm font-light tracking-tight text-[var(--text-primary)]`}>
                         {title}
                     </span>
                 </div>

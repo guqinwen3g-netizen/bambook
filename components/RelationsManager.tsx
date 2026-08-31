@@ -306,10 +306,10 @@ export const RELATIONS_TITLE_BUTTON_CLASS = `bg-transparent !border-transparent 
 export const RELATIONS_TITLE_VIEW_SWITCH_CLASS = BAMBOOK_OS.controls.title.viewSwitch;
 export const RELATIONS_TITLE_VIEW_SWITCH_BUTTON_CLASS = BAMBOOK_OS.controls.title.viewSwitchButton;
 export const RELATIONS_FORM_TITLE_BAR_CLASS = `${RELATIONS_TITLE_BAR_CLASS} ${BAMBOOK_OS.layout.desktopTitleBarInsetClass} flex`;
-export const RELATIONS_FORM_TITLE_CRUMB_CLASS = `h-9 flex items-center gap-1.5 min-w-0 text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
+export const RELATIONS_FORM_TITLE_CRUMB_CLASS = `h-9 flex items-center gap-1.5 min-w-0 text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
 export const RELATIONS_FORM_TITLE_HEADING_CLASS = RELATIONS_TITLE_PAGE_LABEL_CLASS;
-export const RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS = `h-9 px-3 rounded-full border flex items-center justify-center shrink-0 transition-colors text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
-export const RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS = `h-9 px-4 rounded-full border flex items-center justify-center gap-2 shrink-0 transition-colors text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
+export const RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS = `h-9 px-3 rounded-full border flex items-center justify-center shrink-0 transition-colors text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
+export const RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS = `h-9 px-4 rounded-full border flex items-center justify-center gap-2 shrink-0 transition-colors text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label}`;
 export const RELATIONS_FORM_PANEL_CLASS = 'scroll-mt-28 p-6 bambook-relations-form-panel';
 export const RELATIONS_FORM_MAP_PANEL_CLASS = 'p-6 bambook-relations-form-map-panel';
 export const RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING = 'width';
@@ -1262,7 +1262,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const relationCategoryCardClass = 'p-6 h-[220px] rounded-card-lg';
   const relationCategoryIconClass = 'mb-4 flex h-10 w-10';
   const relationCategoryTitleClass = 'text-base';
-  const relationCategoryDescriptionClass = 'text-[12px] mt-2 leading-relaxed';
+  const relationCategoryDescriptionClass = 'text-xs mt-2 leading-relaxed';
   const renderRelationCard = ({
     cardKey,
     index,
@@ -1371,7 +1371,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
           <div className={`${RELATIONS_FORM_TITLE_CRUMB_CLASS} text-[var(--os-adaptive-subtitle)]`}>
             {selectedCategory && navLevel !== 'category' && (
-              <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--os-adaptive-subtitle)]`}>
+              <div className={`h-9 flex items-center gap-1.5 min-w-0 text-xs font-light tracking-wide text-[var(--os-adaptive-subtitle)]`}>
                 <span className={RELATIONS_TITLE_SEPARATOR_CLASS}>
                   <ChevronRight size={RELATIONS_TITLE_ARROW_ICON_SIZE} strokeWidth={RELATIONS_TITLE_ARROW_STROKE_WIDTH} />
                 </span>
@@ -2442,8 +2442,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
           || orgContacts.find(c => c.id === confirmDeleteId);
         const deletingOrganization = deleteTarget?.isOrganization ?? false;
         return (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 duration-300">
+          <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-default)]`}>
                 <Trash2 size={32} strokeWidth={1.5} />

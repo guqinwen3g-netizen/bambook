@@ -170,7 +170,7 @@ export default function DunningStageBoardPanel({ endpoint, onDun, refreshKey = 0
                 </div>
                 <div className="min-w-0 space-y-1.5">
                   {stageRows.length === 0 && (
-                    <div className={cx('py-4 text-center text-[11px] font-light', textFaint)}>—</div>
+                    <div className={cx('py-4 text-center text-xs font-light', textFaint)}>—</div>
                   )}
                   {stageRows.map(row => (
                     <div key={row.scopeKey} className={cx('rounded-control bg-[var(--recessed-bg-strong)] px-2.5 py-2')}>
@@ -195,7 +195,7 @@ export default function DunningStageBoardPanel({ endpoint, onDun, refreshKey = 0
                             currency: row.currency,
                             stage: row.stage,
                           })}
-                          className={cx('flex items-center gap-1 rounded-control px-2 py-1 text-[11px] font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
+                          className={cx('flex items-center gap-1 rounded-control px-2 py-1 text-xs font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
                           aria-label={`对 ${row.customerName} 发起 ${DUNNING_STAGE_LABELS[row.stage]}档催款`}
                         >
                           <Mail size={13} strokeWidth={1.5} /> 催款
@@ -203,7 +203,7 @@ export default function DunningStageBoardPanel({ endpoint, onDun, refreshKey = 0
                         <button
                           type="button"
                           onClick={() => openAdjust(row)}
-                          className={cx('flex items-center gap-1 rounded-control px-2 py-1 text-[11px] font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
+                          className={cx('flex items-center gap-1 rounded-control px-2 py-1 text-xs font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
                           aria-label={`调整 ${row.customerName} 的催款分级`}
                         >
                           分级调整
@@ -221,7 +221,7 @@ export default function DunningStageBoardPanel({ endpoint, onDun, refreshKey = 0
       {/* 分级调整 BottomSheet（升降级/解除钉住，留痕审计） */}
       <BottomSheet isOpen={adjustFor !== null} onClose={() => setAdjustFor(null)} title={`分级调整 · ${adjustFor?.customerName ?? ''} ${adjustFor?.currency ?? ''}`}>
         <div className="space-y-4 px-6 py-5">
-          <div className={cx('rounded-field border p-3 text-[11px] font-light leading-relaxed', divider, textSecondary)}>
+          <div className={cx('rounded-field border p-3 text-xs font-light leading-relaxed', divider, textSecondary)}>
             当前生效分级「{adjustFor ? DUNNING_STAGE_LABELS[adjustFor.stage] : '—'}」
             {adjustFor?.stageSource === 'manual' ? '（人工钉住）' : '（账龄自动）'}
             ，账龄自动定级「{adjustFor ? DUNNING_STAGE_LABELS[adjustFor.autoStage] : '—'}」。
@@ -236,7 +236,7 @@ export default function DunningStageBoardPanel({ endpoint, onDun, refreshKey = 0
                   type="button"
                   active={targetStage === t.value}
                   onClick={() => setTargetStage(t.value)}
-                  className="min-h-7 px-2.5 text-[11px]"
+                  className="min-h-7 px-2.5 text-xs"
                 >
                   {t.label}
                 </RdlPill>

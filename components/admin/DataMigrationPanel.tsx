@@ -150,7 +150,7 @@ export function DataMigrationPanel() {
   }, [loadBatches]);
 
   const chipCls = (active: boolean) => cx(
-    'rounded-full border px-3 py-1 text-[11px] font-light transition-colors',
+    'rounded-full border px-3 py-1 text-xs font-light transition-colors',
     active
       ? 'border-[var(--accent-tint)] bg-[var(--accent-tint-light)] text-[var(--text-primary)]'
       : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]',
@@ -214,12 +214,12 @@ export function DataMigrationPanel() {
 
           {errorRows.length > 0 && (
             <div className="mt-3">
-              <div className={cx('mb-1.5 flex items-center gap-1.5 text-[11px] font-light', textSecondary)}>
+              <div className={cx('mb-1.5 flex items-center gap-1.5 text-xs font-light', textSecondary)}>
                 <TriangleAlert size={14} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />错误行（修正后重传；行号=Excel 数据行）
               </div>
               <div className="max-h-48 space-y-1 overflow-y-auto">
                 {errorRows.map(r => (
-                  <div key={r.lineNo} className={cx('flex flex-wrap items-center gap-2 rounded-field border px-2 py-1 text-[11px] font-light', divider)}>
+                  <div key={r.lineNo} className={cx('flex flex-wrap items-center gap-2 rounded-field border px-2 py-1 text-xs font-light', divider)}>
                     <span className="bds-badge sm danger">第 {r.lineNo} 行</span>
                     <span className={textPrimary}>{r.reason}</span>
                   </div>
@@ -230,7 +230,7 @@ export function DataMigrationPanel() {
 
           {validPreview.length > 0 && (
             <div className="mt-3">
-              <div className={cx('mb-1.5 text-[11px] font-light', textSecondary)}>有效行预览（前 {validPreview.length} 行）</div>
+              <div className={cx('mb-1.5 text-xs font-light', textSecondary)}>有效行预览（前 {validPreview.length} 行）</div>
               <div className="max-h-40 overflow-x-auto overflow-y-auto">
                 <table className="w-full text-left text-[10px] font-light">
                   <thead>
@@ -274,7 +274,7 @@ export function DataMigrationPanel() {
         ) : (
           <div className="mt-2 space-y-1.5">
             {batches.map(b => (
-              <div key={b.id} className={cx('flex flex-wrap items-center gap-2 rounded-field border px-2 py-1.5 text-[11px] font-light', divider)}>
+              <div key={b.id} className={cx('flex flex-wrap items-center gap-2 rounded-field border px-2 py-1.5 text-xs font-light', divider)}>
                 <span className={`bds-badge sm ${b.status === 'committed' ? 'success' : 'neutral'}`}>
                   {b.status === 'committed' ? '已导入' : '已回滚'}
                 </span>

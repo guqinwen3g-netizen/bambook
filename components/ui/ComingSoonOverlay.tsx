@@ -21,9 +21,9 @@ export const ComingSoonOverlay: React.FC<ComingSoonOverlayProps> = ({
   return (
     <div
       data-bambook-coming-soon
-      className={`bds-surface pointer-events-auto flex items-center justify-center overflow-hidden ${className}`}
+      className={`pointer-events-auto flex items-center justify-center overflow-hidden bds-frosted ${className}`}
     >
-      <p className="text-[14px] font-light text-[var(--text-primary)]">{text}</p>
+      <p className="text-sm font-light text-[var(--text-primary)]">{text}</p>
     </div>
   );
 };

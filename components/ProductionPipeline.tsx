@@ -569,7 +569,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
 
           {inspection && inspection.totalUnits > 0 && (
             <div className="mt-3 space-y-1">
-              <div className={cx('flex justify-between text-[11px]', textSecondary)}>
+              <div className={cx('flex justify-between text-xs', textSecondary)}>
                 <span>合格率: <span className={`${inspection.passRate >= 0.9 ? successText : dangerText} font-normal`}>{(inspection.passRate * 100).toFixed(1)}%</span></span>
                 <span>不合格率: <span className={`${inspection.defectRate <= 0.03 ? successText : dangerText} font-normal`}>{(inspection.defectRate * 100).toFixed(1)}%</span></span>
                 {(inspection.criticalDefects ?? 0) > 0 && (

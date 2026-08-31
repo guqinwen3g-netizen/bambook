@@ -330,23 +330,23 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
 
                     {/* ── 路由解析轨迹（DR-007） ── */}
                     <div className="rounded-inset bg-[var(--recessed-bg)] px-3 py-2.5 space-y-1.5">
-                      <div className={`flex items-center gap-1.5 text-[11px] font-light ${primaryText}`}>
+                      <div className={`flex items-center gap-1.5 text-xs font-light ${primaryText}`}>
                         <GitBranch size={14} strokeWidth={1.5} className={brandIcon} />
                         路由解析轨迹 Resolution Trace
                       </div>
                       {trace?.loading ? (
-                        <div className={`flex items-center gap-1.5 text-[11px] font-light ${weakText}`}>
+                        <div className={`flex items-center gap-1.5 text-xs font-light ${weakText}`}>
                           <RefreshCw size={14} strokeWidth={1.5} className="animate-spin" />
                           轨迹加载中…
                         </div>
                       ) : trace?.error ? (
-                        <div className="flex items-center gap-1.5 text-[11px] font-light text-[var(--danger-text)]">
+                        <div className="flex items-center gap-1.5 text-xs font-light text-[var(--danger-text)]">
                           <AlertTriangle size={14} strokeWidth={1.5} />
                           {trace.error}
                           <button type="button" onClick={() => loadTrace(item.id)} className={`underline ${brandIcon}`}>重试</button>
                         </div>
                       ) : trace?.data ? (
-                        <div className={`text-[11px] font-light ${weakText} space-y-1`}>
+                        <div className={`text-xs font-light ${weakText} space-y-1`}>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span>请求人 {trace.data.requesterId}</span>
                             <ChevronRight size={14} strokeWidth={1.5} />
@@ -423,7 +423,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           <div className={`pt-2 border-t ${dividerCls} space-y-2`}>
                             {delegateFor === item.id ? (
                               <>
-                                <div className={`flex items-center gap-1.5 text-[11px] font-light ${primaryText}`}>
+                                <div className={`flex items-center gap-1.5 text-xs font-light ${primaryText}`}>
                                   <CornerUpRight size={14} strokeWidth={1.5} className={brandIcon} />
                                   委派给他人 Delegate
                                 </div>
@@ -478,7 +478,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           <div className={`pt-2 border-t ${dividerCls} space-y-2`}>
                             {bossFor === item.id ? (
                               <>
-                                <div className="flex items-center gap-1.5 text-[11px] font-light text-[var(--danger-text)]">
+                                <div className="flex items-center gap-1.5 text-xs font-light text-[var(--danger-text)]">
                                   <ShieldAlert size={14} strokeWidth={1.5} />
                                   BOSS 最终兜底特批 Final Bypass（绝密级审计）
                                 </div>
@@ -771,7 +771,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
             发起 DR-013 受控例外申请 New Exception
           </div>
           {entryBanner && (
-            <div className="rounded-control px-3 py-2 text-[11px] font-light bg-[var(--accent-tint)] text-[var(--accent-text)]">
+            <div className="rounded-control px-3 py-2 text-xs font-light bg-[var(--accent-tint)] text-[var(--accent-text)]">
               从门禁阻断进入{entryBanner.gate ? `（门禁 ${entryBanner.gate}）` : ''}
               {entryBanner.blockingReasons?.length ? `，阻断原因：${entryBanner.blockingReasons.join(', ')}` : ''}
             </div>
@@ -856,7 +856,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
           {/* ── 门禁查询 gate-check ── */}
           <div className={`rounded-inset bg-[var(--recessed-bg)] px-3 py-2.5 space-y-1.5`}>
             <div className={`flex items-center justify-between gap-2`}>
-              <span className={`flex items-center gap-1.5 text-[11px] font-light ${primaryText}`}>
+              <span className={`flex items-center gap-1.5 text-xs font-light ${primaryText}`}>
                 <Search size={14} strokeWidth={1.5} className={brandIcon} />
                 门禁查询 Gate Check（按当前对象 / 动作精确匹配）
               </span>
@@ -864,15 +864,15 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
                 type="button"
                 disabled={gateCheck.loading || !form.targetType.trim() || !form.targetId.trim() || !form.action.trim()}
                 onClick={runGateCheck}
-                className={`rounded-control px-2.5 py-1 text-[11px] font-light ${brandIcon} hover:bg-[var(--active-darken)] transition-colors ${gateCheck.loading || !form.targetType.trim() || !form.targetId.trim() || !form.action.trim() ? 'opacity-50' : ''}`}
+                className={`rounded-control px-2.5 py-1 text-xs font-light ${brandIcon} hover:bg-[var(--active-darken)] transition-colors ${gateCheck.loading || !form.targetType.trim() || !form.targetId.trim() || !form.action.trim() ? 'opacity-50' : ''}`}
               >
                 查询
               </button>
             </div>
-            {gateCheck.loading && <div className={`text-[11px] font-light ${weakText}`}>查询中…</div>}
-            {gateCheck.error && <div className="text-[11px] font-light text-[var(--danger-text)]">{gateCheck.error}</div>}
+            {gateCheck.loading && <div className={`text-xs font-light ${weakText}`}>查询中…</div>}
+            {gateCheck.error && <div className="text-xs font-light text-[var(--danger-text)]">{gateCheck.error}</div>}
             {gateCheck.result && (
-              <div className={`text-[11px] font-light ${weakText}`}>
+              <div className={`text-xs font-light ${weakText}`}>
                 {gateCheck.result.active && gateCheck.result.exception ? (
                   <span className="text-[var(--success-text)]">
                     存在生效例外：{gateCheck.result.exception.exceptionNumber}
@@ -966,7 +966,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
                 </div>
 
                 {isExpanded && (
-                  <div className={`border-t ${dividerCls} px-4 py-3 space-y-2 text-[11px] font-light ${weakText}`}>
+                  <div className={`border-t ${dividerCls} px-4 py-3 space-y-2 text-xs font-light ${weakText}`}>
                     <div><span className={primaryText}>原因：</span>{exc.exceptionReason}</div>
                     <div><span className={primaryText}>风险应对 / 补救：</span>{exc.riskMitigationPlan}</div>
                     {exc.customerCommitment && <div><span className={primaryText}>客户承诺：</span>{exc.customerCommitment}</div>}
@@ -1326,7 +1326,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                                     )}
                                   </div>
                                   {step.decisionNote && (
-                                    <div className={`mt-0.5 text-[11px] font-light ${weakText}`}>备注：{step.decisionNote}</div>
+                                    <div className={`mt-0.5 text-xs font-light ${weakText}`}>备注：{step.decisionNote}</div>
                                   )}
                                   {step.deciderName && (
                                     <div className={`mt-0.5 text-[10px] font-light ${weakText}`}>

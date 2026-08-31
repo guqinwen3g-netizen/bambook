@@ -11,8 +11,6 @@
 
 /* 1. Shadow / rim 变量归零（os-vnext + legacy design-system + ui-lab-2）*/
 :root {
-  --glass-border: transparent !important;
-  --glass-shadow: none !important;
   --border-glow-blue: transparent !important;
   --shadow-sm: none !important;
   --shadow-md: none !important;
@@ -59,7 +57,6 @@
 :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -67,9 +64,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .app-main-cover,
   .app-main-viewport,
@@ -121,7 +115,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -144,7 +137,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -168,7 +160,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -221,7 +212,6 @@
 
 :where(
   .glass-card,
-  .ios-glass-card,
   .btn-glow,
   .bambook-card-glass,
   .liquid-glass-card,
@@ -277,8 +267,6 @@
 .bambook-os-root,
 .ui-lab-real-os-root,
 [data-ui-lab-2-root] {
-  --glass-border: transparent !important;
-  --glass-shadow: none !important;
   --bambook-sibling-shadow: none !important;
   --bambook-sibling-shadow-bleed: 0px !important;
   --bambook-panel-shadow-bleed-x: 0px !important;
@@ -302,11 +290,8 @@
 }
 
 .bambook-os-root :where(
-  .holographic-card,
-  .holographic-panel,
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -314,9 +299,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .app-main-cover,
   .app-main-viewport,
@@ -332,11 +314,8 @@
   [data-ui27-glass-container]
 ),
 .ui-lab-real-os-root :where(
-  .holographic-card,
-  .holographic-panel,
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -344,9 +323,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .app-main-cover,
   .app-main-viewport,
@@ -362,11 +338,8 @@
   [data-ui27-glass-container]
 ),
 [data-ui-lab-2-root] :where(
-  .holographic-card,
-  .holographic-panel,
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -374,9 +347,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,
@@ -435,7 +405,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -456,7 +425,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -477,7 +445,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -498,7 +465,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-frame-panel,
   .os-material-raised-card,
   .os-material-inset-surface,
@@ -527,7 +493,6 @@
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-outer-panel,
-  .os-vnext-panel,
   .os-material-frame-panel
 ),
 .ui-lab-real-os-root :where(
@@ -535,7 +500,6 @@
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-outer-panel,
-  .os-vnext-panel,
   .os-material-frame-panel
 ),
 [data-ui-lab-2-root] :where(
@@ -543,7 +507,6 @@
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-outer-panel,
-  .os-vnext-panel,
   .os-material-frame-panel
 ) {
   border: 0 !important;
@@ -560,8 +523,6 @@
   .bambook-card-glass,
   .bambook-blue-white-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .os-vnext-card,
   .os-material-raised-card
 ),
 .ui-lab-real-os-root :where(
@@ -569,8 +530,6 @@
   .bambook-card-glass,
   .bambook-blue-white-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .os-vnext-card,
   .os-material-raised-card
 ),
 [data-ui-lab-2-root] :where(
@@ -578,8 +537,6 @@
   .bambook-card-glass,
   .bambook-blue-white-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .os-vnext-card,
   .os-material-raised-card
 ) {
   border: 0 !important;
@@ -599,7 +556,6 @@
   .bambook-state-switch-track--checked-dark,
   .bambook-nested-surface,
   .bambook-tertiary-surface,
-  .os-vnext-toolbar,
   .os-material-inset-surface
 ),
 .ui-lab-real-os-root :where(
@@ -610,7 +566,6 @@
   .bambook-state-switch-track--checked-dark,
   .bambook-nested-surface,
   .bambook-tertiary-surface,
-  .os-vnext-toolbar,
   .os-material-inset-surface
 ),
 [data-ui-lab-2-root] :where(
@@ -621,7 +576,6 @@
   .bambook-state-switch-track--checked-dark,
   .bambook-nested-surface,
   .bambook-tertiary-surface,
-  .os-vnext-toolbar,
   .os-material-inset-surface
 ) {
   border: 0 !important;
@@ -634,23 +588,14 @@
 }
 
 .bambook-os-root :where(
-  .glass-pill,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-floating-overlay
 ),
 .ui-lab-real-os-root :where(
-  .glass-pill,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-floating-overlay
 ),
 [data-ui-lab-2-root] :where(
-  .glass-pill,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-floating-overlay
 ) {
@@ -734,7 +679,6 @@
 .bambook-os-root :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -742,7 +686,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,
@@ -765,7 +708,6 @@
 .ui-lab-real-os-root :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -773,7 +715,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,
@@ -807,14 +748,20 @@
 [data-ui-lab-2-root] {
   --bambook-rdl-theme-rgb: 255 255 255;
   --bambook-rdl-theme-strong-rgb: 10 10 10;
+  /* 2026-09-01 材质分层定位（用户实机验收修正）：此 token 族是 os-material 卡片
+     （Dashboard 等）的磨砂材质源，保持基线半透磨砂不动；主区实面化只发生在
+     components.css 的 .bds-card 族（撤回 2026-08-31 RDL 化，回归 --frosted-bg 92%）。 */
   --bambook-rdl-panel-fill-light: rgb(255 255 255 / 0.50);
   --bambook-rdl-card-fill-light: rgb(255 255 255 / 0.44);
   --bambook-rdl-inset-fill-light: rgb(255 255 255 / 0.30);
   --bambook-rdl-floating-fill-light: rgb(255 255 255 / 0.70);
-  --bambook-rdl-panel-fill-dark: rgb(24 31 42 / 0.58);
-  --bambook-rdl-card-fill-dark: rgb(30 38 51 / 0.52);
+  /* 2026-09-01 雾蓝频道收尾（用户实机指出地图卡片仍旧藏蓝）：rdl fill-dark 族
+     由旧竹蓝（H218-222）迁 mist——RGB 对齐深色阶梯（page 20 35 47 / card 30 52 68 /
+     raised 38 67 79），透明度不变。地图浮层/tooltip 卡深色底即本族。 */
+  --bambook-rdl-panel-fill-dark: rgb(20 35 47 / 0.58);
+  --bambook-rdl-card-fill-dark: rgb(30 52 68 / 0.52);
   --bambook-rdl-inset-fill-dark: rgb(255 255 255 / 0.055);
-  --bambook-rdl-floating-fill-dark: rgb(36 45 59 / 0.62);
+  --bambook-rdl-floating-fill-dark: rgb(38 67 79 / 0.62);
   --bambook-rdl-panel-fill: var(--bambook-rdl-panel-fill-light);
   --bambook-rdl-card-fill: var(--bambook-rdl-card-fill-light);
   --bambook-rdl-inset-fill: var(--bambook-rdl-inset-fill-light);
@@ -1013,7 +960,8 @@
 .bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-reveal-underlay-material,
 .ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-reveal-underlay-material,
 [data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-reveal-underlay-material {
-  background: var(--bambook-rdl-sidebar-fill-light) !important;
+  /* 2026-08-31 用户裁定：侧边栏材质从灰玻璃→brand-mist 雾蓝渐变（保留延伸+圆角让位，只换皮）。深色走 dark 规则保持深玻璃 */
+  background: var(--brand-mist) !important;
   backdrop-filter: var(--bambook-rdl-panel-filter) !important;
   -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
 }
@@ -1024,6 +972,8 @@
   color: var(--bambook-rdl-sidebar-secondary-text-light) !important;
 }
 
+/* 雾蓝侧边栏（2026-08-31 定稿）：材质已在 .app-reveal-underlay-material 换为 brand-mist 渐变，
+   文字/图标由下方原有的深藏青中性规则统一（雾蓝浅底配深色字，避免白字低对比）。 */
 .bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] [data-sidebar-nav-icon],
 .ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] [data-sidebar-nav-icon],
 [data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] [data-sidebar-nav-icon] {
@@ -1167,9 +1117,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ),
 .ui-lab-real-os-root :where(
   .glass-panel,
@@ -1177,9 +1125,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ),
 [data-ui-lab-2-root] :where(
   .glass-panel,
@@ -1187,9 +1133,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) {
   color: var(--bambook-rdl-primary-text) !important;
 }
@@ -1200,9 +1144,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(span, p, h1, h2, h3, h4, h5, h6, label, button, a, small, strong, svg)[class*="opacity-"],
 .ui-lab-real-os-root :where(
   .glass-panel,
@@ -1210,9 +1152,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(span, p, h1, h2, h3, h4, h5, h6, label, button, a, small, strong, svg)[class*="opacity-"],
 [data-ui-lab-2-root] :where(
   .glass-panel,
@@ -1220,9 +1160,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(span, p, h1, h2, h3, h4, h5, h6, label, button, a, small, strong, svg)[class*="opacity-"] {
   opacity: 1 !important;
 }
@@ -1233,9 +1171,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-700"],
   [class*="text-slate-800"],
@@ -1258,9 +1194,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-700"],
   [class*="text-slate-800"],
@@ -1283,9 +1217,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-700"],
   [class*="text-slate-800"],
@@ -1311,9 +1243,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   .text-slate-300,
   .text-slate-400,
@@ -1330,9 +1260,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   .text-slate-300,
   .text-slate-400,
@@ -1349,9 +1277,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   .text-slate-300,
   .text-slate-400,
@@ -1371,9 +1297,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-"],
   [class*="text-gray-"],
@@ -1388,9 +1312,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-"],
   [class*="text-gray-"],
@@ -1405,9 +1327,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-"],
   [class*="text-gray-"],
@@ -1425,9 +1345,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-700"],
   [class*="text-slate-800"],
@@ -1450,9 +1368,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-700"],
   [class*="text-slate-800"],
@@ -1475,9 +1391,7 @@
   .bambook-panel-glass,
   .bambook-card-glass,
   .bambook-blue-white-surface,
-  .os-material-raised-card,
-  .os-vnext-panel,
-  .os-vnext-card
+  .os-material-raised-card
 ) :where(
   [class*="text-slate-700"],
   [class*="text-slate-800"],
@@ -1527,11 +1441,7 @@
   .bambook-selected-surface--light,
   .bambook-selected-surface--dark,
   .bambook-state-switch-track--checked-light,
-  .bambook-state-switch-track--checked-dark,
-  .os-vnext-panel,
-  .os-vnext-card,
-  .os-vnext-toolbar,
-  .os-vnext-dialog
+  .bambook-state-switch-track--checked-dark
 ),
 .ui-lab-real-os-root :where(
   .bambook-blue-white-light,
@@ -1540,11 +1450,7 @@
   .bambook-selected-surface--light,
   .bambook-selected-surface--dark,
   .bambook-state-switch-track--checked-light,
-  .bambook-state-switch-track--checked-dark,
-  .os-vnext-panel,
-  .os-vnext-card,
-  .os-vnext-toolbar,
-  .os-vnext-dialog
+  .bambook-state-switch-track--checked-dark
 ),
 [data-ui-lab-2-root] :where(
   .bambook-blue-white-light,
@@ -1553,11 +1459,7 @@
   .bambook-selected-surface--light,
   .bambook-selected-surface--dark,
   .bambook-state-switch-track--checked-light,
-  .bambook-state-switch-track--checked-dark,
-  .os-vnext-panel,
-  .os-vnext-card,
-  .os-vnext-toolbar,
-  .os-vnext-dialog
+  .bambook-state-switch-track--checked-dark
 ) {
   background-color: var(--bambook-rdl-panel-fill) !important;
   background-image: none !important;
@@ -1579,22 +1481,16 @@
 }
 
 .bambook-os-root :where(
-  .os-vnext-field,
-  .os-vnext-button--state[data-os-vnext-active="true"],
   .os-material-inset-surface,
   .bambook-nested-surface,
   .bambook-tertiary-surface
 ),
 .ui-lab-real-os-root :where(
-  .os-vnext-field,
-  .os-vnext-button--state[data-os-vnext-active="true"],
   .os-material-inset-surface,
   .bambook-nested-surface,
   .bambook-tertiary-surface
 ),
 [data-ui-lab-2-root] :where(
-  .os-vnext-field,
-  .os-vnext-button--state[data-os-vnext-active="true"],
   .os-material-inset-surface,
   .bambook-nested-surface,
   .bambook-tertiary-surface
@@ -1605,12 +1501,6 @@
   box-shadow: none !important;
   -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
   backdrop-filter: var(--bambook-rdl-panel-filter) !important;
-}
-
-.bambook-os-root[data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button),
-.ui-lab-real-os-root[data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button),
-[data-ui-lab-2-root][data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button) {
-  color: var(--bambook-rdl-primary-text) !important;
 }
 
 .bambook-os-root :where(
@@ -1652,21 +1542,18 @@
   .glass-card,
   .bambook-card-glass,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-raised-card
 ),
 .ui-lab-real-os-root :where(
   .glass-card,
   .bambook-card-glass,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-raised-card
 ),
 [data-ui-lab-2-root] :where(
   .glass-card,
   .bambook-card-glass,
   .liquid-glass-card,
-  .ios-glass-card,
   .os-material-raised-card
 ) {
   background-color: var(--bambook-rdl-card-fill) !important;
@@ -1701,23 +1588,14 @@
 }
 
 .bambook-os-root :where(
-  .glass-pill,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-floating-overlay
 ),
 .ui-lab-real-os-root :where(
-  .glass-pill,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-floating-overlay
 ),
 [data-ui-lab-2-root] :where(
-  .glass-pill,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-floating-overlay
 ) {
@@ -1732,7 +1610,6 @@
 .bambook-os-root :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -1740,9 +1617,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,
@@ -1752,7 +1626,6 @@
 .bambook-os-root :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -1760,9 +1633,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,
@@ -1772,7 +1642,6 @@
 .ui-lab-real-os-root :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -1780,9 +1649,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,
@@ -1792,7 +1658,6 @@
 .ui-lab-real-os-root :where(
   .glass-panel,
   .glass-card,
-  .glass-pill,
   .bambook-panel-glass,
   .bambook-dashboard-glass-color,
   .bambook-card-glass,
@@ -1800,9 +1665,6 @@
   .bambook-nested-surface,
   .bambook-tertiary-surface,
   .liquid-glass-card,
-  .ios-glass-card,
-  .ios-glass-btn,
-  .ios-dark-glass-btn,
   .os-vnext-dialog,
   .os-material-frame-panel,
   .os-material-raised-card,

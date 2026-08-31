@@ -171,7 +171,8 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TITLE_BACK_NAV_GROUP_CLASS).toBe('flex h-full items-center gap-0.5 -ml-3 min-w-0');
     expect(RELATIONS_TITLE_SEPARATOR_CLASS).toBe('h-9 w-5 flex items-center justify-center shrink-0');
     expect(RELATIONS_TITLE_PAGE_LABEL_CLASS).toContain('h-9');
-    expect(RELATIONS_TITLE_PAGE_LABEL_CLASS).toContain('text-[11px]');
+    // 2026-09-01 字号归一拍板：text-[11px] 已归一为语义类 text-xs
+    expect(RELATIONS_TITLE_PAGE_LABEL_CLASS).toContain('text-xs');
     expect(RELATIONS_TITLE_TEXT_BUTTON_CLASS).toContain('bg-transparent');
     expect(RELATIONS_TITLE_TEXT_BUTTON_CLASS).toContain('border-0');
     expect(RELATIONS_TITLE_TEXT_BUTTON_CLASS).toContain('p-0');
@@ -1478,7 +1479,8 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toBe(RELATIONS_TITLE_PAGE_LABEL_CLASS);
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toContain('h-9');
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toContain('items-center');
-    expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toContain('text-[11px]');
+    // 2026-09-01 字号归一拍板：text-[11px] 已归一为语义类 text-xs
+    expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toContain('text-xs');
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).not.toMatch(/\bmt-/);
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).not.toContain('text-xl');
     expect(RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS).toContain('h-9');

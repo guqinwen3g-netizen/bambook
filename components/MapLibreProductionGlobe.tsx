@@ -82,11 +82,13 @@ let activeWallpaperPalette: WallpaperAccentPalette | null = null;
 let activeIsDarkMode = false;
 
 const StatusColorMap: Record<string, string> = {
-  Alert: '#173b86',
-  Pending: '#c7e2df',
-  Production: '#173b86',
-  Shipping: '#6f8fb8',
-  Delivered: '#294465',
+  /* 2026-09-01 雾蓝频道：旧竹蓝（#173b86/#6f8fb8/#294465）迁 mist，
+     层级关系保持原设计（Alert=Production 深档 / Shipping 中亮 / Delivered 同 land / Pending 浅档） */
+  Alert: '#275768',
+  Pending: '#c6d9e2',
+  Production: '#275768',
+  Shipping: '#7fa3b3',
+  Delivered: '#2b4d60',
 };
 
 /** 订单状态中文标签（tooltip / 图例共用） */
@@ -166,7 +168,6 @@ export interface MapLibreProductionGlobeProps {
   sidebarOffset?: number;
   isDarkMode?: boolean;
   wallpaperUrl?: string;
-  accentPalette?: WallpaperAccentPalette;
   initialDelay?: number;
   quality?: GlobeQualityMode;
   viewportCenter?: GlobeViewportCenter | null;
@@ -360,30 +361,32 @@ function mixHexColor(from: string, to: string, amount: number): string {
 }
 
 function resolveThemedMapColors(palette: WallpaperAccentPalette, isDarkMode: boolean) {
+  /* 2026-09-01 雾蓝频道：mix 锚点全部由旧竹蓝（hue 217-225°）换 mist 锚点（hue 200-206°），
+     混合比例不动——只换频不改层次（water 沉底 / land 提亮 / road 走 accent / text 浅亮） */
   if (isDarkMode) {
     return {
-      water: mixHexColor(palette.globeAtmosphere, '#0b1424', 0.28),
-      land: mixHexColor(palette.globeLand, '#142943', 0.18),
-      landDetail: mixHexColor(palette.globeLandRim, '#203653', 0.26),
-      road: mixHexColor(palette.globeLandRim, '#173b86', 0.34),
+      water: mixHexColor(palette.globeAtmosphere, '#0e1a24', 0.28),
+      land: mixHexColor(palette.globeLand, '#16303e', 0.18),
+      landDetail: mixHexColor(palette.globeLandRim, '#23485a', 0.26),
+      road: mixHexColor(palette.globeLandRim, '#275768', 0.34),
       boundary: palette.globeBorder,
-      text: mixHexColor(palette.globeLandRim, '#c7e2df', 0.28),
-      buildingLow: mixHexColor(palette.globeLand, '#142943', 0.24),
-      buildingMid: mixHexColor(palette.globeLand, '#6f96d2', 0.16),
-      buildingHigh: mixHexColor(palette.globeLandRim, '#c7e2df', 0.18),
+      text: mixHexColor(palette.globeLandRim, '#c6d9e2', 0.28),
+      buildingLow: mixHexColor(palette.globeLand, '#16303e', 0.24),
+      buildingMid: mixHexColor(palette.globeLand, '#79adc2', 0.16),
+      buildingHigh: mixHexColor(palette.globeLandRim, '#c6d9e2', 0.18),
     };
   }
 
   return {
-    water: mixHexColor(palette.globeAtmosphere, '#f4f7fa', 0.22),
-    land: '#eef3f6',
-    landDetail: mixHexColor(palette.globeLandRim, '#f4f7fa', 0.32),
-    road: mixHexColor(palette.accent, '#f4f7fa', 0.12),
+    water: mixHexColor(palette.globeAtmosphere, '#f2f6f9', 0.22),
+    land: '#ecf2f6',
+    landDetail: mixHexColor(palette.globeLandRim, '#f2f6f9', 0.32),
+    road: mixHexColor(palette.accent, '#f2f6f9', 0.12),
     boundary: palette.globeBorder,
-    text: mixHexColor(palette.globeBorder, '#1d2a3a', 0.12),
-    buildingLow: '#d7e2ec',
-    buildingMid: mixHexColor(palette.accent, '#f4f7fa', 0.18),
-    buildingHigh: mixHexColor(palette.globeLandRim, '#6f8fb8', 0.26),
+    text: mixHexColor(palette.globeBorder, '#1a2e3b', 0.12),
+    buildingLow: '#d9e5ec',
+    buildingMid: mixHexColor(palette.accent, '#f2f6f9', 0.18),
+    buildingHigh: mixHexColor(palette.globeLandRim, '#7fa3b3', 0.26),
   };
 }
 
@@ -486,11 +489,11 @@ function applyBambookSkyStyle(map: MapLibreMap, palette: WallpaperAccentPalette,
   const colors = resolveThemedMapColors(palette, isDarkMode);
   try {
     (map as MapLibreMap & { setSky?: (sky: Record<string, unknown>) => void }).setSky?.({
-      'sky-color': isDarkMode ? colors.water : '#e8f0f5',
+      'sky-color': isDarkMode ? colors.water : '#ecf1f5',
       'sky-horizon-blend': 0.08,
-      'horizon-color': isDarkMode ? palette.globeAtmosphere : '#eef2f6',
+      'horizon-color': isDarkMode ? palette.globeAtmosphere : '#ecf1f5',
       'horizon-fog-blend': 0.18,
-      'fog-color': isDarkMode ? '#0b1424' : '#dce8f1',
+      'fog-color': isDarkMode ? '#0e1a24' : '#d9e7ef',
       'fog-ground-blend': 0.46,
     });
   } catch {
@@ -597,16 +600,17 @@ function unifiedBuildingMaterialPaint(
 ): Record<string, unknown> {
   const materialOpacity = 0.86;
   const fallbackPalette: WallpaperAccentPalette = {
-    accent: activeIsDarkMode ? '#7fa7e8' : '#6f8fb8',
-    accentStrong: activeIsDarkMode ? '#315a9d' : '#173b86',
-    accentSoft: activeIsDarkMode ? '#8fc3c1' : '#c7e2df',
-    accentRgb: activeIsDarkMode ? '127, 167, 232' : '111, 143, 184',
-    accentStrongRgb: activeIsDarkMode ? '49, 90, 157' : '23, 59, 134',
-    accentSoftRgb: activeIsDarkMode ? '143, 195, 193' : '199, 226, 223',
-    globeAtmosphere: activeIsDarkMode ? '#10233d' : '#dce8f1',
-    globeLand: activeIsDarkMode ? '#294465' : '#eef3f6',
-    globeLandRim: activeIsDarkMode ? '#6f96d2' : '#dce8f1',
-    globeBorder: activeIsDarkMode ? '#8fc3c1' : '#173b86',
+    /* 2026-09-01 雾蓝频道：与 utils/wallpaperAccent.ts defaultWallpaperAccentPalette 同步迁 mist */
+    accent: activeIsDarkMode ? '#73b2c9' : '#34768d',
+    accentStrong: activeIsDarkMode ? '#5aa4bf' : '#275768',
+    accentSoft: activeIsDarkMode ? '#9fbccb' : '#c6d9e2',
+    accentRgb: activeIsDarkMode ? '115, 178, 201' : '52, 118, 141',
+    accentStrongRgb: activeIsDarkMode ? '90, 164, 191' : '39, 87, 104',
+    accentSoftRgb: activeIsDarkMode ? '159, 188, 203' : '198, 217, 226',
+    globeAtmosphere: activeIsDarkMode ? '#122532' : '#d3e2ea',
+    globeLand: activeIsDarkMode ? '#2b4d60' : '#ecf2f6',
+    globeLandRim: activeIsDarkMode ? '#79adc2' : '#c6dae3',
+    globeBorder: activeIsDarkMode ? '#4e7a90' : '#34768d',
   };
   const colors = resolveThemedMapColors(activeWallpaperPalette || fallbackPalette, activeIsDarkMode);
 
@@ -724,7 +728,7 @@ function realBuildingExtrusionPaint(_isDarkMode: boolean): Record<string, unknow
 
 function realBuildingFootprintPaint(isDarkMode: boolean): Record<string, unknown> {
   return {
-    'line-color': isDarkMode ? 'rgba(111, 135, 155, 0.32)' : 'rgba(111, 135, 155, 0.28)',
+    'line-color': isDarkMode ? 'rgba(110, 130, 145, 0.32)' : 'rgba(110, 130, 145, 0.28)',
     'line-width': [
       'interpolate',
       ['linear'],
@@ -765,7 +769,7 @@ function buildingOverrideExtrusionPaint(_isDarkMode: boolean): Record<string, un
 
 function buildingOverrideFootprintPaint(isDarkMode: boolean): Record<string, unknown> {
   return {
-    'line-color': isDarkMode ? 'rgba(111, 135, 155, 0.32)' : 'rgba(111, 135, 155, 0.28)',
+    'line-color': isDarkMode ? 'rgba(110, 130, 145, 0.32)' : 'rgba(110, 130, 145, 0.28)',
     'line-width': [
       'interpolate',
       ['linear'],
@@ -903,7 +907,7 @@ function addJunmaDebugCandidateLayer(map: MapLibreMap): void {
         source: JUNMA_DEBUG_SOURCE_ID,
         minzoom: 12,
         paint: {
-          'fill-extrusion-color': '#22c55e',
+          'fill-extrusion-color': '#409660',
           'fill-extrusion-height': ['coalesce', ['to-number', ['get', 'render_height']], 70],
           'fill-extrusion-base': 0,
           'fill-extrusion-opacity': 0.98,
@@ -985,7 +989,6 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   orders,
   sidebarOffset = 0,
   isDarkMode = false,
-  accentPalette,
   initialDelay = 0,
   quality = 'auto',
   viewportCenter = null,
@@ -1013,7 +1016,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   const onRuntimeErrorRef = useRef(onRuntimeError);
   const updateMarkersRef = useRef<() => void>(() => {});
   const isDarkModeRef = useRef(isDarkMode);
-  const palette = useMemo(() => accentPalette ?? defaultWallpaperAccentPalette(isDarkMode), [accentPalette, isDarkMode]);
+  const palette = useMemo(() => defaultWallpaperAccentPalette(isDarkMode), [isDarkMode]);
   const paletteRef = useRef<WallpaperAccentPalette>(palette);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMapStyled, setIsMapStyled] = useState(false);
@@ -1760,7 +1763,10 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     ? markerItems.some(item => item.id === tooltipTarget.id)
     : false;
   const mapOverlayControlClass = isDarkMode
-    ? 'bg-[rgba(13,27,42,0.34)] text-[var(--text-secondary)] backdrop-blur-md backdrop-saturate-150'
+    /* 2026-09-01 雾蓝频道（用户实机指出坐标点/卡片仍旧蓝）：深色浮层底由近黑藏蓝
+       （13,27,42 → 20,35,47 视觉无差）改为提升一档的雾蓝磨砂玻璃——rgba(38,67,79,.50)
+       = #26434F raised 档，与 rdl floating fill 族同源，浮于深色地图之上可见「雾蓝磨砂」 */
+    ? 'bg-[rgba(38,67,79,0.50)] text-[var(--text-secondary)] backdrop-blur-md backdrop-saturate-150'
     : 'bg-[rgba(255,255,255,0.46)] text-[var(--os-vnext-brand-blue-strong)] backdrop-blur-md backdrop-saturate-150'
   const mapOverlayHoverClass = isDarkMode
     ? 'hover:bg-[rgba(255,255,255,0.07)] hover:text-white'
@@ -1830,7 +1836,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
               aria-label={`聚焦 ${marker.locationLabel} 节点`}
             >
               <span className="absolute inset-[5px] rounded-full bg-[var(--bambook-rdl-inset-fill)]" />
-              <span className="relative z-10 text-[17px] font-light leading-none text-[var(--os-vnext-brand-blue)]">→</span>
+              <span className="relative z-10 text-lg font-light leading-none text-[var(--os-vnext-brand-blue)]">→</span>
               <span
                 className="absolute bottom-1.5 right-1.5 h-2 w-2 rounded-full ring-2 ring-[rgb(255_255_255/0.42)]"
                 style={{ backgroundColor: StatusColorMap[marker.target.status || 'Pending'] || '#cbd5e1' }}
@@ -1845,7 +1851,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       {isMapVisible && tourTargets.length > 1 && (
         <button
           type="button"
-          className={`pointer-events-auto absolute left-1/2 top-[72%] z-[3] flex h-12 -translate-x-1/2 items-center gap-3 rounded-full border-0 px-5 text-[11px] font-light tracking-[0.22em] shadow-none transition-[transform,background-color,color] duration-200 hover:scale-[1.02] ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
+          className={`pointer-events-auto absolute left-1/2 top-[72%] z-[3] flex h-12 -translate-x-1/2 items-center gap-3 rounded-full border-0 px-5 text-xs font-light tracking-[0.22em] shadow-none transition-[transform,background-color,color] duration-200 hover:scale-[1.02] ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
           onClick={focusNextTarget}
         >
           {/* Next Node 巡航按钮（契约锚） */}
@@ -1882,7 +1888,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
           {onOpenOrder && tooltipTarget.order && (
             <button
               type="button"
-              className={`mt-3 w-full rounded-control border-0 px-3 py-1.5 text-[11px] font-light shadow-none transition-[background-color,color] duration-200 ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
+              className={`mt-3 w-full rounded-control border-0 px-3 py-1.5 text-xs font-light shadow-none transition-[background-color,color] duration-200 ${mapOverlayControlClass} ${mapOverlayHoverClass}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenOrder(tooltipTarget.order!.id);
@@ -1906,7 +1912,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
                 onClick={() => toggleStatus(status)}
                 aria-pressed={!hidden}
                 title={hidden ? '点击显示该状态' : '点击隐藏该状态'}
-                className={`flex items-center gap-2 border-0 bg-transparent p-0 text-left text-[11px] font-light transition-opacity ${hidden ? 'opacity-40' : 'opacity-100'}`}
+                className={`flex items-center gap-2 border-0 bg-transparent p-0 text-left text-xs font-light transition-opacity ${hidden ? 'opacity-40' : 'opacity-100'}`}
               >
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
@@ -1946,7 +1952,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       {isMapVisible && tilesDegraded && (
         <div
           role="status"
-          className={`pointer-events-auto absolute left-1/2 top-4 z-[5] flex -translate-x-1/2 items-center gap-3 rounded-control border-0 px-4 py-2 text-[11px] font-light shadow-none ${mapOverlayControlClass}`}
+          className={`pointer-events-auto absolute left-1/2 top-4 z-[5] flex -translate-x-1/2 items-center gap-3 rounded-control border-0 px-4 py-2 text-xs font-light shadow-none ${mapOverlayControlClass}`}
         >
           部分地图瓦片加载失败，显示可能不完整
           <button

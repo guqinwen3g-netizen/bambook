@@ -60,7 +60,7 @@ export const PlatformRulesSection: React.FC = () => {
             生产环境请使用强密钥并限制网络访问；开发环境可使用默认 Key。
             认证模式与密钥由客户端在「设置 → 同步/连接」中配置，此处仅为策略说明。
           </p>
-          <div className={`text-[11px] font-mono space-y-1 pt-2 ${weakTextCls}`}>
+          <div className={`text-xs font-mono space-y-1 pt-2 ${weakTextCls}`}>
             <div>GET  /api/v1/orders</div>
             <div>POST /api/v1/orders/import</div>
             <div>POST /api/v1/import/order</div>
@@ -68,7 +68,7 @@ export const PlatformRulesSection: React.FC = () => {
             <div>GET  /api/v1/products</div>
           </div>
           <div className="mt-3 pt-3 border-t border-[var(--border-c-subtle)]">
-            <div className={`inline-flex items-center gap-1.5 text-[11px] ${weakTextCls}`}>
+            <div className={`inline-flex items-center gap-1.5 text-xs ${weakTextCls}`}>
               <ShieldCheck size={14} strokeWidth={1.5} />
               仅管理员可查看本策略说明；密钥变更请联系系统管理员在服务端配置。
             </div>

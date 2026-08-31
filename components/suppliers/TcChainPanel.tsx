@@ -144,7 +144,7 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
   }, [load]);
 
   const chipCls = (active: boolean) => cx(
-    'rounded-full border px-3 py-1 text-[11px] font-light transition-colors',
+    'rounded-full border px-3 py-1 text-xs font-light transition-colors',
     active
       ? 'border-[var(--accent-tint)] bg-[var(--accent-tint-light)] text-[var(--text-primary)]'
       : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]',
@@ -185,7 +185,7 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
             <span className={`bds-badge sm ${verification.verdict === 'complete' ? 'success' : 'warning'}`}>
               {verification.verdict === 'complete' ? '链条完整 可清关' : '存在风险 需处理'}
             </span>
-            <span className={cx('text-[11px] font-light tabular-nums', textSecondary)}>
+            <span className={cx('text-xs font-light tabular-nums', textSecondary)}>
               {verification.tcCount} 张 TC · 原料 {fmtKg(verification.byStage.materialKg)} → 工厂 {fmtKg(verification.byStage.factoryKg)} → 我方 {fmtKg(verification.byStage.ourKg)}
             </span>
           </div>
@@ -250,7 +250,7 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
                   )}
                 </div>
                 {stageList.length === 0 ? (
-                  <div className={cx('mt-2 flex items-center gap-1.5 text-[11px] font-light', textFaint)}>
+                  <div className={cx('mt-2 flex items-center gap-1.5 text-xs font-light', textFaint)}>
                     <TriangleAlert size={14} strokeWidth={1.5} />未登记（缺链）
                   </div>
                 ) : stageList.map(t => {
@@ -258,7 +258,7 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
                   return (
                     <div key={t.id} className={cx('mt-2 rounded-field border p-2', divider)}>
                       <div className="flex items-center gap-1.5">
-                        <span className={cx('text-[11px] font-light tabular-nums', textPrimary)}>{t.tcNo}</span>
+                        <span className={cx('text-xs font-light tabular-nums', textPrimary)}>{t.tcNo}</span>
                         <span className={cx('bds-badge sm', expired ? 'danger' : 'neutral')}>
                           {expired ? '已过期' : fmtKg(Number(t.quantityKg))}
                         </span>

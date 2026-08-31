@@ -11,8 +11,8 @@
  *   - 内嵌元素（行/子卡/字段）使用 rgba() 任意值类，绕开 flat-experimental
  *     护栏（同时含 rounded 与 bg-white//bg-slate- 等子串会被强制 border:0）。
  *   - 状态色遵守 RDL 中性契约：statusSemanticClass（white/slate opacity 驱动），
- *     禁 emerald/red/amber 等 Tailwind 彩色；accent 蓝仅用于品牌锚点
- *     （当前态/主按钮/可点击 hover），不用于状态语义。
+ *     禁 emerald/red/amber 等 Tailwind 彩色；accent（雾青 --accent 族，全局唯一
+ *     主行动色）仅用于品牌锚点（当前态/主按钮/可点击 hover），不用于状态语义。
  *   - 字重仅 font-light（300），禁 medium+（全局 Light 300 纪律）。
  */
 
@@ -293,9 +293,9 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
 
     headerWrap: 'mb-4 flex items-end justify-between gap-4',
     headerIcon: dark ? 'text-white/55' : 'text-slate-500',
-    kicker: `text-[11px] font-light uppercase tracking-[0.22em] ${dark ? 'text-white/55' : 'text-slate-500'}`,
+    kicker: `text-xs font-light uppercase tracking-[0.22em] ${dark ? 'text-white/55' : 'text-slate-500'}`,
     sectionTitle: `mt-1 text-base font-light tracking-wide ${dark ? 'text-slate-50' : 'text-slate-950'}`,
-    headerMeta: `shrink-0 text-[12px] font-light ${dark ? 'text-white/60' : 'text-slate-600'}`,
+    headerMeta: `shrink-0 text-xs font-light ${dark ? 'text-white/60' : 'text-slate-600'}`,
 
     textTitle: dark ? 'text-slate-50' : 'text-slate-950',
     textPrimary: dark ? 'text-white/85' : 'text-slate-800',
@@ -307,19 +307,19 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
       ? 'border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.030)]'
       : 'border-[rgba(148,163,184,0.24)] bg-[rgba(255,255,255,0.40)]',
     insetPadding: 'p-4',
-    subGroupTitle: `text-[12px] font-light tracking-wide ${dark ? 'text-white/75' : 'text-slate-700'}`,
+    subGroupTitle: `text-xs font-light tracking-wide ${dark ? 'text-white/75' : 'text-slate-700'}`,
     subGroupMeta: `text-[10px] font-light uppercase tracking-[0.18em] ${dark ? 'text-white/50' : 'text-slate-400'}`,
 
     rowPillSurface: dark
       ? 'border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] text-white/80'
       : 'border-[rgba(148,163,184,0.28)] bg-[rgba(255,255,255,0.45)] text-slate-800',
-    rowPill: `flex w-full items-center justify-between gap-3 rounded-full border px-4 py-2 text-left text-[13px] font-light transition-colors duration-200 ${
+    rowPill: `flex w-full items-center justify-between gap-3 rounded-full border px-4 py-2 text-left text-sm font-light transition-colors duration-200 ${
       dark
         ? 'border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] text-white/80'
         : 'border-[rgba(148,163,184,0.28)] bg-[rgba(255,255,255,0.45)] text-slate-800'
     }`,
     rowPillHover: dark
-      ? 'hover:border-[rgba(125,196,235,0.35)] hover:text-accent-blue'
+      ? 'hover:border-accent/35 hover:text-accent'
       : 'hover:border-action/35 hover:text-link',
     chip: `shrink-0 rounded-full border px-2 py-px text-[10px] font-light ${statusSemanticClass('neutral', dark)}`,
 
@@ -329,13 +329,13 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
       ? 'border-[rgba(255,255,255,0.13)] text-white/70 hover:bg-[rgba(255,255,255,0.05)]'
       : 'border-[rgba(148,163,184,0.55)] text-slate-600 hover:bg-[rgba(241,245,249,0.70)]',
     btnAccentOutline: dark
-      ? 'border-[rgba(125,196,235,0.35)] text-accent-blue hover:bg-accent-blue/[0.10]'
+      ? 'border-accent/35 text-accent hover:bg-accent/[0.10]'
       : 'border-action/30 text-link hover:bg-action/[0.06]',
     btnAccentActive: dark
-      ? 'border-[rgba(125,196,235,0.35)] bg-accent-blue/[0.12] text-accent-blue'
+      ? 'border-accent/35 bg-accent/[0.12] text-accent'
       : 'border-action/30 bg-action/[0.07] text-link',
     btnPrimary: dark
-      ? 'border-transparent bg-accent-blue/90 text-slate-950 hover:bg-accent-blue'
+      ? 'border-transparent bg-accent/90 text-slate-950 hover:bg-accent'
       : 'border-transparent bg-action text-white hover:bg-link',
     btnIcon: `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${
       dark
@@ -366,35 +366,35 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     subGroupDot: dark ? 'bg-white/40' : 'bg-slate-400',
     chevronColor: dark ? 'text-white/35' : 'text-slate-400',
     fieldHint: `text-[9px] font-light ml-1 ${dark ? 'text-white/35' : 'text-slate-400'}`,
-    fieldReadOnlyValue: `text-[14px] font-light leading-relaxed ${dark ? 'text-white/85' : 'text-slate-800'}`,
-    fieldReadOnlyEmpty: `text-[13px] font-light italic leading-relaxed ${dark ? 'text-white/20' : 'text-slate-300/70'}`,
+    fieldReadOnlyValue: `text-sm font-light leading-relaxed ${dark ? 'text-white/85' : 'text-slate-800'}`,
+    fieldReadOnlyEmpty: `text-sm font-light italic leading-relaxed ${dark ? 'text-white/20' : 'text-slate-300/70'}`,
     fieldSlotFilled: dark ? 'bg-white/[0.03]' : 'bg-slate-900/[0.025]',
     fieldSlotEmpty: dark ? 'bg-white/[0.015]' : 'bg-slate-900/[0.015]',
 
     // ── 第三批补全配方（消除列表页/状态机/时间线/分隔线跨文件手写重复） ──
 
     // 列表页表格行文字：密集阅读场景，比面板内 textPrimary 略亮（slate-100/slate-950 vs white/85/slate-800）
-    listRowPrimary: `truncate text-[13px] font-light leading-[1.25] tracking-normal ${dark ? 'text-slate-100' : 'text-slate-950'}`,
-    listRowRegular: `truncate text-[13px] font-light leading-[1.25] tracking-normal ${dark ? 'text-slate-300' : 'text-slate-700'}`,
-    listRowSecondary: `mt-1 truncate text-[11px] font-light leading-[1.2] tracking-normal ${dark ? 'text-white/42' : 'text-slate-500'}`,
+    listRowPrimary: `truncate text-sm font-light leading-[1.25] tracking-normal ${dark ? 'text-slate-100' : 'text-slate-950'}`,
+    listRowRegular: `truncate text-sm font-light leading-[1.25] tracking-normal ${dark ? 'text-slate-300' : 'text-slate-700'}`,
+    listRowSecondary: `mt-1 truncate text-xs font-light leading-[1.2] tracking-normal ${dark ? 'text-white/42' : 'text-slate-500'}`,
 
     // 状态步骤条按钮四态：current=accent实心 / done=accent描边 / actionable=ghost+hover变accent / disabled=极淡
-    stepBtnCurrent: dark ? 'border-transparent bg-accent-blue/90 text-slate-950' : 'border-transparent bg-action text-white',
-    stepBtnDone: dark ? 'border-[rgba(125,196,235,0.35)] text-accent-blue' : 'border-action/30 text-link',
+    stepBtnCurrent: dark ? 'border-transparent bg-accent/90 text-slate-950' : 'border-transparent bg-action text-white',
+    stepBtnDone: dark ? 'border-accent/35 text-accent' : 'border-action/30 text-link',
     stepBtnActionable: dark
-      ? 'border-[rgba(255,255,255,0.13)] text-white/70 hover:border-[rgba(125,196,235,0.35)] hover:text-accent-blue'
+      ? 'border-[rgba(255,255,255,0.13)] text-white/70 hover:border-accent/35 hover:text-accent'
       : 'border-[rgba(148,163,184,0.55)] text-slate-600 hover:border-action/30 hover:text-link',
     stepBtnDisabled: dark
       ? 'border-[rgba(255,255,255,0.08)] text-white/25 cursor-not-allowed'
       : 'border-[rgba(148,163,184,0.28)] text-slate-300 cursor-not-allowed',
-    stepConnectorDone: dark ? 'bg-accent-blue/50' : 'bg-action/35',
+    stepConnectorDone: dark ? 'bg-accent/50' : 'bg-action/35',
     stepConnectorPending: dark ? 'bg-white/[0.08]' : 'bg-slate-200',
 
     // 时间线：圆点(active=accent+ring / default=neutral) + 连接线 + 最新标签
     timelineDot: dark ? 'bg-[rgba(255,255,255,0.16)]' : 'bg-[rgba(148,163,184,0.40)]',
-    timelineDotActive: dark ? 'bg-accent-blue ring-4 ring-accent-blue/15' : 'bg-action ring-4 ring-action/10',
+    timelineDotActive: dark ? 'bg-accent ring-4 ring-accent/15' : 'bg-action ring-4 ring-action/10',
     timelineConnector: dark ? 'bg-white/5' : 'bg-slate-200',
-    timelineLatestBadge: dark ? 'bg-accent-blue/[0.14] text-accent-blue' : 'bg-action/[0.08] text-link',
+    timelineLatestBadge: dark ? 'bg-accent/[0.14] text-accent' : 'bg-action/[0.08] text-link',
 
     // Capsule 业务线标签：列表/详情通用，消除 3 处手写重复
     capsuleTag: `shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-light leading-none tracking-wide ${dark ? 'border-[rgba(255,255,255,0.14)] text-white/55' : 'border-[rgba(148,163,184,0.55)] text-slate-500'}`,
@@ -403,7 +403,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     divider: dark ? 'bg-white/10' : 'bg-slate-300/40',
 
     // 列表行交互暗示：flex 排版（容纳箭头图标）+ hover 变 accent 色（与行 group-hover 联动）
-    listRowActionHint: `mt-1 flex items-center gap-1 text-[11px] font-light leading-[1.2] tracking-normal transition-colors duration-200 ${dark ? 'text-white/42 group-hover:text-accent-blue' : 'text-slate-500 group-hover:text-link'}`,
+    listRowActionHint: `mt-1 flex items-center gap-1 text-xs font-light leading-[1.2] tracking-normal transition-colors duration-200 ${dark ? 'text-white/42 group-hover:text-accent' : 'text-slate-500 group-hover:text-link'}`,
 
     // ── 第四批：覆盖层/详情页文字色（消除 overlay* 变量手写重复） ──
     overlayTitleClass: dark ? 'text-slate-50' : 'text-slate-950',
@@ -445,7 +445,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
       if (status === 'Pending') return statusSemanticClass('neutral', dark);
       // Confirmed / Production / Shipping → active/info（进行中 accent 语义）
       return dark
-        ? 'border-[rgba(125,196,235,0.30)] bg-accent-blue/[0.12] text-accent-blue'
+        ? 'border-accent/30 bg-accent/[0.12] text-accent'
         : 'border-action/25 bg-action/[0.06] text-link';
     },
 
@@ -506,7 +506,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
         ? 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:border-[var(--danger-border)] hover:text-[var(--danger-text)]'
         : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:border-[var(--danger-border)] hover:text-[var(--danger-text)]'
     }`,
-    addBtn: `flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[11px] font-light transition-colors duration-200 ${
+    addBtn: `flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-xs font-light transition-colors duration-200 ${
       dark
         ? 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:border-[var(--accent-border)] hover:text-[var(--accent-text)]'
         : 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:border-[var(--accent-border)] hover:text-[var(--accent-text)]'

@@ -159,16 +159,16 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
             className="hidden"
             onChange={e => { handleFile(e.target.files?.[0]); e.currentTarget.value = ''; }}
           />
-          <button type="button" className="bds-btn bds-btn-secondary h-8 text-[11px]" disabled={parsing} onClick={() => fileInputRef.current?.click()}>
+          <button type="button" className="bds-btn bds-btn-secondary h-8 text-xs" disabled={parsing} onClick={() => fileInputRef.current?.click()}>
             {parsing ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
             上传规格书解析
           </button>
-          <button type="button" className="bds-btn bds-btn-ghost h-8 text-[11px]" onClick={() => setShowPaste(v => !v)}>
+          <button type="button" className="bds-btn bds-btn-ghost h-8 text-xs" onClick={() => setShowPaste(v => !v)}>
             <ClipboardPaste size={14} />
             粘贴文本
           </button>
           {savedFileName && (
-            <a className="bds-btn bds-btn-ghost h-8 text-[11px]" href={techPackService.fileUrl(orderId)} target="_blank" rel="noreferrer">
+            <a className="bds-btn bds-btn-ghost h-8 text-xs" href={techPackService.fileUrl(orderId)} target="_blank" rel="noreferrer">
               下载附件
             </a>
           )}
@@ -183,7 +183,7 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
             placeholder="粘贴规格书文本（邮件正文/已提取文本）——款号/尺码表/颜色/数量/成分/交期"
             className="bds-input bds-textarea min-h-24 w-full text-xs"
           />
-          <button type="button" className="bds-btn bds-btn-secondary h-8 text-[11px]" disabled={parsing || !pasteText.trim()} onClick={() => doParse({ text: pasteText })}>
+          <button type="button" className="bds-btn bds-btn-secondary h-8 text-xs" disabled={parsing || !pasteText.trim()} onClick={() => doParse({ text: pasteText })}>
             {parsing ? <Loader2 size={14} className="animate-spin" /> : null}
             解析文本
           </button>
@@ -212,8 +212,8 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
             </div>
           )}
           <div className="flex justify-end gap-2 px-3 py-2">
-            <button type="button" className="bds-btn bds-btn-ghost h-8 text-[11px]" disabled={saving} onClick={() => { setParsed(null); setApply({}); }}>取消</button>
-            <button type="button" className="bds-btn bds-btn-primary h-8 text-[11px]" disabled={saving} onClick={handleSave}>
+            <button type="button" className="bds-btn bds-btn-ghost h-8 text-xs" disabled={saving} onClick={() => { setParsed(null); setApply({}); }}>取消</button>
+            <button type="button" className="bds-btn bds-btn-primary h-8 text-xs" disabled={saving} onClick={handleSave}>
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               保存并回填
             </button>
@@ -247,7 +247,7 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
       )}
 
       {!parsed && !saved && !error && (
-        <div className="px-1 text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]">
+        <div className="px-1 text-xs font-light leading-relaxed text-[var(--text-tertiary)]">
           上传客户 Tech Pack（PDF 文本层）或粘贴文本，自动解析款号/尺码表/颜色/数量/成分/交期，核对后勾选回填订单字段。扫描件（无文本层）需 OCR，当前版本明示不支持。
         </div>
       )}

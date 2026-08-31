@@ -532,7 +532,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported })
 const SummaryCard: React.FC<{ label: string; value: number; accent?: boolean }> = ({ label, value, accent }) => (
   <div className={`rounded-inset border px-4 py-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)]/60`}>
     <div className={`text-xl font-light tabular-nums ${accent ? 'text-[var(--os-vnext-brand-blue)]' : 'text-[var(--text-primary)]'}`}>{value}</div>
-    <div className={`text-[11px] mt-0.5 ${'text-[var(--text-tertiary)]'}`}>{label}</div>
+    <div className={`text-xs mt-0.5 ${'text-[var(--text-tertiary)]'}`}>{label}</div>
   </div>
 );
 
@@ -545,7 +545,7 @@ const StepDot: React.FC<{
 }> = ({ n, label, active, current, icon }) => (
   <div className="flex items-center gap-2">
     <div
-      className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-light transition-colors duration-200 ${
+      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-light transition-colors duration-200 ${
         current
           ? 'bg-[var(--accent)] text-[var(--on-accent)] shadow-none'
             : active

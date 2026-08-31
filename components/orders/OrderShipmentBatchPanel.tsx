@@ -243,7 +243,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
   }, [load]);
 
   const chipCls = (active: boolean) => cx(
-    'rounded-full border px-3 py-1 text-[11px] font-light transition-colors',
+    'rounded-full border px-3 py-1 text-xs font-light transition-colors',
     active
       ? 'border-[var(--accent-tint)] bg-[var(--accent-tint-light)] text-[var(--text-primary)]'
       : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]',
@@ -304,7 +304,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
             <div>
               <div className="flex items-baseline justify-between">
                 <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>出运批次进度 SHIPMENT</span>
-                <span className={cx('text-[11px] font-light tabular-nums', textPrimary)}>
+                <span className={cx('text-xs font-light tabular-nums', textPrimary)}>
                   {overview.summary.shippedBatches}/{overview.summary.totalBatches} 批
                 </span>
               </div>
@@ -318,7 +318,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
             <div>
               <div className="flex items-baseline justify-between">
                 <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>收款结算进度 SETTLEMENT</span>
-                <span className={cx('text-[11px] font-light tabular-nums', textPrimary)}>
+                <span className={cx('text-xs font-light tabular-nums', textPrimary)}>
                   {fmtMoney(overview.summary.totalPaid)} / {fmtMoney(overview.orderAmount)}
                 </span>
               </div>
@@ -374,7 +374,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
                 </div>
 
                 {/* 计划明细 */}
-                <div className={cx('mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-light tabular-nums', textSecondary)}>
+                <div className={cx('mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-light tabular-nums', textSecondary)}>
                   {b.plannedRatio != null && <span>占比 {b.plannedRatio}%</span>}
                   {b.plannedQty != null && <span>数量 {b.plannedQty.toLocaleString()}{b.unit ? ` ${b.unit}` : ''}</span>}
                   <span>金额 {fmtMoney(b.amount)} {b.currency}</span>
@@ -402,7 +402,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
                     </div>
                   )}
                 </div>
-                {b.notes && <div className={cx('mt-1.5 text-[11px] font-light', textSecondary)}>{b.notes}</div>}
+                {b.notes && <div className={cx('mt-1.5 text-xs font-light', textSecondary)}>{b.notes}</div>}
               </div>
             );
           })}
@@ -412,7 +412,7 @@ export function OrderShipmentBatchPanel({ orderId, isDarkMode = false }: OrderSh
       {/* 登记批次 BottomSheet */}
       <BottomSheet isOpen={showCreate} onClose={() => setShowCreate(false)} title="登记出运批次">
         <div className="space-y-4 px-6 py-5">
-          <div className={cx('rounded-field border p-3 text-[11px] font-light leading-relaxed', divider, textSecondary)}>
+          <div className={cx('rounded-field border p-3 text-xs font-light leading-relaxed', divider, textSecondary)}>
             计划占比 / 计划数量 / 批次金额 至少填一项；金额缺省按「订单额 × 占比」推导。订单内尚无末批时，本批默认标记末批（单批整单出运场景）。
           </div>
           <div className="flex flex-wrap gap-3">

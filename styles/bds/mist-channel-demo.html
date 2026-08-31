@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雾蓝单频道系统 Demo · Mist Channel</title>
+<style>
+/* ============================================================
+   雾蓝单频道系统 Demo（2026-09-01）
+   锚点：侧边栏 brand-mist（已验证）
+   主张：全应用表面锁死雾蓝频道 H 200-207°，深色重建明度阶梯
+   阶梯：page L10 → 凹槽 L8 → 卡片 L16 → 浮层 L18 → 侧边栏渐变 L14-22
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --font: 'Urbanist', 'HarmonyOS Sans SC', 'PingFang SC', -apple-system, sans-serif;
+  /* ===== 浅色模式（新） ===== */
+  --bg-page: #ECF1F5;             /* H206 雾蓝灰底 L94.5 */
+  --aurora-1: rgba(159,188,203,0.35);  /* 主雾 #9FBCCB H203 */
+  --aurora-2: rgba(198,217,226,0.22);  /* 次雾 #C6D9E2 H203 */
+  --frosted-bg: rgba(250,252,254,0.92); /* 卡片 #FAFCFE 近白 */
+  --frosted-float: rgba(251,253,255,0.94); /* 浮层 */
+  --bg-inset: #E4EBF1;            /* 凹槽 H206 L92 */
+  --bg-inset-deep: #DCE5EC;       /* 选中态/悬停深一档 */
+  --text-1: #0F1D27;              /* 主文字 = 深雾蓝墨（page 深色同值） */
+  --text-2: #47596A;
+  --text-3: #6E8291;
+  --border: rgba(15,29,39,0.10);
+  --border-strong: rgba(15,29,39,0.16);
+  --accent: #34768D;              /* 雾青（不动） */
+  --accent-hover: #2C6377;
+  --accent-tint: rgba(52,118,141,0.15);
+  --on-accent: #FFFFFF;
+  --success: #409660; --success-tint: rgba(64,150,96,0.16);
+  --warning: #C4A445; --warning-tint: rgba(196,164,69,0.18);
+  --danger: #BC4950;  --danger-tint: rgba(188,73,80,0.16);
+  /* ===== 侧边栏 brand-mist（锚点，不动） ===== */
+  --mist-light: linear-gradient(155deg, #7FA3B3 0%, #A2C0CD 52%, #C6DAE3 100%);
+  --mist-glow: radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,0.35) 0%, transparent 60%);
+  --on-mist: #FFFFFF;
+  --on-mist-2: rgba(255,255,255,0.72);
+  --mist-active: rgba(255,255,255,0.62);
+  --mist-hover: rgba(255,255,255,0.22);
+  /* ===== 深色侧边栏（锚点，不动） ===== */
+  --mist-dark: linear-gradient(155deg, #132A36 0%, #1A3543 52%, #243F4C 100%);
+  --mist-dark-glow: radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,0.06) 0%, transparent 55%);
+  --mist-dark-active: rgba(255,255,255,0.14);
+  --mist-dark-hover: rgba(255,255,255,0.07);
+  --on-mist-dark: #F2F5F4;
+}
+html.dark {
+  --bg-page: #0F1D27;             /* H205 S44 L10.6 与侧边栏同族 */
+  --aurora-1: rgba(78,122,144,0.42);   /* 主雾 #4E7A90 H203 */
+  --aurora-2: rgba(46,74,92,0.30);     /* 次雾 #2E4A5C H203 */
+  --frosted-bg: rgba(24,44,59,0.92);   /* 卡片 #182C3B H206 S42 L16 */
+  --frosted-float: rgba(27,48,64,0.94); /* 浮层 #1B3040 L18 */
+  --bg-inset: #0C161F;            /* 凹槽 H208 L8.4 */
+  --bg-inset-deep: #142430;       /* 选中/悬停 L13 */
+  --text-1: #E8EEF2;              /* 冷白微蓝 */
+  --text-2: #9FB0BC;              /* 雾蓝灰 */
+  --text-3: #6E8291;
+  --border: rgba(232,238,242,0.10);
+  --border-strong: rgba(232,238,242,0.16);
+  --accent: #73B2C9;
+  --accent-hover: #89BED1;
+  --accent-tint: rgba(115,178,201,0.22);
+  --on-accent: #0E1519;
+  --success: #7DCA99; --success-tint: rgba(125,202,153,0.20);
+  --warning: #D6BC71; --warning-tint: rgba(214,188,113,0.20);
+  --danger: #CF7D82;  --danger-tint: rgba(207,125,130,0.20);
+}
+body {
+  font-family: var(--font); font-weight: 300;
+  background: var(--bg-page); color: var(--text-1);
+  min-height: 100vh; transition: background 0.3s;
+}
+/* 纯雾蓝 aurora：同频道双色阶，浮于 page 之上 */
+.aurora-stage {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(52% 38% at 18% 8%, var(--aurora-1) 0%, transparent 100%),
+    radial-gradient(44% 34% at 84% 78%, var(--aurora-2) 0%, transparent 100%);
+}
+.wrap { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 28px 32px 60px; }
+
+/* ===== 顶部控制条 ===== */
+.topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+.topbar h1 { font-size: 19px; font-weight: 300; letter-spacing: 0.5px; }
+.topbar .sub { font-size: 12px; color: var(--text-3); }
+.mode-switch { margin-left: auto; display: flex; background: var(--bg-inset); border-radius: 999px; padding: 3px; }
+.mode-switch button {
+  font-family: var(--font); font-weight: 400; font-size: 12px;
+  border: 0; background: transparent; color: var(--text-2);
+  padding: 6px 18px; border-radius: 999px; cursor: pointer; transition: all 0.2s;
+}
+.mode-switch button.on { background: var(--frosted-bg); color: var(--text-1); }
+
+/* ===== 模拟应用舞台 ===== */
+.stage { display: flex; border-radius: 22px; overflow: hidden; border: 1px solid var(--border); height: 660px; }
+
+/* --- 侧边栏（复刻真实 brand-mist） --- */
+.sidebar { width: 224px; flex-shrink: 0; display: flex; flex-direction: column; position: relative; }
+.sidebar .material { position: absolute; inset: 0; }
+html:not(.dark) .sidebar .material { background: var(--mist-glow), var(--mist-light); }
+html.dark .sidebar .material { background: var(--mist-dark-glow), var(--mist-dark); }
+.sidebar .content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; padding: 18px 12px; color: var(--on-mist); }
+html.dark .sidebar .content { color: var(--on-mist-dark); }
+.logo { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; }
+.logo-mark { width: 30px; height: 30px; border-radius: 9px; background: rgba(255,255,255,0.24); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; }
+.logo-name { font-size: 14px; font-weight: 400; letter-spacing: 1px; }
+.nav-group { font-size: 10px; letter-spacing: 2px; opacity: 0.55; padding: 14px 12px 6px; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 12px; margin: 1px 0; border-radius: 12px; font-size: 13px; color: inherit; cursor: pointer; transition: background 0.15s; }
+.nav-item .ico { width: 17px; height: 17px; border-radius: 5px; background: currentColor; opacity: 0.75; flex-shrink: 0; }
+.nav-item:hover { background: var(--mist-hover); }
+html.dark .nav-item:hover { background: var(--mist-dark-hover); }
+.nav-item.active { background: var(--mist-active); font-weight: 400; }
+html.dark .nav-item.active { background: var(--mist-dark-active); }
+.nav-item .cnt { margin-left: auto; font-size: 10px; opacity: 0.7; }
+.side-account { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer; }
+.side-account:hover { background: var(--mist-hover); }
+html.dark .side-account:hover { background: var(--mist-dark-hover); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.30); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; }
+.side-name { font-size: 12px; font-weight: 400; }
+.side-role { font-size: 10px; opacity: 0.65; }
+
+/* --- 主区 --- */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: transparent; }
+.main-scroll { overflow-y: auto; padding: 22px 26px; flex: 1; }
+.pagehead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+.pagehead h2 { font-size: 20px; font-weight: 300; letter-spacing: 0.3px; }
+.pagehead .crumb { font-size: 12px; color: var(--text-3); }
+
+/* filterbar — 层级：底座偏白（elevated），内嵌字段下沉灰（recessed），选中项更白 */
+.filterbar { display: flex; align-items: center; gap: 10px; background: var(--frosted-bg); border: 1px solid var(--border); border-radius: 999px; padding: 6px; margin-bottom: 20px; }
+.search { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 999px; padding: 0 14px; height: 34px; }
+.search .mag { width: 11px; height: 11px; border: 1.5px solid var(--text-3); border-radius: 50%; position: relative; flex-shrink: 0; }
+.search .mag::after { content: ''; position: absolute; width: 5px; height: 1.5px; background: var(--text-3); bottom: -2px; right: -3px; transform: rotate(45deg); }
+.search span { font-size: 12px; color: var(--text-3); }
+.seg { display: flex; background: var(--bg-inset); border-radius: 999px; padding: 3px; }
+.seg button { font-family: var(--font); font-size: 11px; font-weight: 400; border: 0; background: transparent; color: var(--text-2); padding: 4px 13px; border-radius: 999px; cursor: pointer; }
+.seg button.on { background: var(--frosted-bg); color: var(--text-1); }
+
+/* KPI 卡 */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.card { background: var(--frosted-bg); border: 1px solid var(--border); border-radius: 20px; padding: 18px; }
+.kpi-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-3); margin-bottom: 10px; }
+.kpi-num { font-size: 30px; font-weight: 300; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.kpi-num .unit { font-size: 0.45em; opacity: 0.45; margin-right: 2px; }
+.kpi-delta { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; margin-top: 10px; padding: 3px 9px; border-radius: 999px; }
+.kpi-delta.up { background: var(--success-tint); color: var(--success); }
+.kpi-delta.down { background: var(--danger-tint); color: var(--danger); }
+
+/* 明细卡 + 表格 */
+.detail-card { padding: 0; overflow: hidden; }
+.detail-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; }
+.detail-head h3 { font-size: 14px; font-weight: 400; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tbl th { text-align: left; font-weight: 400; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-3); padding: 8px 18px; border-top: 1px solid var(--border); }
+.tbl td { padding: 11px 18px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.tbl tr:hover td { background: var(--bg-inset-deep); }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 10px; border-radius: 999px; }
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { background: var(--success-tint); color: var(--success); }
+.badge.warn { background: var(--warning-tint); color: var(--warning); }
+.badge.bad { background: var(--danger-tint); color: var(--danger); }
+.badge.info { background: var(--accent-tint); color: var(--accent); }
+.link { color: var(--accent); cursor: pointer; }
+.link:hover { text-decoration: underline; }
+
+/* 凹槽内嵌示例（卡内 inset） */
+.inset-demo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.inset-box { background: var(--bg-inset); border-radius: 14px; padding: 16px; }
+.inset-box h4 { font-size: 12px; font-weight: 400; margin-bottom: 10px; color: var(--text-2); }
+
+/* ===== 组件陈列 ===== */
+.section-title { font-size: 15px; font-weight: 400; margin: 40px 0 16px; letter-spacing: 0.3px; }
+.comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.comp-cell { background: var(--frosted-bg); border: 1px solid var(--border); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.comp-cell .lbl { font-size: 10px; color: var(--text-3); letter-spacing: 1px; text-transform: uppercase; }
+.btn { font-family: var(--font); font-weight: 400; font-size: 12.5px; border-radius: 999px; padding: 8px 18px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: transparent; border-color: var(--border-strong); color: var(--text-1); }
+.btn-ghost:hover { background: var(--bg-inset); }
+.btn-danger { background: var(--danger-tint); color: var(--danger); }
+.input { font-family: var(--font); font-weight: 300; font-size: 12.5px; width: 100%; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; color: var(--text-1); outline: none; }
+.input:focus { border-color: var(--accent); }
+.toggle { width: 40px; height: 22px; border-radius: 999px; background: var(--bg-inset); position: relative; cursor: pointer; transition: background 0.2s; }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--frosted-float); transition: left 0.2s; }
+.toggle.on { background: var(--accent); }
+.toggle.on::after { left: 21px; background: var(--on-accent); }
+.statusdots { display: flex; gap: 10px; align-items: center; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; }
+.sdot.s { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.sdot.w { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+.sdot.d { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.sdot.a { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+/* ===== 功能栏方案研究 ===== */
+.patterns { display: flex; flex-direction: column; gap: 22px; }
+.pattern-tag { font-size: 10.5px; letter-spacing: 1px; color: var(--text-3); text-transform: uppercase; margin-bottom: 9px; display: flex; align-items: center; gap: 8px; }
+.pattern-tag b { color: var(--accent); font-weight: 500; letter-spacing: 0.5px; }
+.pattern-note { font-size: 11px; color: var(--text-3); margin-top: 9px; line-height: 1.65; }
+
+/* A 裸排：元素各自成壳，直接落页面 */
+.pa-row { display: flex; align-items: center; gap: 8px; }
+.pa-search { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 999px; height: 36px; padding: 0 14px; min-width: 0; }
+
+/* B 一体化：单容器，内部去壳，发丝分隔 */
+.pb-bar { display: flex; align-items: center; background: var(--frosted-bg); border: 1px solid var(--border); border-radius: 999px; height: 38px; padding: 0 6px 0 16px; }
+.pb-field { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--text-3); min-width: 0; }
+.pb-div { width: 1px; height: 16px; background: var(--border-strong); margin: 0 14px; flex-shrink: 0; }
+.pb-seg { display: flex; gap: 2px; }
+.pb-seg button { font-family: var(--font); font-size: 12px; font-weight: 400; border: 0; background: transparent; color: var(--text-2); padding: 5px 12px; border-radius: 9px; cursor: pointer; }
+.pb-seg button.on { background: var(--accent-tint); color: var(--accent); }
+
+/* C 图标化：宽搜索 + 漏斗收纳 */
+.pc-row { display: flex; align-items: center; gap: 10px; }
+.pc-kbd { margin-left: auto; font-size: 10px; border: 1px solid var(--border-strong); border-radius: 5px; padding: 1px 5px; color: var(--text-3); flex-shrink: 0; }
+.pc-iconbtn { width: 36px; height: 36px; border-radius: 999px; background: var(--bg-inset); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; color: var(--text-2); flex-shrink: 0; }
+.pc-iconbtn .cnt { position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 9px; display: flex; align-items: center; justify-content: center; padding: 0 3px; font-weight: 500; }
+
+/* ===== 色板 ===== */
+.palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; }
+.chip { border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: var(--frosted-bg); }
+.chip .swatch { height: 52px; }
+.chip .meta { padding: 8px 10px; }
+.chip .nm { font-size: 10.5px; font-weight: 400; }
+.chip .vl { font-size: 9.5px; color: var(--text-3); font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+/* ===== 新旧对照（深色重灾区） ===== */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cmp-card { border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.cmp-card .tag { font-size: 10.5px; letter-spacing: 1px; padding: 8px 14px; font-weight: 400; }
+.cmp-old .tag { background: #3A2530; color: #E8A0B0; }
+.cmp-new .tag { background: rgba(115,178,201,0.2); color: #73B2C9; }
+.cmp-body { padding: 16px; }
+.cmp-old .cmp-body { background: #0E1519; }
+.cmp-old .cmp-inner { background: rgba(23,31,43,0.92); }
+.cmp-new .cmp-body { background: #0F1D27; }
+.cmp-new .cmp-inner { background: rgba(24,44,59,0.92); }
+.cmp-inner { border-radius: 14px; padding: 14px; color: #E8EEF2; font-size: 12px; }
+.cmp-inner .t2 { color: #9FB0BC; font-size: 11px; margin-top: 6px; }
+.cmp-note { font-size: 11px; color: var(--text-3); margin-top: 10px; line-height: 1.6; }
+.footnote { margin-top: 50px; font-size: 11px; color: var(--text-3); line-height: 1.8; border-top: 1px solid var(--border); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="aurora-stage"></div>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1>雾蓝单频道系统 · Mist Channel</h1>
+      <div class="sub">锚点：侧边栏 brand-mist（已验证）｜主区全面并入雾蓝频道 H 200-207°｜深色明度阶梯 page L10 → 凹槽 L8 → 卡片 L16 → 浮层 L18</div>
+    </div>
+    <div class="mode-switch">
+      <button id="btnLight" class="on" onclick="setMode(false)">浅色</button>
+      <button id="btnDark" onclick="setMode(true)">深色</button>
+    </div>
+  </div>
+
+  <!-- 模拟应用 -->
+  <div class="stage">
+    <div class="sidebar">
+      <div class="material"></div>
+      <div class="content">
+        <div class="logo"><div class="logo-mark">B</div><div class="logo-name">Bambook</div></div>
+        <div class="nav-group">经营</div>
+        <div class="nav-item active"><div class="ico"></div>经营驾驶舱</div>
+        <div class="nav-item"><div class="ico"></div>订单管理<span class="cnt">14</span></div>
+        <div class="nav-item"><div class="ico"></div>客户关系</div>
+        <div class="nav-group">供应链</div>
+        <div class="nav-item"><div class="ico"></div>数字档案</div>
+        <div class="nav-item"><div class="ico"></div>生产看板</div>
+        <div class="nav-item"><div class="ico"></div>出运报关</div>
+        <div class="nav-group">支撑</div>
+        <div class="nav-item"><div class="ico"></div>财务结算</div>
+        <div class="nav-item"><div class="ico"></div>数据分析</div>
+        <div class="side-account">
+          <div class="avatar">KG</div>
+          <div><div class="side-name">Kevin Gu</div><div class="side-role">管理员</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main"><div class="main-scroll">
+      <div class="pagehead"><h2>经营驾驶舱</h2><span class="crumb">经营 / 驾驶舱</span></div>
+      <div class="pa-row" style="margin-bottom:20px">
+        <div class="pa-search"><div class="mag"></div><span>搜索订单 / 客户 / SKU…</span></div>
+        <div class="seg"><button class="on">全部</button><button>生产中</button><button>已出运</button></div>
+        <button class="btn btn-primary">新建订单</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="card"><div class="kpi-label">在手订单</div><div class="kpi-num"><span class="unit">$</span>1.24M</div><span class="kpi-delta up">▲ 12.4% 环比</span></div>
+        <div class="card"><div class="kpi-label">本月出货</div><div class="kpi-num"><span class="unit">$</span>486K</div><span class="kpi-delta up">▲ 6.1% 环比</span></div>
+        <div class="card"><div class="kpi-label">回款率</div><div class="kpi-num">92.4<span class="unit">%</span></div><span class="kpi-delta down">▼ 1.8% 环比</span></div>
+        <div class="card"><div class="kpi-label">逾期应收</div><div class="kpi-num"><span class="unit">$</span>37.2K</div><span class="kpi-delta down">▼ 2 单待催</span></div>
+      </div>
+
+      <div class="card detail-card">
+        <div class="detail-head"><h3>订单跟踪</h3><span class="link">查看全部 →</span></div>
+        <table class="tbl">
+          <tr><th>订单号</th><th>客户</th><th>金额</th><th>状态</th><th>交期</th><th></th></tr>
+          <tr><td>SO-2608-014</td><td>Nordwind GmbH</td><td>$86,400</td><td><span class="badge ok"><span class="dot"></span>生产中</span></td><td>09-18</td><td class="link">详情</td></tr>
+          <tr><td>SO-2608-021</td><td>Pacific Apparel</td><td>$52,150</td><td><span class="badge warn"><span class="dot"></span>待确认</span></td><td>09-25</td><td class="link">详情</td></tr>
+          <tr><td>SO-2607-036</td><td>Maison Vert</td><td>$118,900</td><td><span class="badge bad"><span class="dot"></span>逾期</span></td><td>08-30</td><td class="link">详情</td></tr>
+          <tr><td>SO-2608-009</td><td>Alpine Textil</td><td>$43,700</td><td><span class="badge info"><span class="dot"></span>已出运</span></td><td>已完成</td><td class="link">详情</td></tr>
+        </table>
+      </div>
+
+      <div class="inset-demo">
+        <div class="card" style="padding:16px"><div class="inset-box"><h4>卡内凹槽（inset）</h4><div style="font-size:12px;color:var(--text-2)">比卡片下沉一档的雾蓝凹面，用于嵌套表单与嵌套信息块。</div></div></div>
+        <div class="card" style="padding:16px"><div class="inset-box"><h4>选中态 / 悬停（inset-deep）</h4><div style="font-size:12px;color:var(--text-2)">列表行悬停与选中使用凹槽深一档，层级：卡片白 → 凹槽灰蓝 → 选中更深。</div></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 组件陈列 -->
+  <div class="section-title">组件 · Components</div>
+  <div class="comp-grid">
+    <div class="comp-cell"><span class="lbl">按钮</span><button class="btn btn-primary">主按钮</button><button class="btn btn-ghost">次按钮</button><button class="btn btn-danger">危险</button></div>
+    <div class="comp-cell"><span class="lbl">输入</span><input class="input" placeholder="搜索或输入…"><input class="input" style="border-color:var(--accent)" value="聚焦态"></div>
+    <div class="comp-cell"><span class="lbl">徽章</span><div><span class="badge ok"><span class="dot"></span>进行</span> <span class="badge warn"><span class="dot"></span>待定</span> <span class="badge bad"><span class="dot"></span>逾期</span> <span class="badge info"><span class="dot"></span>信息</span></div></div>
+    <div class="comp-cell"><span class="lbl">状态点 / 开关</span><div class="statusdots"><span class="sdot s"></span><span class="sdot w"></span><span class="sdot d"></span><span class="sdot a"></span></div><div class="toggle on"></div><div class="toggle"></div></div>
+  </div>
+
+  <!-- 功能栏方案研究 -->
+  <div class="section-title">功能栏方案研究 · Toolbar Studies</div>
+  <div class="patterns">
+
+    <div class="pattern">
+      <div class="pattern-tag">现行 · 嵌套底座（对照）</div>
+      <div class="pa-row">
+        <div class="filterbar" style="margin-bottom:0; flex:1">
+          <div class="search"><div class="mag"></div><span>搜索订单 / 客户 / SKU…</span></div>
+          <div class="seg"><button class="on">全部</button><button>生产中</button><button>已出运</button></div>
+          <button class="btn btn-primary">新建订单</button>
+        </div>
+      </div>
+      <div class="pattern-note">pill 底座内再嵌 pill 搜索 + pill 分段 + 按钮胶囊——三层圆角容器、每层自带描边与底色。扁平无阴影风格下描边即轮廓线，三重嵌套 = 三重视觉噪音，整栏 chrome 感过重（右侧按钮再填实色，视觉重量进一步右倾）。</div>
+    </div>
+
+    <div class="pattern">
+      <div class="pattern-tag">方案 A · 裸排无底座 <b>推荐</b></div>
+      <div class="pa-row">
+        <div class="pa-search"><div class="mag"></div><span>搜索订单 / 客户 / SKU…</span></div>
+        <div class="seg"><button class="on">全部</button><button>生产中</button><button>已出运</button></div>
+        <button class="btn btn-primary">新建订单</button>
+      </div>
+      <div class="pattern-note">取消外层底座：搜索框、分段器、按钮各自成为独立胶囊，直接落在页面底上，靠 8px 间距分组。容器层数 3→1、圆角叠印清零——Linear / Notion 同款手法。且与既有「纯单搜索页不套 bar」纪律天然统一为一条规则：有无筛选只是行内元素增减，容器形态不再切换。</div>
+    </div>
+
+    <div class="pattern">
+      <div class="pattern-tag">方案 B · 一体化单面（macOS / Stripe 工具栏式）</div>
+      <div class="pb-bar">
+        <div class="pb-field"><div class="mag"></div><span>搜索订单 / 客户 / SKU…</span></div>
+        <div class="pb-div"></div>
+        <div class="pb-seg"><button class="on">全部</button><button>生产中</button><button>已出运</button></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" style="margin-right:6px">导出</button>
+        <button class="btn btn-primary">新建订单</button>
+      </div>
+      <div class="pattern-note">只保留一个容器，内部元素全部去壳：无边框输入 + 发丝分隔线 + 文字型分段器（选中态 tint 底、不换容器）。单表面零嵌套、信息密度最高、最安静——适合表格密集页；代价是元素弱化后需要靠间距与对齐纪律维持秩序，分段器可发现性略降。</div>
+    </div>
+
+    <div class="pattern">
+      <div class="pattern-tag">方案 C · 图标化收纳（最简 chrome）</div>
+      <div class="pc-row">
+        <div class="pa-search" style="flex:1"><div class="mag"></div><span>搜索或输入命令…</span><span class="pc-kbd">⌘K</span></div>
+        <div class="pc-iconbtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
+          <span class="cnt">2</span>
+        </div>
+        <button class="btn btn-primary">新建订单</button>
+      </div>
+      <div class="pattern-note">搜索独占整行宽度 + 筛选收进漏斗图标（角标显示激活数，点开浮层配置）——Chrome / Figma 手法，chrome 最少。但高频筛选要多一步点击，ERP 状态类高频筛选不划算；适合作为 CommandPalette/⌘K 的全局搜索形态。复杂结构化筛选的进阶形态是「筛选 chips 化」（激活条件平铺为可移除的 chip，Airtable 式），留作日后复杂筛选页的补充范式。</div>
+    </div>
+
+  </div>
+
+  <!-- 色板 -->
+  <div class="section-title">核心色板 · Palette（随模式切换）</div>
+  <div class="palette" id="palette"></div>
+
+  <!-- 新旧对照 -->
+  <div class="section-title" id="cmpTitle">深色新旧对照 · 深色模式下切换查看</div>
+  <div class="compare" id="cmpArea" style="display:none">
+    <div class="cmp-card cmp-old">
+      <div class="tag">旧 · 现状（主区竹蓝残留）</div>
+      <div class="cmp-body"><div class="cmp-inner">卡片 #171F2B · 色相 218° 偏紫<div class="t2">页面底 #0E1519 · 明度仅 7.6%，近死黑；卡片偏紫，与侧边栏（203° 雾蓝）相差 15°+</div></div><div class="cmp-note">三团彩雾背景（蓝+绿+紫）+ 偏紫卡片 + 近黑底——侧边栏像贴在黑幕上的发光体。</div></div>
+    </div>
+    <div class="cmp-card cmp-new">
+      <div class="tag">新 · 雾蓝单频道</div>
+      <div class="cmp-body"><div class="cmp-inner">卡片 #182C3B · 色相 206° 与侧边栏同族<div class="t2">页面底 #0F1D27 · 明度 10.6% 深雾蓝；纯雾蓝 aurora；与侧边栏同一片雾的远近景</div></div><div class="cmp-note">整屏锁死 200-207° 频道：侧边栏稍亮蓝、主区稍深蓝，明度阶梯呼吸，割裂感消除。</div></div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    频道纪律：全应用表面色相锁 200-207°（雾蓝频道）｜彩色仅三处：侧边栏雾蓝渐变（品牌面）、accent 雾青（唯一行动色 H196）、语义色（小面积）｜其余全部中性雾蓝面。<br>
+    深色明度阶梯：page L10.6 → 凹槽 L8.4 → 卡片 L16 → 浮层 L18 → 侧边栏渐变 L14-22（品牌饱和度最高 S42-48% 区分身份）。浅色：page L94.5 → 凹槽 L92 → 卡片 L98（近白）。
+  </div>
+</div>
+
+<script>
+const paletteLight = [
+  ['页面底 bg-page', '#ECF1F5'], ['卡片 frosted', '#FAFCFE'], ['凹槽 inset', '#E4EBF1'], ['凹槽深 inset+', '#DCE5EC'],
+  ['主雾 aurora', '#9FBCCB'], ['次雾 aurora', '#C6D9E2'], ['accent 行动', '#34768D'], ['on-accent', '#FFFFFF'],
+  ['主文字', '#0F1D27'], ['次文字', '#47596A'], ['三文字', '#6E8291'], ['成功', '#409660'], ['警示', '#C4A445'], ['危险', '#BC4950'],
+];
+const paletteDark = [
+  ['页面底 bg-page', '#0F1D27'], ['卡片 frosted', '#182C3B'], ['凹槽 inset', '#0C161F'], ['凹槽深 inset+', '#142430'],
+  ['主雾 aurora', '#4E7A90'], ['次雾 aurora', '#2E4A5C'], ['accent 行动', '#73B2C9'], ['on-accent', '#0E1519'],
+  ['主文字', '#E8EEF2'], ['次文字', '#9FB0BC'], ['三文字', '#6E8291'], ['成功', '#7DCA99'], ['警示', '#D6BC71'], ['危险', '#CF7D82'],
+];
+function hsl(hex) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  let h = 0, s = 0;
+  if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); }
+  return `H${Math.round((h + 360) % 360)} S${Math.round(s * 100)} L${Math.round(l * 100)}`;
+}
+function render(dark) {
+  const el = document.getElementById('palette');
+  el.innerHTML = (dark ? paletteDark : paletteLight).map(([nm, v]) =>
+    `<div class="chip"><div class="swatch" style="background:${v}"></div><div class="meta"><div class="nm">${nm}</div><div class="vl">${v} · ${hsl(v)}</div></div></div>`).join('');
+  document.getElementById('cmpArea').style.display = dark ? 'grid' : 'none';
+  document.getElementById('cmpTitle').style.display = dark ? 'block' : 'none';
+}
+function setMode(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  document.getElementById('btnLight').classList.toggle('on', !dark);
+  document.getElementById('btnDark').classList.toggle('on', dark);
+  render(dark);
+}
+render(false);
+</script>
+</body>
+</html>

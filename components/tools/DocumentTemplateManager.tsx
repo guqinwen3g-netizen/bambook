@@ -186,7 +186,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
           ))}
         </div>
         {/* 列表 */}
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5">
           {items === null ? (
             <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-2 py-3">
               <Loader2 size={14} className="animate-spin" /> 加载模板...
@@ -240,7 +240,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
           <div className={`flex-1 flex flex-col items-center justify-center gap-2 text-[var(--text-tertiary)]`}>
             <FileText size={24} strokeWidth={1.25} />
             <p className="text-xs font-light">选择左侧模板进行编辑，或点击「新建」创建模板</p>
-            <p className="text-[11px] font-light">内容支持 {'{{variable}}'} 占位符，保存时服务端自动解析变量清单</p>
+            <p className="text-xs font-light">内容支持 {'{{variable}}'} 占位符，保存时服务端自动解析变量清单</p>
           </div>
         ) : (
           <>
@@ -267,7 +267,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
               <div className="flex gap-3">
                 <div className="w-44">
                   <label className={labelClass}>单据类型</label>

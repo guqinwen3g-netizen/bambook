@@ -809,7 +809,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
           <button className={`seg ${viewMode === 'orders' ? 'active' : ''}`} onClick={() => setViewMode('orders')}>采购单</button>
           <button className={`seg ${viewMode === 'inquiries' ? 'active' : ''}`} onClick={() => setViewMode('inquiries')}>供应商询价</button>
         </div>
-        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           <AnimatePresence mode="wait">
             {viewMode === 'inquiries' ? (
               <motion.div key="inquiries-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>

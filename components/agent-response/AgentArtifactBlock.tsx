@@ -22,11 +22,11 @@ export const AgentArtifactBlock: React.FC<AgentBlockComponentProps<AgentArtifact
           <FileText size={16} className={quietTextClass} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '产物'}</div>
+          <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '产物'}</div>
           <div className={`mt-1 text-xs leading-5 ${quietTextClass}`}>
             {block.artifactType} · version {block.version} · {block.artifactId}
           </div>
-          {block.contentRef && <div className={`mt-1 truncate text-[11px] ${quietTextClass}`}>contentRef: {block.contentRef}</div>}
+          {block.contentRef && <div className={`mt-1 truncate text-xs ${quietTextClass}`}>contentRef: {block.contentRef}</div>}
         </div>
       </div>
     </button>

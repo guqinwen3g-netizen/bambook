@@ -238,7 +238,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
         : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
     }`;
   const chipCls = (active: boolean) =>
-    `px-2.5 py-1 rounded-full text-[11px] font-light transition-colors cursor-pointer ${
+    `px-2.5 py-1 rounded-full text-xs font-light transition-colors cursor-pointer ${
       active
         ? 'bg-[var(--os-vnext-brand-blue)] text-[var(--on-accent)]'
         : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
@@ -364,13 +364,13 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
       />
 
       <div className="flex-1 min-h-0 flex flex-col px-7 pb-6 pt-2">
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div className="flex-1 min-h-0 overflow-y-auto p-1">
           {/* 专题报表入口（引擎外服务端聚合投影，非数据集引擎自动发现；引擎后续注册同名数据集时自动隐藏） */}
           {!datasets.some(d => d.key === 'consolidatedProfit') && (
             <div className={`${cardClass} p-4 mb-4 flex items-center gap-4`}>
               <div className="min-w-0 flex-1">
                 <div className="text-sm text-[var(--text-primary)]">合并利润 · Consolidated Profit</div>
-                <div className={`mt-1 text-[11px] ${textSecondary}`}>
+                <div className={`mt-1 text-xs ${textSecondary}`}>
                   公司合并视图（DR-005）：抵销内部面料采购/销售，仅计客户外部收入 + 真实面料成本；支持合并视图 / 部门视角双口径与日期范围过滤
                 </div>
                 <div className={`mt-0.5 text-[10px] ${textSecondary}`}>
@@ -679,7 +679,7 @@ function DesignerPanel(props: DesignerPanelProps) {
         <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between mb-2">
             <div className={`text-xs ${textSecondary}`}>聚合指标 *</div>
-            <button onClick={addMetric} className="text-[11px] inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <button onClick={addMetric} className="text-xs inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               <Plus size={16} strokeWidth={1.75} />添加指标
             </button>
           </div>
@@ -730,7 +730,7 @@ function DesignerPanel(props: DesignerPanelProps) {
               </div>
             ))}
             {designer.metrics.length === 0 && (
-              <div className={`text-[11px] ${textSecondary}`}>尚未添加指标 — 点击「添加指标」选择要聚合的数值字段</div>
+              <div className={`text-xs ${textSecondary}`}>尚未添加指标 — 点击「添加指标」选择要聚合的数值字段</div>
             )}
           </div>
         </div>
@@ -741,7 +741,7 @@ function DesignerPanel(props: DesignerPanelProps) {
         <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between mb-2">
             <div className={`text-xs ${textSecondary}`}>过滤条件（可选，≤12 个）</div>
-            <button onClick={addFilter} className="text-[11px] inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <button onClick={addFilter} className="text-xs inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               <Plus size={16} strokeWidth={1.75} />添加条件
             </button>
           </div>
@@ -825,7 +825,7 @@ function DesignerPanel(props: DesignerPanelProps) {
               );
             })}
             {designer.filters.length === 0 && (
-              <div className={`text-[11px] ${textSecondary}`}>无过滤条件 — 默认统计全部未删除记录</div>
+              <div className={`text-xs ${textSecondary}`}>无过滤条件 — 默认统计全部未删除记录</div>
             )}
           </div>
         </div>
@@ -964,7 +964,7 @@ function SavedPanel(props: SavedPanelProps) {
                     {def.enabled ? '已启用' : '已停用'}
                   </span>
                 </div>
-                <div className={`mt-1 text-[11px] ${textSecondary}`}>
+                <div className={`mt-1 text-xs ${textSecondary}`}>
                   {ds?.label ?? def.datasetKey}
                   {' · '}{def.dimensions.length} 维度 / {def.metrics.length} 指标
                   {def.schedule ? ` · ${SCHEDULE_LABELS[def.schedule]}调度` : ' · 手动'}
@@ -1169,11 +1169,11 @@ function RunsPanel({ isDarkMode, runs, runsTotal, runsLoadingMore, definitions, 
                               const runDef = definitions.find(d => d.id === detail.definitionId);
                               const drillable = Boolean(runDef && runDef.dimensions.length > 0);
                               return (
-                                <div className="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
+                                <div className="overflow-x-auto max-h-80 overflow-y-auto">
                                   {drillable && detail.rows.length > 0 && (
                                     <div className={`px-1 pb-1 text-[10px] ${textSecondary}`}>快照为历史结果；点击行内「下钻」按当前实时数据查询组成员实体</div>
                                   )}
-                                  <table className="w-full text-[11px]">
+                                  <table className="w-full text-xs">
                                     <thead>
                                       <tr className="bg-[var(--hover-darken)]">
                                         {(detail.columnLabels ?? detail.columns).map((c, i) => (
@@ -1308,7 +1308,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
           </div>
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             {groupEntries.length === 0 && (
-                              <span className={`text-[11px] ${textSecondary}`}>总计行 · 全部未删除记录</span>
+                              <span className={`text-xs ${textSecondary}`}>总计行 · 全部未删除记录</span>
             )}
             {groupEntries.map(g => (
               <span
@@ -1327,7 +1327,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
         </div>
 
         {/* 主体：成员明细 + 选中实体联动 */}
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
           {loading ? (
             <div className={`flex items-center justify-center gap-2 py-16 text-sm ${textSecondary}`}>
               <Loader2 size={16} className="animate-spin" />查询组成员…
@@ -1343,7 +1343,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
               {/* 成员明细表 */}
               <div className="rounded-card border overflow-hidden border-[var(--border-c-subtle)]">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[11px]">
+                  <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-[var(--hover-darken)]">
                         {result.columnLabels.map((c, i) => (
@@ -1382,7 +1382,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
               {selectedId && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] ${textSecondary}`}>已选中实体</span>
+                    <span className={`text-xs ${textSecondary}`}>已选中实体</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[var(--recessed-bg)] text-[var(--text-secondary)]">{selectedId}</span>
                     {onNavigate && navTarget && (
                       <button

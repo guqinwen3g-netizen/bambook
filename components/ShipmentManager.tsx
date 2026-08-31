@@ -824,7 +824,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                   规则：旺季（{bookingReminders.rule.peakMonths.map(m => `${m} 月`).join('/')}）提前 {bookingReminders.rule.peakDays} 天 · 平时提前 {bookingReminders.rule.normalDays} 天
                 </span>
               </div>
-              <div className="mt-2 max-h-40 space-y-1.5 overflow-y-auto custom-scrollbar">
+              <div className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
                 {bookingReminders.items.map(item => (
                   <div key={item.orderId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-compact bg-[var(--recessed-bg-strong)] px-3 py-2 text-xs">
                     <span className={cx('bds-badge',
@@ -986,7 +986,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                   <div className="flex shrink-0 items-center justify-center gap-3 border-t border-[var(--border-c-subtle)] px-4 py-3">
                     {listLoading && <Loader2 size={14} className="animate-spin text-[var(--text-quaternary)]" />}
                     {serverTotal != null && (
-                      <span className={cx('text-[11px] font-light', textSecondaryClass)}>已加载 {filteredShipments.length} / 共 {serverTotal} 票</span>
+                      <span className={cx('text-xs font-light', textSecondaryClass)}>已加载 {filteredShipments.length} / 共 {serverTotal} 票</span>
                     )}
                     {hasMoreShipments && (
                       <button
@@ -1018,7 +1018,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                       <div className="min-w-0">
                         <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>当前运单</div>
                         <div className={cx('mt-2 truncate text-base', textPrimaryClass)}>{selectedShipment.shipmentNumber}</div>
-                        <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedShipment.shippingMethod || '—'} · {selectedShipment.carrierName || '—'}</div>
+                        <div className={cx('mt-1 truncate text-xs', textSecondaryClass)}>{selectedShipment.shippingMethod || '—'} · {selectedShipment.carrierName || '—'}</div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <span className={`bds-badge sm ${statusTone(selectedShipment.status)}`}>
@@ -1136,7 +1136,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                       {ev.actorId && <span className="text-[10px] text-[var(--text-quaternary)]">操作人: {ev.actorId}</span>}
                                     </div>
                                     {ev.note && (
-                                      <div className="mt-1 px-2 py-1 rounded-inset text-[11px] bds-inset" style={{ color: 'var(--text-tertiary)' }}>{ev.note}</div>
+                                      <div className="mt-1 px-2 py-1 rounded-inset text-xs bds-inset" style={{ color: 'var(--text-tertiary)' }}>{ev.note}</div>
                                     )}
                                   </div>
                                 </div>
@@ -1196,7 +1196,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                 <div className="mt-1 space-y-1">
                                   {packingLines.map(line => (
                                     <div key={line.id} className="flex items-baseline justify-between gap-2 rounded-inset px-2 py-1 bds-inset">
-                                      <span className={cx('min-w-0 truncate text-[11px]', textPrimaryClass)}>
+                                      <span className={cx('min-w-0 truncate text-xs', textPrimaryClass)}>
                                         {line.productName || line.productCode || `行 ${line.lineNumber ?? ''}`}
                                       </span>
                                       <span className={cx('shrink-0 text-[10px] bds-tnum', textSecondaryClass)}>
@@ -1218,7 +1218,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                     return (
                                       <div key={carton.id} className="rounded-inset px-2 py-1 bds-inset">
                                         <div className="flex items-baseline justify-between gap-2">
-                                          <span className={cx('inline-flex min-w-0 items-center gap-1 text-[11px]', textPrimaryClass)}>
+                                          <span className={cx('inline-flex min-w-0 items-center gap-1 text-xs', textPrimaryClass)}>
                                             <Box size={14} className="shrink-0 opacity-60" />
                                             <span className="truncate">C/NO {carton.cartonNo}</span>
                                           </span>
@@ -1285,14 +1285,14 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                   <button type="button" onClick={closeFormModal} aria-label="返回货运管理" className="bds-btn bds-btn-secondary bds-btn-icon">
                     <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
-                  <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+                  <h3 className="flex h-9 max-w-64 items-center truncate text-xs font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     {editingShipment ? '编辑运单' : '新建运单'}
                   </h3>
                 </div>
               )}
               actions={(
                 <div className="flex h-full items-center gap-2 shrink-0">
-                  <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">
+                  <div className="text-xs font-light tracking-wide text-[var(--text-tertiary)]">
                     货运管理
                   </div>
                   <button type="button" onClick={closeFormModal} disabled={isSaving} className="bds-btn bds-btn-secondary">
@@ -1391,14 +1391,14 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                   <button type="button" onClick={() => setShowBatchPanel(false)} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
                     <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
-                  <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+                  <h3 className="flex h-9 max-w-64 items-center truncate text-xs font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     分批出运 · {selectedShipment.shipmentNumber}
                   </h3>
                 </div>
               )}
               actions={(
                 <div className="flex h-full shrink-0 items-center gap-2">
-                  <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
+                  <div className="text-xs font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
                   <button type="button" onClick={() => setShowBatchPanel(false)} className="bds-btn bds-btn-secondary">关闭</button>
                 </div>
               )}
@@ -1628,14 +1628,14 @@ function PackingEditorModal({
               <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </button>
-              <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+              <h3 className="flex h-9 max-w-64 items-center truncate text-xs font-light leading-none tracking-wide text-[var(--text-secondary)]">
                 装箱明细 · {shipment.shipmentNumber}
               </h3>
             </div>
           )}
           actions={(
             <div className="flex h-full shrink-0 items-center gap-2">
-              <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
+              <div className="text-xs font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
               <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-secondary">取消</button>
               <button type="button" onClick={() => void handleSave()} disabled={saving} className="bds-btn bds-btn-primary">
                 <Save size={14} strokeWidth={1.5} />
@@ -1894,14 +1894,14 @@ function AllocationEditorModal({
               <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </button>
-              <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+              <h3 className="flex h-9 max-w-64 items-center truncate text-xs font-light leading-none tracking-wide text-[var(--text-secondary)]">
                 合票出运 · {shipment.shipmentNumber}
               </h3>
             </div>
           )}
           actions={(
             <div className="flex h-full shrink-0 items-center gap-2">
-              <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
+              <div className="text-xs font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
               <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-secondary">关闭</button>
             </div>
           )}

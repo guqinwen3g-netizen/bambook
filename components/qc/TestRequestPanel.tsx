@@ -261,7 +261,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
   }, [load]);
 
   const chipCls = (active: boolean) => cx(
-    'rounded-full border px-3 py-1 text-[11px] font-light transition-colors',
+    'rounded-full border px-3 py-1 text-xs font-light transition-colors',
     active
       ? 'border-[var(--accent-tint)] bg-[var(--accent-tint-light)] text-[var(--text-primary)]'
       : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]',
@@ -321,7 +321,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
               <span className={cx('text-xs font-light tabular-nums', textPrimary)}>{r.trNo}</span>
               <span className="bds-badge sm neutral">{TEST_AGENCY_LABELS[r.agency] ?? r.agency}</span>
               <span className={cx('bds-badge sm uppercase', resultBadgeClass(r.result))}>{RESULT_LABELS[r.result]}</span>
-              {r.reportNo && <span className={cx('text-[11px] font-light tabular-nums', textSecondary)}>报告 {r.reportNo}</span>}
+              {r.reportNo && <span className={cx('text-xs font-light tabular-nums', textSecondary)}>报告 {r.reportNo}</span>}
               <div className="ml-auto flex items-center gap-1.5">
                 {r.result === 'pending' && (
                   <>
@@ -350,7 +350,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
                 送样 {r.sentDate ?? '—'} · 预计 {r.expectedDate ?? '—'}
               </span>
             </div>
-            {r.notes && <div className={cx('mt-1.5 text-[11px] font-light', textSecondary)}>{r.notes}</div>}
+            {r.notes && <div className={cx('mt-1.5 text-xs font-light', textSecondary)}>{r.notes}</div>}
 
             {/* 报告附件 */}
             {r.files.length > 0 && (
@@ -378,7 +378,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
                     <span className={cx('bds-badge sm', c.status === 'open' ? 'warning' : 'success')}>
                       {c.status === 'open' ? '整改中' : '已闭环'}
                     </span>
-                    <span className={cx('text-[11px] font-light', textPrimary)}>
+                    <span className={cx('text-xs font-light', textPrimary)}>
                       {TEST_ITEM_LABELS[c.failItem] ?? c.failItem}：{c.action}
                     </span>
                     {c.owner && <span className={cx('text-[10px] font-light', textFaint)}>by {c.owner}</span>}
@@ -506,7 +506,7 @@ export function TestRequestPanel({ orderId, isDarkMode = false }: TestRequestPan
                         挂 {TEST_ITEM_LABELS[t]}
                       </button>
                     ))}
-                    {formFailItems.length === 0 && <span className={cx('text-[11px] font-light', textFaint)}>先勾选失败项</span>}
+                    {formFailItems.length === 0 && <span className={cx('text-xs font-light', textFaint)}>先勾选失败项</span>}
                   </div>
                   <input value={formCaAction} onChange={e => setFormCaAction(e.target.value)} placeholder="如：面料返工修整后送 SGS 复测" className="bds-input sm w-full" />
                   <div className="flex flex-wrap gap-3">

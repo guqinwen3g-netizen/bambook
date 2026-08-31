@@ -287,19 +287,19 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
       >
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimary)}>{item.requestNumber}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondary)}>{item.requestDate || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondary)}>{item.requestDate || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light', textPrimary)}>{item.supplierName || '—'}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondary)}>{voucherCategoryLabel(item.paymentCategory)}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondary)}>{voucherCategoryLabel(item.paymentCategory)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <div className={cx('truncate font-light tabular-nums', textPrimary)}>{formatAmount(item.totalAmount, item.currency)}</div>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondary)}>预期付款 {item.expectedPaymentDate || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondary)}>预期付款 {item.expectedPaymentDate || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
           <span className="bds-badge sm neutral">{PAYMENT_REQUEST_STATUS_LABELS[item.status] || item.status}</span>
-          <div className={cx('mt-1 truncate text-[11px]', textSecondary)}>{item.remark || '—'}</div>
+          <div className={cx('mt-1 truncate text-xs', textSecondary)}>{item.remark || '—'}</div>
         </div>
       </button>
     );
@@ -348,7 +348,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>当前付款申请</div>
               <div className={cx('mt-2 truncate text-base font-light', textPrimary)}>{detail.requestNumber}</div>
-              <div className={cx('mt-1 truncate text-[11px]', textSecondary)}>{detail.supplierName || '—'} · {detail.currency || '—'}</div>
+              <div className={cx('mt-1 truncate text-xs', textSecondary)}>{detail.supplierName || '—'} · {detail.currency || '—'}</div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <span className="bds-badge sm neutral mt-0.5">{PAYMENT_REQUEST_STATUS_LABELS[detail.status] || detail.status}</span>
@@ -404,7 +404,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 )}
               </div>
             ) : (
-              <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>无关联审批单</div>
+              <div className={cx('mt-2 text-xs font-light', textSecondary)}>无关联审批单</div>
             )}
 
             {/* 审批操作入口（仅当前审批人可见；服务端自审守卫兜底） */}
@@ -436,7 +436,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
             <div className="mt-4 rounded-inset p-4 bds-inset">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>付款凭证</div>
               <div className={cx('mt-2 text-xs font-light', textPrimary)}>{detail.paymentVoucher.voucherNumber}</div>
-              <div className={cx('mt-1 text-[11px] font-light tabular-nums', textSecondary)}>
+              <div className={cx('mt-1 text-xs font-light tabular-nums', textSecondary)}>
                 {formatAmount(detail.paymentVoucher.amount, detail.paymentVoucher.currency)} · {voucherCategoryLabel(detail.paymentVoucher.voucherCategory)}
               </div>
             </div>
@@ -517,7 +517,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
           </div>
           {/* R3 诚实化：total = 服务端全量计数；截断/筛选命中透明披露，不再把窗口误当全量 */}
           <div
-            className={cx('flex shrink-0 items-center justify-between gap-2 px-4 pt-2 text-[11px] font-light', textSecondary)}
+            className={cx('flex shrink-0 items-center justify-between gap-2 px-4 pt-2 text-xs font-light', textSecondary)}
             style={{ borderTop: 'var(--border-subtle)' }}
           >
             <span className="tabular-nums">共 {total} 条付款申请{total > items.length ? ` · 当前加载前 ${items.length} 条，可用搜索缩小范围` : ''}</span>
@@ -535,10 +535,10 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
       {showCreate && (
         <div className="bds-modal-mask" onClick={() => !creating && setShowCreate(false)}>
           <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimary)}>发起付款申请</h2>
+            <h2 className={cx('mb-4 text-sm font-light tracking-[0.02em]', textPrimary)}>发起付款申请</h2>
             <div className="space-y-3">
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>供应商档案</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondary)}>供应商档案</label>
                 {/* R678：原生 select 全量渲染 → 可搜索 combobox（选中即带出 supplierName 快照） */}
                 <RelationPickerCombobox
                   value={form.supplierRelationId}
@@ -550,23 +550,23 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
               </div>
               {!form.supplierRelationId && (
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>收款方名称 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>收款方名称 *</label>
                   <input value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} className="bds-input sm" />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>金额 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>金额 *</label>
                   <input type="number" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} className="bds-input sm" />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>币种 *</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>币种 *</label>
                   <input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} className="bds-input sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>付款性质</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>付款性质</label>
                   <CustomSelect
                     surface="form"
                     value={form.paymentCategory}
@@ -575,13 +575,13 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                   />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>预期付款日</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>预期付款日</label>
                   <CapsuleDateInput value={form.expectedPaymentDate} onChange={v => setForm(f => ({ ...f, expectedPaymentDate: v }))} className="bds-input sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>来源单据类型</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>来源单据类型</label>
                   <CustomSelect
                     surface="form"
                     value={form.sourceType}
@@ -593,12 +593,12 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                   />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>来源单据号</label>
+                  <label className={cx('mb-1 block text-xs font-light', textSecondary)}>来源单据号</label>
                   <input value={form.sourceId} onChange={e => setForm(f => ({ ...f, sourceId: e.target.value }))} className="bds-input sm" />
                 </div>
               </div>
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>事由</label>
+                <label className={cx('mb-1 block text-xs font-light', textSecondary)}>事由</label>
                 <input value={form.remark} onChange={e => setForm(f => ({ ...f, remark: e.target.value }))} className="bds-input sm" />
               </div>
               {createError && <div className="bds-alert danger">{createError}</div>}

@@ -216,7 +216,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
   };
 
   const subPillCls = (active: boolean) =>
-    `h-8 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${
+    `h-8 px-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 ${
       active
         ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
         : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
@@ -358,7 +358,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <div className={t.thCls}>工时</div>
               <div className={t.thCls}>备注</div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {records.map(r => (
                 <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_96px_80px_80px_110px_80px_minmax(0,1fr)] items-center">
                   <div className={t.tdCls}>{r.displayName || r.userId}</div>
@@ -450,7 +450,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <div className={t.thCls}>状态</div>
               <div className={t.thCls}>操作</div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {leaveRequests.map(r => (
                 <div key={r.id} className="grid grid-cols-[minmax(0,0.9fr)_80px_180px_64px_minmax(0,1.2fr)_96px_minmax(0,1.1fr)] items-center">
                   <div className={t.tdCls}>{r.displayName || r.userId}</div>

@@ -141,7 +141,7 @@ export const EmailList: React.FC<EmailListProps> = ({
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-baseline mb-0.5">
-                                    <span className={`text-[13px] truncate pr-2 ${!email.isRead ? 'font-light text-[var(--text-primary)]' : 'font-light text-[var(--text-secondary)]'}`}>
+                                    <span className={`text-sm truncate pr-2 ${!email.isRead ? 'font-light text-[var(--text-primary)]' : 'font-light text-[var(--text-secondary)]'}`}>
                                         {email.sender.split('<')[0].trim() || 'Internal Node'}
                                     </span>
                                     <span className="text-[10px] font-light text-[var(--text-tertiary)] shrink-0 tabular-nums">
@@ -149,11 +149,11 @@ export const EmailList: React.FC<EmailListProps> = ({
                                     </span>
                                 </div>
 
-                                <div className={`text-[12px] truncate mb-1 ${!email.isRead ? 'font-light text-[var(--text-primary)]' : 'font-light text-[var(--text-secondary)]'}`}>
+                                <div className={`text-xs truncate mb-1 ${!email.isRead ? 'font-light text-[var(--text-primary)]' : 'font-light text-[var(--text-secondary)]'}`}>
                                     {email.subject || '(No Subject)'}
                                 </div>
 
-                                <div className="text-[11px] line-clamp-1 leading-relaxed text-[var(--text-tertiary)] opacity-70">
+                                <div className="text-xs line-clamp-1 leading-relaxed text-[var(--text-tertiary)] opacity-70">
                                     {email.snippet && email.snippet !== email.subject
                                         ? email.snippet
                                         : email.body
@@ -181,10 +181,10 @@ export const EmailList: React.FC<EmailListProps> = ({
                                         <Paperclip size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)]" />
                                     )}
                                     {email.isStarred && (
-                                        <Flag size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)] fill-slate-500" />
+                                        <Flag size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)] fill-[var(--text-quaternary)]" />
                                     )}
                                     {email.isImportant && (
-                                        <Star size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)] fill-slate-400" />
+                                        <Star size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)] fill-[var(--text-quaternary)]" />
                                     )}
                                 </div>
                             </div>

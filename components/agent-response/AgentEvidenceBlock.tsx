@@ -29,7 +29,7 @@ export const AgentEvidenceBlock: React.FC<AgentBlockComponentProps<AgentEvidence
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '证据链'}</div>
+        <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '证据链'}</div>
         {(block.anchors?.length ?? 0) > 0 && (
           <div className={`text-[10px] uppercase tracking-widest ${quietTextClass}`}>{block.anchors?.length} anchors</div>
         )}

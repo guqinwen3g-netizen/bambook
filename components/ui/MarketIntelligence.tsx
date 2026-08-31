@@ -28,7 +28,7 @@ interface ExchangeScreenProps {
     cardComponent?: MarketIntelligenceCardComponent;
 }
 
-export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode = true, spotlightColor, spotlightSize, liquidSpotlight = false, idleSpotlightOpacity, variant = 'compact', cardComponent: CardComponent = SpotlightCard }) => {
+export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, spotlightColor, spotlightSize, liquidSpotlight = false, idleSpotlightOpacity, variant = 'compact', cardComponent: CardComponent = SpotlightCard }) => {
     const [activeGroup, setActiveGroup] = useState<'currency' | 'material'>('currency');
     const isExpanded = variant === 'expanded';
 
@@ -88,7 +88,7 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                 {/* Header - Fixed */}
                 <div className="flex shrink-0 items-center justify-between px-5 py-3.5 z-20 relative">
                     <div className="flex items-center">
-                        <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal tracking-[0.04em] text-os-adaptive-subtitle">
+                        <span data-ui-lab-wallpaper-contrast="muted" className="text-sm font-normal tracking-[0.04em] text-os-adaptive-subtitle">
                             {groupLabel}
                         </span>
                     </div>
@@ -110,7 +110,8 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                         >
                             {currentData.map((item) => {
                                 const isUp = item.change >= 0;
-                                const accentColor = isDarkMode ? (isUp ? '#F43F5E' : '#06B6D4') : (isUp ? '#17365D' : '#587FA8');
+                                // 行情涨跌：原料价格属成本指标（多=坏）→ 红涨绿跌；深浅两态由 token 内置覆盖
+                                const accentColor = isUp ? 'var(--chart-up-cost)' : 'var(--chart-down-cost)';
 
                                 return (
                                     <div
@@ -119,7 +120,7 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                                     >
                                         <div className="flex flex-col min-w-0">
                                             <div className="flex items-center gap-1.5 min-w-0">
-                                                <span data-ui-lab-wallpaper-contrast="primary" className="text-[13px] font-normal tracking-wide truncate text-os-adaptive-primary">
+                                                <span data-ui-lab-wallpaper-contrast="primary" className="text-sm font-normal tracking-wide truncate text-os-adaptive-primary">
                                                     {item.symbol}
                                                 </span>
                                                 {item.isReal === false && (
@@ -128,7 +129,7 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                                             </div>
                                             <div className="flex items-center gap-0.5 mt-0.5" style={{ color: accentColor }}>
                                                 {isUp ? <TrendingUp size={14} strokeWidth={1.25} /> : <TrendingDown size={14} strokeWidth={1.25} />}
-                                                <span className="text-[12px] font-mono font-light">{isUp ? '+' : ''}{item.change.toFixed(2)}%</span>
+                                                <span className="text-xs font-mono font-light">{isUp ? '+' : ''}{item.change.toFixed(2)}%</span>
                                             </div>
                                         </div>
 
@@ -136,7 +137,7 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                                             value={item.price}
                                             prefix={item.prefix}
                                             decimals={item.symbol.includes('/') || item.symbol.includes('GBP') ? 4 : 2}
-                                            className={`${isExpanded ? 'text-[22px]' : 'text-[20px]'} shrink-0 font-light tracking-tight text-os-adaptive-brand tabular-nums`}
+                                            className={`${isExpanded ? 'text-[22px]' : 'text-xl'} shrink-0 font-light tracking-tight text-os-adaptive-brand tabular-nums`}
                                             style={{ fontFamily: 'var(--font-primary)' }}
                                         />
                                     </div>

@@ -1798,7 +1798,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
               {/* Filter Dropdown */}
               <div className="relative group">
                 <Filter size={16} strokeWidth={1} className={`hover:text-[var(--accent-text)] cursor-pointer transition-colors ${filterType !== 'All' ? 'text-[var(--accent-text)]' : ''}`} />
-                <div className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-1 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
+                <div className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
                   {['All', 'Unread', 'Read', 'Has Attachment', 'Follow-ups', 'Completed'].map(f => (
                     <button
                       key={f}
@@ -1821,8 +1821,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     <div className="w-[6px] h-[1.5px] bg-current"></div>
                   </div>
                 </div>
-                <div className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-1 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
-                  <div className="px-4 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Sort By</div>
+                <div className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
+                  <div className="px-4 py-2 text-xs font-light text-[var(--text-tertiary)] mb-1">Sort By</div>
                   {[
                     { id: 'Default', label: 'Default Sort' },
                     { id: 'Date', label: 'Date' },
@@ -1921,7 +1921,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 </button>
                 {/* Outbox send 错误反馈（保持 Outbox UI 状态，显示后端错误） */}
                 {outboxError && (
-                  <span className="flex items-center gap-1 px-2 py-1 text-[11px]" style={{ color: 'var(--danger-text)' }}>
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs" style={{ color: 'var(--danger-text)' }}>
                     <AlertCircle size={12} strokeWidth={1} /> {outboxError}
                   </span>
                 )}
@@ -1950,7 +1950,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                       className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isStarred ? 'text-[var(--danger)]' : ''}`}
                       title="Tag Flagged (Standard)"
                     >
-                      <Flag size={16} strokeWidth={1} className={selectedEmail.isStarred ? 'fill-red-400' : ''} />
+                      <Flag size={16} strokeWidth={1} className={selectedEmail.isStarred ? 'fill-[var(--danger)]' : ''} />
                     </button>
 
                     <button
@@ -1959,7 +1959,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                       className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isImportant ? 'text-[var(--accent)]' : ''}`}
                       title="Tag Important"
                     >
-                      <Star size={16} strokeWidth={1} className={selectedEmail.isImportant ? 'fill-accent-cyan/50' : ''} />
+                      <Star size={16} strokeWidth={1} className={selectedEmail.isImportant ? 'fill-accent/50' : ''} />
                     </button>
 
                     <button
@@ -2005,7 +2005,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 )}
                 {/* C8 操作反馈（成功中性色 / 失败警示色，与 outboxError 同区展示） */}
                 {c8Feedback && (
-                  <span className="flex items-center gap-1 px-2 py-1 text-[11px]" style={{ color: c8Feedback.kind === 'err' ? 'var(--danger-text)' : 'var(--text-tertiary)' }}>
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs" style={{ color: c8Feedback.kind === 'err' ? 'var(--danger-text)' : 'var(--text-tertiary)' }}>
                     {c8Feedback.kind === 'err' && <AlertCircle size={12} strokeWidth={1} />}
                     {c8Feedback.text}
                   </span>
@@ -2016,8 +2016,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
               {canWriteEmails && (
                 <div className="flex gap-2 relative group">
                   <button type="button" className="bds-btn bds-btn-ghost bds-btn-icon" title="Move to folder"><MoreHorizontal size={16} strokeWidth={1} /></button>
-                  <div className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-2 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
-                    <div className="px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Move to</div>
+                  <div className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
+                    <div className="px-3 py-2 text-xs font-light text-[var(--text-tertiary)] mb-1">Move to</div>
                     <button onClick={() => handleMoveToFolder(selectedId!, 'INBOX')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Inbox</button>
                     <button onClick={() => handleMoveToFolder(selectedId!, 'Sent Messages')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Sent Items</button>
                     <button onClick={() => handleMoveToFolder(selectedId!, 'Drafts')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Drafts</button>
@@ -2058,11 +2058,11 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-c-default)]">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-blue to-action flex items-center justify-center text-white font-light text-lg">
+                    <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-[var(--on-accent)] font-light text-lg">
                       {getInitials(selectedEmail.sender)}
                     </div>
                     <div>
-                      <div className="font-light text-[15px] text-[var(--text-primary)]">{selectedEmail.sender}</div>
+                      <div className="font-light text-base text-[var(--text-primary)]">{selectedEmail.sender}</div>
                       <div className="text-xs mt-0.5 text-[var(--text-tertiary)]">To: Me</div>
                     </div>
                   </div>
@@ -2105,7 +2105,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                           </div>
                           <div className="ml-3 min-w-0 flex-1">
                             <div className="text-sm font-light truncate group-hover:text-[var(--accent-text)] text-[var(--text-secondary)]">{att.filename}</div>
-                            <div className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">{((att.size ?? att.fileSize ?? 0) / 1024).toFixed(1)} KB</div>
+                            <div className="text-xs mt-0.5 text-[var(--text-tertiary)]">{((att.size ?? att.fileSize ?? 0) / 1024).toFixed(1)} KB</div>
                           </div>
                         </div>
                       ))}
@@ -2148,16 +2148,16 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
             <div className="space-y-2">
               <h3 className="text-xl font-light text-[var(--text-primary)]">Message Standby</h3>
-              <p className="text-[13px] max-w-[320px] leading-relaxed font-light mx-auto text-[var(--text-tertiary)]">
+              <p className="text-sm max-w-[320px] leading-relaxed font-light mx-auto text-[var(--text-tertiary)]">
                 Select a mailbox item to inspect content, reply, or sync messages into ERP records.
               </p>
             </div>
 
             <div className="mt-12 flex gap-6 items-center">
               <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-action animate-pulse"></div>
-                <div className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse delay-75"></div>
-                <div className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse delay-150"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-accent/70 animate-pulse delay-75"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-accent/40 animate-pulse delay-150"></div>
               </div>
               <span className="text-[10px] font-light text-[var(--text-quaternary)]">Secure Mail Gateway</span>
             </div>
@@ -2168,7 +2168,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       {/* Reply Editor Overlay */}
       {
         isReplying && (
-          <div className="bds-card absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-5 border-t border-[var(--border-c-default)]">
+          <div className="bds-frosted absolute bottom-0 left-0 right-0 z-50 border-t border-[var(--border-c-default)]">
             <div className="max-w-5xl mx-auto flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <span className="font-light flex items-center gap-2 text-[var(--text-secondary)]"><CornerUpLeft size={16} strokeWidth={1} /> Replying to {selectedEmail?.sender}</span>
@@ -2205,8 +2205,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       {/* Compose Modal */}
       {
         isComposing && (
-          <div className="bds-modal-mask !absolute !z-[80] animate-in fade-in duration-300">
-            <div className="bds-modal w-full overflow-hidden flex flex-col h-[80vh] animate-in zoom-in duration-300 !p-0" style={{ width: '56rem' }}>
+          <div className="bds-modal-mask !absolute !z-[80] duration-300">
+            <div className="bds-modal w-full overflow-hidden flex flex-col h-[80vh] duration-300 !p-0" style={{ width: '56rem' }}>
               <div className="px-6 py-5 flex items-center justify-between bg-[var(--recessed-bg)]">
                 <h3 className="text-lg font-light flex items-center gap-3 text-[var(--text-primary)]">
                   <span className="bds-iconbadge text-[var(--accent-text)]">
@@ -2394,8 +2394,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       {/* Settings Modal */}
       {
         isConfiguring && (
-          <div className="bds-modal-mask !absolute !z-[90] animate-in fade-in duration-300">
-            <div className="bds-modal overflow-hidden animate-in zoom-in duration-300" style={{ width: '32rem' }}>
+          <div className="bds-modal-mask !absolute !z-[90] duration-300">
+            <div className="bds-modal overflow-hidden duration-300" style={{ width: '32rem' }}>
               <div className="space-y-8">
                 <div className="text-center space-y-2">
                   <span className="bds-iconbadge text-[var(--accent-text)] mx-auto mb-4" style={{ width: 64, height: 64 }}>
@@ -2480,7 +2480,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <div className="pt-2">
                   <button
                     onClick={() => handleSaveConfig(emailConfig)}
-                    className="bds-btn bds-btn-primary w-full text-[11px]"
+                    className="bds-btn bds-btn-primary w-full text-xs"
                   >
                     <CheckCircle2 size={16} /> Connect Securely
                   </button>
@@ -2507,7 +2507,7 @@ const NavItem = ({ icon: Icon, label, count, unreadCount, active, onClick, iconC
     data-rdl-component="data-row"
     data-interactive="true"
     data-selected={active ? 'true' : 'false'}
-    className={`rdl-data-row w-full ${collapsed ? 'justify-center !px-0' : 'justify-between'} min-h-11 text-[13px] group ${active
+    className={`rdl-data-row w-full ${collapsed ? 'justify-center !px-0' : 'justify-between'} min-h-11 text-sm group ${active
       ? 'text-[var(--accent-text)]'
       : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
       }`}

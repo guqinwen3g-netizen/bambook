@@ -169,7 +169,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
   const columnClass = 'rounded-card-lg border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
   const toggleCls = (active: boolean) =>
-    `h-7 px-3 rounded-full text-[11px] font-light inline-flex items-center gap-1 transition-colors ${
+    `h-7 px-3 rounded-full text-xs font-light inline-flex items-center gap-1 transition-colors ${
       active
         ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]'
         : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
@@ -226,12 +226,12 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
         <button className={toggleCls(blockedOnly)} onClick={() => setBlockedOnly(v => !v)}>
           <AlertTriangle size={14} />仅看阻塞
         </button>
-        <span className={`ml-auto text-[11px] font-light ${textSecondary}`}>在手 {filtered.length} 单</span>
+        <span className={`ml-auto text-xs font-light ${textSecondary}`}>在手 {filtered.length} 单</span>
       </div>
 
       {/* 泳道区 */}
       <div className="flex-1 min-h-0 relative px-7 pb-6">
-        <div ref={scrollRef} className="h-full overflow-auto custom-scrollbar">
+        <div ref={scrollRef} className="h-full overflow-auto">
           {loading && items.length === 0 ? (
             <div className={`h-40 flex items-center justify-center gap-2 text-xs font-light ${textSecondary}`}>
               <Loader2 size={14} className="animate-spin" />加载生产看板...
@@ -239,7 +239,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
           ) : error ? (
             <div className="h-40 flex flex-col items-center justify-center gap-2">
               <div className={`text-xs font-light ${statusSemanticText('danger', isDarkMode)}`}>{error}</div>
-              <button onClick={fetchBoard} className="bds-btn bds-btn-link text-[11px] font-light">重试</button>
+              <button onClick={fetchBoard} className="bds-btn bds-btn-link text-xs font-light">重试</button>
             </div>
           ) : filtered.length === 0 ? (
             <div className={`h-40 flex items-center justify-center text-xs font-light ${textSecondary}`}>
@@ -303,7 +303,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                                 )}
                               </span>
                             </div>
-                            <div className={`text-[11px] font-light mt-1 truncate text-[var(--text-tertiary)]`}>
+                            <div className={`text-xs font-light mt-1 truncate text-[var(--text-tertiary)]`}>
                               {o.customer}
                             </div>
                             <div className={`text-[10px] font-light mt-0.5 flex items-center gap-1.5 flex-wrap ${textSecondary}`}>

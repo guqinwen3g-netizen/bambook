@@ -248,15 +248,15 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 <path d="M1 5l7 4m0 0l7-4m-7 4v6" stroke="currentColor" strokeWidth="1.2" />
               </svg>
             </div>
-            <span className="text-[13px] font-light text-[var(--text-primary)]">Bambook</span>
+            <span className="text-sm font-light text-[var(--text-primary)]">Bambook</span>
             {isTyping && (
               <span className="flex items-center gap-1.5">
                 <span className={"inline-block h-1.5 w-1.5 rounded-full animate-pulse bg-[var(--invert-bg)]"} />
-                <span className={`text-[11px] ${quietTextClass}`}>思考中</span>
+                <span className={`text-xs ${quietTextClass}`}>思考中</span>
               </span>
             )}
             {!isTyping && message.timestamp ? (
-              <span className={`text-[11px] ${quietTextClass}`}>
+              <span className={`text-xs ${quietTextClass}`}>
                 {new Date(message.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
               </span>
             ) : null}
@@ -265,7 +265,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
           {/* 文档流 */}
           {/* 流式过程中：思考过程以纯文本灰字显示，不渲染 markdown */}
           {isTyping && hasAnswerText ? (
-            <div className={`mb-2 text-[13px] font-light leading-6 italic ${quietTextClass}`}>
+            <div className={`mb-2 text-sm font-light leading-6 italic ${quietTextClass}`}>
               {message.text.replace(/^>\s*💭?\s*/gm, '')}
             </div>
           ) : null}
@@ -332,7 +332,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 <button
                   type="button"
                   onClick={() => onCopy?.(messageKey, message.text)}
-                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
+                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                   title="复制回复"
                   aria-label="复制回复"
                 >
@@ -347,7 +347,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                     const fullText = serializeBlocksForCopy(message.blocks ?? [], message.text, userPrompt, runtimeEvents);
                     onCopyFull(`full_${messageKey}`, fullText);
                   }}
-                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
+                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                   title="复制完整工作流（含所有工具调用、证据链、审批记录）"
                   aria-label="复制完整工作流"
                 >
@@ -440,7 +440,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-light transition-opacity hover:opacity-80 text-[var(--text-secondary)]`}
+                  className={`rounded-full px-2.5 py-1 text-xs font-light transition-opacity hover:opacity-80 text-[var(--text-secondary)]`}
                 >
                   取消
                 </button>
@@ -448,7 +448,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                   type="button"
                   onClick={submitEdit}
                   disabled={!editText.trim() || editText.trim() === message.text}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-light transition-opacity disabled:cursor-not-allowed disabled:opacity-40 border-[var(--border-c-strong)] text-[var(--text-primary)] hover:opacity-80`}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-light transition-opacity disabled:cursor-not-allowed disabled:opacity-40 border-[var(--border-c-strong)] text-[var(--text-primary)] hover:opacity-80`}
                 >
                   保存并重新发送
                 </button>

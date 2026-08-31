@@ -175,7 +175,7 @@ const OrderConfirmFeedbackView: React.FC<{
           <XCircle size={14} />
           <span>订单确认已取消</span>
         </div>
-        <div className={`mt-1 text-[11px] leading-[1.5] ${quietText}`}>
+        <div className={`mt-1 text-xs leading-[1.5] ${quietText}`}>
           订单状态不变，无发票创建，无任何变更。如需稍后确认，可重新发起。
         </div>
       </div>
@@ -190,7 +190,7 @@ const OrderConfirmFeedbackView: React.FC<{
           <ShieldAlert size={14} />
           <span>该操作需要审批后才能执行</span>
         </div>
-        <div className={`mt-1 text-[11px] ${quietText}`}>审批通过后，订单状态变更与发票开具将在单一事务内原子提交。</div>
+        <div className={`mt-1 text-xs ${quietText}`}>审批通过后，订单状态变更与发票开具将在单一事务内原子提交。</div>
       </div>
     );
   }
@@ -212,7 +212,7 @@ const OrderConfirmFeedbackView: React.FC<{
           <span className={`text-[9.5px] ${quietText}`}>不可重试</span>
         )}
       </div>
-      <div className={`text-[11px] leading-[1.5] ${quietText}`}>
+      <div className={`text-xs leading-[1.5] ${quietText}`}>
         <span className={labelCls}>下一步 · </span>{userAction}
       </div>
       {details && details.length > 0 && (
@@ -247,8 +247,8 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`text-[13px] font-light ${mainText}`}>{block.title || block.toolId}</span>
-          <span className={`shrink-0 text-[11px] ${quietText}`}>{STATUS_LABEL[block.lifecycleStatus]}</span>
+          <span className={`text-sm font-light ${mainText}`}>{block.title || block.toolId}</span>
+          <span className={`shrink-0 text-xs ${quietText}`}>{STATUS_LABEL[block.lifecycleStatus]}</span>
           {block.risk && block.risk !== 'low' && (
             <span className={`shrink-0 rounded-full px-1.5 py-[0.5px] text-[9px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{block.risk}</span>
           )}
@@ -263,8 +263,8 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
         </div>
         {expanded && (
           <div className={`mt-1.5 rounded-compact ${detailBg} px-3 py-2`}>
-            {block.reason && <div className={`text-[12px] leading-[1.5] ${quietText}`}>{block.reason}</div>}
-            {block.error && <div className={`mt-1 text-[12px] leading-[1.5] text-[var(--text-secondary)]`}>{block.error}</div>}
+            {block.reason && <div className={`text-xs leading-[1.5] ${quietText}`}>{block.reason}</div>}
+            {block.error && <div className={`mt-1 text-xs leading-[1.5] text-[var(--text-secondary)]`}>{block.error}</div>}
             {block.toolId === 'order.confirm' ? (
               <OrderConfirmFeedbackView
                 result={extractOrderConfirmResult(block.outputPreview)}
@@ -278,7 +278,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
               })();
               const truncated = text.length > 500 ? text.slice(0, 500) + '...' : text;
               return (
-                <pre className={`mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-[1.45] font-mono ${quietText}`}>{truncated}</pre>
+                <pre className={`mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-all text-xs leading-[1.45] font-mono ${quietText}`}>{truncated}</pre>
               );
             })()}
             {canOpen && (
@@ -288,7 +288,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
                   e.stopPropagation();
                   onReferenceClick?.({ refId: `ref_${block.toolRunId}`, kind: 'tool_run', label: block.toolId, toolRunId: block.toolRunId, blockId: block.id });
                 }}
-                className="mt-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]"
+                className="mt-1.5 text-xs text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]"
               >
                 查看运行详情 →
               </button>
@@ -321,8 +321,8 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`text-[13px] font-light ${mainText}`}>{block.title ?? '证据'}</span>
-          <span className={`shrink-0 text-[11px] ${quietText}`}>{block.items.length} 条</span>
+          <span className={`text-sm font-light ${mainText}`}>{block.title ?? '证据'}</span>
+          <span className={`shrink-0 text-xs ${quietText}`}>{block.items.length} 条</span>
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
@@ -337,14 +337,14 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
             {block.items.slice(0, 5).map(item => {
               const anchor = anchorsByRef.get(item.refId);
               return (
-                <div key={item.refId} className={`text-[12px] leading-[1.5] ${quietText}`}>
+                <div key={item.refId} className={`text-xs leading-[1.5] ${quietText}`}>
                   <span className="font-light">{item.label}</span>
                   {item.summary && <span> — {item.summary.length > 100 ? item.summary.slice(0, 100) + '...' : item.summary}</span>}
                   {anchor && onReferenceClick && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onReferenceClick(anchor); }}
-                      className="ml-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]"
+                      className="ml-1.5 text-xs text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]"
                     >
                       查看
                     </button>
@@ -353,7 +353,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
               );
             })}
             {block.items.length > 5 && (
-              <div className={`text-[11px] ${quietText}`}>...还有 {block.items.length - 5} 条</div>
+              <div className={`text-xs ${quietText}`}>...还有 {block.items.length - 5} 条</div>
             )}
           </div>
         )}
@@ -414,7 +414,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           </div>
           <div className="flex flex-col gap-1">
             {draft.subOperations.map((op, idx) => (
-              <div key={`${op.toolId}_${op.entityId}_${idx}`} className={`flex items-center gap-1.5 text-[11px] ${quietText}`}>
+              <div key={`${op.toolId}_${op.entityId}_${idx}`} className={`flex items-center gap-1.5 text-xs ${quietText}`}>
                 <span className="tabular-nums">{idx + 1}.</span>
                 <span className={`font-light text-[var(--text-secondary)]`}>{op.action}</span>
                 <span>→</span>
@@ -485,31 +485,31 @@ const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMo
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`text-[13px] font-light ${mainText}`}>{block.title ?? '需要确认'}</span>
-          <span className={`shrink-0 text-[11px] ${quietText}`}>{approvalStatusLabel[block.approvalStatus]}</span>
+          <span className={`text-sm font-light ${mainText}`}>{block.title ?? '需要确认'}</span>
+          <span className={`shrink-0 text-xs ${quietText}`}>{approvalStatusLabel[block.approvalStatus]}</span>
         </div>
-        {block.proposedAction && <div className={`mt-0.5 text-[12px] leading-[1.5] ${quietText}`}>{block.proposedAction}</div>}
+        {block.proposedAction && <div className={`mt-0.5 text-xs leading-[1.5] ${quietText}`}>{block.proposedAction}</div>}
         {block.processDraft && <ProcessDraftView draft={block.processDraft} isDarkMode={isDarkMode} />}
         {isPending && (
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'approved', toolId: block.toolId, input: block.input }, risk: block.risk, label: '批准' })}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
+              className={`rounded-full border px-2.5 py-1 text-xs font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               批准
             </button>
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'rejected', toolId: block.toolId }, risk: block.risk, label: '拒绝' })}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
+              className={`rounded-full border px-2.5 py-1 text-xs font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               拒绝
             </button>
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'modified', toolId: block.toolId, input: block.input, editableFields: block.editableFields }, risk: block.risk, label: '修改参数' })}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
+              className={`rounded-full border px-2.5 py-1 text-xs font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               修改参数
             </button>

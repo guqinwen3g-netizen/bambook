@@ -418,7 +418,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-3">
+      <div className="flex-1 min-h-0 overflow-y-auto mt-3">
         <div className="space-y-3 pb-4">
           {/* ── 合同类型与编号 ── */}
           <div className={`p-4 rounded-card ${panelClass}`}>

@@ -8,7 +8,8 @@ describe('App light background tone', () => {
     // 根背景色已 token 化（bg-app-light/bg-app-dark 语义类，定义于 tailwind.config + os-vnext.css）
     expect(source).toContain("bg-app-light");
     expect(source).toContain("bg-app-dark");
-    expect(source).toContain("linear-gradient(135deg, #EEF2F6 0%, #D8DEE7 48%, #AEB9C8 100%)");
+    // 根背景不再硬编码 gradient，统一消费 BDS 的 --page-aurora（tokens.css 浅/深双态含雾青 aurora）
+    expect(source).toContain("backgroundImage: 'var(--page-aurora)'");
     expect(source).not.toContain("bg-[#EEF5FA]");
     expect(source).not.toContain("bg-[#F5F8FA]");
   });
@@ -49,7 +50,11 @@ describe('App light background tone', () => {
     expect(source).toContain('const MapLibreProductionGlobe = lazy(() => mapLibreProductionGlobeImport ?? import');
     expect(source).toContain("globeRenderer=maplibre|three");
     expect(source).toContain("globeParams.renderer === 'maplibre' && !mapLibreGlobeUnavailable");
-    expect(source).toContain('accentPalette={wallpaperAccentPalette}');
+    // 壁纸竹蓝 accent 旁路链已删除：唯一行动色由 tokens.css --accent 桥接（os-vnext.css）生效，
+    // App.tsx 不得再出现 wallpaperAccent 调色板、accentPalette 传参或 os-vnext 变量内联覆写。
+    expect(source).not.toContain('accentPalette=');
+    expect(source).not.toContain('wallpaperAccent');
+    expect(source).not.toContain('--os-vnext-brand-blue');
     expect(source).toContain('onRuntimeError={() => setMapLibreGlobeUnavailable(true)}');
     expect(source).toContain('initialDelay={0}');
     expect(source).toContain('overflow-hidden opacity-100');
@@ -61,17 +66,13 @@ describe('App light background tone', () => {
 
   it('hides native scrollbars globally while preserving scroll containers', () => {
     const globalCss = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
-    const designSystemCss = readFileSync(new URL('./styles/design-system.css', import.meta.url), 'utf8');
 
     expect(globalCss).toContain('*::-webkit-scrollbar');
     expect(globalCss).toContain('scrollbar-width: none');
     expect(globalCss).toContain('-ms-overflow-style: none');
-    expect(designSystemCss).toContain('.custom-scrollbar');
-    expect(designSystemCss).toContain('.scrollbar-custom');
-    expect(designSystemCss).toContain('.scrollbar-custom-dark');
-    expect(`${globalCss}\n${designSystemCss}`).not.toContain('scrollbar-width: thin');
-    expect(`${globalCss}\n${designSystemCss}`).not.toContain('width: 6px');
-    expect(`${globalCss}\n${designSystemCss}`).not.toContain('height: 6px');
+    expect(globalCss).not.toContain('scrollbar-width: thin');
+    expect(globalCss).not.toContain('width: 6px');
+    expect(globalCss).not.toContain('height: 6px');
   });
 
   it('keeps UI Lab out of the product app shell', () => {

@@ -902,7 +902,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           <AnimatePresence mode="wait">
             {showCreateForm ? (
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
@@ -1802,7 +1802,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       {versionSheet && (
         <BottomSheet isOpen onClose={() => setVersionSheet(null)} title={`版本历史 · ${versionSheet.quotation.quotationNumber ?? ''}`} isDarkMode={isDarkMode}>
           <div className="space-y-2 px-6 py-5">
-            <div className="text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]">
+            <div className="text-xs font-light leading-relaxed text-[var(--text-tertiary)]">
               当前 v{versionSheet.quotation.version ?? 1} · {Number(versionSheet.quotation.totalAmount).toFixed(2)} {versionSheet.quotation.currency}；
               下方为历史版本快照（保存新版本前的完整旧内容，含行单价留痕）。
             </div>

@@ -106,7 +106,7 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
       >
         <div className="flex items-center gap-2">
           <AlertCircle size={14} className={statusSemanticText('danger', isDarkMode)} />
-          <span className={cx('text-[11px] font-light tracking-wide', spec.textSecondary)}>
+          <span className={cx('text-xs font-light tracking-wide', spec.textSecondary)}>
             生产预警 ({critical} 紧急 / {high} 高)
           </span>
         </div>
@@ -121,7 +121,7 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
             key={`${alert.orderId}-${idx}`}
             onClick={() => onSelectOrder?.(alert.orderId)}
             className={cx(
-              'flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] font-light transition-colors duration-200',
+              'flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-left text-xs font-light transition-colors duration-200',
               spec.rowPillHover,
               sevColor(alert.severity),
             )}

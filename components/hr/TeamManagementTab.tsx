@@ -277,7 +277,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className={t.sectionTitleClass}>{detailTeam.name}</p>
-            <p className={`mt-1 text-[11px] font-light ${t.textSecondaryClass} truncate`}>
+            <p className={`mt-1 text-xs font-light ${t.textSecondaryClass} truncate`}>
               {detailTeam.description || '无描述'} · 组长 {personnel.find(u => u.id === detailTeam.leaderId)?.displayName || '空缺（组照常运作，T-06）'}
             </p>
           </div>
@@ -368,7 +368,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
                 )}
               </span>
             ))}
-            {members.length === 0 && <span className={`text-[11px] font-light ${t.textSecondaryClass}`}>暂无成员（B-04：空组授权无害空转）</span>}
+            {members.length === 0 && <span className={`text-xs font-light ${t.textSecondaryClass}`}>暂无成员（B-04：空组授权无害空转）</span>}
           </div>
           {canWrite && (
             <div className="flex gap-2 items-end">
@@ -442,10 +442,10 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             </div>
           )}
           <div className="space-y-1.5">
-            {grants.length === 0 && <span className={`text-[11px] font-light ${t.textSecondaryClass}`}>暂无授权记录</span>}
+            {grants.length === 0 && <span className={`text-xs font-light ${t.textSecondaryClass}`}>暂无授权记录</span>}
             {grants.map(g => (
               <div key={g.id} className="rounded-compact px-3 py-2 flex items-center justify-between gap-3 border border-[var(--border-c-default)]">
-                <div className="min-w-0 flex items-center gap-2 text-[11px] font-light">
+                <div className="min-w-0 flex items-center gap-2 text-xs font-light">
                   <span className={`font-mono ${t.textSecondaryClass} truncate`}>{g.entityType}:{g.entityId}</span>
                   <span className={g.permission === 'read+followup'
                     ? 'rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--accent-text)]'
@@ -483,13 +483,13 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
         )}
       </div>
 
-      {error && <div className="text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
+      {error && <div className="text-xs font-light text-[var(--danger-text)]">{error}</div>}
 
       {showForm && canWrite && (
         <div className={t.cardClass + ' p-5 space-y-4'}>
           <div>
             <h3 className={t.sectionTitleClass}>{editingTeamId ? '编辑小组' : '新建小组'}</h3>
-            <p className={`mt-1 text-[11px] font-light ${t.textSecondaryClass}`}>
+            <p className={`mt-1 text-xs font-light ${t.textSecondaryClass}`}>
               按品牌客户 / 市场 / 业务类型组建（DR-042 §2）；组建后可在组详情共享客户档案给组内协作。
             </p>
           </div>
@@ -560,7 +560,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
                 {team.department && <span className="rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">{team.department}</span>}
                 {!team.leaderId && <span className="rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]">组长空缺</span>}
               </div>
-              <p className={`mt-1 text-[11px] font-light ${t.textSecondaryClass} truncate`}>{team.description || '无描述'}</p>
+              <p className={`mt-1 text-xs font-light ${t.textSecondaryClass} truncate`}>{team.description || '无描述'}</p>
             </div>
             <div className="flex gap-2 shrink-0">
               {canWrite && (

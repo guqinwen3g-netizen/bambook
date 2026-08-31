@@ -84,7 +84,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]">
+            <label className="block text-xs font-light mb-1.5 text-[var(--text-tertiary)]">
               姓名或邮箱
             </label>
             <input
@@ -102,7 +102,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
           </div>
 
           <div>
-            <label className="block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]">
+            <label className="block text-xs font-light mb-1.5 text-[var(--text-tertiary)]">
               密码
             </label>
             <input

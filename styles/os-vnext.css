@@ -1,16 +1,17 @@
 :root {
   --os-vnext-font-family: 'Acherus Grotesque', 'HarmonyOS Sans SC', 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
-  /* Premium blue trio: Deep Ink / Slate Blue / Mist Mint. */
-  --os-vnext-bg-light: #F4F7FA;
-  --os-vnext-bg-dark: #0B1424;
-  --os-vnext-bg-light-rgb: 244 247 250;
-  --os-vnext-bg-dark-rgb: 11 20 36;
-  --os-vnext-brand-blue: #6F8FB8;
-  --os-vnext-brand-blue-strong: #173B86;
-  --os-vnext-brand-blue-soft: #C7E2DF;
-  --os-vnext-brand-blue-rgb: 111 143 184;
-  --os-vnext-brand-blue-strong-rgb: 23 59 134;
-  --os-vnext-brand-blue-soft-rgb: 199 226 223;
+  /* Premium mist-teal trio — 2026-08-31 全局品牌色收拢：由旧竹蓝(hue~215°)统一到雾青蓝(hue~196°)，
+     直接引用 BDS --accent（深浅自动跟随），主按钮/链接/品牌文字/强调面全站收敛。 */
+  --os-vnext-bg-light: #ECF1F5;
+  --os-vnext-bg-dark: #14232F;
+  --os-vnext-bg-light-rgb: 236 241 245;
+  --os-vnext-bg-dark-rgb: 20 35 47;
+  --os-vnext-brand-blue: var(--accent);
+  --os-vnext-brand-blue-strong: var(--accent);
+  --os-vnext-brand-blue-soft: #C9DCE4;
+  --os-vnext-brand-blue-rgb: var(--accent-rgb);
+  --os-vnext-brand-blue-strong-rgb: var(--accent-rgb);
+  --os-vnext-brand-blue-soft-rgb: 201 220 228;
   --os-vnext-action-primary: var(--os-vnext-brand-blue-strong);
   --os-vnext-action-secondary: var(--os-vnext-brand-blue);
   --os-vnext-surface-accent: var(--os-vnext-brand-blue-soft);
@@ -30,10 +31,11 @@
   --bambook-rdl-card-fill-light: rgb(255 255 255 / 0.38);
   --bambook-rdl-inset-fill-light: rgb(255 255 255 / 0.24);
   --bambook-rdl-floating-fill-light: rgb(255 255 255 / 0.58);
-  --bambook-rdl-panel-fill-dark: rgb(24 31 42 / 0.48);
-  --bambook-rdl-card-fill-dark: rgb(30 38 51 / 0.42);
+  /* 2026-09-01 雾蓝频道：基值层同步迁 mist（被 flat 覆盖层压制，保持同源防漂移） */
+  --bambook-rdl-panel-fill-dark: rgb(20 35 47 / 0.48);
+  --bambook-rdl-card-fill-dark: rgb(30 52 68 / 0.42);
   --bambook-rdl-inset-fill-dark: rgb(255 255 255 / 0.045);
-  --bambook-rdl-floating-fill-dark: rgb(36 45 59 / 0.54);
+  --bambook-rdl-floating-fill-dark: rgb(38 67 79 / 0.54);
   --bambook-rdl-panel-fill: var(--bambook-rdl-panel-fill-light);
   --bambook-rdl-card-fill: var(--bambook-rdl-card-fill-light);
   --bambook-rdl-inset-fill: var(--bambook-rdl-inset-fill-light);
@@ -107,20 +109,14 @@
    * 从组件硬编码提取，值与原硬编码完全一致，替换后视觉零变化。
    * 同时提供 -rgb 版本，支持 Tailwind alpha 修饰符（bg-deep/40 等）。
    */
-  --bambook-bg-deep: #0d1b2a;              /* 深蓝黑背景（34 处） */
-  --bambook-bg-deep-rgb: 13 27 42;
-  --bambook-bg-deep-alt: #0a2746;         /* 深蓝背景（12 处） */
-  --bambook-bg-deep-alt-rgb: 10 39 70;
-  --bambook-brand-action: #004aad;        /* 行动蓝（8 处） */
-  --bambook-brand-action-rgb: 0 74 173;
-  --bambook-brand-link: #126dcc;          /* 链接蓝（8 处） */
-  --bambook-brand-link-rgb: 18 109 204;
-  --bambook-brand-link-light: #7db7ff;    /* 浅链接蓝（4 处） */
-  --bambook-brand-link-light-rgb: 125 183 255;
-  --bambook-accent-cyan: #5de0e6;         /* 青色强调（4 处） */
-  --bambook-accent-cyan-rgb: 93 224 230;
-  --bambook-accent-blue: #2f95ca;         /* 蓝色强调（3 处） */
-  --bambook-accent-blue-rgb: 47 149 202;
+  --bambook-bg-deep: #0E1D29;              /* 深蓝黑背景 → 雾蓝黑（2026-08-31 收敛，与深雾蓝同色温） */
+  --bambook-bg-deep-rgb: 14 29 41;
+  --bambook-bg-deep-alt: #132B38;         /* 深蓝背景 → 深雾蓝 */
+  --bambook-bg-deep-alt-rgb: 19 43 56;
+  --bambook-brand-action: var(--accent);        /* 行动蓝→雾青（2026-08-31 收拢） */
+  --bambook-brand-action-rgb: var(--accent-rgb);
+  --bambook-brand-link: var(--accent);          /* 链接蓝→雾青 */
+  --bambook-brand-link-rgb: var(--accent-rgb);
 
   /* 灰色系（与 Tailwind 默认灰色对齐，用于内联 style 和条件表达式）*/
   --bambook-gray-50: #f8f9fa;
@@ -189,15 +185,6 @@
   --bambook-rdl-brand-text: rgb(255 255 255);
 }
 
-.os-vnext-shell,
-.os-vnext-panel,
-.os-vnext-card,
-.os-vnext-toolbar,
-.os-vnext-button,
-.os-vnext-field,
-.os-vnext-table,
-.os-vnext-dialog,
-.os-vnext-scroll-frame,
 .rdl-surface,
 .rdl-pill,
 .rdl-search,
@@ -464,111 +451,6 @@
   background: var(--bambook-rdl-floating-fill, rgb(255 255 255 / 0.70));
 }
 
-.os-vnext-panel {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--os-vnext-radius-panel);
-  background: var(--os-vnext-surface-panel-light);
-  box-shadow: none;
-  backdrop-filter: blur(15px) saturate(104%);
-  -webkit-backdrop-filter: blur(15px) saturate(104%);
-}
-
-.dark .os-vnext-panel {
-  background: var(--os-vnext-surface-panel-dark);
-  box-shadow: none;
-}
-
-.os-vnext-panel--elevated {
-  transform: translateZ(0);
-}
-
-.os-vnext-card {
-  position: relative;
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--os-vnext-radius-card);
-  background: var(--os-vnext-surface-card-light);
-  box-shadow: none;
-  transition:
-    transform var(--os-vnext-motion-standard) var(--os-vnext-ease-standard),
-    box-shadow var(--os-vnext-motion-standard) var(--os-vnext-ease-standard),
-    border-color var(--os-vnext-motion-fast) var(--os-vnext-ease-standard);
-}
-
-.os-vnext-card:hover {
-  transform: none;
-  background: rgba(255, 255, 255, 0.56);
-}
-
-.dark .os-vnext-card {
-  background: var(--os-vnext-surface-card-dark);
-  box-shadow: none;
-}
-
-.os-vnext-toolbar {
-  display: flex;
-  min-width: 0;
-  min-height: var(--os-vnext-toolbar-height);
-  align-items: center;
-  gap: var(--os-vnext-space-2);
-  border: 0;
-  border-radius: var(--os-vnext-radius-card);
-  padding: var(--os-vnext-space-1);
-  background: rgba(255, 255, 255, 0.30);
-}
-
-.dark .os-vnext-toolbar {
-  border-color: var(--os-vnext-border-dark);
-  background: rgba(13, 27, 42, 0.34);
-}
-
-.os-vnext-button {
-  display: inline-flex;
-  height: var(--os-vnext-control-height);
-  align-items: center;
-  justify-content: center;
-  gap: var(--os-vnext-space-2);
-  border: 1px solid transparent;
-  border-radius: var(--os-vnext-radius-control);
-  padding: 0 var(--os-vnext-space-4);
-  background: var(--bambook-control-frost-light);
-  color: rgb(71, 85, 105);
-  font-size: var(--os-vnext-text-control);
-  font-weight: 300;
-  letter-spacing: 0;
-  transition:
-    background var(--os-vnext-motion-standard) var(--os-vnext-ease-standard),
-    border-color var(--os-vnext-motion-fast) var(--os-vnext-ease-standard),
-    box-shadow var(--os-vnext-motion-standard) var(--os-vnext-ease-standard),
-    color var(--os-vnext-motion-fast) var(--os-vnext-ease-standard),
-    transform var(--os-vnext-motion-fast) var(--os-vnext-ease-standard);
-  backdrop-filter: var(--bambook-control-frost-filter);
-  -webkit-backdrop-filter: var(--bambook-control-frost-filter);
-}
-
-.os-vnext-button:hover {
-  color: #0A2746;
-  background: var(--bambook-control-frost-light-hover);
-  box-shadow: none;
-}
-
-.os-vnext-button:active {
-  transform: translateY(1px);
-}
-
-.dark .os-vnext-button {
-  background: var(--bambook-control-frost-dark);
-  color: rgba(226, 232, 240, 0.68);
-}
-
-.dark .os-vnext-button:hover {
-  color: rgb(248, 250, 252);
-  background: var(--bambook-control-frost-dark-hover);
-}
-
 .bambook-selected-surface {
   border: 1px solid transparent !important;
   backdrop-filter: var(--bambook-control-frost-filter);
@@ -616,68 +498,6 @@
   -webkit-backdrop-filter: var(--bambook-control-frost-filter);
 }
 
-.os-vnext-button--state[data-os-vnext-active="true"] {
-  color: #0A2746;
-  border-color: transparent;
-  background: var(--bambook-selected-light-background);
-  box-shadow: var(--bambook-selected-light-shadow);
-  backdrop-filter: var(--bambook-control-frost-filter);
-  -webkit-backdrop-filter: var(--bambook-control-frost-filter);
-}
-
-.dark .os-vnext-button--state[data-os-vnext-active="true"] {
-  color: rgb(248, 250, 252);
-  border-color: rgba(255, 255, 255, 0.055);
-  background: rgba(255, 255, 255, 0.055);
-  box-shadow: var(--bambook-selected-dark-shadow);
-  backdrop-filter: var(--bambook-control-frost-filter);
-  -webkit-backdrop-filter: var(--bambook-control-frost-filter);
-}
-
-.os-vnext-button--danger:hover {
-  color: rgb(220, 38, 38);
-  background: rgba(254, 226, 226, 0.62);
-}
-
-.os-vnext-field {
-  height: var(--os-vnext-control-height);
-  min-width: 0;
-  border: 1px solid transparent;
-  border-radius: var(--os-vnext-radius-field);
-  background: rgba(15, 23, 42, 0.05);
-  padding: 0 var(--os-vnext-space-3);
-  color: rgb(15, 23, 42);
-  font-size: var(--os-vnext-text-control);
-  outline: none;
-  box-shadow: none;
-  backdrop-filter: var(--bambook-control-frost-filter);
-  -webkit-backdrop-filter: var(--bambook-control-frost-filter);
-  transition:
-    border-color var(--os-vnext-motion-fast) var(--os-vnext-ease-standard),
-    box-shadow var(--os-vnext-motion-standard) var(--os-vnext-ease-standard),
-    background var(--os-vnext-motion-standard) var(--os-vnext-ease-standard),
-    transform var(--os-vnext-motion-fast) var(--os-vnext-ease-standard);
-}
-
-.os-vnext-field:focus {
-  transform: none;
-  border-color: rgba(150, 170, 192, 0.20);
-  background: rgba(15, 23, 42, 0.08);
-  box-shadow: none;
-}
-
-.dark .os-vnext-field {
-  border-color: rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.055);
-  color: rgb(248, 250, 252);
-  box-shadow: none;
-}
-
-.dark .os-vnext-field:focus {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.085);
-}
-
 .ui-lab-real-os-root input[type="date"],
 .bambook-os-root input[type="date"] {
   color-scheme: light;
@@ -698,71 +518,6 @@
 .bambook-os-root--dark input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 0.82;
   filter: invert(1);
-}
-
-.os-vnext-scroll-frame {
-  min-height: 0;
-  overflow: auto;
-  scrollbar-width: none;
-}
-
-.os-vnext-scroll-frame::-webkit-scrollbar {
-  display: none;
-}
-
-.os-vnext-scroll-frame[data-os-vnext-edge-fade="true"] {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 18px, black calc(100% - 18px), transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, black 18px, black calc(100% - 18px), transparent 100%);
-}
-
-.os-vnext-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--os-vnext-text-body);
-}
-
-.os-vnext-table th {
-  height: var(--os-vnext-control-height);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  color: rgb(100, 116, 139);
-  font-size: var(--os-vnext-text-label);
-  font-weight: 300;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-.os-vnext-table td {
-  height: 40px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.dark .os-vnext-table th,
-.dark .os-vnext-table td {
-  border-color: rgba(255, 255, 255, 0.055);
-}
-
-.os-vnext-dialog {
-  width: min(520px, 100%);
-  border: 0;
-  border-radius: var(--os-vnext-radius-panel);
-  background: var(--os-vnext-surface-panel-light);
-  padding: var(--os-vnext-space-6);
-  box-shadow: none;
-}
-
-.dark .os-vnext-dialog {
-  background: var(--os-vnext-surface-panel-dark);
-  box-shadow: none;
-}
-
-.os-vnext-dialog__title {
-  margin-bottom: var(--os-vnext-space-3);
-  font-size: var(--os-vnext-text-title);
-  font-weight: 300;
-}
-
-.os-vnext-dialog__body {
-  font-size: var(--os-vnext-text-body);
 }
 
 .ui-lab-real-os-root {
@@ -887,9 +642,9 @@
 }
 
 .ui-lab-real-os-root--dark {
-  --bambook-rdl-command-rgb: 142 184 224;
-  --bambook-rdl-command-strong-rgb: 205 226 246;
-  --bambook-rdl-command-soft-rgb: 92 126 160;
+  --bambook-rdl-command-rgb: 156 200 216;
+  --bambook-rdl-command-strong-rgb: 182 214 226;
+  --bambook-rdl-command-soft-rgb: 78 122 144;
   --bambook-rdl-accent-rgb: var(--bambook-rdl-command-rgb);
   --bambook-rdl-accent-strong-rgb: var(--bambook-rdl-command-strong-rgb);
   --bambook-rdl-accent-soft-rgb: var(--bambook-rdl-command-soft-rgb);
@@ -904,7 +659,7 @@
   --ui-lab-panel-raised-depth-shadow: none;
   --ui-lab-panel-raised-inset-shadow: none;
   --ui-lab-panel-raised-shadow: var(--ui-lab-panel-raised-depth-shadow), var(--ui-lab-panel-raised-inset-shadow);
-  --ui-lab-panel-glass-film-color: rgba(20, 28, 42, 0.42);
+  --ui-lab-panel-glass-film-color: rgba(20, 35, 47, 0.42);
   --ui-lab-panel-glass-film-background: none;
   --ui-lab-panel-base-noise: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.008'/%3E%3C/svg%3E");
   --ui-lab-panel-shared-glass-background: none;
@@ -915,8 +670,8 @@
   --ui-lab-panel-inset-film-color: var(--ui-lab-panel-glass-film-color);
   --ui-lab-panel-inset-glass-background: var(--ui-lab-panel-nested-glass-background);
   --ui-lab-panel-inset-border: var(--ui-lab-panel-surface-border);
-  --ui-lab-form-panel-raised-film-color: rgba(8, 18, 33, 0.34);
-  --ui-lab-form-panel-inset-film-color: rgba(8, 18, 33, 0.26);
+  --ui-lab-form-panel-raised-film-color: rgba(11, 22, 30, 0.34);
+  --ui-lab-form-panel-inset-film-color: rgba(11, 22, 30, 0.26);
   --ui-lab-panel-floating-depth-shadow: none;
   --ui-lab-panel-floating-shadow: var(--ui-lab-panel-floating-depth-shadow);
   --ui-lab-panel-surface-background: transparent;
@@ -935,9 +690,9 @@
 }
 
 .bambook-os-root--dark {
-  --bambook-rdl-command-rgb: 142 184 224;
-  --bambook-rdl-command-strong-rgb: 205 226 246;
-  --bambook-rdl-command-soft-rgb: 92 126 160;
+  --bambook-rdl-command-rgb: 156 200 216;
+  --bambook-rdl-command-strong-rgb: 182 214 226;
+  --bambook-rdl-command-soft-rgb: 78 122 144;
   --bambook-rdl-accent-rgb: var(--bambook-rdl-command-rgb);
   --bambook-rdl-accent-strong-rgb: var(--bambook-rdl-command-strong-rgb);
   --bambook-rdl-accent-soft-rgb: var(--bambook-rdl-command-soft-rgb);
@@ -952,7 +707,7 @@
   --ui-lab-panel-raised-depth-shadow: none;
   --ui-lab-panel-raised-inset-shadow: none;
   --ui-lab-panel-raised-shadow: var(--ui-lab-panel-raised-depth-shadow), var(--ui-lab-panel-raised-inset-shadow);
-  --ui-lab-panel-glass-film-color: rgba(20, 28, 42, 0.42);
+  --ui-lab-panel-glass-film-color: rgba(20, 35, 47, 0.42);
   --ui-lab-panel-glass-film-background: none;
   --ui-lab-panel-base-noise: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.008'/%3E%3C/svg%3E");
   --ui-lab-panel-shared-glass-background: none;
@@ -963,8 +718,8 @@
   --ui-lab-panel-inset-film-color: var(--ui-lab-panel-glass-film-color);
   --ui-lab-panel-inset-glass-background: var(--ui-lab-panel-nested-glass-background);
   --ui-lab-panel-inset-border: var(--ui-lab-panel-surface-border);
-  --ui-lab-form-panel-raised-film-color: rgba(8, 18, 33, 0.34);
-  --ui-lab-form-panel-inset-film-color: rgba(8, 18, 33, 0.26);
+  --ui-lab-form-panel-raised-film-color: rgba(11, 22, 30, 0.34);
+  --ui-lab-form-panel-inset-film-color: rgba(11, 22, 30, 0.26);
   --ui-lab-panel-floating-depth-shadow: none;
   --ui-lab-panel-floating-shadow: var(--ui-lab-panel-floating-depth-shadow);
   --ui-lab-panel-surface-background: transparent;
@@ -1298,7 +1053,7 @@
 
 .bambook-os-root--dark .app-reveal-underlay-material,
 .ui-lab-real-os-root--dark .app-reveal-underlay-material {
-  background: var(--bambook-rdl-panel-fill, rgb(10 13 18 / 0.62));
+  background: var(--brand-mist);
 }
 
 .ui-lab-real-os-root .app-main-cover,
@@ -1550,7 +1305,6 @@
   .ios-glass-card,
   .ios-glass-btn,
   .ios-dark-glass-btn,
-  .os-vnext-dialog,
   .app-main-cover,
   .app-main-viewport,
   .os-material-frame-panel,
@@ -1577,7 +1331,6 @@
   .ios-glass-card,
   .ios-glass-btn,
   .ios-dark-glass-btn,
-  .os-vnext-dialog,
   .app-main-cover,
   .app-main-viewport,
   .os-material-frame-panel,
@@ -2099,7 +1852,7 @@
 .ui-lab-os-sidebar-item--active {
   border-color: rgb(var(--os-vnext-brand-blue-rgb) / 0.20);
   background: rgba(255, 255, 255, 0.30);
-  color: #0A2746;
+  color: var(--text-primary);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.42),
     0 12px 26px -22px rgb(var(--os-vnext-brand-blue-strong-rgb) / 0.34);
@@ -2404,7 +2157,7 @@
 .os-lab-transparent-button--active {
   border-color: transparent;
   background: var(--bambook-selected-light-background);
-  color: #0A2746;
+  color: var(--text-primary);
   box-shadow: var(--bambook-selected-light-shadow);
 }
 
@@ -2560,7 +2313,7 @@
 .os-lab-toolbar-icon-button--active {
   border-color: transparent;
   background: var(--bambook-selected-light-background);
-  color: #0A2746;
+  color: var(--text-primary);
   box-shadow: var(--bambook-selected-light-shadow);
 }
 
@@ -2604,7 +2357,7 @@
 .os-lab-wallpaper-chip--active {
   border-color: transparent;
   background: var(--bambook-selected-light-background);
-  color: #0A2746;
+  color: var(--text-primary);
   box-shadow: var(--bambook-selected-light-shadow);
 }
 
@@ -2908,7 +2661,7 @@
   border-color: rgba(255, 255, 255, 0.075);
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
-    rgba(13, 27, 42, 0.045);
+    rgba(11, 22, 30, 0.045);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.075),
     inset 0 -1px 0 rgba(0, 0, 0, 0.075),

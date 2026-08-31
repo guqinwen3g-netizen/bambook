@@ -92,7 +92,7 @@ const PandaLab: React.FC<{ isDarkMode: boolean; onToggleTheme: () => void }> = (
         </section>
 
         <button 
-          className="mt-4 px-4 py-2 bg-[var(--os-vnext-brand-blue)] text-white rounded font-light hover:bg-[var(--os-vnext-brand-blue-strong)]"
+          className="mt-4 px-4 py-2 bg-[var(--os-vnext-brand-blue)] text-[var(--on-accent)] rounded font-light hover:bg-[var(--os-vnext-brand-blue-strong)]"
           onClick={() => navigator.clipboard.writeText(generateJSX())}
         >
           Copy SVG Code

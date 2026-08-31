@@ -186,7 +186,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
           className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto ${BAMBOOK_OS.controls.overlayMenu.surfaceBase} ${BAMBOOK_OS.controls.overlayMenu.surface}`}
         >
           {candidates.length === 0 && !showCreateOption && (
-            <div className={`px-3 py-3 text-[11px] flex items-center gap-2 text-[var(--text-tertiary)]`}>
+            <div className={`px-3 py-3 text-xs flex items-center gap-2 text-[var(--text-tertiary)]`}>
               <Search size={12} />
               <span>无匹配的关系档案</span>
             </div>
@@ -199,7 +199,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
               data-option-index={idx}
               onClick={() => pickCandidate(r)}
               onMouseEnter={() => setActiveIndex(idx)}
-              className={`w-full text-left px-3 py-2 text-[11px] flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)] ${idx === activeIndex ? 'bg-[var(--hover-darken)]' : ''}`}
+              className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)] ${idx === activeIndex ? 'bg-[var(--hover-darken)]' : ''}`}
             >
               <span className="font-light truncate">{r.name}</span>
               <span className={`shrink-0 text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]`}>
@@ -214,7 +214,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
               data-option-index={candidates.length}
               onClick={() => { void pickCreate(); }}
               onMouseEnter={() => setActiveIndex(candidates.length)}
-              className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 border-t border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] ${activeIndex === candidates.length ? 'bg-[var(--hover-darken)]' : ''}`}
+              className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-t border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] ${activeIndex === candidates.length ? 'bg-[var(--hover-darken)]' : ''}`}
             >
               <Plus size={14} />
               <span>创建新档案 "{query.trim()}"</span>

@@ -200,7 +200,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
           <Move size={15} strokeWidth={1.6} className="text-[var(--text-tertiary)]" />
           <SlidersHorizontal size={15} strokeWidth={1.6} className="text-[var(--os-vnext-brand-blue)]" />
           <div className="min-w-0">
-            <div className="text-[11px] font-light tracking-wide truncate">Design Tuner</div>
+            <div className="text-xs font-light tracking-wide truncate">Design Tuner</div>
             <div className={`text-[9px] truncate text-[var(--text-tertiary)]`}>Sidebar Button States · {DESIGN_TUNER_TOGGLE_HINT}</div>
           </div>
         </div>

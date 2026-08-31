@@ -268,7 +268,7 @@ const StepDot: React.FC<{
 }> = ({ n, label, active, current, icon, isDarkMode }) => (
   <div className="flex items-center gap-2">
     <div
-      className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-light transition-colors duration-200 ${
+      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-light transition-colors duration-200 ${
         current
           ? 'bg-[var(--accent)] text-[var(--on-accent)] shadow-none'
           : active

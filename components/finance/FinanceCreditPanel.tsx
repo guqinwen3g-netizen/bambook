@@ -414,7 +414,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
           <div className="glyph"><ShieldCheck size={24} strokeWidth={1.25} /></div>
           <div className="title">该客户未设置信用额度</div>
           {status.maxOverdueDays > 0 && (
-            <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>当前最大逾期 {status.maxOverdueDays} 天</div>
+            <div className={cx('mt-2 text-xs font-light', textSecondary)}>当前最大逾期 {status.maxOverdueDays} 天</div>
           )}
         </div>
       );
@@ -447,7 +447,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
         <div className="mt-3 rounded-inset p-3 bds-inset">
           <div className="flex items-center justify-between">
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>额度占用</div>
-            <div className={cx('text-[11px] font-light tabular-nums', textSecondary)}>{usagePercent}%</div>
+            <div className={cx('text-xs font-light tabular-nums', textSecondary)}>{usagePercent}%</div>
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-field" style={{ background: 'var(--recessed-bg)' }}>
             <div className="h-full rounded-field" style={{ width: `${usagePercent}%`, background: 'var(--border-c-strong)' }} />
@@ -460,7 +460,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>额度状态</div>
             <span className="bds-badge sm neutral">{statusLabel(status.status)}</span>
           </div>
-          <div className={cx('mt-2 text-[11px] font-light leading-relaxed', status.creditFrozen ? 'text-[var(--text-primary)]' : textSecondary)}>
+          <div className={cx('mt-2 text-xs font-light leading-relaxed', status.creditFrozen ? 'text-[var(--text-primary)]' : textSecondary)}>
             {status.creditFrozen
               ? '门禁生效中：该客户信用已冻结/吊销，新订单与订单变更将被阻断，请先由财务解冻。'
               : status.maxOverdueDays > OVERDUE_FREEZE_THRESHOLD_DAYS
@@ -520,13 +520,13 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
         <div className="mt-4 rounded-inset p-4 bds-inset">
           <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>信用历史（{historyTotal}）</div>
           {history.length === 0 ? (
-            <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>暂无冻结 / 解冻 / 占用释放记录。</div>
+            <div className={cx('mt-2 text-xs font-light', textSecondary)}>暂无冻结 / 解冻 / 占用释放记录。</div>
           ) : (
             <div className="mt-2 space-y-1.5">
               {history.map(item => (
                 <div key={item.id} className="rdl-data-row min-h-0 px-2.5 py-1.5">
                   <div className="flex min-w-0 items-center justify-between gap-2">
-                    <div className={cx('truncate text-[11px] font-light', textPrimary)}>{creditTriggerTypeLabel(item.triggerType)}</div>
+                    <div className={cx('truncate text-xs font-light', textPrimary)}>{creditTriggerTypeLabel(item.triggerType)}</div>
                     <div className={cx('shrink-0 text-[10px] font-light tabular-nums', textSecondary)}>{formatDateTime(item.createdAt)}</div>
                   </div>
                   <div className={cx('mt-0.5 text-[10px] font-light tabular-nums', textSecondary)}>
@@ -571,11 +571,11 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
         )}
       </div>
       {proceedingsLoading ? (
-        <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>破产案件加载中…</div>
+        <div className={cx('mt-2 text-xs font-light', textSecondary)}>破产案件加载中…</div>
       ) : proceedingsError ? (
         <div className="bds-alert danger mt-2">{proceedingsError}</div>
       ) : proceedings.length === 0 ? (
-        <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>暂无破产案件。客户破产宣告时在此开案：登记债权后信用自动冻结，转卖/退运/坏账/回款全程留痕。</div>
+        <div className={cx('mt-2 text-xs font-light', textSecondary)}>暂无破产案件。客户破产宣告时在此开案：登记债权后信用自动冻结，转卖/退运/坏账/回款全程留痕。</div>
       ) : (
         <div className="mt-2 space-y-1.5">
           {proceedings.map(p => (
@@ -586,7 +586,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
               className="rdl-data-row w-full min-h-0 px-2.5 py-1.5 text-left"
             >
               <div className="flex min-w-0 items-center justify-between gap-2">
-                <div className={cx('truncate text-[11px] font-light', textPrimary)}>
+                <div className={cx('truncate text-xs font-light', textPrimary)}>
                   {p.relationName}
                   <span className={cx('ml-1.5 text-[10px] font-light tabular-nums', textSecondary)}>{p.proceedingNumber}</span>
                 </div>
@@ -698,7 +698,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
           {!isProcessing && proceeding.closeNote && (
             <div className="mt-3 rounded-inset p-4 bds-inset">
               <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>闭案结论</div>
-              <div className={cx('mt-1.5 text-[11px] font-light leading-relaxed', textPrimary)}>{proceeding.closeNote}</div>
+              <div className={cx('mt-1.5 text-xs font-light leading-relaxed', textPrimary)}>{proceeding.closeNote}</div>
               <div className={cx('mt-1.5 text-[10px] font-light', textSecondary)}>闭案不自动解冻：信用恢复请返回客户信用人工解冻（重大决策留痕）。</div>
             </div>
           )}
@@ -707,7 +707,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
           <div className="mt-3 rounded-inset p-4 bds-inset">
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>处置时间线（{actions.length}）</div>
             {actions.length === 0 ? (
-              <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>暂无动作记录。</div>
+              <div className={cx('mt-2 text-xs font-light', textSecondary)}>暂无动作记录。</div>
             ) : (
               <div className="mt-2 space-y-1.5">
                 {actions.map(a => {
@@ -723,7 +723,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
                         <div className="flex min-w-0 items-center gap-1.5">
                           <span className={cx('shrink-0', badgeClass)}>{bankruptcyActionLabel(a.actionType)}</span>
                           {a.amount > 0 && (
-                            <span className={cx('truncate text-[11px] font-light tabular-nums', textPrimary)}>{formatAmount(a.amount)}</span>
+                            <span className={cx('truncate text-xs font-light tabular-nums', textPrimary)}>{formatAmount(a.amount)}</span>
                           )}
                         </div>
                         <div className={cx('shrink-0 text-[10px] font-light tabular-nums', textSecondary)}>{formatEpoch(a.createdAt)}</div>
@@ -776,7 +776,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
       isDarkMode={isDarkMode}
     >
       <div className="space-y-4 px-6 py-5">
-        <div className={cx('text-[11px] font-light leading-relaxed', textSecondary)}>
+        <div className={cx('text-xs font-light leading-relaxed', textSecondary)}>
           开案后登记申报债权，客户 {customerId ? relationDisplayName(customerOptions.find(r => r.id === customerId) ?? ({} as Relation)) : '（未选择）'} 信用将自动冻结（best-effort）；
           处置动作（转卖/退运/坏账/回款）全程 append-only 留痕，闭案汇总净损失。同客户同时仅一个进行中案件。
         </div>
@@ -932,13 +932,13 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
   const closeModalEl = showCloseModal && proceedingDetail && (
     <div className="bds-modal-mask" onClick={() => !closeSaving && setShowCloseModal(false)}>
       <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
-        <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimary)}>闭案确认（终态）</h2>
+        <h2 className={cx('mb-4 text-sm font-light tracking-[0.02em]', textPrimary)}>闭案确认（终态）</h2>
         <div className="space-y-3">
-          <div className={cx('text-[11px] font-light leading-relaxed', textSecondary)}>
+          <div className={cx('text-xs font-light leading-relaxed', textSecondary)}>
             闭案后不可再追加处置动作，汇总结论将落库到案件备注。净损失 = 申报债权 − 转卖回收 − 部分回款 + 退运成本。
           </div>
           <div className="rounded-inset p-3 bds-inset">
-            <div className="grid grid-cols-2 gap-y-1.5 text-[11px] font-light tabular-nums">
+            <div className="grid grid-cols-2 gap-y-1.5 text-xs font-light tabular-nums">
               <span className={textSecondary}>申报债权</span><span className={cx('text-right', textPrimary)}>{formatAmount(proceedingDetail.summary.totalClaimed)}</span>
               <span className={textSecondary}>转卖回收</span><span className={cx('text-right', textPrimary)}>{formatAmount(proceedingDetail.summary.resaleRecovered)}</span>
               <span className={textSecondary}>部分回款</span><span className={cx('text-right', textPrimary)}>{formatAmount(proceedingDetail.summary.recovered)}</span>
@@ -948,11 +948,11 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
               <span className={cx('text-right font-normal', 'text-[var(--danger-text)]')}>{formatAmount(proceedingDetail.summary.netLoss)}</span>
             </div>
           </div>
-          <div className={cx('text-[11px] font-light leading-relaxed', textSecondary)}>
+          <div className={cx('text-xs font-light leading-relaxed', textSecondary)}>
             闭案不自动解冻：客户信用恢复属重大人工决策，请返回客户信用手动解冻（留痕审计）。
           </div>
           <div>
-            <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>闭案备注</label>
+            <label className={cx('mb-1 block text-xs font-light', textSecondary)}>闭案备注</label>
             <textarea
               value={closeNote}
               onChange={e => setCloseNote(e.target.value)}
@@ -977,17 +977,17 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
   const actionModal = action && (
     <div className="bds-modal-mask" onClick={() => !actionSaving && setAction(null)}>
       <div className="bds-modal" style={{ width: '24rem' }} onClick={e => e.stopPropagation()}>
-        <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimary)}>
+        <h2 className={cx('mb-4 text-sm font-light tracking-[0.02em]', textPrimary)}>
           {action === 'freeze' ? '冻结客户信用额度' : '手动解冻客户信用额度'}
         </h2>
         <div className="space-y-3">
-          <div className={cx('text-[11px] font-light leading-relaxed', textSecondary)}>
+          <div className={cx('text-xs font-light leading-relaxed', textSecondary)}>
             {action === 'freeze'
               ? '冻结后该客户新订单与订单变更将被信用门禁阻断。冻结理由必填并写入审计。'
               : '解冻后信用门禁解除。解冻理由必填并记录到 thawedReason（审计强制）。'}
           </div>
           <div>
-            <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>
+            <label className={cx('mb-1 block text-xs font-light', textSecondary)}>
               {action === 'freeze' ? '冻结理由 *' : '解冻理由 *'}
             </label>
             <textarea
@@ -1042,7 +1042,7 @@ export function FinanceCreditPanel({ isDarkMode, endpoint, relations, customerId
           />
         </div>
         {status?.hasCreditLimit && (
-          <div className={cx('ml-auto text-[11px] font-light', textSecondary)}>
+          <div className={cx('ml-auto text-xs font-light', textSecondary)}>
             {status.creditFrozen ? '信用门禁：冻结中' : '信用门禁：正常'} · 最大逾期 {status.maxOverdueDays} 天
           </div>
         )}

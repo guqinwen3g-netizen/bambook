@@ -190,7 +190,7 @@ const ContactList: React.FC<ContactListProps> = ({
                                     <p className={`font-light text-sm truncate text-[var(--text-primary)]`}>
                                         {contact.name}
                                     </p>
-                                    <p className={`text-[11px] truncate text-[var(--text-tertiary)]`}>
+                                    <p className={`text-xs truncate text-[var(--text-tertiary)]`}>
                                         {contact.role || contact.department || '未设置职位'}
                                     </p>
                                 </div>

@@ -553,7 +553,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           {/* 工具栏（组合嵌套 bar：搜索 + 类型/状态筛选 + 刷新共行，spec §2.1） */}
           <div className="bds-filterbar mb-4 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
@@ -1030,7 +1030,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
-        className="bds-modal custom-scrollbar"
+        className="bds-modal"
         style={{ width: '45rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1179,7 +1179,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
-        className="bds-modal custom-scrollbar"
+        className="bds-modal"
         style={{ width: '35rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1415,7 +1415,7 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
-        className="bds-modal custom-scrollbar"
+        className="bds-modal"
         style={{ width: '40rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1436,12 +1436,12 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
             </button>
           ))}
         </div>
-        {kindOption && <p className="text-[11px] mb-4 text-[var(--text-quaternary)]">{kindOption.hint}</p>}
+        {kindOption && <p className="text-xs mb-4 text-[var(--text-quaternary)]">{kindOption.hint}</p>}
 
         {kind === 'MERGED_PL' ? (
           <>
             <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">选择运单 *（≥2，合票出运）</label>
-            <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-4 p-2 space-y-1">
+            <div className="max-h-52 overflow-y-auto rounded-inset border border-[var(--border-c-subtle)] mb-4 p-2 space-y-1">
               {shipmentsLoading ? (
                 <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-[var(--text-quaternary)]" /></div>
               ) : shipments.length === 0 ? (
@@ -1462,12 +1462,12 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
                 </label>
               ))}
             </div>
-            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedShipmentIds.size} 个运单</p>
+            <p className="text-xs mb-3 text-[var(--text-quaternary)]">已选 {selectedShipmentIds.size} 个运单</p>
           </>
         ) : kind === 'CONTRACT' ? (
           <>
             <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">选择订单 *（≥2，合并合同）</label>
-            <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-4 p-2 space-y-1">
+            <div className="max-h-52 overflow-y-auto rounded-inset border border-[var(--border-c-subtle)] mb-4 p-2 space-y-1">
               {ordersLoading ? (
                 <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-[var(--text-quaternary)]" /></div>
               ) : orders.length === 0 ? (
@@ -1488,7 +1488,7 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
                 </label>
               ))}
             </div>
-            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedOrderIds.size} 个订单</p>
+            <p className="text-xs mb-3 text-[var(--text-quaternary)]">已选 {selectedOrderIds.size} 个订单</p>
           </>
         ) : (
           <>
@@ -1505,7 +1505,7 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
               ]}
             />
             {reportOrderId && (
-              <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-2 p-2 space-y-1">
+              <div className="max-h-52 overflow-y-auto rounded-inset border border-[var(--border-c-subtle)] mb-2 p-2 space-y-1">
                 {reportsLoading ? (
                   <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-[var(--text-quaternary)]" /></div>
                 ) : orderReports.length === 0 ? (
@@ -1537,7 +1537,7 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
                 ))}
               </div>
             )}
-            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedReports.size} 份报告</p>
+            <p className="text-xs mb-3 text-[var(--text-quaternary)]">已选 {selectedReports.size} 份报告</p>
           </>
         )}
 
@@ -1634,7 +1634,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
-        className="bds-modal custom-scrollbar"
+        className="bds-modal"
         style={{ width: '40rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >

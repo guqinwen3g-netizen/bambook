@@ -52,7 +52,7 @@ export const CompanyProfileSection: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
-  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
+  const labelCls = `text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
   const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-colors duration-200 ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
   const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const primaryTextCls = 'text-[var(--text-primary)]';
@@ -239,7 +239,7 @@ export const CompanyProfileSection: React.FC = () => {
             </div>
             <div className="min-w-0">
               <div className={`text-sm font-light ${primaryTextCls}`}>编辑档案</div>
-              <p className={`mt-0.5 text-[11px] ${weakTextCls}`}>
+              <p className={`mt-0.5 text-xs ${weakTextCls}`}>
                 银行信息变更须填写变更理由（审计要求）。
               </p>
             </div>
@@ -324,7 +324,7 @@ export const CompanyProfileSection: React.FC = () => {
               placeholder={bankChanged ? '银行信息变更须填写变更理由（审计要求）' : '如未变更银行信息，可留空'}
             />
             {reasonRequired && (
-              <div className="mt-1 text-[11px] text-[var(--danger-text)]">
+              <div className="mt-1 text-xs text-[var(--danger-text)]">
                 银行信息变更必须填写变更理由。
               </div>
             )}
@@ -341,7 +341,7 @@ export const CompanyProfileSection: React.FC = () => {
               {saving ? '保存中...' : '保存变更'}
             </button>
             {formValid && !valuesChanged && (
-              <span className={`text-[11px] ${weakTextCls}`}>配置与当前生效值一致，无需变更。</span>
+              <span className={`text-xs ${weakTextCls}`}>配置与当前生效值一致，无需变更。</span>
             )}
           </div>
 
@@ -399,8 +399,8 @@ export const CompanyProfileSection: React.FC = () => {
             {history.map(item => (
               <div key={item.id} className={`rounded-control border p-4 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <span className={`font-mono text-[11px] ${weakTextCls}`}>{formatDateTime(item.createdAt)}</span>
-                  <span className={`font-mono text-[11px] ${secondaryTextCls}`}>{item.actorId || 'system'}</span>
+                  <span className={`font-mono text-xs ${weakTextCls}`}>{formatDateTime(item.createdAt)}</span>
+                  <span className={`font-mono text-xs ${secondaryTextCls}`}>{item.actorId || 'system'}</span>
                 </div>
                 <div className={`mt-2 text-xs ${secondaryTextCls}`}>
                   v{item.versionFrom} → v{item.versionTo}

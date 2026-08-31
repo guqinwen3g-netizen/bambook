@@ -124,9 +124,9 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
   const fieldClass = `w-full px-3 py-2 rounded-control text-sm font-light outline-none border transition-colors bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
 
   return (
-    <div className="absolute inset-0 bg-[var(--mask-bg)] z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
+    <div className="absolute inset-0 bg-[var(--mask-bg)] z-[90] flex items-center justify-center p-6 duration-300">
       {/* 浮层面板 !bg 覆盖 rdl-surface--panel 的 44% 半透明 fill（Electron GPU 色偏裁决，同 CommandPalette） */}
-      <RdlSurface tone="panel" className="!bg-[var(--frosted-bg)] w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] animate-in zoom-in duration-300">
+      <RdlSurface tone="panel" className="!bg-[var(--frosted-bg)] w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] duration-300">
         {/* 头部 */}
         <div className="bds-pagehead shrink-0 backdrop-blur-md bg-[var(--recessed-bg)]">
           <div className="ph-main">
@@ -156,7 +156,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
         </div>
 
         {/* 内容 */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-5 space-y-3">
+        <div className="flex-1 overflow-y-auto px-8 py-5 space-y-3">
           {error && (
             <ErrorBanner icon={<AlertCircle size={14} strokeWidth={1.75} />}>{error}</ErrorBanner>
           )}
@@ -233,7 +233,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                         <span className={`text-[10px] text-[var(--text-tertiary)]`}>已停用</span>
                       )}
                     </div>
-                    <div className={`text-[11px] mt-0.5 text-[var(--text-tertiary)]`}>
+                    <div className={`text-xs mt-0.5 text-[var(--text-tertiary)]`}>
                       {LANGUAGE_LABELS[sig.language] ?? sig.language}
                       {sig.variables.length > 0 && ` · 变量: ${sig.variables.map(v => `{{${v}}}`).join(' ')}`}
                     </div>
@@ -241,7 +241,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                   <button
                     type="button"
                     onClick={() => { setDraft({ id: sig.id, name: sig.name, language: sig.language, content: sig.content, isDefault: sig.isDefault, notes: sig.notes || '' }); setError(null); }}
-                    className="shrink-0 h-7 px-2.5 rounded-control text-[11px] font-light transition-colors bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]"
+                    className="shrink-0 h-7 px-2.5 rounded-control text-xs font-light transition-colors bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]"
                   >
                     编辑
                   </button>

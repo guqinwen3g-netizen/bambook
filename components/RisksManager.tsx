@@ -384,7 +384,7 @@ function AlertsPanel() {
             {ALERT_LEVEL_LABELS[level]} {overview?.openByLevel?.[level] ?? 0}
           </span>
         ))}
-        <span className="ml-auto text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="ml-auto text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
           {openByTypeEntries.length > 0
             ? openByTypeEntries.map(([type, count]) => `${ALERT_TYPE_LABELS[type as RiskAlertType] ?? type} ${count}`).join(' · ')
             : '各类型暂无未结预警'}
@@ -395,7 +395,7 @@ function AlertsPanel() {
       <div className="bds-card flex-1 min-h-0 flex flex-col" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
+            <span className="text-xs w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
             <div className="bds-segment flex-wrap">
               {(['', ...ALERT_TYPE_FILTERS] as const).map((t) => (
                 <button
@@ -416,7 +416,7 @@ function AlertsPanel() {
             </button>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>等级</span>
+            <span className="text-xs w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>等级</span>
             <div className="bds-segment flex-wrap">
               {(['', 'critical', 'warning', 'info'] as const).map((l) => (
                 <button
@@ -430,7 +430,7 @@ function AlertsPanel() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>状态</span>
+            <span className="text-xs w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>状态</span>
             <div className="bds-segment flex-wrap">
               {(['', 'Open', 'Acknowledged', 'Resolved'] as const).map((s) => (
                 <button
@@ -474,7 +474,7 @@ function AlertsPanel() {
                   </span>
                 </div>
                 <div className="mt-1.5 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{alert.content}</div>
-                <div className="mt-2 flex items-center gap-3 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="mt-2 flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                   <span>{formatTs(alert.createdAt)}</span>
                   {alert.relatedType && (
                     <span>关联 {alert.relatedType}{alert.relatedId ? ` ${alert.relatedId}` : ''}</span>
@@ -507,7 +507,7 @@ function AlertsPanel() {
             ))
           )}
         </div>
-        <div className="px-4 py-2 text-[11px] flex items-center justify-between gap-2" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+        <div className="px-4 py-2 text-xs flex items-center justify-between gap-2" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           <span>共 {total} 条预警 · 已加载 {alerts.length} 条</span>
           {alerts.length < total && (
             <button type="button" onClick={loadMoreAlerts} disabled={loadingMore} className={actionBtnCls}>
@@ -715,7 +715,7 @@ function FxPanel() {
                   <span className="text-[10px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{item.source}</span>
                 </div>
                 <div className="bds-tnum mt-1 text-lg" style={{ color: 'var(--text-primary)' }}>{formatRate(item.rate)}</div>
-                <div className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>生效 {formatDate(item.effectiveDate)}</div>
+                <div className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>生效 {formatDate(item.effectiveDate)}</div>
               </div>
             ))}
           </div>
@@ -836,7 +836,7 @@ function FxPanel() {
             新建锁定
           </button>
         </div>
-        <div className="text-[11px] mb-3" style={{ color: 'var(--text-tertiary)' }}>锁定汇率留空时将自动取该币种最新有效汇率。</div>
+        <div className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>锁定汇率留空时将自动取该币种最新有效汇率。</div>
         {loadingLocks ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
@@ -1064,7 +1064,7 @@ function CreditPanel() {
                     </span>
                   </td>
                   <td className="num bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatNumber(rating.score)}</td>
-                  <td className="max-w-[320px] truncate text-[11px]" title={`准时率 ${rating.factors.onTimeRate == null ? '—' : `${Math.round(rating.factors.onTimeRate * 100)}%`} · 逾期 ${rating.factors.overdueCount} 次 · 最长逾期 ${rating.factors.maxDaysOverdue} 天 · 合作 ${rating.factors.cooperationYears} 年 · 已结清 ${rating.factors.settledCount} 单`} style={{ color: 'var(--text-tertiary)' }}>
+                  <td className="max-w-[320px] truncate text-xs" title={`准时率 ${rating.factors.onTimeRate == null ? '—' : `${Math.round(rating.factors.onTimeRate * 100)}%`} · 逾期 ${rating.factors.overdueCount} 次 · 最长逾期 ${rating.factors.maxDaysOverdue} 天 · 合作 ${rating.factors.cooperationYears} 年 · 已结清 ${rating.factors.settledCount} 单`} style={{ color: 'var(--text-tertiary)' }}>
                     准时率 {rating.factors.onTimeRate == null ? '—' : `${Math.round(rating.factors.onTimeRate * 100)}%`} · 逾期 {rating.factors.overdueCount} 次 · 最长逾期 {rating.factors.maxDaysOverdue} 天 · 合作 {rating.factors.cooperationYears} 年 · 已结清 {rating.factors.settledCount} 单
                   </td>
                   <td style={{ color: 'var(--text-tertiary)' }}>{formatTs(rating.evaluatedAt)}</td>
@@ -1291,7 +1291,7 @@ function CompliancePanel() {
       {/* 检查记录 */}
       <div className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="p-3 flex items-center gap-1.5 flex-wrap" style={{ borderBottom: 'var(--border-subtle)' }}>
-          <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
+          <span className="text-xs w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
           <div className="bds-segment flex-wrap">
             {(['', 'hs_code', 'export_control', 'origin_rule'] as const).map((t) => (
               <button
@@ -1303,7 +1303,7 @@ function CompliancePanel() {
               </button>
             ))}
           </div>
-          <span className="text-[11px] w-10 shrink-0 ml-3" style={{ color: 'var(--text-tertiary)' }}>结果</span>
+          <span className="text-xs w-10 shrink-0 ml-3" style={{ color: 'var(--text-tertiary)' }}>结果</span>
           <div className="bds-segment flex-wrap">
             {(['', 'pass', 'warn', 'fail'] as const).map((r) => (
               <button
@@ -1358,7 +1358,7 @@ function CompliancePanel() {
                     </span>
                   </td>
                   <td className="max-w-[280px] truncate" title={check.summary} style={{ color: 'var(--text-primary)' }}>{check.summary}</td>
-                  <td className="max-w-[200px] truncate text-[11px]" title={`${check.targetType} ${check.targetId}`} style={{ color: 'var(--text-tertiary)' }}>
+                  <td className="max-w-[200px] truncate text-xs" title={`${check.targetType} ${check.targetId}`} style={{ color: 'var(--text-tertiary)' }}>
                     {check.targetType} {check.targetId}
                   </td>
                   <td style={{ color: 'var(--text-tertiary)' }}>{formatTs(check.checkedAt)}</td>
@@ -1372,7 +1372,7 @@ function CompliancePanel() {
             R678：服务端 listComplianceChecks 已补 limit/offset 真分页（riskRoute 透传 + total 真源），
             前端 apiService.listComplianceChecks 的 {limit, offset} 补参在途（库存车道）——落地后此处接「加载更多」替换本提示 */}
         {!loading && !loadError && checks.length >= 50 && (
-          <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+          <div className="px-4 py-2 text-xs" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
             当前为服务端默认最近 50 条窗口，更早记录请用上方类型/结果筛选缩小范围
           </div>
         )}
@@ -1476,7 +1476,7 @@ function SanctionedCountriesCard() {
               </span>
             ))}
             {items.length === 0 && (
-              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>清单为空，请先添加条目</span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>清单为空，请先添加条目</span>
             )}
           </div>
           <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
@@ -1508,7 +1508,7 @@ function SanctionedCountriesCard() {
               </button>
             </div>
           </div>
-          <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             目的国与任一条目精确匹配（大小写不敏感）即判定命中禁运；保存后立即作用于出口管制检查。
           </div>
         </>
@@ -1567,7 +1567,7 @@ function QualityPanel() {
       {loadError && <LoadErrorBanner message={loadError} onRetry={loadTrends} />}
       {/* 操作条 */}
       <div className="bds-card shrink-0 flex items-center gap-2 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-        <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>分组</span>
+        <span className="text-xs shrink-0" style={{ color: 'var(--text-tertiary)' }}>分组</span>
         <div className="bds-segment">
           {(['factory', 'quarter'] as const).map((g) => (
             <button
@@ -1640,7 +1640,7 @@ function QualityPanel() {
                     <td>
                       <span className="flex items-center gap-1 flex-wrap">
                         {item.defectKeywords.length === 0 ? (
-                          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>—</span>
+                          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>—</span>
                         ) : (
                           item.defectKeywords.slice(0, 5).map((kw) => (
                             <span key={kw.keyword} className="bds-badge sm info">
@@ -1657,7 +1657,7 @@ function QualityPanel() {
             </table>
           </div>
         )}
-        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+        <div className="px-4 py-2 text-xs" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {trends.length} 个分组
         </div>
       </div>

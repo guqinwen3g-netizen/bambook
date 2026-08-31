@@ -672,7 +672,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                             </span>
                           )}
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                        <div className="mt-1.5 flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                           <span className={`bds-badge sm ${scoreSemantic(p.qualityScore)}`}>
                             质 {Math.round(p.qualityScore)}
                           </span>
@@ -688,7 +688,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
               </div>
             )}
           </div>
-          <div className="px-4 py-2 text-[11px] flex items-center gap-2" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+          <div className="px-4 py-2 text-xs flex items-center gap-2" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
             <span>共 {total} 家工厂{profiles.length < total ? `，已加载 ${profiles.length} 家` : ''}</span>
             {profiles.length < total && (
               <button
@@ -1094,7 +1094,7 @@ function EvaluationsTab({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{ev.note || '—'}</div>
-                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                   {ev.evaluatedAt}
                   {ev.sourceType ? ` · 来源 ${SOURCE_TYPE_LABELS[ev.sourceType] || ev.sourceType}` : ''}
                 </div>
@@ -1160,10 +1160,10 @@ function CertificationsTab({
                   <div className="flex items-center gap-2">
                     <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{cert.type}</span>
                     {cert.certificateNo && (
-                      <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>No. {cert.certificateNo}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No. {cert.certificateNo}</span>
                     )}
                   </div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                     签发 {formatDate(cert.issuedAt)} · 有效期至 {cert.validUntil || '长期'}
                   </div>
                 </div>
@@ -1231,7 +1231,7 @@ function SupplierTcTrace({ relationId }: { relationId: string }) {
         <ShieldCheck className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
         <span className="text-xs" style={{ color: 'var(--text-primary)' }}>TC 交易证书追溯</span>
         <span className="text-[10px] tracking-[0.14em]" style={{ color: 'var(--text-quaternary)' }}>TC CHAIN</span>
-        <span className="ml-auto text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{items.length} 张</span>
+        <span className="ml-auto text-xs" style={{ color: 'var(--text-tertiary)' }}>{items.length} 张</span>
       </div>
       {loading ? (
         <div className="flex items-center gap-2 py-4 text-xs" style={{ color: 'var(--text-quaternary)' }}>
@@ -1244,7 +1244,7 @@ function SupplierTcTrace({ relationId }: { relationId: string }) {
       ) : (
         <div className="mt-2 space-y-1.5">
           {items.map((t) => (
-            <div key={t.id} className="flex flex-wrap items-center gap-2 text-[11px]">
+            <div key={t.id} className="flex flex-wrap items-center gap-2 text-xs">
               <span className="bds-badge sm neutral">{TC_STAGE_LABELS_SUPPLIER[t.stage] ?? t.stage}</span>
               <span className="tabular-nums" style={{ color: 'var(--text-primary)' }}>{t.tcNo}</span>
               <span className="tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
@@ -1316,7 +1316,7 @@ function CapacityTab({
                   <span className={`bds-badge sm ${semantic}`}>
                     占用 {formatNumber(occupied)}（{Math.round(ratio * 100)}%）
                   </span>
-                  {row.note && <span className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>{row.note}</span>}
+                  {row.note && <span className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{row.note}</span>}
                   {canWrite && (
                     <div className="ml-auto flex items-center gap-1">
                       <button
@@ -1491,7 +1491,7 @@ function ProfileForm({
             ]}
           />
           {relations.length === 0 && (
-            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
               暂无可建档的供应商组织，请先在「关系智库」创建 category=Supplier 的组织
             </div>
           )}

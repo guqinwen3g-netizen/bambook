@@ -191,7 +191,7 @@ export function AutomationRulesSection() {
 
           {/* 底部分隔提示 */}
           <div className={`pt-4 border-t ${sectionDividerCls}`}>
-            <p className={`text-[11px] font-light leading-relaxed ${weakTextCls}`}>
+            <p className={`text-xs font-light leading-relaxed ${weakTextCls}`}>
               所有自动联动创建的业务单据均以「草稿」状态生成，需人工审核后生效。这是 ERP 的标准设计——自动化加速流程流转，但保留人工把关节点。
             </p>
           </div>

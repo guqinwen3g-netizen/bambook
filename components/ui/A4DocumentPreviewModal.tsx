@@ -68,7 +68,7 @@ const A4DocumentPreviewModal: React.FC<A4DocumentPreviewModalProps> = ({
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-c-default)] px-6 py-4">
           <div className="min-w-0">
-            <h2 className="truncate text-[13px] font-light tracking-[0.02em] text-[var(--text-primary)]">
+            <h2 className="truncate text-sm font-light tracking-[0.02em] text-[var(--text-primary)]">
               {title}
             </h2>
             {subtitle && (

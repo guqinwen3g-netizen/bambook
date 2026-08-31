@@ -154,14 +154,14 @@ export function FreightImpactPanel() {
                     <span className={cx('bds-mono text-xs tabular-nums', textPrimary)}>{it.poNumber}</span>
                     <span className={cx('truncate text-xs font-light', textSecondary)}>{it.customer ?? '—'}</span>
                     <span className={meta.badge} title={meta.hint}>{meta.label}</span>
-                    <span className={cx('ml-auto text-[11px] font-light tabular-nums', textSecondary)}>
+                    <span className={cx('ml-auto text-xs font-light tabular-nums', textSecondary)}>
                       毛利率 {fmtPct(it.baseline.grossMargin)} → {fmtPct(it.reestimated.grossMargin)}
                       {it.deltaMargin != null && (
                         <span className={it.deltaMargin < 0 ? 'text-[var(--danger-text)]' : ''}>（{it.deltaMargin > 0 ? '+' : ''}{it.deltaMargin.toFixed(1)}pt）</span>
                       )}
                     </span>
                   </div>
-                  <div className={cx('mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] font-light tabular-nums', textSecondary)}>
+                  <div className={cx('mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs font-light tabular-nums', textSecondary)}>
                     <span>利润 {fmtCny(it.baseline.grossProfit)} → <span className={it.reestimated.grossProfit < 0 ? 'text-[var(--danger-text)]' : textPrimary}>{fmtCny(it.reestimated.grossProfit)}</span></span>
                     <span>运费 {fmtCny(it.baseline.freightCost)} → {fmtCny(it.reestimated.freightCost)}</span>
                     <span className={it.deltaProfit < 0 ? 'text-[var(--danger-text)]' : ''}>Δ {fmtCny(it.deltaProfit)}</span>

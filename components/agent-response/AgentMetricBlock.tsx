@@ -14,7 +14,7 @@ export const AgentMetricBlock: React.FC<AgentBlockComponentProps<AgentMetricBloc
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {block.metrics.map(metric => (
         <div key={metric.id} className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
-          <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{metric.label}</div>
+          <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{metric.label}</div>
           <div className={`mt-2 text-xl font-light ${metricToneClass(metric.tone || '', isDarkMode)}`}>{metric.value}</div>
           {metric.delta && <div className={`mt-1 text-xs ${quietTextClass}`}>{metric.delta}</div>}
         </div>

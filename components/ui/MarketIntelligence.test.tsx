@@ -51,7 +51,8 @@ describe('ExchangeScreen', () => {
 
         expect(html).toContain('data-ui-lab-wallpaper-contrast="muted"');
         expect(html).toContain('Forex Markets');
-        expect(html).toContain('text-[13px] font-normal tracking-[0.04em] text-os-adaptive-subtitle');
+        // 2026-09-01 字号归一拍板：text-[13px] 已归一为语义类 text-sm
+        expect(html).toContain('text-sm font-normal tracking-[0.04em] text-os-adaptive-subtitle');
         expect(html).not.toContain('FOREX MARKETS');
         expect(html).not.toContain('RAW MATERIALS');
         expect(html).not.toContain('style="color:#94A3B8"');

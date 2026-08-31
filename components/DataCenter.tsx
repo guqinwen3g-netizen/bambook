@@ -86,7 +86,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
               <Sparkles size={18} strokeWidth={1.25} className={`mt-0.5 shrink-0 text-[var(--text-tertiary)]`} />
               <div className="min-w-0">
                 <h2 className={`text-base font-light text-[var(--text-primary)]`}>企业知识智能问答</h2>
-                <p className={`mt-1 text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]`}>
+                <p className={`mt-1 text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
                   向量检索企业知识语料（邮件 / 文档 / SOP / 历史问答），LLM 流式生成回答并列出命中片段；有价值的一键归档回知识库。
                 </p>
               </div>
@@ -117,7 +117,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                 <button
                   onClick={handleAsk}
                   disabled={qaBusy || !qaQuestion.trim()}
-                  className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                  className={`px-5 py-2 rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                 >
                   {qaBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1.25} />}
                   {qaBusy ? '检索回答中…' : '提问'}
@@ -133,14 +133,14 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
             {(qaAnswer || qaBusy) && (
               <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)]`}>
                 <div className={`mb-3 text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]`}>回答</div>
-                <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed text-[var(--text-secondary)]`}>
+                <p className={`whitespace-pre-wrap text-sm font-light leading-relaxed text-[var(--text-secondary)]`}>
                   {qaAnswer}
                   {qaBusy && <span className="inline-block w-2 h-4 ml-0.5 align-middle animate-pulse bg-current opacity-40" />}
                 </p>
                 {!qaBusy && qaAnswer.trim() && (
                   <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 border-[var(--border-c-default)]`}>
                     {qaArchived ? (
-                      <span className={`text-[11px] font-light text-[var(--success-text)]`}>已归档到企业知识库</span>
+                      <span className={`text-xs font-light text-[var(--success-text)]`}>已归档到企业知识库</span>
                     ) : (
                       <>
                         <CustomSelect
@@ -154,7 +154,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                         <button
                           onClick={handleArchiveQa}
                           disabled={qaArchiving}
-                          className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                          className={`px-4 py-2 rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                         >
                           {qaArchiving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} strokeWidth={1.25} />}
                           归档此问答
@@ -174,10 +174,10 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                   {qaCitations.map((c) => (
                     <div key={c.id} className={`rounded-control border px-4 py-3 border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]`}>
                       <div className="flex items-center justify-between gap-3">
-                        <span className={`text-[11px] font-light truncate text-[var(--text-secondary)]`}>{c.title}</span>
+                        <span className={`text-xs font-light truncate text-[var(--text-secondary)]`}>{c.title}</span>
                         <span className={`shrink-0 text-[9px] font-light tracking-wide text-[var(--text-tertiary)]`}>{Math.round(c.score * 100)}%</span>
                       </div>
-                      <p className={`mt-1 line-clamp-2 text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]`}>{c.content}</p>
+                      <p className={`mt-1 line-clamp-2 text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>{c.content}</p>
                     </div>
                   ))}
                 </div>

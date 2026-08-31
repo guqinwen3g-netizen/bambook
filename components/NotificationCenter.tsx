@@ -137,7 +137,7 @@ export function NotificationCenterTrigger({
 }: NotificationCenterTriggerProps) {
   const ctx = React.useContext(NotificationContext);
   if (!ctx) return null;
-  const { isOpen, toggle, unreadCount, criticalCount, isDarkMode } = ctx;
+  const { isOpen, toggle, unreadCount, criticalCount } = ctx;
   const hasUnread = unreadCount > 0;
   const pillClass = BAMBOOK_OS.controls.actionControl.base;
   const sizeClass = variant === 'header'
@@ -157,19 +157,22 @@ export function NotificationCenterTrigger({
     >
       <Bell size={resolvedIconSize} strokeWidth={iconStrokeWidth} />
       {hasUnread && (
-        /* 未读徽章：默认品牌 accent 蓝（与状态步骤条当前态同配方）；critical 升级为 RDL danger 实心灰阶 */
-        <span
-          className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-light leading-none
-            ${criticalCount > 0
-              ? `${statusSemanticBg('danger', isDarkMode)} text-[var(--text-primary)] ring-2 ring-[var(--border-c-strong)]`
-              : `bg-[var(--os-vnext-brand-blue)] text-[var(--text-primary)]`}
-          `}
-        >
-          {unreadCount > 99 ? '99+' : unreadCount}
+        /* 未读数字气泡：BDS 实底配方（danger/accent 实底 + on-accent 恒白字，与 btn-primary 同源，深浅模式同配方） */
+        <span className="absolute -right-1 -top-1 flex items-center justify-center">
+          {criticalCount > 0 && !isOpen && (
+            /* 危急呼吸光晕：与徽章同心同形（inset-0 跟随轮廓），微弱呼吸垫在数字层之下，永不盖字 */
+            <span className="absolute inset-0 rounded-full bg-[var(--danger)] bds-breathe" />
+          )}
+          <span
+            className={`relative flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-light leading-none
+              ${criticalCount > 0
+                ? 'bg-[var(--danger)] text-[var(--on-accent)] ring-2 ring-[var(--border-c-strong)]'
+                : 'bg-[var(--accent)] text-[var(--on-accent)]'}
+            `}
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
         </span>
-      )}
-      {criticalCount > 0 && !isOpen && (
-        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 animate-ping rounded-full bg-[var(--accent)]" />
       )}
     </button>
   );
@@ -643,7 +646,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
             {/* ── D2 偏好面板 ── */}
             {view === 'prefs' && (
               <div className="flex-1 overflow-y-auto px-4 pb-6 scroll-smooth">
-                <p className={`mb-3 px-2 text-[11px] font-light leading-relaxed ${ui.faint}`}>
+                <p className={`mb-3 px-2 text-xs font-light leading-relaxed ${ui.faint}`}>
                   关闭的类型将不再为你生成通知（不影响其他成员）。
                 </p>
                 {prefsLoading && !catalog ? (
@@ -770,7 +773,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
                               </div>
                               {/* 已办：决策意见 */}
                               {item.status !== 'pending' && item.decisionNote && (
-                                <div className={`mt-1.5 rounded-control px-2.5 py-1.5 text-[11px] font-light ${ui.chipSurface} ${dk ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>
+                                <div className={`mt-1.5 rounded-control px-2.5 py-1.5 text-xs font-light ${ui.chipSurface} ${dk ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>
                                   审批意见：{item.decisionNote}
                                 </div>
                               )}
@@ -946,7 +949,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleDismiss(item); if (e.key === 'Escape') { setDismissingId(null); setDismissReason(''); setDismissError(null); } }}
                                 placeholder="忽略原因（必填，用于优化推送准确率）"
                                 maxLength={500}
-                                className={`w-full rounded-control px-2.5 py-1.5 text-[11px] font-light outline-none ${ui.input}`}
+                                className={`w-full rounded-control px-2.5 py-1.5 text-xs font-light outline-none ${ui.input}`}
                               />
                               {dismissError && dismissingId === item.id && (
                                 <div className={`text-[10px] font-light ${statusSemanticText('danger', dk)}`}>{dismissError}</div>

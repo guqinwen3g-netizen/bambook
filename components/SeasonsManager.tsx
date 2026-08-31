@@ -477,7 +477,7 @@ function SeasonsPanel({ canWrite = true, registerNewAction }: { canWrite?: boole
             </div>
           )}
         </div>
-        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+        <div className="px-4 py-2 text-xs" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {total} 个季度{!listError && total > seasons.length ? `（仅加载前 ${seasons.length} 条，请用搜索/筛选缩小范围）` : ''}
         </div>
       </div>
@@ -560,7 +560,7 @@ function SeasonsPanel({ canWrite = true, registerNewAction }: { canWrite?: boole
                               <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{node.label}</span>
                               <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{node.key}</span>
                             </div>
-                            <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                            <div className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                               {formatDate(node.startDate)} ~ {formatDate(node.endDate)}
                             </div>
                           </div>
@@ -617,7 +617,7 @@ function SeasonsPanel({ canWrite = true, registerNewAction }: { canWrite?: boole
                         <div>
                           {review.topCustomers.map((c, idx) => (
                             <div key={`${c.customer}-${idx}`} className="flex items-center gap-3 px-4 py-2" style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}>
-                              <span className="text-[11px] w-5" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}</span>
+                              <span className="text-xs w-5" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}</span>
                               <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>{c.customer}</span>
                               <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{c.orderCount} 单</span>
                               <span className="bds-tnum text-xs" style={{ color: 'var(--text-secondary)' }}>{formatNumber(c.revenue)}</span>
@@ -859,7 +859,7 @@ function TrendsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolea
                       {TREND_TYPE_LABELS[tag.type] || tag.type}
                     </span>
                   </div>
-                  <div className="mt-1.5 flex items-center gap-2 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                  <div className="mt-1.5 flex items-center gap-2 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                     <span>{links.length} 款关联面料</span>
                     {tag.tradeShow?.name && <span>来源展会：{tag.tradeShow.name}</span>}
                     {!tag.tradeShow?.name && tag.source && <span>来源：{tag.source}</span>}
@@ -1346,7 +1346,7 @@ function ShowsPanel({ canWrite = true, registerNewAction }: { canWrite?: boolean
             </div>
           )}
         </div>
-        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+        <div className="px-4 py-2 text-xs" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {shows.length} 场展会
         </div>
       </div>
@@ -1703,7 +1703,7 @@ function SeasonForm({
             disabled={!!season}
           />
           {!season && (
-            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>格式：SS26（春夏）/ AW26（秋冬），创建后不可修改</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>格式：SS26（春夏）/ AW26（秋冬），创建后不可修改</div>
           )}
         </Field>
         <Field label="季度名称 *">
@@ -1745,7 +1745,7 @@ function SeasonForm({
           </button>
         </div>
         {calendar.length === 0 ? (
-          <div className="text-[11px] py-2" style={{ color: 'var(--text-tertiary)' }}>暂无节点，点击「添加节点」维护开发里程碑（如 开发启动 / 打样截止 / 下单截止）</div>
+          <div className="text-xs py-2" style={{ color: 'var(--text-tertiary)' }}>暂无节点，点击「添加节点」维护开发里程碑（如 开发启动 / 打样截止 / 下单截止）</div>
         ) : (
           <div className="space-y-2">
             {calendar.map((row, idx) => (
@@ -2209,7 +2209,7 @@ function ConvertLeadForm({
           />
         )}
         {!loading && relations.length === 0 && (
-          <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
             暂无客户档案，请先在「关系智库」创建 category=Customer 的客户
           </div>
         )}

@@ -655,7 +655,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           {/* Tab 切换（BDS 分段控制器；切 Tab 清空搜索词防串扰） */}
           <div className="bds-segment mb-4 flex-wrap">
             {tabs.map(t => (
@@ -1372,14 +1372,14 @@ const EmptyState: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, t
 // R678：渲染上限兜底提示（服务端分页为主；已加载条目超出渲染上限时显式披露）
 const TruncationHint: React.FC<{ loaded: number }> = ({ loaded }) =>
   loaded > MES_LIST_RENDER_LIMIT ? (
-    <div className="text-center text-[11px] py-2" style={{ color: 'var(--text-tertiary)' }}>
+    <div className="text-center text-xs py-2" style={{ color: 'var(--text-tertiary)' }}>
       已加载 {loaded} 条，仅渲染前 {MES_LIST_RENDER_LIMIT} 条（可用搜索缩小范围）
     </div>
   ) : null;
 
 // R678：服务端真分页 footer（total 为后端 count 真实计数；加载更多按 offset 追加）
 const ListPager: React.FC<{ loaded: number; total: number; loading: boolean; filterActive: boolean; onMore: () => void }> = ({ loaded, total, loading, filterActive, onMore }) => (
-  <div className="flex items-center justify-center gap-3 pt-3 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+  <div className="flex items-center justify-center gap-3 pt-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
     <span>已加载 {loaded} / 共 {total} 条{filterActive ? '（搜索/筛选仅作用于已加载条目）' : ''}</span>
     {loaded < total && (
       <button onClick={onMore} disabled={loading} className="bds-btn bds-btn-ghost">
@@ -1433,7 +1433,7 @@ const CreateFormModal: React.FC<{
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.95, opacity: 0 }}
       onClick={e => e.stopPropagation()}
-      className="bds-modal custom-scrollbar"
+      className="bds-modal"
       style={{ width: '32rem', maxHeight: '85vh', overflowY: 'auto' }}
     >
       <div className="flex items-center justify-between mb-4">

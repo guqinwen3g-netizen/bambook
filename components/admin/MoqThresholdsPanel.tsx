@@ -86,7 +86,7 @@ export const MoqThresholdsPanel: React.FC = () => {
   const effective = config ?? fallback;
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
-  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
+  const labelCls = `text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
   const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-colors duration-200 ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
   const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-colors duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const primaryTextCls = 'text-[var(--text-primary)]';
@@ -280,12 +280,12 @@ export const MoqThresholdsPanel: React.FC = () => {
                   <div className={labelCls}>{tile.label}</div>
                   <div className={`mt-1 text-sm font-light ${primaryTextCls}`}>
                     <span className="font-mono">{formatQty(tile.value)}</span>
-                    <span className={`ml-1 text-[11px] ${weakTextClsClass}`}>{tile.unit}</span>
+                    <span className={`ml-1 text-xs ${weakTextClsClass}`}>{tile.unit}</span>
                   </div>
                 </div>
               ))}
             </div>
-            <div className={`mt-4 pt-3 border-t ${sectionDividerCls} grid grid-cols-3 gap-3 text-[11px]`}>
+            <div className={`mt-4 pt-3 border-t ${sectionDividerCls} grid grid-cols-3 gap-3 text-xs`}>
               <div>
                 <div className={labelCls}>生效时间</div>
                 <div className={`mt-1 font-mono ${secondaryTextCls}`}>{formatDateTime(config?.effectiveFrom)}</div>
@@ -312,7 +312,7 @@ export const MoqThresholdsPanel: React.FC = () => {
             </div>
             <div className="min-w-0">
               <div className={`text-sm font-light ${primaryTextCls}`}>调整阈值</div>
-              <p className={`mt-0.5 text-[11px] ${weakTextClsClass}`}>
+              <p className={`mt-0.5 text-xs ${weakTextClsClass}`}>
                 仅系统管理员可调；变更原因不少于 {CHANGE_REASON_MIN} 字，保存即写入 append-only 历史。
               </p>
             </div>
@@ -354,7 +354,7 @@ export const MoqThresholdsPanel: React.FC = () => {
             </div>
           </div>
           {!valuesValid && (
-            <div className={`text-[11px] text-[var(--danger-text)]`}>三个阈值均须为正整数。</div>
+            <div className={`text-xs text-[var(--danger-text)]`}>三个阈值均须为正整数。</div>
           )}
 
           <div>
@@ -367,7 +367,7 @@ export const MoqThresholdsPanel: React.FC = () => {
               placeholder="例如：旺季产能调整，面料起订量上调至 900 米"
             />
             {!reasonValid && reasonInput.length > 0 && (
-              <div className={`mt-1 text-[11px] text-[var(--danger-text)]`}>
+              <div className={`mt-1 text-xs text-[var(--danger-text)]`}>
                 变更原因至少 {CHANGE_REASON_MIN} 字（当前 {reasonInput.trim().length} 字）。
               </div>
             )}
@@ -391,7 +391,7 @@ export const MoqThresholdsPanel: React.FC = () => {
               {saving ? '保存中...' : '保存变更'}
             </button>
             {valuesValid && !valuesChanged && (
-              <span className={`text-[11px] ${weakTextClsClass}`}>阈值与当前生效值一致，无需变更。</span>
+              <span className={`text-xs ${weakTextClsClass}`}>阈值与当前生效值一致，无需变更。</span>
             )}
           </div>
 
@@ -406,7 +406,7 @@ export const MoqThresholdsPanel: React.FC = () => {
 
           {dryRunResults && (
             <div className={`rounded-control border p-4 space-y-2 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
-              <div className={`text-[11px] ${weakTextClsClass}`}>
+              <div className={`text-xs ${weakTextClsClass}`}>
                 dry-run 不写库、不建审批单：以现行阈值为基准数量，用拟变更阈值口径评估三条业务线。
               </div>
               {dryRunResults.map(({ probe, verdict }) => (
@@ -484,10 +484,10 @@ export const MoqThresholdsPanel: React.FC = () => {
             {history.map(item => (
               <div key={item.id} className={`rounded-control border p-4 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <span className={`font-mono text-[11px] ${weakTextClsClass}`}>{formatDateTime(item.changedAt)}</span>
-                  <span className={`font-mono text-[11px] ${secondaryTextCls}`}>{item.changedBy}</span>
+                  <span className={`font-mono text-xs ${weakTextClsClass}`}>{formatDateTime(item.changedAt)}</span>
+                  <span className={`font-mono text-xs ${secondaryTextCls}`}>{item.changedBy}</span>
                 </div>
-                <div className={`mt-2 grid grid-cols-3 gap-3 text-[11px] ${secondaryTextCls}`}>
+                <div className={`mt-2 grid grid-cols-3 gap-3 text-xs ${secondaryTextCls}`}>
                   <div>
                     <span className={weakTextClsClass}>面料（米） </span>
                     <span className="font-mono">{formatQty(item.beforeFabricDefaultMoq)} → {formatQty(item.afterFabricDefaultMoq)}</span>

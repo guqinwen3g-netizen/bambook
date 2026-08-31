@@ -281,11 +281,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       >
         <span className={`shrink-0 ${idleTextClass}`}><Icon size={16} strokeWidth={1.5} /></span>
         <span className="flex-1 min-w-0">
-          <span className={`block truncate text-[13px] font-light ${titleTextClass}`}>
+          <span className={`block truncate text-sm font-light ${titleTextClass}`}>
             {item.kind === 'view' ? item.label : item.title}
           </span>
           {item.kind === 'record' && item.subtitle && (
-            <span className={`block truncate text-[11px] font-light ${idleTextClass}`}>{item.subtitle}</span>
+            <span className={`block truncate text-xs font-light ${idleTextClass}`}>{item.subtitle}</span>
           )}
         </span>
         {item.kind === 'view' && (
@@ -324,7 +324,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="搜索客户、订单、产品、发票、知识、邮件，或前往模块…"
-            className={`flex-1 bg-transparent outline-none text-[15px] font-light placeholder:font-light ${titleTextClass} placeholder:text-[var(--text-tertiary)]`}
+            className={`flex-1 bg-transparent outline-none text-base font-light placeholder:font-light ${titleTextClass} placeholder:text-[var(--text-tertiary)]`}
           />
           <kbd className={`shrink-0 px-1.5 py-0.5 rounded-bds-sm text-[10px] font-light bg-[var(--active-darken)] text-[var(--text-tertiary)]`}>ESC</kbd>
         </div>
@@ -332,7 +332,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* 结果列表 */}
         <div ref={listRef} className="flex-1 overflow-y-auto py-2">
           {flatItems.length === 0 && (
-            <div className={`px-5 py-10 text-center text-[13px] font-light ${idleTextClass}`}>
+            <div className={`px-5 py-10 text-center text-sm font-light ${idleTextClass}`}>
               未找到「{query}」相关结果
             </div>
           )}

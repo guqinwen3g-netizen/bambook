@@ -566,7 +566,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           {/* Tab 导航（BDS Tabs 下划线式） */}
           <div className="bds-tabs mb-4">
             {tabs.map(t => (
@@ -931,7 +931,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                             {ev.actorId && <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>操作人: {ev.actorId}</span>}
                                           </div>
                                           {ev.note && (
-                                            <div className="mt-1 px-2 py-1 rounded-inset text-[11px] bds-inset" style={{ color: 'var(--text-tertiary)' }}>{ev.note}</div>
+                                            <div className="mt-1 px-2 py-1 rounded-inset text-xs bds-inset" style={{ color: 'var(--text-tertiary)' }}>{ev.note}</div>
                                           )}
                                         </div>
                                       </div>

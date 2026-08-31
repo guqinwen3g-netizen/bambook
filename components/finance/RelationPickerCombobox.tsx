@@ -117,7 +117,7 @@ const RelationPickerCombobox: React.FC<RelationPickerComboboxProps> = ({
               type="button"
               onClick={() => { onChange('', undefined); setQuery(''); setOpen(false); }}
               className={cx(
-                'w-full px-3 py-2 text-left text-[11px] font-light transition-colors hover:bg-[var(--hover-darken)]',
+                'w-full px-3 py-2 text-left text-xs font-light transition-colors hover:bg-[var(--hover-darken)]',
                 value === '' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]',
               )}
             >
@@ -125,7 +125,7 @@ const RelationPickerCombobox: React.FC<RelationPickerComboboxProps> = ({
             </button>
           )}
           {matches.length === 0 ? (
-            <div className="flex items-center gap-2 px-3 py-3 text-[11px] font-light text-[var(--text-tertiary)]">
+            <div className="flex items-center gap-2 px-3 py-3 text-xs font-light text-[var(--text-tertiary)]">
               <Search size={12} />
               <span>无匹配档案，请更换关键字</span>
             </div>
@@ -136,7 +136,7 @@ const RelationPickerCombobox: React.FC<RelationPickerComboboxProps> = ({
                 type="button"
                 onClick={() => { onChange(r.id, r); setQuery(''); setOpen(false); }}
                 className={cx(
-                  'flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[11px] transition-colors hover:bg-[var(--hover-darken)]',
+                  'flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-[var(--hover-darken)]',
                   r.id === value ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]',
                 )}
               >

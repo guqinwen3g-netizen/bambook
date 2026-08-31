@@ -180,7 +180,7 @@ export function OrderProcessChainPanel({ orderId, relations = [] }: OrderProcess
   }, [load]);
 
   const chipCls = (active: boolean) => cx(
-    'rounded-full border px-3 py-1 text-[11px] font-light transition-colors',
+    'rounded-full border px-3 py-1 text-xs font-light transition-colors',
     active
       ? 'border-[var(--accent-tint)] bg-[var(--accent-tint-light)] text-[var(--text-primary)]'
       : 'border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]',
@@ -236,12 +236,12 @@ export function OrderProcessChainPanel({ orderId, relations = [] }: OrderProcess
                 <span className={cx('text-xs font-light tabular-nums', textPrimary)}>{n.seq}</span>
                 <span className="bds-badge sm neutral">{TYPE_LABEL[n.processType] ?? n.processType}</span>
                 <span className={cx('bds-badge sm uppercase', statusBadge(n.status))}>{STATUS_LABEL[n.status]}</span>
-                {n.supplierName && <span className={cx('text-[11px] font-light', textSecondary)}>{n.supplierName}</span>}
-                <span className={cx('ml-auto text-[11px] font-light tabular-nums', textPrimary)}>
+                {n.supplierName && <span className={cx('text-xs font-light', textSecondary)}>{n.supplierName}</span>}
+                <span className={cx('ml-auto text-xs font-light tabular-nums', textPrimary)}>
                   {fmtAmount(Number(n.amount))}{estimate ? <span className={textFaint}>（预估）</span> : null}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-light tabular-nums">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-light tabular-nums">
                 <span className={textSecondary}>投入 {fmtQty(Number(n.inputQty))} {n.unit}</span>
                 <ArrowRight size={14} strokeWidth={1.5} className={textFaint} />
                 <span className={textSecondary}>产出 {n.outputQty != null ? `${fmtQty(Number(n.outputQty))} ${n.unit}` : '—'}</span>
@@ -356,7 +356,7 @@ export function OrderProcessChainPanel({ orderId, relations = [] }: OrderProcess
       {/* 完工登记 BottomSheet */}
       <BottomSheet isOpen={completeFor !== null} onClose={() => setCompleteFor(null)} title={`完工登记 · 工序 ${completeFor?.seq ?? ''}（${completeFor ? TYPE_LABEL[completeFor.processType] : ''}）`}>
         <div className="space-y-4 px-6 py-5">
-          <div className={cx('text-[11px] font-light tabular-nums', textSecondary)}>
+          <div className={cx('text-xs font-light tabular-nums', textSecondary)}>
             投入量 {completeFor ? fmtQty(Number(completeFor.inputQty)) : '—'} {completeFor?.unit} · 计划单价 {completeFor ? Number(completeFor.unitPrice).toFixed(2) : '—'} CNY
           </div>
           <div className="flex flex-wrap gap-3">
@@ -370,7 +370,7 @@ export function OrderProcessChainPanel({ orderId, relations = [] }: OrderProcess
             </div>
           </div>
           {formOutputQty && completeFor && Number(formOutputQty) <= Number(completeFor.inputQty) && (
-            <div className={cx('text-[11px] font-light tabular-nums', textSecondary)}>
+            <div className={cx('text-xs font-light tabular-nums', textSecondary)}>
               预计损耗 {((Number(completeFor.inputQty) - Number(formOutputQty)) / Number(completeFor.inputQty) * 100).toFixed(2)}% ·
               金额 {(Number(formOutputQty) * (formActualPrice ? Number(formActualPrice) : Number(completeFor.unitPrice))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CNY
             </div>

@@ -197,7 +197,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
 
               {/* Tool Content with Fade */}
               <div className="flex-1 min-h-0 relative">
-                <div ref={toolContentScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar p-1">
+                <div ref={toolContentScrollRef} className="absolute inset-0 overflow-y-auto p-1">
                   {tools.find(t => t.id === selectedTool)?.component}
                 </div>
               </div>
@@ -211,7 +211,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="flex-1 min-h-0 flex flex-col relative"
             >
-              <div ref={toolsScrollRef} className="absolute inset-0 overflow-y-auto custom-scrollbar px-8 pb-12 pt-3">
+              <div ref={toolsScrollRef} className="absolute inset-0 overflow-y-auto px-8 pb-12 pt-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {tools.map((tool, index) => (
                     <motion.div
@@ -254,7 +254,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         <h3 className="relative z-10 text-base font-light tracking-tight text-[var(--text-primary)]">
                           {tool.name}
                         </h3>
-                        <p className="relative z-10 text-[12px] mt-2 leading-relaxed font-light text-[var(--text-tertiary)]">
+                        <p className="relative z-10 text-xs mt-2 leading-relaxed font-light text-[var(--text-tertiary)]">
                           {tool.description}
                         </p>
 

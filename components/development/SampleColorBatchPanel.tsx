@@ -340,7 +340,7 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span className={cx('font-light tabular-nums', textPrimary)}>缸 {b.dyeLotNo}</span>
               {b.colorCode && (
-                <span className={cx('inline-flex items-center gap-1.5 text-[11px] font-light', textSecondary)} title={colorCodeMap.get(b.colorCode)?.name ?? b.colorCode}>
+                <span className={cx('inline-flex items-center gap-1.5 text-xs font-light', textSecondary)} title={colorCodeMap.get(b.colorCode)?.name ?? b.colorCode}>
                   <span
                     aria-hidden
                     className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-[var(--border-c-default)]"
@@ -349,7 +349,7 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
                   {b.colorCode}
                 </span>
               )}
-              {b.batchNo && <span className={cx('text-[11px]', textSecondary)}>{b.batchNo}</span>}
+              {b.batchNo && <span className={cx('text-xs', textSecondary)}>{b.batchNo}</span>}
               {b.roundNo != null && stage === 'lab_dip' && <span className={cx('text-[10px]', textFaint)}>第 {b.roundNo} 轮</span>}
               <span className={ratingBadgeClass(b.colorRating)}>{b.colorRating} 级 · {COLOR_RATING_LABELS[b.colorRating]}</span>
               {b.defectCauses.map(c => (
@@ -358,12 +358,12 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
               {b.approvedAsSealed && (
                 <span className="bds-badge sm success"><Star size={14} strokeWidth={1.5} className="inline" /> 封样基准</span>
               )}
-              <span className={cx('ml-auto text-[11px] font-light', textSecondary)}>
+              <span className={cx('ml-auto text-xs font-light', textSecondary)}>
                 {COLOR_BATCH_STATUS_LABELS[b.customerStatus]}{b.supplierName ? ` · ${b.supplierName}` : ''}
               </span>
             </div>
             {b.customerFeedbackNote && (
-              <div className={cx('mt-1 truncate text-[11px] font-light', textSecondary)}>客户意见：{b.customerFeedbackNote}</div>
+              <div className={cx('mt-1 truncate text-xs font-light', textSecondary)}>客户意见：{b.customerFeedbackNote}</div>
             )}
             {/* 判定操作区（pending / needs_recast 可判定；终态只读；R6 无写权限只读） */}
             {canWrite && (b.customerStatus === 'pending' || b.customerStatus === 'needs_recast') && (
@@ -469,12 +469,12 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
                   {colorHistoryLoading && <Loader2 size={14} className="animate-spin" />}
                 </div>
                 {colorHistory != null && colorHistory.length === 0 && (
-                  <div className={cx('px-1 text-[11px] font-light', textFaint)}>该色号暂无历史打色记录</div>
+                  <div className={cx('px-1 text-xs font-light', textFaint)}>该色号暂无历史打色记录</div>
                 )}
                 {colorHistory != null && colorHistory.length > 0 && (
                   <div className="space-y-1">
                     {colorHistory.slice(0, 5).map(h => (
-                      <div key={h.id} className={cx('flex items-center gap-2 rounded-control px-2.5 py-1.5 text-[11px] font-light', 'bg-[var(--recessed-bg)]')}>
+                      <div key={h.id} className={cx('flex items-center gap-2 rounded-control px-2.5 py-1.5 text-xs font-light', 'bg-[var(--recessed-bg)]')}>
                         <span className={cx('tabular-nums', textPrimary)}>缸 {h.dyeLotNo}</span>
                         {h.colorCode !== formColorCard.code && <span className={cx('text-[10px]', textFaint)}>{h.colorCode}</span>}
                         <span className={ratingBadgeClass(h.colorRating)}>{h.colorRating} 级</span>

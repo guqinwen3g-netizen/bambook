@@ -251,7 +251,7 @@ export default function DunningSheet({
         <div className="flex shrink-0 items-start justify-between px-6 pb-3 pt-5">
           <div>
             <h3 className={cx('text-base font-light tracking-tight', textPrimary)}>催款函 · {customerName}</h3>
-            <div className={cx('mt-1 text-[11px] font-light', textSecondary)}>
+            <div className={cx('mt-1 text-xs font-light', textSecondary)}>
               {currency} 逾期账款
               {letter ? ` · ${formatMoney(letter.summary.totalOverdue, letter.summary.currency)} · ${letter.summary.invoiceCount} 张发票 · 截至 ${letter.summary.asOf}` : ''}
             </div>
@@ -289,12 +289,12 @@ export default function DunningSheet({
               <RdlSurface tone="panel" padding="compact" className="flex flex-col">
                 <div className="flex items-center justify-between border-b px-3 pb-2 pt-1">
                   <div className="flex items-center gap-1.5">
-                    <RdlPill type="button" active={langTab === 'zh'} onClick={() => setLangTab('zh')} className="min-h-7 px-2.5 text-[11px]">中文函</RdlPill>
-                    <RdlPill type="button" active={langTab === 'en'} onClick={() => setLangTab('en')} className="min-h-7 px-2.5 text-[11px]">English</RdlPill>
+                    <RdlPill type="button" active={langTab === 'zh'} onClick={() => setLangTab('zh')} className="min-h-7 px-2.5 text-xs">中文函</RdlPill>
+                    <RdlPill type="button" active={langTab === 'en'} onClick={() => setLangTab('en')} className="min-h-7 px-2.5 text-xs">English</RdlPill>
                   </div>
                   <button
                     onClick={handlePrint}
-                    className={cx('flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-[11px] font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
+                    className={cx('flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-xs font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
                   >
                     <Printer size={14} /> 打印 / PDF（中英合版）
                   </button>
@@ -309,7 +309,7 @@ export default function DunningSheet({
                       active={letterStage === s}
                       onClick={() => switchStage(s)}
                       disabled={loading}
-                      className="min-h-7 px-2.5 text-[11px]"
+                      className="min-h-7 px-2.5 text-xs"
                     >
                       {DUNNING_STAGE_LABELS[s]}
                     </RdlPill>
@@ -319,7 +319,7 @@ export default function DunningSheet({
                   </span>
                 </div>
                 <div className="px-3 pb-2 pt-2">
-                  <div className={cx('text-[11px] font-light', textSecondary)}>主题 Subject</div>
+                  <div className={cx('text-xs font-light', textSecondary)}>主题 Subject</div>
                   <div className={cx('mt-0.5 text-xs font-light', textPrimary)}>{current?.subject}</div>
                   <div className={cx('mt-2 whitespace-pre-wrap text-xs font-light leading-relaxed', textPrimary)}>{current?.body}</div>
                 </div>
@@ -335,7 +335,7 @@ export default function DunningSheet({
                     <div className={cx('mb-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>渠道</div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {CHANNEL_OPTIONS.map(c => (
-                        <RdlPill key={c.value} type="button" active={channel === c.value} onClick={() => setChannel(c.value)} className="min-h-7 px-2.5 text-[11px]">{c.label}</RdlPill>
+                        <RdlPill key={c.value} type="button" active={channel === c.value} onClick={() => setChannel(c.value)} className="min-h-7 px-2.5 text-xs">{c.label}</RdlPill>
                       ))}
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export default function DunningSheet({
                     <div className={cx('mb-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>结果</div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {RESULT_OPTIONS.map(r => (
-                        <RdlPill key={r.value} type="button" active={result === r.value} onClick={() => setResult(r.value)} className="min-h-7 px-2.5 text-[11px]">{r.label}</RdlPill>
+                        <RdlPill key={r.value} type="button" active={result === r.value} onClick={() => setResult(r.value)} className="min-h-7 px-2.5 text-xs">{r.label}</RdlPill>
                       ))}
                     </div>
                   </div>

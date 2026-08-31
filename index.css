@@ -21,7 +21,7 @@
 @import '@fontsource/jetbrains-mono/300.css';
 
 /* Design system tokens — os-vnext.css 为权威 token 源 + flat-experimental.css 为正式 flat 覆盖层.
-   design-system.css 已退役（legacy，类名/变量在 tsx 中零引用）.
+   design-system.css 已删除（2026-09-01 物理退役；legacy 死文件，运行时零引用，幽灵类名 custom-scrollbar/scrollbar-custom 已同步清除）.
    ui-lab-2-experimental.css 已删除（死代码，从未被 import）. */
 @import './styles/os-vnext.css';
 @import './styles/flat-experimental.css';
@@ -604,26 +604,8 @@ body.bambook-agent-pet-host #root {
 }
 
 :root {
-    --dna-radius: 18px;
-    --hologram-blue: #4A90E2;
-    --hologram-emerald: #34C759;
-    --hologram-slate: #1C1C1E;
-    --hologram-glow: rgba(74, 144, 226, 0.3);
-
-    /* iOS 26 Glass System */
-    --glass-bg: rgba(255, 255, 255, 0.65);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-
-    /* confirmed Ethereal Horizon Palette */
-    --horizon-sky: #4A90E2;
-    /* Horizon Sky (Branding / Strong Headings) */
-    --horizon-mist: #BCE6F8;
-    /* Ethereal Mist (Decorative symbols / Subtle Bars) */
-    --horizon-midnight: #050B14;
-    /* Deep Midnight (The new black / Dark mode base) */
-    --horizon-slate: #94A3B8;
-    /* Neural Slate (Soft multi-text grey) */
+    /* 2026-09-01 F2 死代码清扫：已删 hologram/glass/horizon 孤儿 token 族（全仓 var() 零消费），
+       连同 flat-experimental.css 中对应的 --glass-border 压制赋值。 */
 
     /* Typography - Urbanist first across the app.
        Urbanist (Latin UI/display) → HarmonyOS Sans SC (designer-chosen CJK,
@@ -687,160 +669,18 @@ body {
 /* ========================================
    DARK MODE OVERRIDES
    ======================================== */
+/* 2026-09-01 雾蓝频道：死黑实底 #0D0D11 退役——根元素底色消费 BDS token（--bg-page
+   随 .dark 解析为 #14232F 雾蓝），aurora 渐变浮于其上（tokens.css --page-aurora）。 */
 .dark body,
 .dark {
-    background-color: #0D0D11;
+    background-color: var(--bg-page, #0D0D11);
     color: #E5E5EA;
-}
-
-.dark .holographic-card {
-    background: rgba(30, 30, 35, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-}
-
-.dark .holographic-panel {
-    background: rgba(25, 25, 30, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.dark .ios-glass-card {
-    background: rgba(25, 25, 30, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.05),
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-        0 8px 32px -8px rgba(0, 0, 0, 0.5);
-}
-
-.dark .ios-glass-card:hover {
-    background: rgba(30, 30, 35, 0.6);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.1),
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-        0 16px 48px -12px rgba(0, 0, 0, 0.6);
-}
-
-.dark .ios-glass-btn {
-    background: rgba(40, 40, 50, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark .glass-pill {
-    background: rgba(40, 40, 50, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark .glass-panel,
 .dark .liquid-glass-card {
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-}
-
-.holographic-card {
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: saturate(180%) blur(25px);
-    -webkit-backdrop-filter: saturate(180%) blur(25px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: var(--dna-radius);
-    box-shadow: var(--glass-shadow);
-}
-
-.holographic-panel {
-    background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: var(--dna-radius);
-}
-
-.dna-button {
-    border-radius: 14px;
-    /* Tighter button radius */
-    transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-.dna-button:active {
-    transform: scale(0.96);
-    opacity: 0.8;
-}
-
-.glass-pill {
-    background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 9999px;
-    padding: 6px 18px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    /* pill 家族单行保护（2026-08-31 pill 审计） */
-    white-space: nowrap;
-}
-
-/* iOS 26 Glass Card with Luminous Edge */
-.ios-glass-card {
-    background: rgba(255, 255, 255, 0.35);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 24px;
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.1),
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
-        inset 0 -1px 0 0 rgba(255, 255, 255, 0.2),
-        0 8px 32px -8px rgba(0, 0, 0, 0.08);
-    transition: all 0.2s ease;
-}
-
-.ios-glass-card:hover {
-    background: rgba(255, 255, 255, 0.5);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.2),
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
-        inset 0 -1px 0 0 rgba(255, 255, 255, 0.3),
-        0 16px 48px -12px rgba(0, 0, 0, 0.12);
-}
-
-/* iOS 26 Glass Button with Luminous Edge */
-.ios-glass-btn {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 12px;
-    box-shadow:
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
-        inset 0 -1px 0 0 rgba(255, 255, 255, 0.2),
-        0 2px 8px -2px rgba(0, 0, 0, 0.08);
-    transition: all 0.15s ease;
-}
-
-.ios-glass-btn:hover {
-    background: rgba(255, 255, 255, 0.6);
-    box-shadow:
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
-        inset 0 -1px 0 0 rgba(255, 255, 255, 0.3),
-        0 4px 12px -2px rgba(0, 0, 0, 0.12);
-}
-
-/* iOS 26 Dark Glass Button */
-.ios-dark-glass-btn {
-    background: rgba(30, 30, 30, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow:
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-        0 2px 8px -2px rgba(0, 0, 0, 0.3);
-    transition: all 0.15s ease;
-}
-
-.ios-dark-glass-btn:hover {
-    background: rgba(20, 20, 20, 0.9);
-    box-shadow:
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-        0 4px 16px -4px rgba(0, 0, 0, 0.4);
 }
 
 /* ========================================
@@ -1247,117 +1087,6 @@ html:not(.dark) :where(.ui-lab-real-os-root, .bambook-os-root) .bambook-tertiary
 /* Micro-texture Grain */
 /* Micro-texture Grain - Removed for cleaner transparency */
 /* .liquid-glass-card::after { ... } */
-
-/* Enhanced Animations */
-@keyframes pulse-hologram {
-
-    0%,
-    100% {
-        opacity: 0.3;
-        filter: blur(25px);
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.6;
-        filter: blur(45px);
-        transform: scale(1.05);
-    }
-}
-
-.animate-hologram {
-    animation: pulse-hologram 8s infinite ease-in-out;
-}
-
-/* Background Color Breathing Effect */
-@keyframes breathe-colors {
-
-    0%,
-    100% {
-        background-position: 0% 50%;
-        filter: hue-rotate(0deg) brightness(1);
-        box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.3);
-        border-color: rgba(255, 255, 255, 0.6);
-    }
-
-    50% {
-        background-position: 100% 50%;
-        filter: hue-rotate(5deg) brightness(1.02);
-        box-shadow: 0 20px 70px -10px rgba(100, 150, 255, 0.15);
-        /* Keep shadow static but glowy */
-        border-color: rgba(255, 255, 255, 0.9);
-    }
-}
-
-.animate-breathe-subtle {
-    background-size: 200% 200%;
-    /* Important for gradient movement */
-    animation: breathe-colors 8s ease-in-out infinite;
-}
-
-/* 
-   True Edge Runner Effect 
-   Uses a mask to limit visibility strictly to the border area 
-*/
-.active-edge-light {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    /* Follows parent rounded corners exactly */
-    padding: 2px;
-    /* This defines the WIDTH of the running light border */
-
-    /* The magic mask: clips everything EXCEPT the padding area (the border) */
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-
-    pointer-events: none;
-    z-index: 50;
-    /* Sits on top of glass to be very visible */
-    
-    /* Apple Intelligence smooth activation transition */
-    opacity: 0;
-    transform: scale(0.995);
-    animation: ai-edge-activate 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes ai-edge-activate {
-    0% { opacity: 0; transform: scale(0.985); filter: blur(4px); }
-    100% { opacity: 1; transform: scale(1); filter: blur(0px); }
-}
-
-.active-edge-light::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 200%;
-    height: 200%;
-    /* Oversize to ensure coverage during rotation */
-    transform: translate(-50%, -50%);
-
-    /* The Beam: Apple Intelligence inspired richer palette (Blue -> Purple -> Orange -> Green) */
-    background: conic-gradient(from 0deg, transparent 40%, rgba(0, 122, 255, 0.1) 60%, rgba(168, 85, 247, 0.6) 80%, #ff9500 90%, #34C759 100%);
-
-    /* Infinite smooth rotation */
-    animation: rotate-edge 4s linear infinite;
-}
-
-@keyframes rotate-edge {
-    0% {
-        transform: translate(-50%, -50%) rotate(0deg);
-    }
-    100% {
-        transform: translate(-50%, -50%) rotate(360deg);
-    }
-}
-
-.neural-grid-bg {
-    background-image: radial-gradient(#d1d1d6 1px, transparent 1px);
-    background-size: 20px 20px;
-}
 
 /* ==========================================
    CUSTOM UTILITIES - 字体工具类
@@ -1810,74 +1539,9 @@ body {
     transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* Missing Animations Polyfill for tailwindcss-animate compatibility */
-.animate-in {
-    animation-duration: 0.5s;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    animation-fill-mode: both;
-}
-
-.fade-in {
-    animation-name: keyframe-fade-in;
-}
-
-.zoom-in {
-    animation-name: keyframe-zoom-in;
-}
-
-.slide-in-from-bottom-4 {
-    animation-name: keyframe-slide-in-bottom-4;
-}
-
-.slide-in-from-right {
-    animation-name: keyframe-slide-in-right;
-}
-
-@keyframes keyframe-fade-in {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes keyframe-zoom-in {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes keyframe-slide-in-bottom-4 {
-    from {
-        opacity: 0;
-        transform: translateY(1rem);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes keyframe-slide-in-right {
-    from {
-        opacity: 0;
-        transform: translateX(100%);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
+/* 2026-09-01 删除「Missing Animations Polyfill」（animate-in/fade-in/zoom-in/
+   slide-in-from-* 五类 + 4 组 keyframes）：tailwindcss-animate 假类已全站清除
+   （P0-6 批次 25 处），本 polyfill 零消费者成死 CSS，连带退役。 */
 
 @keyframes dashboard-live-scan {
     0% {

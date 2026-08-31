@@ -137,7 +137,7 @@ const InfoSection: React.FC<{
             >
                 <div className={`flex items-center gap-2 mb-2.5 pb-2 border-b ${sectionDividerClass}`}>
                     <span className="text-[var(--text-secondary)]">{icon}</span>
-                    <h4 className={`text-[11px] font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
+                    <h4 className={`text-xs font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
                         {title}
                     </h4>
                 </div>
@@ -858,7 +858,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                           <InfoSection title="AI 标签" icon={<Tag size={14} />} isDarkMode={isDarkMode}>
                             <div className="flex flex-wrap gap-1.5">
                               {(data.tags || []).map((tag: string, i: number) => (
-                                <span key={i} className={`px-2 py-0.5 rounded-bds-sm text-[11px] font-light ${accentChipClass}`}>{tag}</span>
+                                <span key={i} className={`px-2 py-0.5 rounded-bds-sm text-xs font-light ${accentChipClass}`}>{tag}</span>
                               ))}
                             </div>
                           </InfoSection>

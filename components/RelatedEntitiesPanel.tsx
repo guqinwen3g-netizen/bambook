@@ -175,7 +175,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
                       title={`${n.label || n.id}（${n.type} · ${n.direction === 'out' ? '指向' : '被指向'}）`}
                       className={rowCls}
                     >
-                      <span className="truncate text-[13px] font-light">{n.label || n.id}</span>
+                      <span className="truncate text-sm font-light">{n.label || n.id}</span>
                       <span className={`flex shrink-0 items-center gap-2 text-[10px] font-light ${mutedCls}`}>
                         {n.type} · {n.direction === 'out' ? '指向' : '被指向'}
                         {onSelectNeighbor && <ExternalLink size={14} strokeWidth={1.5} />}
@@ -190,7 +190,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
       )}
 
       {!loading && !error && truncated && (
-        <p className={`mt-2.5 text-[11px] font-light ${mutedCls}`}>
+        <p className={`mt-2.5 text-xs font-light ${mutedCls}`}>
           关联数量已达单次查询上限（每类 {limit} 条），可能存在未显示的关联，请从对应业务模块查看完整列表
         </p>
       )}

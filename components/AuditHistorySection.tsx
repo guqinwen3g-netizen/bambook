@@ -106,7 +106,7 @@ export const AuditHistorySection: React.FC<AuditHistorySectionProps> = ({
   const spec = createOrderUiSpec(isDarkMode);
   const mutedCls = spec.textMuted;
   // 审计行与关联行（RelatedEntitiesPanel）同一 rowPillSurface 材质 + 对齐的布局
-  const rowCls = `flex items-center gap-3 rounded-full border px-4 py-2 text-left text-[13px] font-light ${spec.rowPillSurface}`;
+  const rowCls = `flex items-center gap-3 rounded-full border px-4 py-2 text-left text-sm font-light ${spec.rowPillSurface}`;
 
   return (
     <SidePanelContainer
@@ -154,7 +154,7 @@ export const AuditHistorySection: React.FC<AuditHistorySectionProps> = ({
         <div className="flex flex-col gap-1.5">
           {logs.map(log => (
             <div key={log.id} className={rowCls}>
-              <span className={`shrink-0 whitespace-nowrap tabular-nums text-[11px] ${mutedCls}`}>
+              <span className={`shrink-0 whitespace-nowrap tabular-nums text-xs ${mutedCls}`}>
                 {formatTime(log.createdAt)}
               </span>
               <span className={`shrink-0 whitespace-nowrap ${spec.textSecondary}`}>

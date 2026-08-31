@@ -12,7 +12,7 @@ export const AgentNextActionsBlock: React.FC<AgentBlockComponentProps<AgentNextA
 
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
-      <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '下一步'}</div>
+      <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '下一步'}</div>
       <div className="mt-3 flex flex-col gap-2">
         {block.actions.map(action => (
           <button

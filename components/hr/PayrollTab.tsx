@@ -217,7 +217,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
   };
 
   const subPillCls = (active: boolean) =>
-    `h-8 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${
+    `h-8 px-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 ${
       active
         ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
         : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
@@ -283,7 +283,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
           <div className="grid flex-1 min-h-0 grid-cols-[280px_minmax(0,1fr)] gap-3 px-1">
             {/* 左：批次列表 */}
             <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {runs.map(r => (
                   <button key={r.id} onClick={() => setSelectedRunId(r.id)}
                     className={`block w-full px-4 py-3 text-left ${t.rowCls(selectedRunId === r.id)}`}>
@@ -293,7 +293,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                         {hrOptionLabel(PAYROLL_STATUS_OPTIONS, r.status)}
                       </span>
                     </div>
-                    <div className={`mt-1 text-[11px] font-light ${t.textSecondaryClass}`}>
+                    <div className={`mt-1 text-xs font-light ${t.textSecondaryClass}`}>
                       {r.headcount} 人 · {hrFormatMoney(r.totalNet)}
                     </div>
                   </button>
@@ -343,7 +343,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                     <div className={t.thCls}>实发</div>
                     <div className={t.thCls}></div>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                     {runDetail.items.map(item => (
                       <React.Fragment key={item.id}>
                         <div className="grid grid-cols-[minmax(0,1fr)_90px_80px_80px_80px_80px_80px_100px_72px] items-center">
@@ -472,7 +472,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
               <div className={t.thCls}>生效止</div>
               <div className={t.thCls}>备注</div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {salaryHistory.map(s => (
                 <div key={s.id} className="grid grid-cols-[110px_110px_120px_120px_minmax(0,1fr)] items-center">
                   <div className={t.tdCls}>{s.baseSalary.toFixed(2)}</div>

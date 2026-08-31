@@ -733,7 +733,7 @@ const CertificationCheckboxes: React.FC<{
     setCustomCerts(prev => prev.filter(c => c !== cert));
   };
 
-  const labelCls = `text-[11px] font-light cursor-pointer select-none ${
+  const labelCls = `text-xs font-light cursor-pointer select-none ${
     'text-[var(--text-primary)]'
   }`;
   const boxCls = (on: boolean) =>
@@ -768,7 +768,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/15 text-[var(--os-vnext-brand-blue-strong)]`}>
+            <span key={cert} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-light bg-[var(--os-vnext-brand-blue-strong)]/15 text-[var(--os-vnext-brand-blue-strong)]`}>
               {cert}
               <button type="button" onClick={() => removeCustom(cert)} className="opacity-60 hover:opacity-100">&times;</button>
             </span>
@@ -843,7 +843,7 @@ const LinkedSampleRoomSection: React.FC<{
                 title="跳转到库存管理·样品间，并按本档案预过滤"
                 className="w-full rounded-compact px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
               >
-                <div className="truncate text-[11px] font-light text-[var(--text-primary)]">
+                <div className="truncate text-xs font-light text-[var(--text-primary)]">
                   {card.code} · {card.name}
                 </div>
                 <div className="mt-0.5 truncate text-[10px] font-light text-[var(--text-tertiary)]">
@@ -870,7 +870,7 @@ const LinkedSampleRoomSection: React.FC<{
                 title="跳转到开发管理并直达该开发单详情"
                 className="w-full rounded-compact px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)]"
               >
-                <div className="truncate text-[11px] font-light text-[var(--text-primary)]">{dc.code}</div>
+                <div className="truncate text-xs font-light text-[var(--text-primary)]">{dc.code}</div>
                 <div className="mt-0.5 truncate text-[10px] font-light text-[var(--text-tertiary)]">{dc.name}</div>
               </button>
             ))}
@@ -2232,7 +2232,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     ) : (
                         <div className={`w-1.5 h-3.5 rounded-full bg-[var(--active-darken)]`} />
                     )}
-                    <h4 className={`text-[11px] font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
+                    <h4 className={`text-xs font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
                         {title}
                     </h4>
                 </div>
@@ -3060,7 +3060,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </button>
             )}
             {selectedMain && (
-              <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
+              <div className={`h-9 flex items-center gap-1.5 min-w-0 text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>
                 <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
                   <ChevronRight size={18} strokeWidth={1.5} />
                 </span>
@@ -3162,7 +3162,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 <h3 className={`relative z-10 text-base font-light tracking-tight text-[var(--text-primary)]`}>
                   {cat.label}
                 </h3>
-                <p className={`relative z-10 text-[12px] line-clamp-3 mt-2 font-light leading-relaxed text-[var(--text-tertiary)]`}>
+                <p className={`relative z-10 text-xs line-clamp-3 mt-2 font-light leading-relaxed text-[var(--text-tertiary)]`}>
                   {cat.desc}
                 </p>
 
@@ -3875,7 +3875,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                           return (
                             <div className="flex items-center gap-2 md:col-span-2">
                               <span className="bds-badge sm danger">专属面料</span>
-                              <span className="text-[11px] font-light text-[var(--text-secondary)]">
+                              <span className="text-xs font-light text-[var(--text-secondary)]">
                                 属主 {ownerLabel}{exclusive.clientCode ? ` · 客供品号 ${exclusive.clientCode}` : ''} —— 其他客户的报价 / 订单 / 样品 / 出运引用将被系统阻断
                               </span>
                             </div>
@@ -4029,13 +4029,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   <button
                     type="button"
                     onClick={() => { setshowAddSubModal(false); setEditingSub(null); }}
-                    className={`h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${productActionButtonClass}`}
+                    className={`h-9 px-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 ${productActionButtonClass}`}
                   >
                     取消
                   </button>
                   <button
                     type="submit"
-                    className={`h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${productActionButtonClass}`}
+                    className={`h-9 px-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 ${productActionButtonClass}`}
                   >
                     {editingSub ? '保存修正' : '确认新增'}
                   </button>
@@ -4058,7 +4058,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     >
                       <ChevronLeft size={18} strokeWidth={1.5} />
                     </button>
-                    <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
+                    <div className={`h-9 flex items-center gap-1.5 min-w-0 text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>
                       <button type="button" onClick={closeProductForm} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}>
                         <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} text-[var(--text-primary)]`}>
                           数字档案
@@ -4075,7 +4075,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       <button
                         type="button"
                         onClick={() => setDeleteProdId(editingProd.id)}
-                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 border text-[var(--text-secondary)] border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
+                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-light tracking-wide transition-colors duration-200 border text-[var(--text-secondary)] border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                       >
                         <Trash2 size={14} strokeWidth={1.5} /> 归档
                       </button>
@@ -4366,23 +4366,23 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               </div>
                             ))}
                             <div className="flex items-center justify-between gap-3 pt-1">
-                              <p className={`text-[11px] leading-relaxed text-[var(--text-tertiary)]`}>
+                              <p className={`text-xs leading-relaxed text-[var(--text-tertiary)]`}>
                                 成分词条以《成份符号.xls》为准；输入符号、全称或名称会自动补齐，不在表内的词条不能保存。
                               </p>
                               <button
                                 type="button"
                                 onClick={addCompositionDraftRow}
-                                className={`shrink-0 h-9 px-4 rounded-full text-[11px] font-light tracking-wide transition-colors duration-200 ${productFormQuietActionClass}`}
+                                className={`shrink-0 h-9 px-4 rounded-full text-xs font-light tracking-wide transition-colors duration-200 ${productFormQuietActionClass}`}
                               >
                                 添加成分
                               </button>
                             </div>
-                            <div className={`rounded-inset border px-4 py-3 text-[11px] font-light ${productFormNestedRowClass} text-[var(--text-secondary)]`}>
+                            <div className={`rounded-inset border px-4 py-3 text-xs font-light ${productFormNestedRowClass} text-[var(--text-secondary)]`}>
                               成分合计：{compositionTotal}% · {compositionValidationMessage}
                             </div>
                           </div>
                           {compositionDraftText() && (
-                            <div className={`text-[11px] font-light text-[var(--text-tertiary)]`}>
+                            <div className={`text-xs font-light text-[var(--text-tertiary)]`}>
                               当前成分：{compositionDraftText()}
                             </div>
                           )}
@@ -4401,11 +4401,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
       {(deleteSubId || deleteProdId) && (
         <div
-          className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
+          className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 duration-300"
           onClick={() => { setDeleteSubId(null); setDeleteProdId(null); }}
         >
           <div
-            className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}
+            className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden duration-300`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-10 text-center space-y-6">
@@ -4459,7 +4459,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             >
               <X size={18} strokeWidth={1.75} />
             </button>
-            <div className="absolute left-1/2 top-5 -translate-x-1/2 text-[11px] font-light tracking-wide text-[var(--lightbox-fg-muted)] tabular-nums">
+            <div className="absolute left-1/2 top-5 -translate-x-1/2 text-xs font-light tracking-wide text-[var(--lightbox-fg-muted)] tabular-nums">
               {safeIndex + 1} / {displayImages.length}
               {displayImages[safeIndex].fileName ? ` · ${displayImages[safeIndex].fileName}` : ''}
             </div>
@@ -4731,10 +4731,10 @@ export const ProductModuleSettingsWorkspace = ({
   const secondaryTextClass = 'text-[var(--text-tertiary)]';
   const labelClass = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
   const inputClass = `h-9 w-full rounded-full border px-3 text-xs font-light outline-none transition ${BAMBOOK_OS.controls.recessedField.base}`;
-  const quietButtonClass = `h-9 rounded-full border px-3 text-[11px] font-light transition ${BAMBOOK_OS.controls.actionControl.base}`;
+  const quietButtonClass = `h-9 rounded-full border px-3 text-xs font-light transition ${BAMBOOK_OS.controls.actionControl.base}`;
   const selectedButtonClass = `${BAMBOOK_OS.controls.selectedSurface.base} text-[var(--text-primary)]`;
   const tertiaryRowClass = `rounded-inset border p-3 ${RELATIONS_FORM_NESTED_ROW_CLASS}`;
-  const tinyActionClass = `h-8 rounded-full border px-3 text-[11px] font-light transition border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`;
+  const tinyActionClass = `h-8 rounded-full border px-3 text-xs font-light transition border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`;
   const switchControlClass = (checked: boolean) => `group relative inline-flex h-8 w-[3.625rem] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
     ? BAMBOOK_OS.controls.selectedSurface.base
     : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] shadow-none'}`;
@@ -4985,7 +4985,7 @@ export const ProductModuleSettingsWorkspace = ({
               <div key={category.id} className={`grid grid-cols-[1fr_auto] items-center gap-4 ${tertiaryRowClass}`}>
                 <button type="button" className="min-w-0 text-left" onClick={() => editCategory(category)}>
                   <div className={`truncate text-sm font-light ${primaryTextClass}`}>{category.name}</div>
-                  <div className={`mt-1 truncate text-[11px] font-light ${secondaryTextClass}`}>
+                  <div className={`mt-1 truncate text-xs font-light ${secondaryTextClass}`}>
                     {category.description || '未填写说明'} · {productCountByCategory.get(category.id) || 0} 个档案
                   </div>
                 </button>
@@ -5235,7 +5235,7 @@ export const ProductModuleSettingsWorkspace = ({
                     </p>
                   </div>
                   {statusText && (
-                    <span className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-light ${'border-[var(--border-c-default)] text-[var(--text-tertiary)]'}`}>
+                    <span className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-light ${'border-[var(--border-c-default)] text-[var(--text-tertiary)]'}`}>
                       <CheckCircle2 size={14} strokeWidth={1.5} />
                       {statusText}
                     </span>

@@ -334,7 +334,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-3">
+      <div className="flex-1 min-h-0 overflow-y-auto mt-3">
         <div className="space-y-3 pb-4">
           {/* ── 订单与客户选择 ── */}
           <div className={`p-4 rounded-card ${panelClass}`}>

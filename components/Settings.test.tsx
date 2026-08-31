@@ -55,7 +55,7 @@ describe('Settings permission visibility', () => {
     expect(source).not.toContain('items-end pb-3');
     expect(source).not.toContain('className="w-full h-full flex flex-col min-h-0 overflow-hidden"');
     expect(source).not.toContain('className="w-52 md:w-56 shrink-0 bambook-settings-nav-panel"');
-    expect(source).not.toContain('className="h-full min-h-0 overflow-y-auto custom-scrollbar p-6 md:p-8"');
+    expect(source).not.toContain('className="h-full min-h-0 overflow-y-auto p-6 md:p-8"');
     expect(source).not.toContain('data-os-lab-bleed-frame');
     expect(BAMBOOK_OS.layout.desktopPageFrameClass).toContain('overflow-visible');
     expect(BAMBOOK_OS.layout.desktopPanelRowClass).toContain('overflow-visible');
@@ -68,7 +68,7 @@ describe('Settings permission visibility', () => {
     expect(BAMBOOK_OS.layout.desktopMainPanelBottomLift).toBe(18);
     expect(BAMBOOK_OS.layout.desktopSplitNavPanelClass).toBe('w-52 md:w-56 shrink-0');
     expect(BAMBOOK_OS.layout.desktopSplitMainPanelClass).toBe('flex-1 min-h-0');
-    expect(BAMBOOK_OS.layout.desktopMainScrollViewportClass).toBe('h-full min-h-0 overflow-y-auto custom-scrollbar p-6 md:p-8');
+    expect(BAMBOOK_OS.layout.desktopMainScrollViewportClass).toBe('h-full min-h-0 overflow-y-auto p-6 md:p-8');
     expect(BAMBOOK_OS.layout.panelShadowViewportClass).toBe('bambook-panel-shadow-viewport');
   });
 

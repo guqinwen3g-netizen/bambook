@@ -77,7 +77,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const triggerSizeClass = isFieldSurface
     ? 'h-[var(--h-btn-md)] px-3 py-0 rounded-[var(--radius-pill)] text-xs leading-none'
     : isCompact
-      ? `${isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
+      ? `${isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-xs leading-none`
       : 'h-9 px-3 py-0 rounded-full text-xs leading-none';
   const toolbarBaseClass = BAMBOOK_OS.controls.select.toolbarBase;
   const toolbarHoverClass = `${toolbarBaseClass} text-[var(--text-tertiary)] hover:!bg-[var(--active-darken)] hover:text-deep-alt hover:shadow-none active:scale-[0.98] active:bg-[var(--active-darken)]`;
@@ -353,7 +353,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             aria-hidden
             className={`pointer-events-none absolute inset-0 rounded-[inherit] ${menuSurfaceClass}`}
           />
-          <div className="relative z-10 max-h-60 overflow-y-auto custom-scrollbar">
+          <div className="relative z-10 max-h-60 overflow-y-auto">
             {options.map((option, index) => {
               const isSelected = option.value === value;
               const isActive = index === activeIndex;

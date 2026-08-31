@@ -140,7 +140,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
 
   if (loading) {
     return (
-      <div className={cx('flex items-center gap-2 py-4 text-[11px] font-light', textFaint)}>
+      <div className={cx('flex items-center gap-2 py-4 text-xs font-light', textFaint)}>
         <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> 加载样衣节点…
       </div>
     );
@@ -151,7 +151,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
   return (
     <div>
       <div className={cx('mb-2 text-[10px] font-light tracking-[0.18em]', textSecondary)}>三级样衣节点</div>
-      {error && <div className="mb-2 text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
+      {error && <div className="mb-2 text-xs font-light text-[var(--danger-text)]">{error}</div>}
       <div className="space-y-2">
         {LEVELS.map(({ id, label, en }) => {
           const node = nodes.find(n => n.level === id);
@@ -482,10 +482,10 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
           </button>
         )}
       </div>
-      {error && <div className="mt-2 text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
+      {error && <div className="mt-2 text-xs font-light text-[var(--danger-text)]">{error}</div>}
 
       {loading ? (
-        <div className={cx('flex items-center gap-2 py-4 text-[11px] font-light', textFaint)}>
+        <div className={cx('flex items-center gap-2 py-4 text-xs font-light', textFaint)}>
           <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> 加载样品轮次…
         </div>
       ) : (
@@ -499,7 +499,7 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
             />
           )}
           {rounds.length === 0 && form?.kind !== 'create' && (
-            <div className={cx('rounded-inset border px-3 py-4 text-center text-[11px] font-light', cardCls, textFaint)}>
+            <div className={cx('rounded-inset border px-3 py-4 text-center text-xs font-light', cardCls, textFaint)}>
               暂无样品轮次，点击「新建轮次」记录第一轮样品（目的 / 版本 / 材料工艺配置必填）
             </div>
           )}

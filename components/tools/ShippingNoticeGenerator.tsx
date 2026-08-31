@@ -298,7 +298,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-3">
+      <div className="flex-1 min-h-0 overflow-y-auto mt-3">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-4">
           {/* Left Column - PO Selection */}
           <div className="space-y-3">

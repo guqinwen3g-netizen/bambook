@@ -171,7 +171,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
           />
         </div>
 
-        <div className="max-h-56 overflow-y-auto custom-scrollbar space-y-1">
+        <div className="max-h-56 overflow-y-auto space-y-1">
           {loadingList ? (
             <div className={`flex items-center justify-center py-6 ${textSecondary}`}>
               <Loader2 size={16} className="animate-spin mr-2" /><span className="text-xs">加载运单...</span>
@@ -191,7 +191,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
               >
                 <div className="flex-1 min-w-0">
                   <div className={`text-sm font-light truncate ${textPrimary}`}>{s.shipmentNumber}</div>
-                  <div className={`text-[11px] font-light truncate ${textSecondary}`}>
+                  <div className={`text-xs font-light truncate ${textSecondary}`}>
                     {s.customerName || '—'} · {s.portOfLoading || '—'} → {s.portOfDischarge || '—'}
                   </div>
                 </div>
@@ -228,7 +228,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
                   <AlertCircle size={14} />
                   <span className="text-xs">数据完整度提示（仍可生成，缺失字段显示为 —）</span>
                 </div>
-                <ul className="text-[11px] font-light ml-5 list-disc space-y-0.5">
+                <ul className="text-xs font-light ml-5 list-disc space-y-0.5">
                   {docSet.missing.map(m => <li key={m}>{m}</li>)}
                 </ul>
               </div>
@@ -240,7 +240,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
                 <CheckCircle2 size={14} className="text-[var(--os-vnext-brand-blue)]" />
                 <h3 className={`text-xs font-light uppercase tracking-wider ${textSecondary}`}>制单数据摘要 Document Set</h3>
               </div>
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-2 text-[11px] font-light">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-2 text-xs font-light">
                 <div><span className={textSecondary}>运单：</span><span className={textPrimary}>{docSet.shipment.shipmentNumber}</span></div>
                 <div><span className={textSecondary}>订单：</span><span className={textPrimary}>{docSet.order?.poNumber || '—'}</span></div>
                 <div><span className={textSecondary}>报关单：</span><span className={textPrimary}>{docSet.customs?.declarationNumber || '—'}</span></div>

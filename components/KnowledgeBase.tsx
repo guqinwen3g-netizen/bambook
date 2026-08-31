@@ -388,7 +388,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
   const officialTotal = knowledge.reduce((n, k) => n + (k.deletedAt ? 0 : 1), 0);
 
   const tabButtonClass = (tab: KbTab) =>
-    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-colors duration-200 ${activeTab === tab ? BAMBOOK_OS.controls.selectedSurface.base : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`;
+    `px-6 py-1.5 rounded-compact text-xs font-light tracking-wide transition-colors duration-200 ${activeTab === tab ? BAMBOOK_OS.controls.selectedSurface.base : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`;
 
   return (
     <div className="w-full h-full flex flex-col bg-transparent overflow-hidden">
@@ -411,7 +411,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               />
             </div>
             )}
-            <button onClick={() => setShowAddModal(true)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 transition-colors duration-200 text-[11px] font-light tracking-wide ${'bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'}`}>
+            <button onClick={() => setShowAddModal(true)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 transition-colors duration-200 text-xs font-light tracking-wide ${'bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'}`}>
               <Plus size={14} strokeWidth={1.5} /> 新增资产
             </button>
           </div>
@@ -434,7 +434,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         {activeTab === 'official' && (
           <>
             {/* R3：诚实计数——列表为全量拉取，明示文档总数；搜索时追加匹配数 */}
-            <div className="mb-3 text-center text-[11px] font-light tracking-wide text-[var(--text-quaternary)]">
+            <div className="mb-3 text-center text-xs font-light tracking-wide text-[var(--text-quaternary)]">
               文档共 {officialTotal} 条{searchTerm.trim() ? `，当前匹配 ${filteredOfficial.length} 条` : ''}
             </div>
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
@@ -454,7 +454,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   </span>
                 </div>
                 <h4 data-ui-lab-wallpaper-contrast="primary" className={`text-base font-light mb-2 text-[var(--text-primary)]`}>{item.title}</h4>
-                <p data-ui-lab-wallpaper-contrast="secondary" className={`text-[13px] line-clamp-4 font-light leading-relaxed flex-1 ${'text-[var(--text-tertiary)]'}`}>{item.content}</p>
+                <p data-ui-lab-wallpaper-contrast="secondary" className={`text-sm line-clamp-4 font-light leading-relaxed flex-1 ${'text-[var(--text-tertiary)]'}`}>{item.content}</p>
                 <div className={`mt-6 pt-4 border-t flex items-center justify-between border-[var(--border-c-default)]`}>
                   <span className={`text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>{new Date(item.updatedAt).toLocaleDateString()}</span>
                   <Database size={14} strokeWidth={1.5} className="text-[var(--text-quaternary)]" />
@@ -476,7 +476,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             {filteredInsights.map(insight => (
               <motion.div layout key={insight.id} className={`shrink-0 p-6 flex flex-col ${BAMBOOK_OS.material.card} transition-colors duration-200 ${'bg-[var(--recessed-bg)] hover:bg-[var(--hover-darken)]'}`}>
                 <div className="flex-1">
-                  <p className={`text-[14px] font-light leading-relaxed italic ${'text-[var(--text-secondary)]'}`}>"{insight.fact}"</p>
+                  <p className={`text-sm font-light leading-relaxed italic ${'text-[var(--text-secondary)]'}`}>"{insight.fact}"</p>
                 </div>
                 <div className={`mt-6 pt-4 border-t flex items-center justify-between border-[var(--border-c-default)]`}>
                   <span className={`text-[9px] font-light tracking-wide ${'text-[var(--text-link)]'}`}>{insight.importance} PRIORITY</span>
@@ -511,7 +511,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 <button
                   onClick={handleAsk}
                   disabled={qaBusy || !qaQuestion.trim()}
-                  className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                  className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                 >
                   {qaBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1.25} />}
                   {qaBusy ? '检索回答中…' : '提问'}
@@ -527,14 +527,14 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             {(qaAnswer || qaBusy) && (
               <div className={`p-6 ${BAMBOOK_OS.material.card} ${'bg-[var(--recessed-bg)]'}`}>
                 <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${'text-[var(--text-quaternary)]'}`}>回答</div>
-                <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>
+                <p className={`whitespace-pre-wrap text-sm font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>
                   {qaAnswer}
                   {qaBusy && <span className="inline-block w-2 h-4 ml-0.5 align-middle animate-pulse bg-current opacity-40" />}
                 </p>
                 {!qaBusy && qaAnswer.trim() && (
                   <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 border-[var(--border-c-default)]`}>
                     {qaArchived ? (
-                      <span className={`text-[11px] font-light ${'text-[var(--success-text)]'}`}>已归档到官方知识库</span>
+                      <span className={`text-xs font-light ${'text-[var(--success-text)]'}`}>已归档到官方知识库</span>
                     ) : (
                       <>
                         <CustomSelect
@@ -547,7 +547,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                         <button
                           onClick={handleArchiveQa}
                           disabled={qaArchiving}
-                          className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                          className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                         >
                           {qaArchiving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} strokeWidth={1.25} />}
                           归档此问答
@@ -567,10 +567,10 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   {qaCitations.map(c => (
                     <div key={c.id} className={`rounded-control border px-4 py-3 ${'border-[var(--border-c-default)] bg-[var(--recessed-bg)]'}`}>
                       <div className="flex items-center justify-between gap-3">
-                        <span className={`text-[11px] font-light truncate ${'text-[var(--text-tertiary)]'}`}>{c.title}</span>
+                        <span className={`text-xs font-light truncate ${'text-[var(--text-tertiary)]'}`}>{c.title}</span>
                         <span className={`shrink-0 text-[9px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>{Math.round(c.score * 100)}%</span>
                       </div>
-                      <p className={`mt-1 line-clamp-2 text-[11px] font-light leading-relaxed ${'text-[var(--text-quaternary)]'}`}>{c.content}</p>
+                      <p className={`mt-1 line-clamp-2 text-xs font-light leading-relaxed ${'text-[var(--text-quaternary)]'}`}>{c.content}</p>
                     </div>
                   ))}
                 </div>
@@ -583,7 +583,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
           <div className="mx-auto w-full max-w-5xl">
             <div className="mb-5 flex items-center justify-between">
               <span className={`text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>标准作业程序模板，可一键实例化为知识文档进入检索语料</span>
-              <button onClick={openNewSop} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <button onClick={openNewSop} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                 <Plus size={14} strokeWidth={1.5} /> 新建模板
               </button>
             </div>
@@ -604,7 +604,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                       <span className={`text-[9px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>v{tpl.version}</span>
                     </div>
                     <h4 className={`text-base font-light mb-2 text-[var(--text-primary)]`}>{tpl.title}</h4>
-                    <p className={`text-[12px] line-clamp-3 font-light leading-relaxed flex-1 ${'text-[var(--text-tertiary)]'}`}>{tpl.summary || tpl.content}</p>
+                    <p className={`text-xs line-clamp-3 font-light leading-relaxed flex-1 ${'text-[var(--text-tertiary)]'}`}>{tpl.summary || tpl.content}</p>
                     <div className={`mt-5 pt-4 border-t flex items-center justify-between border-[var(--border-c-default)]`}>
                       <span className={`flex items-center gap-1.5 text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>
                         <ListChecks size={14} strokeWidth={1.25} /> {tpl.steps.length} 步骤
@@ -628,7 +628,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* 新增/编辑知识 Modal */}
       {(showAddModal || editingItem) && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[70] flex items-center justify-center p-6 duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-xl overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-12 py-8 border-b flex items-center justify-between ${'border-[var(--border-c-default)]'}`}>
               <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{editingItem ? '修正资产档案' : '录入新资产'}</h3>
@@ -681,7 +681,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 onClick={editingItem ? handleEditSave : handleAdd}
                 disabled={knowledgeBusy}
                 data-knowledge-busy={knowledgeBusy}
-                className={`px-10 py-4 text-[11px] font-light tracking-wide rounded-full flex items-center gap-3 border transition-colors duration-200 ${knowledgeBusy ? 'opacity-50 cursor-not-allowed' : BAMBOOK_OS.controls.actionControl.base}`}
+                className={`px-10 py-4 text-xs font-light tracking-wide rounded-full flex items-center gap-3 border transition-colors duration-200 ${knowledgeBusy ? 'opacity-50 cursor-not-allowed' : BAMBOOK_OS.controls.actionControl.base}`}
               >
                 <Save size={16} strokeWidth={1.5} /> {knowledgeBusy ? '同步中…' : editingItem ? '固化修正' : '确认存入并即时同步'}
               </button>
@@ -692,7 +692,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — 知识文档详情 + 实体关联 Modal */}
       {viewingItem && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[70] flex items-center justify-center p-6 duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
@@ -702,7 +702,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               <button onClick={() => setViewingItem(null)} className={`bds-btn bds-btn-icon sm rounded-full shrink-0 ${BAMBOOK_OS.controls.actionControl.base}`}><X size={18} /></button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto px-10 py-6 space-y-6">
-              <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>{viewingItem.content}</p>
+              <p className={`whitespace-pre-wrap text-sm font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>{viewingItem.content}</p>
               <div>
                 <div className={`mb-3 flex items-center gap-2 text-[10px] font-light tracking-[0.18em] ${'text-[var(--text-quaternary)]'}`}>
                   <Link2 size={14} strokeWidth={1.25} /> 实体关联
@@ -710,13 +710,13 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 {relationsLoading ? (
                   <div className={`flex items-center gap-2 py-3 ${'text-[var(--text-quaternary)]'}`}>
                     <Loader2 size={14} className="animate-spin" />
-                    <span className="text-[11px] font-light">关联加载中…</span>
+                    <span className="text-xs font-light">关联加载中…</span>
                   </div>
                 ) : viewingRelations.length > 0 ? (
                   <div className="space-y-2">
                     {viewingRelations.map(rel => (
                       <div key={rel.id} className={`flex items-center justify-between gap-3 rounded-control border px-4 py-2.5 ${'border-[var(--border-c-default)] bg-[var(--recessed-bg)]'}`}>
-                        <div className="flex items-center gap-2 min-w-0 text-[11px] font-light">
+                        <div className="flex items-center gap-2 min-w-0 text-xs font-light">
                           <span className={'text-[var(--text-tertiary)]'}>{rel.relationType}</span>
                           <span className="text-[var(--text-quaternary)]">→</span>
                           <span className={`truncate ${'text-[var(--text-tertiary)]'}`}>{rel.targetType} / {rel.targetId}</span>
@@ -726,13 +726,13 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                     ))}
                   </div>
                 ) : (
-                  <p className={`text-[11px] font-light ${'text-[var(--text-quaternary)]'}`}>暂无实体关联记录（关联由知识抽取管线自动建立）</p>
+                  <p className={`text-xs font-light ${'text-[var(--text-quaternary)]'}`}>暂无实体关联记录（关联由知识抽取管线自动建立）</p>
                 )}
               </div>
             </div>
             <div className={`px-10 py-5 shrink-0 flex items-center justify-between bg-[var(--recessed-bg)]`}>
               <span className={`text-[10px] font-light tracking-wide ${'text-[var(--text-quaternary)]'}`}>更新于 {new Date(viewingItem.updatedAt).toLocaleDateString()}</span>
-              <button onClick={() => { setEditingItem(viewingItem); setViewingItem(null); }} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <button onClick={() => { setEditingItem(viewingItem); setViewingItem(null); }} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                 <Edit2 size={14} /> 编辑
               </button>
             </div>
@@ -742,7 +742,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 详情 Modal */}
       {sopDetail && !sopShowNew && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[70] flex items-center justify-center p-6 duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
@@ -754,33 +754,33 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto px-10 py-6 space-y-6">
               {sopDetail.summary && (
-                <p className={`text-[13px] font-light leading-relaxed ${'text-[var(--text-tertiary)]'}`}>{sopDetail.summary}</p>
+                <p className={`text-sm font-light leading-relaxed ${'text-[var(--text-tertiary)]'}`}>{sopDetail.summary}</p>
               )}
               {sopDetail.steps.length > 0 && (
                 <div className="space-y-3">
                   {sopDetail.steps.map((step, i) => (
                     <div key={i} className={`rounded-control border px-4 py-3 ${'border-[var(--border-c-default)] bg-[var(--recessed-bg)]'}`}>
-                      <div className={`text-[12px] font-light text-[var(--text-secondary)]`}>{i + 1}. {step.title}</div>
-                      {step.detail && <div className={`mt-1 text-[11px] font-light leading-relaxed ${'text-[var(--text-quaternary)]'}`}>{step.detail}</div>}
+                      <div className={`text-xs font-light text-[var(--text-secondary)]`}>{i + 1}. {step.title}</div>
+                      {step.detail && <div className={`mt-1 text-xs font-light leading-relaxed ${'text-[var(--text-quaternary)]'}`}>{step.detail}</div>}
                     </div>
                   ))}
                 </div>
               )}
-              <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>{sopDetail.content}</p>
+              <p className={`whitespace-pre-wrap text-sm font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>{sopDetail.content}</p>
             </div>
             <div className={`px-10 py-5 shrink-0 flex items-center justify-end gap-3 bg-[var(--recessed-bg)]`}>
-              {sopInstantiatedMsg && <span className={`mr-auto text-[11px] font-light ${'text-[var(--success-text)]'}`}>{sopInstantiatedMsg}</span>}
-              {sopError && <span className="mr-auto text-[11px] font-light text-[var(--danger-text)]">{sopError}</span>}
-              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
+              {sopInstantiatedMsg && <span className={`mr-auto text-xs font-light ${'text-[var(--success-text)]'}`}>{sopInstantiatedMsg}</span>}
+              {sopError && <span className="mr-auto text-xs font-light text-[var(--danger-text)]">{sopError}</span>}
+              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
                 <Trash2 size={14} /> 删除
               </button>
-              <button onClick={() => openEditSop(sopDetail)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
+              <button onClick={() => openEditSop(sopDetail)} className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border ${BAMBOOK_OS.controls.actionControl.base}`}>
                 <Edit2 size={14} /> 编辑
               </button>
               <button
                 onClick={() => handleInstantiateSop(sopDetail)}
                 disabled={sopBusy}
-                className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                className={`bds-btn bds-btn-secondary rounded-full flex items-center gap-2 text-xs font-light tracking-wide transition-colors duration-200 border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
               >
                 {sopBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} strokeWidth={1.25} />}
                 实例化入库
@@ -792,7 +792,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 新建/编辑 Modal */}
       {sopShowNew && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[80] flex items-center justify-center p-6 duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{sopEditing ? '编辑 SOP 模板' : '新建 SOP 模板'}</h3>
@@ -838,7 +838,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   </button>
                 </div>
                 {sopDraft.steps.length === 0 && (
-                  <p className={`text-[11px] font-light ${'text-[var(--text-quaternary)]'}`}>可选。步骤将以编号列表渲染进知识文档。</p>
+                  <p className={`text-xs font-light ${'text-[var(--text-quaternary)]'}`}>可选。步骤将以编号列表渲染进知识文档。</p>
                 )}
                 <div className="space-y-2">
                   {sopDraft.steps.map((step, i) => (
@@ -879,11 +879,11 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
             </div>
             <div className={`px-10 py-5 shrink-0 flex justify-end gap-4 bg-[var(--recessed-bg)]`}>
-              {sopError && <span className="mr-auto text-[11px] font-light text-[var(--danger-text)]">{sopError}</span>}
+              {sopError && <span className="mr-auto text-xs font-light text-[var(--danger-text)]">{sopError}</span>}
               <button
                 onClick={handleSaveSop}
                 disabled={sopBusy}
-                className={`px-8 py-3 text-[11px] font-light tracking-wide rounded-full flex items-center gap-2 border transition-colors duration-200 disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
+                className={`px-8 py-3 text-xs font-light tracking-wide rounded-full flex items-center gap-2 border transition-colors duration-200 disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
               >
                 {sopBusy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} strokeWidth={1.5} />}
                 {sopEditing ? '保存修改' : '创建模板'}
@@ -895,8 +895,8 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 删除确认 */}
       {sopDeleteId && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 duration-300">
+          <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
                 <AlertTriangle size={24} strokeWidth={1.5} />
@@ -925,8 +925,8 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* 知识删除确认 */}
       {deleteConfirmId && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 duration-300">
+          <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
                 <AlertTriangle size={24} strokeWidth={1.5} />

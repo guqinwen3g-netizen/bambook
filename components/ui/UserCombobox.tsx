@@ -140,7 +140,7 @@ const UserCombobox: React.FC<UserComboboxProps> = ({
       {open && !loading && (
         <div className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto ${BAMBOOK_OS.controls.overlayMenu.surfaceBase} ${BAMBOOK_OS.controls.overlayMenu.surface}`}>
           {candidates.length === 0 && (
-            <div className="px-3 py-3 text-[11px] flex items-center gap-2 text-[var(--text-tertiary)]">
+            <div className="px-3 py-3 text-xs flex items-center gap-2 text-[var(--text-tertiary)]">
               <Search size={14} />
               <span>无匹配用户</span>
             </div>
@@ -154,7 +154,7 @@ const UserCombobox: React.FC<UserComboboxProps> = ({
                 setQuery('');
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2 text-[11px] flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)]"
+              className="w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)]"
             >
               <span className="min-w-0">
                 <span className="block truncate font-light">{u.displayName}</span>

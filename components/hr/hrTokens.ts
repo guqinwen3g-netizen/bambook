@@ -29,11 +29,11 @@ export function hrTokens(isDarkMode: boolean): HrTokens {
 
   const inputCls = 'bds-input';
 
-  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-colors duration-200 ${
+  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-xs font-light tracking-wide transition-colors duration-200 ${
     `${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`
   }`;
 
-  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-colors duration-200 ${
+  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-xs font-light tracking-wide transition-colors duration-200 ${
     BAMBOOK_OS.controls.actionControl.bordered
   }`;
 

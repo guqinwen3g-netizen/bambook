@@ -312,7 +312,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
         )}
 
         {/* ── BOM 列表 ── */}
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-1">
           {loading && boms.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-sm" style={{ color: 'var(--text-quaternary)' }}>
               <Loader2 size={16} className="animate-spin mr-2" /> 加载中...

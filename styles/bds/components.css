@@ -188,26 +188,25 @@
 
 /* ============ 3. Card 卡片 — rimless：无边框零阴影 ============
    主容器统一玻璃面（2026-08-14 用户裁决：页面级主容器全玻璃）：
-   本体即磨砂玻璃 —— 半透膜 + backdrop blur/saturate，浮于 --page-aurora 雾背景之上，
-   靠膜色与模糊与雾分层（rimless：不靠边框/阴影）。
-   变体：.flat = 卡内 inset 实色下沉面（--bg-panel，嵌套于玻璃卡内形成层级）。 */
+   2026-09-01 材质分层定稿（撤回 2026-08-31「主区统一 RDL 半透磨砂」）：
+   主区 .bds-card 族回归 frosted 92% 近实底，且无 backdrop-filter（blur 在 92% 实底上
+   无视觉收益，直接省掉合成开销）；磨砂玻璃是 Dashboard os-material 卡片与
+   小组件浮层（--bambook-rdl-floating 档 + 地图行内 backdrop-blur）的专属语言。
+   变体：.flat = 卡内 inset 实色下沉面（--bg-panel，嵌套于实面卡内形成层级）。 */
 .bds-card {
   background: var(--frosted-bg);
-  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
-  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+  border: 1px solid var(--border-default);
   border-radius: var(--r-card);
   padding: var(--p-card);
   transition: all var(--duration-fast) var(--ease-default);
 }
-.bds-card.flat { background: var(--bg-panel); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.bds-card.flat { background: var(--bg-panel); }
 .bds-card.lg { padding: var(--p-card-lg); border-radius: var(--r-card-lg); }
 
 /* 主容器玻璃面工具类 — 统计条 / 表格容器 / 自定义主面板等非 card 场景统一引用，
-   与 .bds-card 同源（半透膜 + blur + saturate），保证同级主容器材质唯一。 */
+   与 .bds-card 同源（frosted 92% 实面、无 blur），保证同级主容器材质唯一。 */
 .bds-surface {
   background: var(--frosted-bg);
-  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
-  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
 }
 
 /* 可点击卡片才有浮起反馈（rimless 纪律的浮层例外：hover 浮起 + 空气感阴影） */
@@ -321,11 +320,13 @@
 .bds-badge.sm { padding: 3px 9px; font-size: 10px; }
 .bds-badge.lg { padding: 6px 14px; font-size: var(--text-sm); }
 
-/* 语义徽章 — tint 底 + soft 荧光外晕（浊色颜料透光） */
-.bds-badge.success { background: var(--success-tint); color: var(--success-text); box-shadow: var(--glow-success-soft); }
-.bds-badge.warning { background: var(--warning-tint); color: var(--warning-text); box-shadow: var(--glow-warning-soft); }
-.bds-badge.danger { background: var(--danger-tint); color: var(--danger-text); box-shadow: var(--glow-danger-soft); }
-.bds-badge.info { background: var(--accent-tint); color: var(--accent-text); box-shadow: var(--glow-accent-soft); }
+/* 语义徽章 — tint 底 + 无外发光（2026-08-31 用户裁决：去软外晕，容器更实更清晰）。
+   发光纪律：外发光仅留给真"小元素发光点"（statusdot/进度 fill/toast 图标/呼吸气泡），
+   带衬底的 chip/badge 容器一律不发散，边缘由 tint 底自身界定。 */
+.bds-badge.success { background: var(--success-tint); color: var(--success-text); }
+.bds-badge.warning { background: var(--warning-tint); color: var(--warning-text); }
+.bds-badge.danger { background: var(--danger-tint); color: var(--danger-text); }
+.bds-badge.info { background: var(--accent-tint); color: var(--accent-text); }
 .bds-badge.neutral { background: var(--recessed-bg-strong); color: var(--text-secondary); }
 
 /* Outline 变体 — 去填充，hairline 描边取字色（去外晕，描边自身即光感边界） */
@@ -724,7 +725,7 @@
 /* Breadcrumb 面包屑 → 统一归并至 §48 .bds-breadcrumb（2026-08-14 审计消歧：
    crumb 与 breadcrumb 同职双名，已合并删除，唯一真源见 §48） */
 
-/* ============ 21. Filterbar 筛选条 — pill 工具条（主容器玻璃面，与 bds-card 同材质） ============ */
+/* ============ 21. Filterbar 筛选条 — pill 工具条（frosted 92% 实面，与主容器同源，2026-09-01 反转后无 blur） ============ */
 .bds-filterbar {
   display: flex;
   flex-wrap: nowrap;
@@ -732,8 +733,6 @@
   gap: var(--space-2);
   padding: 6px;
   background: var(--frosted-bg);
-  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
-  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
   border-radius: var(--radius-pill);
 }
 /* 根因修复（2026-08-23）：bar 单行铁律——原 flex-wrap:wrap 下，行内 flex-basis
@@ -1358,6 +1357,15 @@
 .bds-count.neutral { background: var(--recessed-bg-strong); color: var(--text-secondary); }
 .bds-tab .bds-count { margin-left: var(--space-2); vertical-align: 1px; }
 .bds-tab.active .bds-count { background: var(--accent); }
+
+/* 呼吸光晕 — 危急提醒专用微弱脉动（2026-08-31 用户裁决：替代 ping 扩散，微弱呼吸感）。
+   用法：与宿主徽章同心同形（inset-0）垫在内容层之下，靠 scale 露出轮廓外缘。
+   发光纪律：仅限徽章/状态点等小元素，禁止用于按钮/容器。 */
+@keyframes bds-breathe {
+  0%, 100% { opacity: 0.12; transform: scale(1.28); }
+  50%      { opacity: 0.34; transform: scale(1.42); }
+}
+.bds-breathe { animation: bds-breathe 2.8s var(--ease-default) infinite; }
 
 /* ============ 42. FormSection 表单分组 ============ */
 .bds-formsection { display: flex; flex-direction: column; gap: var(--space-3); }

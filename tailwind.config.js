@@ -69,6 +69,20 @@ export default {
         extrabold: 300,
         black: 300,
       },
+      // ── BDS 字号刻度对齐（2026-09-01 用户拍板：字号双轨归一） ──
+      // 根因：Tailwind 默认 text-xs=12px，但 BDS token 真源 --text-xs=11px
+      // （bds-badge/bds-label 等组件已按 11px 渲染），导致 tsx 的 text-xs（974 处）
+      // 与 text-[11px]（665 处）同屏 ±1px 双轨并存。归一方向：对齐 token。
+      // lineHeight 保留 Tailwind 默认值——仅字形 -1px，行盒高度不变、布局零重排。
+      fontSize: {
+        xs: ['11px', { lineHeight: '1rem' }],
+        sm: ['13px', { lineHeight: '1.25rem' }],
+        base: ['15px', { lineHeight: '1.5rem' }],
+        lg: ['17px', { lineHeight: '1.75rem' }],
+        xl: ['20px', { lineHeight: '1.75rem' }],
+        '2xl': ['24px', { lineHeight: '2rem' }],
+        '3xl': ['32px', { lineHeight: '2.5rem' }],   // 默认 30px → token 32px
+      },
       // ── Bambook Flat Design 圆角 token（legacy 语义类，视觉零变化保留） ──
       // v2.2 收编（2026-08-16）：值从裸 px 改为 var() 引用，全部指向
       // styles/bds/tokens.css 同心层级刻度——legacy 轨与 BDS 轨从此同源，
@@ -106,9 +120,6 @@ export default {
         'app-light': 'rgb(var(--os-vnext-bg-light-rgb) / <alpha-value>)',
         'action': 'rgb(var(--bambook-brand-action-rgb) / <alpha-value>)',
         'link': 'rgb(var(--bambook-brand-link-rgb) / <alpha-value>)',
-        'link-light': 'rgb(var(--bambook-brand-link-light-rgb) / <alpha-value>)',
-        'accent-cyan': 'rgb(var(--bambook-accent-cyan-rgb) / <alpha-value>)',
-        'accent-blue': 'rgb(var(--bambook-accent-blue-rgb) / <alpha-value>)',
         // ── BDS v2 语义色（styles/bds/tokens.css；rgb 三元组支持 alpha 修饰符） ──
         // 新代码优先使用：bg-accent / text-accent / bg-success / text-danger 等
         'accent': 'rgb(var(--accent-rgb) / <alpha-value>)',

@@ -67,7 +67,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
           <ClipboardList size={16} className="text-[var(--os-vnext-brand-blue-strong)]" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '请填写信息'}</div>
+          <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '请填写信息'}</div>
           {block.description && (
             <div className={`mt-1 text-xs leading-5 text-[var(--text-secondary)]`}>{block.description}</div>
           )}
@@ -92,7 +92,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                     {field.required && <span className="ml-1 text-[var(--text-tertiary)]">*</span>}
                   </label>
                   {field.helpText && (
-                    <p className={`mt-0.5 text-[11px] ${quietTextClass}`}>{field.helpText}</p>
+                    <p className={`mt-0.5 text-xs ${quietTextClass}`}>{field.helpText}</p>
                   )}
                   {field.type === 'textarea' ? (
                     <textarea

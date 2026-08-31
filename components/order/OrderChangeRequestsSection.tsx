@@ -813,13 +813,13 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 )}
 
                 <p className={`mt-2 text-xs font-light ${spec.textSecondary}`}>{cr.changeReason}</p>
-                {cr.notes && <p className={`mt-1 text-[11px] font-light ${spec.textMuted}`}>影响:{cr.notes}</p>}
+                {cr.notes && <p className={`mt-1 text-xs font-light ${spec.textMuted}`}>影响:{cr.notes}</p>}
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => toggleExpand(cr)}
-                    className={`inline-flex items-center gap-1 text-[11px] font-light ${spec.textMuted} hover:text-link`}
+                    className={`inline-flex items-center gap-1 text-xs font-light ${spec.textMuted} hover:text-link`}
                   >
                     {expanded ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
                     审批进度
@@ -879,10 +879,10 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                           )}
                         </div>
                         {detail.approvalRequest?.decisionNote && (
-                          <p className={`text-[11px] font-light ${spec.textMuted}`}>审批意见:{detail.approvalRequest.decisionNote}</p>
+                          <p className={`text-xs font-light ${spec.textMuted}`}>审批意见:{detail.approvalRequest.decisionNote}</p>
                         )}
                         {detail.appliedAt && (
-                          <p className={`text-[11px] font-light ${spec.textMuted}`}>
+                          <p className={`text-xs font-light ${spec.textMuted}`}>
                             已于 {formatYmd(detail.appliedAt) || detail.appliedAt} 生效{detail.appliedBy ? `（操作人 ${detail.appliedBy}）` : ''}
                           </p>
                         )}

@@ -28,9 +28,11 @@ import {
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-// ── 节点类型 → 显示标签 + 色调（BDS §4.5 雾化分类色板 mask-* 文字元，同源 30% 饱和；色板共 15 色，同族语义复用）──
+// ── 节点类型 → 显示标签 + 色调（BDS §4.5 雾化分类色板 mask-* 文字元，饱和 45%；共 10 色相，
+//    2026-08-31 用户裁决 14 并组到 10：sky→blue / olive→emerald·amber / teal→green / indigo→blue，
+//    同族实体取同族同色系，靠文字标签区分）──
 const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
-  Relation:            { label: '业务伙伴', tone: 'text-[var(--mask-sky-text)]' },
+  Relation:            { label: '业务伙伴', tone: 'text-[var(--mask-blue-text)]' },
   Order:               { label: '订单',     tone: 'text-[var(--mask-violet-text)]' },
   OrderLine:           { label: '订单行',   tone: 'text-[var(--mask-violet-soft-text)]' },
   Quotation:           { label: '报价单',   tone: 'text-[var(--mask-pink-text)]' },
@@ -38,10 +40,10 @@ const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
   PaymentVoucher:      { label: '收付款',   tone: 'text-[var(--mask-amber-text)]' },
   Shipment:            { label: '出货',     tone: 'text-[var(--mask-cyan-text)]' },
   CustomsDeclaration:  { label: '报关',     tone: 'text-[var(--mask-rose-text)]' },
-  ProductionStage:     { label: '生产阶段', tone: 'text-[var(--mask-olive-text)]' },
+  ProductionStage:     { label: '生产阶段', tone: 'text-[var(--mask-emerald-text)]' },
   SampleNode:          { label: '样品',     tone: 'text-[var(--mask-orange-text)]' },
-  InspectionReport:    { label: '检验报告', tone: 'text-[var(--mask-teal-text)]' },
-  TradeDocument:       { label: '贸易单据', tone: 'text-[var(--mask-indigo-text)]' },
+  InspectionReport:    { label: '检验报告', tone: 'text-[var(--mask-green-text)]' },
+  TradeDocument:       { label: '贸易单据', tone: 'text-[var(--mask-blue-text)]' },
   TaxRefund:           { label: '退税',     tone: 'text-[var(--mask-green-text)]' },
   Product:             { label: '产品',     tone: 'text-[var(--mask-blue-text)]' },
   // W-C A1 采购库存链（采购族=浅紫 / 收货=物流青 / 库存=流水琥珀·物料蓝）
@@ -49,7 +51,7 @@ const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
   MaterialReceipt:     { label: '收货单',   tone: 'text-[var(--mask-cyan-text)]' },
   StockMovement:       { label: '库存变动', tone: 'text-[var(--mask-amber-text)]' },
   InventoryItem:       { label: '库存物料', tone: 'text-[var(--mask-blue-text)]' },
-  Warehouse:           { label: '仓库',     tone: 'text-[var(--mask-olive-text)]' },
+  Warehouse:           { label: '仓库',     tone: 'text-[var(--mask-amber-text)]' },
 };
 
 function nodeTypeLabel(type: string): string {
@@ -261,7 +263,7 @@ export function TraceabilityPanel({
             ))}
           </div>
           {/* 当前场景描述 */}
-          <div className={cx('text-[11px] font-light', textSecondary)}>
+          <div className={cx('text-xs font-light', textSecondary)}>
             {TRACE_SCENARIOS.find((s) => s.id === scenario)?.description}
           </div>
           {/* rootId 输入 + 查询按钮：Relation 根场景用档案检索下拉（免手输 ID），其余场景保留 ID 输入 */}
@@ -353,7 +355,7 @@ export function TraceabilityPanel({
               {Array.from(groupedNodes.entries()).map(([type, nodes]) => (
                 <RdlSurface key={type} tone="card" padding="compact" className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className={cx('text-[11px] font-light', nodeTypeTone(type))}>
+                    <span className={cx('text-xs font-light', nodeTypeTone(type))}>
                       {nodeTypeLabel(type)}
                     </span>
                     <span className={cx('text-[10px] font-light', textFaint)}>
@@ -400,7 +402,7 @@ export function TraceabilityPanel({
                     const toNode = nodeMap.get(edge.to);
                     return (
                       // R678-9 复合 key（from+relation+to）：索引 key 在结果集变化时错位复用行状态
-                      <div key={`${edge.from}|${edge.relation}|${edge.to}`} className={cx('flex items-center gap-2 rounded-control px-2 py-1.5 text-[11px]', rowBg)}>
+                      <div key={`${edge.from}|${edge.relation}|${edge.to}`} className={cx('flex items-center gap-2 rounded-control px-2 py-1.5 text-xs', rowBg)}>
                         <span className={cx('min-w-0 flex-1 truncate font-light', textPrimary)}>
                           {fromNode?.label || edge.from}
                         </span>

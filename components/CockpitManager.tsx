@@ -63,7 +63,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
   const textSecondary = 'text-[var(--text-tertiary)]';
   const textFaint = 'text-[var(--text-quaternary)]';
   const divider = 'border-[var(--border-c-subtle)]';
-  const rowBg = 'bg-[var(--recessed-bg)]';
+  const rowBg = 'transition-colors duration-150 hover:bg-[var(--recessed-bg)]';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -482,11 +482,14 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
         <div className="bds-card flex min-h-0 flex-col justify-center" style={{ padding: 'var(--space-3) var(--space-4)' }}>
           <div className={cx('flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
-            {fxGain ? <TrendingUp size={14} strokeWidth={1.5} /> : <TrendingDown size={14} strokeWidth={1.5} />}
+            {fxGain
+              ? <TrendingUp size={14} strokeWidth={1.5} className="text-[var(--success-text)]" />
+              : <TrendingDown size={14} strokeWidth={1.5} className="text-[var(--danger-text)]" />}
             汇兑净{fxGain ? '收益' : '损失'} · {data.fxSummary.baseCurrency}
           </div>
-          <div className={cx('bds-tnum mt-1.5 text-lg font-light', fxGain ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
-            {fxGain ? '+' : ''}{formatAmount(data.fxSummary.totalGainLoss, data.fxSummary.baseCurrency)}
+          <div className={cx('bds-tnum mt-1.5 text-lg font-light', textPrimary)}>
+            <span className={fxGain ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}>{fxGain ? '▲ +' : '▼ '}</span>
+            {formatAmount(Math.abs(data.fxSummary.totalGainLoss), data.fxSummary.baseCurrency)}
           </div>
           <div className={cx('mt-1 text-[10px] font-light', textFaint)}>{data.fxSummary.rowCount} 笔核销 · 区间内</div>
         </div>
@@ -500,7 +503,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
                 {rows.map(t => (
                   <div key={t.currency} className={cx(currencyLine, 'text-sm')}>
                     <span className={textFaint}>{t.currency}</span>
-                    <span className="text-[var(--danger-text)]">{formatAmount(t.overdue, t.currency)}</span>
+                    <span className={cx('font-light', textPrimary)}>
+                      <span className="mr-0.5 text-[var(--danger-text)]">●</span>
+                      {formatAmount(t.overdue, t.currency)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -516,9 +522,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               {marginTotals.map(t => (
                 <div key={t.currency} className={cx(currencyLine, 'text-sm')}>
                   <span className={textFaint}>{t.currency} · {t.orderCount} 单</span>
-                  <span className={t.margin >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}>
-                    {t.margin >= 0 ? '+' : ''}{formatAmount(t.margin, t.currency)}
-                    {t.marginRate != null && <span className="ml-1.5 text-[10px]">{formatPct(t.marginRate)}</span>}
+                  <span className={cx('font-light', textPrimary)}>
+                    <span className={cx('mr-0.5', t.margin >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>{t.margin >= 0 ? '▲ +' : '▼ '}</span>
+                    {formatAmount(Math.abs(t.margin), t.currency)}
+                    {t.marginRate != null && <span className={cx('ml-1.5 text-[10px]', t.marginRate >= 0 ? textFaint : 'text-[var(--danger-text)]')}>{formatPct(t.marginRate)}</span>}
                   </span>
                 </div>
               ))}

@@ -24,13 +24,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isD
                                 </div>
                             </div>
                             <div className="overflow-x-auto p-4">
-                                <code {...props} className="font-mono text-[13px] leading-relaxed text-[var(--text-secondary)]">
+                                <code {...props} className="font-mono text-sm leading-relaxed text-[var(--text-secondary)]">
                                     {String(children).replace(/\n$/, '')}
                                 </code>
                             </div>
                         </div>
                     ) : (
-                        <code {...props} className={`px-1.5 py-0.5 rounded-bds-sm text-[13px] font-mono bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
+                        <code {...props} className={`px-1.5 py-0.5 rounded-bds-sm text-sm font-mono bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                             {children}
                         </code>
                     );
@@ -44,7 +44,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isD
                     );
                 },
                 thead({ children }) {
-                    return <thead className={`text-[11px] uppercase tracking-wider font-light bg-[var(--recessed-bg)] border-b border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>{children}</thead>;
+                    return <thead className={`text-xs uppercase tracking-wider font-light bg-[var(--recessed-bg)] border-b border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>{children}</thead>;
                 },
                 th({ children }) {
                     return <th className="px-4 py-3 border-b border-[var(--border-c-subtle)] font-light">{children}</th>;

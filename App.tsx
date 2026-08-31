@@ -131,11 +131,6 @@ import { subscribe, checkAuth, getAuthState, canAccessView, AuthState } from './
 import { getDevOptions, subscribe as subscribeDevOptions, type DevOptions } from './services/devOptionsService';
 import { resolveInitialDarkMode } from './appTheme';
 import type { StoredThemePreference } from './appTheme';
-import {
-  applyWallpaperAccentPaletteToElement,
-  defaultWallpaperAccentPalette,
-  type WallpaperAccentPalette,
-} from './utils/wallpaperAccent';
 import Sidebar from './components/Sidebar';
 import { ComingSoonOverlay } from './components/ui/ComingSoonOverlay';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -1041,7 +1036,6 @@ const App: React.FC = () => {
       ...config,
       themeMode: nextIsDarkMode ? 'dark' : 'light',
     };
-    syncWallpaperAccentForConfig(nextIsDarkMode);
     setIsDarkMode(nextIsDarkMode);
     setConfig(nextConfig);
     apiService.saveConfig(nextConfig);
@@ -1052,36 +1046,6 @@ const App: React.FC = () => {
   // 壁纸模式恒 off，仅保留 data 属性供 CSS 选择器与 Sidebar.test.tsx 源码断言稳定匹配。
   const isWallpaperMode = false;
   const appearanceMode = isDarkMode ? 'dark' : 'light';
-  const [wallpaperAccentPalette, setWallpaperAccentPalette] = useState<WallpaperAccentPalette>(() =>
-    defaultWallpaperAccentPalette(isDarkMode)
-  );
-
-  const commitWallpaperAccentPalette = useCallback((palette: WallpaperAccentPalette) => {
-    // 命令式写 CSS 变量（同步、零 React 重渲染），下游所有用了
-    // var(--os-vnext-brand-blue*) 的组件下一帧就是新颜色。
-    applyWallpaperAccentPaletteToElement(appRootRef.current, palette);
-    // setState 用函数式更新 + 浅比较，避免「缓存命中后再被异步采样写一遍
-    // 完全相同的值」造成的多余整树重渲染。
-    setWallpaperAccentPalette(prev => (
-      prev.accent === palette.accent &&
-      prev.accentStrong === palette.accentStrong &&
-      prev.accentSoft === palette.accentSoft &&
-      prev.globeAtmosphere === palette.globeAtmosphere &&
-      prev.globeBorder === palette.globeBorder &&
-      prev.globeLand === palette.globeLand &&
-      prev.globeLandRim === palette.globeLandRim
-        ? prev
-        : palette
-    ));
-  }, []);
-
-  useLayoutEffect(() => {
-    commitWallpaperAccentPalette(defaultWallpaperAccentPalette(isDarkMode));
-  }, [commitWallpaperAccentPalette, isDarkMode]);
-
-  const syncWallpaperAccentForConfig = useCallback((nextIsDarkMode: boolean) => {
-    commitWallpaperAccentPalette(defaultWallpaperAccentPalette(nextIsDarkMode));
-  }, [commitWallpaperAccentPalette]);
   // A5d 报表下钻联动：跳转目标模块并定位模块内 tab（FinanceManager/CustomsManager initialTab）
   const [moduleTabOverrides, setModuleTabOverrides] = useState<Partial<Record<View, string>>>({});
   const handleViewChange = (view: View) => {
@@ -1283,19 +1247,7 @@ const App: React.FC = () => {
         ['--app-sidebar-w' as any]: isCollapsed ? '64px' : '232px',
         ['--app-sidebar-visual-w' as any]: `${(isCollapsed ? 64 : 232) * appScale}px`,
         ['--ui-lab-app-scale' as any]: appScale.toFixed(4),
-        ['--os-vnext-brand-blue' as any]: wallpaperAccentPalette.accent,
-        ['--os-vnext-brand-blue-strong' as any]: wallpaperAccentPalette.accentStrong,
-        ['--os-vnext-brand-blue-soft' as any]: wallpaperAccentPalette.accentSoft,
-        ['--os-vnext-brand-blue-rgb' as any]: wallpaperAccentPalette.accentRgb,
-        ['--os-vnext-brand-blue-strong-rgb' as any]: wallpaperAccentPalette.accentStrongRgb,
-        ['--os-vnext-brand-blue-soft-rgb' as any]: wallpaperAccentPalette.accentSoftRgb,
-        ...(isDarkMode
-          ? {
-              backgroundImage: 'linear-gradient(135deg, #070D15 0%, #0B111B 46%, #050A11 100%)',
-            }
-          : {
-              backgroundImage: 'linear-gradient(135deg, #EEF2F6 0%, #D8DEE7 48%, #AEB9C8 100%)',
-            }),
+        backgroundImage: 'var(--page-aurora)',
       }}
     >
       <SplashScreen isVisible={isLoading} isDarkMode={isDarkMode} />
@@ -1316,19 +1268,19 @@ const App: React.FC = () => {
       />
 
       {agentPetRendererError && (
-        <div className="pointer-events-auto absolute right-6 top-6 z-[80] max-w-[420px] rounded-control border border-red-400/20 bg-[rgba(35,12,18,0.84)] px-4 py-3 text-sm text-red-50 shadow-[0_18px_48px_-24px_rgba(127,29,29,0.7)] backdrop-blur-2xl">
-          <div className="flex items-start gap-3">
-            <ShieldAlert size={16} className="mt-0.5 shrink-0 text-red-200" />
+        <div className="bds-alert danger pointer-events-auto absolute right-6 top-6 z-[80] max-w-[420px] px-4 py-3 shadow-[var(--bds-shadow-md)] backdrop-blur-2xl">
+          <div className="flex w-full items-start gap-3">
+            <ShieldAlert size={16} className="mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
               <div className="font-light">Agent 浮窗已关闭</div>
-              <div className="mt-1 line-clamp-3 break-words text-xs leading-5 text-red-100/80">
+              <div className="mt-1 line-clamp-3 break-words text-xs leading-5 opacity-80">
                 {agentPetRendererError.message}
               </div>
             </div>
             <button
               type="button"
               onClick={() => setAgentPetRendererError(null)}
-              className="shrink-0 rounded-full px-2 text-lg leading-5 text-red-100/70 hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-full px-2 text-lg leading-5 opacity-70 hover:bg-[var(--danger-tint-hover)] hover:opacity-100"
               aria-label="关闭 Agent 浮窗错误提示"
             >
               ×
@@ -1353,7 +1305,6 @@ const App: React.FC = () => {
                 orders={orders}
                 sidebarOffset={0}
                 isDarkMode={isDarkMode}
-                accentPalette={wallpaperAccentPalette}
                 initialDelay={0}
                 quality={globeParams.quality}
                 viewportCenter={globeViewportCenter}
@@ -1490,7 +1441,7 @@ const App: React.FC = () => {
             {activeView === View.Relations && (
               relationsReady
                 ? <RelationsManager relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} cloudEndpoint={config.cloudEndpoint} onNavigate={handleViewChange} />
-                : <div className="text-slate-500 dark:text-slate-400">关系智库正在读取数据中心...</div>
+                : <div className="text-[var(--text-tertiary)]">关系智库正在读取数据中心...</div>
             )}
             {activeView === View.Products && (
               isProductModuleSettingsWorkspaceOpen
@@ -1527,7 +1478,7 @@ const App: React.FC = () => {
                   data-os-surface-role="floatingOverlay"
                   aria-label="打开数字档案模块设置"
                   title="数字档案设置"
-                  className={`flex h-full w-full items-center justify-center !rounded-full ${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel ${OS_MATERIAL.floatingOverlay} transition-colors text-slate-600 hover:text-slate-900 dark:text-white/72 dark:hover:text-white/88`}
+                  className={`flex h-full w-full items-center justify-center !rounded-full ${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel ${OS_MATERIAL.floatingOverlay} transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]`}
                   onClick={() => setIsProductModuleSettingsWorkspaceOpen(true)}
                 >
                   <Settings2 size={20} strokeWidth={1.7} />
@@ -1608,7 +1559,7 @@ const App: React.FC = () => {
                 ? (orders.length === 0 && snapshotError
                   ? (
                     /* 加载失败 ≠ 真空：快照失败且无缓存时不渲染 OrderManager 空态，给可见失败 + 重试 */
-                    <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+                    <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--text-tertiary)]">
                       <AlertTriangle size={20} strokeWidth={1.5} />
                       <p className="text-sm font-light">订单加载失败：{snapshotError}</p>
                       <button type="button" onClick={() => checkConnection()} className="bds-btn bds-btn-secondary">
@@ -1638,7 +1589,7 @@ const App: React.FC = () => {
                     onNavigate={handleViewChange}
                   />
                   ))
-                : <div className="text-slate-500 dark:text-slate-400">订单正在读取数据中心...</div>
+                : <div className="text-[var(--text-tertiary)]">订单正在读取数据中心...</div>
             )}
             {activeView === View.Emails && (
               <EmailManager emails={emails} setEmails={handleUpdateEmails} knowledge={knowledge} orders={orders} onAddKnowledge={(item) => handleUpdateKnowledge([item, ...knowledge], item)} isDarkMode={isDarkMode} />
@@ -1648,12 +1599,6 @@ const App: React.FC = () => {
                 mode={settingsMode}
                 config={config}
                 onUpdateConfig={(nc) => {
-                  const nextIsDarkMode = nc.themeMode === 'light'
-                    ? false
-                    : nc.themeMode === 'dark'
-                      ? true
-                      : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  syncWallpaperAccentForConfig(nextIsDarkMode);
                   setConfig(nc);
                   apiService.saveConfig(nc);
                   if (nc.themeMode === 'light') setIsDarkMode(false);

@@ -149,11 +149,12 @@ function useWallpaperGlobeEdgePalette(wallpaperUrl: string | undefined, isDarkMo
 }
 
 const StatusColorMap: Record<string, string> = {
-    'Alert': '#f43f5e',
-    'Pending': '#94a3b8',
-    'Production': '#3b82f6',
-    'Shipping': '#6366f1',
-    'Delivered': '#10b981',
+    /* 2026-09-01 雾蓝频道：与 MapLibreProductionGlobe 状态色对齐（旧彩虹色板退役） */
+    'Alert': '#275768',
+    'Pending': '#c6d9e2',
+    'Production': '#275768',
+    'Shipping': '#7fa3b3',
+    'Delivered': '#2b4d60',
 };
 
 /** 订单状态中文标签（tooltip / 图例共用） */
@@ -716,22 +717,22 @@ function BeamTooltip({ order, isFocused, radius, onOpenOrder, hoverProps }: {
                 className={`
  border p-4 rounded-inset text-white min-w-[220px] transition-colors duration-300 pointer-events-auto select-none
                 ${isFocused
-                    ? 'bg-blue-950/90 border-blue-400/50 scale-110'
-                    : 'bg-slate-950/90 border-white/20 scale-100'}
+                    ? 'bg-deep/90 border-[var(--text-on-dark-2)] scale-110'
+                    : 'bg-deep/90 border-[var(--text-on-dark-4)] scale-100'}
             `} style={{ boxShadow: 'var(--shadow-dropdown)' }}>
                 <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-light tracking-[0.2em] text-slate-400">{GLOBE_STATUS_LABEL_ZH[order.status] || order.status}</div>
+                    <div className="text-[10px] font-light tracking-[0.2em] text-[var(--text-on-dark-2)]">{GLOBE_STATUS_LABEL_ZH[order.status] || order.status}</div>
                     <div className={`w-2 h-2 rounded-full ${isFocused ? 'animate-pulse' : ''}`} style={{ backgroundColor: color }}></div>
                 </div>
                 <div className="text-sm font-light truncate mb-3">{order.millName}</div>
                 <div className="grid grid-cols-2 gap-4 text-[10px] border-t border-white/10 pt-3">
-                    <div><div className="text-slate-500 mb-0.5">数量</div><div className="font-light">{order.quantity.toLocaleString()}</div></div>
-                    <div className="text-right"><div className="text-slate-500 mb-0.5">金额</div><div className="font-light text-[var(--os-vnext-brand-blue-soft)]">${(order.quoteAmount / 1000).toFixed(1)}k</div></div>
+                    <div><div className="text-[var(--text-on-dark-3)] mb-0.5">数量</div><div className="font-light">{order.quantity.toLocaleString()}</div></div>
+                    <div className="text-right"><div className="text-[var(--text-on-dark-3)] mb-0.5">金额</div><div className="font-light text-[var(--os-vnext-brand-blue-soft)]">${(order.quoteAmount / 1000).toFixed(1)}k</div></div>
                 </div>
                 {onOpenOrder && (
                     <button
                         type="button"
-                        className="mt-3 w-full rounded-control border border-white/20 px-3 py-1.5 text-[11px] font-light text-white transition-colors hover:bg-white/10"
+                        className="mt-3 w-full rounded-control border border-white/20 px-3 py-1.5 text-xs font-light text-white transition-colors hover:bg-white/10"
                         onClick={(e) => {
                             e.stopPropagation();
                             onOpenOrder(order.id);
@@ -1239,7 +1240,7 @@ const ProductionGlobeImpl: React.FC<ProductionGlobeProps> = ({
                             onClick={() => toggleStatus(status)}
                             aria-pressed={!hidden}
                             title={hidden ? '点击显示该状态' : '点击隐藏该状态'}
-                            className={`flex items-center gap-2 text-left text-[11px] font-light text-[var(--text-secondary)] transition-opacity ${hidden ? 'opacity-40' : 'opacity-100'}`}
+                            className={`flex items-center gap-2 text-left text-xs font-light text-[var(--text-secondary)] transition-opacity ${hidden ? 'opacity-40' : 'opacity-100'}`}
                         >
                             <span
                                 className="h-2 w-2 shrink-0 rounded-full"

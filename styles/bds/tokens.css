@@ -15,7 +15,7 @@
      3. 层级圆角   — 同心刻度（inner = outer − padding）：微件 8/12/14 · 控件 16/18
                      · 嵌套 22 · 卡片 24/28 · 浮层/面板 30/34；嵌套必须外大内小保层次
      4. 氛围雾     — 页面底层三色弥散雾（雾蓝/雾绿/紫藤），磨砂玻璃为一级材质
-     5. 雾化色彩   — accent 雾青蓝 #3F6E7E；语义色全部低饱和雾化，小面积 dot/tint
+     5. 雾化色彩   — accent 雾青蓝 #34768D；语义色雾化（2026-08-31 全局提饱和 S 45 档），小面积 dot/tint
      6. 主题透明   — 组件只引用语义 token；暗色由本文件 [data-theme] 统一覆盖，
                      组件内禁止出现 dark: 分支或 isDarkMode 三元
 
@@ -35,18 +35,19 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ═══════════ 1. 表面色彩 — 中性微冷白体系（去暖：与 accent 冷青 #3F6E7E 及
-     深色 #0E1519 同温，消除 stone 暖灰与冷青 accent 的冲突）。
-     阶梯：page < panel < sunken 逐级下沉，色温一致微冷（R<G≤B）。
+  /* ═══════════ 1. 表面色彩 — 雾蓝单频道体系（2026-09-01 用户 demo 实机拍板） ═══════════
+     锚点 = 侧边栏 brand-mist（H 199-203°）。全应用表面锁死雾蓝频道 H 200-207°，
+     与侧边栏同一片雾的远近景（mist-hifi-demo.html 实机验收通过）。
+     阶梯：page < panel < sunken 逐级下沉，色温一致（R<G≤B 同频道）。
      rgb 三元组（--bg-*-rgb）供 Tailwind alpha 修饰符引用（bg-bds-card/95） */
-  --bg-page: #F3F5F6;
-  --bg-page-rgb: 243 245 246;
+  --bg-page: #ECF1F5;
+  --bg-page-rgb: 236 241 245;
   --bg-card: #FFFFFF;
   --bg-card-rgb: 255 255 255;
-  --bg-panel: #EAEDEE;
-  --bg-panel-rgb: 234 237 238;
-  --bg-sunken: #E1E5E6;
-  --bg-sunken-rgb: 225 229 230;
+  --bg-panel: #E4EBF1;
+  --bg-panel-rgb: 228 235 241;
+  --bg-sunken: #DCE5EC;
+  --bg-sunken-rgb: 220 229 236;
   --bg-raised: #FFFFFF;            /* 浮起表面：segment 激活面、dropdown、popover */
   --bg-raised-rgb: 255 255 255;
 
@@ -66,121 +67,71 @@
   --text-on-dark-4: rgba(244,245,242,0.12);
 
   /* ═══════════ 3. 品牌 accent — 雾青蓝 Mist Teal（Luna 案例实测转译） ═══════════
-     Luna 手法：零高饱和纯色，所有彩色都是"雾里透出来的"。
-     accent = Luna 雾蓝氛围的实色化（可点击的最深一档），白底对比度 5.9:1 */
-  --accent: #3F6E7E;               /* 雾青蓝实色 — Luna 雾蓝 #A8C4D0 的加深实色版 */
-  --accent-rgb: 63 110 126;        /* Tailwind alpha 修饰符三元组 */
-  --accent-hover: #35616F;
-  --accent-active: #2C5461;
-  --accent-tint: rgba(63,110,126,0.09);
-  --accent-tint-light: rgba(63,110,126,0.045);
-  --accent-tint-strong: rgba(63,110,126,0.14);
-  --accent-text: #2C5461;          /* tint 底上的 accent 文字（加深一档保对比度） */
-  --link: #3F6E7E;                 /* 链接与行动同色（纪律：功能色只有一个） */
-  --link-rgb: 63 110 126;
-  --link-hover: #35616F;
+     2026-08-31 用户裁决：全色板全局提饱和（S 30-40 档 → 45-52 档），色相/明度体系不变——
+     旧值整体"太雾太淡"，多色并置区分度不足。雾感保留（零高饱和彩虹），可辨性优先。
+     accent = Luna 雾蓝氛围的实色化（可点击的最深一档），白字对比度 5.1:1 */
+  --accent: #34768D;               /* 雾青蓝实色 — Luna 雾蓝 #A8C4D0 的加深实色版 */
+  --accent-rgb: 52 118 141;        /* Tailwind alpha 修饰符三元组 */
+  --accent-hover: #2C6377;
+  --accent-active: #275768;
+  --accent-tint: rgba(52,118,141,0.15);
+  --accent-tint-light: rgba(52,118,141,0.07);
+  --accent-tint-strong: rgba(52,118,141,0.20);
+  --accent-text: #275768;          /* tint 底上的 accent 文字（加深一档保对比度） */
+  --link: #34768D;                 /* 链接与行动同色（纪律：功能色只有一个） */
+  --link-rgb: 52 118 141;
+  --link-hover: #2C6377;
   --on-accent: #FFFFFF;            /* 彩色实底上的恒白文字/图形（btn-primary/switch knob/check 勾/toast ico 共用，主题无关常量） */
   --on-accent-chip: rgba(255,255,255,0.25);  /* accent 实底上的徽章/chip 底 */
 
-  /* ═══════════ 4. 语义色 — 雾化处理（Luna 纪律：低饱和、高明度、小面积 dot/tint） ═══════════ */
-  --success: #5E8B6E;              /* 雾松绿 */
-  --success-rgb: 94 139 110;
-  --success-tint: rgba(94,139,110,0.11);
-  --success-tint-hover: rgba(94,139,110,0.17);
-  --success-tint-active: rgba(94,139,110,0.23);
-  --success-text: #4A7059;
-  --warning: #A98A4F;              /* 雾琥珀 */
-  --warning-rgb: 169 138 79;
-  --warning-tint: rgba(169,138,79,0.11);
-  --warning-tint-hover: rgba(169,138,79,0.17);
-  --warning-tint-active: rgba(169,138,79,0.23);
-  --warning-text: #8A6F3D;
-  --danger: #B05F57;               /* 雾砖红 */
-  --danger-rgb: 176 95 87;
-  --danger-hover: #964C44;
-  --danger-tint: rgba(176,95,87,0.09);
-  --danger-tint-hover: rgba(176,95,87,0.15);
-  --danger-tint-active: rgba(176,95,87,0.21);
-  --danger-text: #964C44;
+  /* ═══════════ 4. 语义色 — 雾化处理（2026-08-31 全局提饱和：S 45-52 档，色相/明度不变） ═══════════ */
+  --success: #409660;              /* 雾松绿 */
+  --success-rgb: 64 150 96;
+  --success-tint: rgba(64,150,96,0.16);
+  --success-tint-hover: rgba(64,150,96,0.22);
+  --success-tint-active: rgba(64,150,96,0.28);
+  --success-text: #317D4D;
+  --warning: #C4A445;              /* 雾琥珀（2026-08-31 去棕提黄：hue 38→45，提亮，避免偏暗棕） */
+  --warning-rgb: 196 164 69;
+  --warning-tint: rgba(196,164,69,0.16);
+  --warning-tint-hover: rgba(196,164,69,0.22);
+  --warning-tint-active: rgba(196,164,69,0.28);
+  --warning-text: #A38733;
+  --danger: #BC4950;               /* 雾绯红（2026-08-31 用户裁决：去褐味 hue→356° + 全局提饱和） */
+  --danger-rgb: 188 73 80;
+  --danger-hover: #9F383F;
+  --danger-tint: rgba(188,73,80,0.15);
+  --danger-tint-hover: rgba(188,73,80,0.20);
+  --danger-tint-active: rgba(188,73,80,0.26);
+  --danger-text: #9F383F;
   --info-text: var(--accent-text);   /* info 语义归并 accent 系（info 徽章 = accent tint） */
 
-  /* ═══════════ 4.5 雾化分类色板 — 14 色（2026-08-17 批H · 评审报告 S3/FR-001 决策落地） ═══════════
-     与雾琥珀 #A98A4F / 雾砖红 #B05F57 同源色彩空间：饱和度统一 30%（25-35% 区间），
-     明度 47% 基色 / 36% 文字 / 暗色 66-70% 提亮，零高饱和彩虹。
-     每色四元 + -rgb 三元组（半透明变体经 rgb(var(--mask-X-rgb)/α) 派生）：
-       基色 --mask-X · 文字 --mask-X-text · 雾底 --mask-X-bg · 描边 --mask-X-border
-     用途白名单：业务实体分类编码（chip/徽章/节点标签/图例），
-     禁止用作语义状态色（成功/警告/危险/进行 走 §4 语义色），禁止大面积铺底。 */
-  --mask-sky: #547E9C;
-  --mask-sky-rgb: 84 126 156;
-  --mask-sky-text: #3E6179;
-  --mask-sky-bg: rgba(84,126,156,0.10);
-  --mask-sky-border: rgba(84,126,156,0.28);
-  --mask-violet: #7E549C;
-  --mask-violet-rgb: 126 84 156;
-  --mask-violet-text: #613E79;
-  --mask-violet-bg: rgba(126,84,156,0.10);
-  --mask-violet-border: rgba(126,84,156,0.28);
-  --mask-violet-soft: #9978B0;
-  --mask-violet-soft-rgb: 153 120 176;
-  --mask-violet-soft-text: #7A5794;
-  --mask-violet-soft-bg: rgba(153,120,176,0.12);
-  --mask-violet-soft-border: rgba(153,120,176,0.30);
-  --mask-pink: #9C5478;
-  --mask-pink-rgb: 156 84 120;
-  --mask-pink-text: #793E5C;
-  --mask-pink-bg: rgba(156,84,120,0.10);
-  --mask-pink-border: rgba(156,84,120,0.28);
-  --mask-emerald: #549C7E;
-  --mask-emerald-rgb: 84 156 126;
-  --mask-emerald-text: #3E7961;
-  --mask-emerald-bg: rgba(84,156,126,0.10);
-  --mask-emerald-border: rgba(84,156,126,0.28);
-  --mask-amber: #9C8454;
-  --mask-amber-rgb: 156 132 84;
-  --mask-amber-text: #79663E;
-  --mask-amber-bg: rgba(156,132,84,0.10);
-  --mask-amber-border: rgba(156,132,84,0.28);
-  --mask-cyan: #54969C;
-  --mask-cyan-rgb: 84 150 156;
-  --mask-cyan-text: #3E7479;
-  --mask-cyan-bg: rgba(84,150,156,0.10);
-  --mask-cyan-border: rgba(84,150,156,0.28);
-  --mask-rose: #9C5460;
-  --mask-rose-rgb: 156 84 96;
-  --mask-rose-text: #793E48;
-  --mask-rose-bg: rgba(156,84,96,0.10);
-  --mask-rose-border: rgba(156,84,96,0.28);
-  --mask-olive: #9C9654;
-  --mask-olive-rgb: 156 150 84;
-  --mask-olive-text: #79743E;
-  --mask-olive-bg: rgba(156,150,84,0.10);
-  --mask-olive-border: rgba(156,150,84,0.28);
-  --mask-orange: #9C7254;
-  --mask-orange-rgb: 156 114 84;
-  --mask-orange-text: #79573E;
-  --mask-orange-bg: rgba(156,114,84,0.10);
-  --mask-orange-border: rgba(156,114,84,0.28);
-  --mask-teal: #549C90;
-  --mask-teal-rgb: 84 156 144;
-  --mask-teal-text: #3E796F;
-  --mask-teal-bg: rgba(84,156,144,0.10);
-  --mask-teal-border: rgba(84,156,144,0.28);
-  --mask-indigo: #545A9C;
-  --mask-indigo-rgb: 84 90 156;
-  --mask-indigo-text: #3E4379;
-  --mask-indigo-bg: rgba(84,90,156,0.10);
-  --mask-indigo-border: rgba(84,90,156,0.28);
-  --mask-green: #549C60;
-  --mask-green-rgb: 84 156 96;
-  --mask-green-text: #3E7948;
-  --mask-green-bg: rgba(84,156,96,0.10);
-  --mask-green-border: rgba(84,156,96,0.28);
-  --mask-blue: #54729C;
-  --mask-blue-rgb: 84 114 156;
-  --mask-blue-text: #3E5779;
-  --mask-blue-bg: rgba(84,114,156,0.10);
-  --mask-blue-border: rgba(84,114,156,0.28);
+  /* ═══════════ 4.5 雾化分类色板 — 10 色（2026-08-31 用户裁决：14 并组到 10） ═══════════
+     14 色原为溯源图例一实体一色，经核实全站仅「溯源图 TraceabilityPanel」消费（文字元），
+     UI 日常不可见。故并组同色系：删 sky/olive/teal/indigo，并入 blue/amber/emerald 等，
+     溯源图靠同族同色系 + 文字仍可辨。保留 基色 + 文字 二元。
+     与雾琥珀 #C4A445 / 雾绯红 #BC4950 同源色彩空间：饱和度 45% 档，明度 47% 基/36% 文字。
+     禁止用作语义状态色，禁止大面积铺底。 */
+  --mask-violet: #8142AE;
+  --mask-violet-text: #633088;
+  --mask-violet-soft: #9C64C4;
+  --mask-violet-soft-text: #7F3DAE;
+  --mask-pink: #AE4278;
+  --mask-pink-text: #88305C;
+  --mask-emerald: #42AE81;
+  --mask-emerald-text: #308863;
+  --mask-amber: #AE8A42;
+  --mask-amber-text: #886A30;
+  --mask-cyan: #42A5AE;
+  --mask-cyan-text: #308188;
+  --mask-rose: #AE4254;
+  --mask-rose-text: #88303E;
+  --mask-orange: #AE6F42;
+  --mask-orange-text: #885430;
+  --mask-green: #42AE54;
+  --mask-green-text: #30883E;
+  --mask-blue: #426FAE;
+  --mask-blue-text: #305488;
 
   /* ═══════════ 5. 签名材质 — Luna 转译：雾蓝渐变 Mist + 淡紫藤 Wisteria ═══════════
      Luna 高级感核心（案例实测）："Data → Atmosphere"——色彩以雾的形态弥散，
@@ -208,6 +159,39 @@
   --grid-line: rgba(0,0,0,0.14);     /* dashed gridline 比实线更轻 */
   --hatch-c: rgba(11,12,11,0.20);    /* 斜纹填充 = 预测/区间值 */
   --gauge-track: rgba(0,0,0,0.06);
+
+  /* ═══════════ 6.5 图表语义色板 — 雾青体系（2026-08-31 用户裁决落地） ═══════════
+     系列色 chart-1..6：等明度 S45/L47（与 --mask-* 同源），用于多分类图表（饼/分布/多系列）；
+     涨跌双语义（用户裁定随业务定，非全局一色）：
+       -good 档 = 销售/利润/回款/汇率/库存（正向指标，多=好）→ 绿涨红跌（--success/--danger）
+       -cost 档 = 原料采购价（成本指标，多=坏）→ 红涨绿跌
+     轨道/网格/轴为冷青中性雾；深浅两态由 .dark 段覆盖 */
+  --chart-1: #42A5AE;
+  --chart-2: #426FAE;
+  --chart-3: #8142AE;
+  --chart-4: #AE4254;
+  --chart-5: #AE8A42;
+  --chart-6: #42AE54;
+  --chart-1-rgb: 66 165 174;
+  --chart-2-rgb: 66 111 174;
+  --chart-3-rgb: 129 66 174;
+  --chart-4-rgb: 174 66 84;
+  --chart-5-rgb: 174 138 66;
+  --chart-6-rgb: 66 174 84;
+  --chart-up-good: var(--success);    /* 正向指标涨 — 雾松绿 */
+  --chart-down-good: var(--danger);   /* 正向指标跌 — 雾绯红 */
+  --chart-up-cost: var(--danger);     /* 成本指标涨 — 雾绯红 */
+  --chart-down-cost: var(--success);  /* 成本指标跌 — 雾松绿 */
+  --chart-track: rgba(93,109,128,0.18);       /* 轨道/进度环底座（冷蓝灰） */
+  --chart-cursor: rgba(52,118,141,0.07);      /* Tooltip 悬停高亮列 */
+  --chart-grid: rgba(58,74,92,0.10);          /* CartesianGrid 网格线 */
+  --chart-axis: rgba(44,60,76,0.50);          /* 轴刻度线+文字 */
+  --chart-compare: #C9DCE4;                   /* 对比/前值/软系列 */
+  --chart-tooltip-bg: rgba(255,255,255,0.96);
+  --chart-tooltip-border: rgba(15,23,42,0.12);
+  /* 开关轨道（ToggleSwitch 专用）：选中=accent 强填充 / 未选中=冷墨凹槽，深浅随 .dark 覆盖 */
+  --bds-switch-track-on: rgba(52,118,141,0.82);
+  --bds-switch-track-off: rgba(100,116,139,0.26);
 
   /* ═══════════ 7. 浮层/纹理通用材质 ═══════════ */
   --skeleton-shine: rgba(255,255,255,0.45);
@@ -282,14 +266,14 @@
      Luna 手法：光不是锐利辉光，是弥散的雾光（低透明、大模糊）。
      发光纪律：仅徽章（tint + dot）/ 进度条 fill / toast 图标等小型彩色状态元素发光；
      控件（button/switch/checkbox）与大表面（卡片）不发光——大表面的光感由 atmosphere 承载。 */
-  --glow-accent: 0 2px 16px rgba(63,110,126,0.30);
-  --glow-success: 0 1px 12px rgba(94,139,110,0.26);
-  --glow-warning: 0 1px 12px rgba(169,138,79,0.26);
-  --glow-danger: 0 1px 12px rgba(176,95,87,0.26);
-  --glow-accent-soft: 0 1px 9px rgba(63,110,126,0.15);
-  --glow-success-soft: 0 1px 9px rgba(94,139,110,0.14);
-  --glow-warning-soft: 0 1px 9px rgba(169,138,79,0.14);
-  --glow-danger-soft: 0 1px 9px rgba(176,95,87,0.14);
+  --glow-accent: 0 2px 16px rgba(52,118,141,0.30);
+  --glow-success: 0 1px 12px rgba(64,150,96,0.26);
+  --glow-warning: 0 1px 12px rgba(196,164,69,0.26);
+  --glow-danger: 0 1px 12px rgba(188,73,80,0.26);
+  --glow-accent-soft: 0 1px 9px rgba(52,118,141,0.15);
+  --glow-success-soft: 0 1px 9px rgba(64,150,96,0.14);
+  --glow-warning-soft: 0 1px 9px rgba(196,164,69,0.14);
+  --glow-danger-soft: 0 1px 9px rgba(188,73,80,0.14);
 
   /* ═══════════ 12. 边框 — 隐形 hairline，仅用于同面色分隔 ═══════════
      颜色单值（--border-c-*）供 border-color 等单属性引用；
@@ -306,7 +290,7 @@
      雾背景之上）。【2026-08-31 弹窗族亮焦点统一·用户四轮实测拍板】膜色从 0.62 提到
      0.92 高不透明冷白（B 通道 +3~8 冷色校正）——半透明旧值叠暗遮罩观感灰暗偏黄，
      0.92 在暗遮罩中形成亮焦点且保留磨砂层次。勿回刷 0.62（弹窗族统一裁决）。 */
-  --frosted-bg: rgba(248,250,253,0.92);
+  --frosted-bg: rgba(250,252,254,0.92);
   --frosted-border: 1px solid rgba(203,213,225,0.6);
   --frosted-blur-sm: 6px;    /* 导航项、小控件 */
   --frosted-blur: 20px;      /* 标准浮层 */
@@ -323,10 +307,12 @@
      颗粒层：极细 fractalNoise（6% 透明）让色雾有胶片的呼吸感，而非数字平涂。 */
   --grain-img: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/></svg>");
   --page-aurora:
-    radial-gradient(75% 60% at 8% -5%, rgba(163,191,205,0.55), rgba(163,191,205,0) 74%),
-    radial-gradient(60% 52% at 92% 6%, rgba(185,196,172,0.42), rgba(185,196,172,0) 76%),
-    radial-gradient(54% 50% at 70% 102%, rgba(200,184,224,0.30), rgba(200,184,224,0) 74%),
-    var(--bg-page);
+    /* 纯雾蓝双色阶（2026-09-01 用户拍板撤三色彩雾——单频道零杂色，demo 实机验收）。
+       铁律：只能放透明收尾的 <image> 层，禁止拼 var(--bg-page) 纯色尾——
+       background-image 长捷不接受 <color>，拼入即整值计算时无效→aurora 静默失效
+       （8-31 起从未渲染过的根因）。底色职责归 background-color。 */
+    radial-gradient(52% 38% at 18% 8%, rgba(159,188,203,0.35), rgba(159,188,203,0) 100%),
+    radial-gradient(44% 34% at 84% 78%, rgba(198,217,226,0.22), rgba(198,217,226,0) 100%);
 
   /* ═══════════ 15. 字体系统 — 镜像生产环境（index.css --font-primary） ═══════════
      Urbanist（拉丁 UI/display，@fontsource 本地加载 300-700 全档）→ HarmonyOS Sans SC（CJK，有真实 Light 300 面）
@@ -439,8 +425,8 @@
   --invert-text: #FAFAF9;
   /* 焦点环 — 全系统键盘焦点唯一语言 */
   --focus-ring: 0 0 0 3px var(--accent-tint);
-  --focus-ring-strong: 0 0 0 3px rgba(63,110,126,0.28);
-  --focus-ring-danger: 0 0 0 3px rgba(176,95,87,0.16);   /* 危险态输入/确认焦点 */
+  --focus-ring-strong: 0 0 0 3px rgba(52,118,141,0.28);
+  --focus-ring-danger: 0 0 0 3px rgba(188,73,80,0.16);   /* 危险态输入/确认焦点 */
   /* 层叠刻度 — 全系统唯一 z 秩序（modal 200 现状归位）；禁止组件自造 z 值 */
   --z-sticky: 40;    /* 粘性页头/顶栏 */
   --z-pop: 60;       /* dropdown / popover / tooltip / calendar */
@@ -461,20 +447,22 @@
    accent 提亮为雾蓝，atmosphere 转为深夜雾池。
    ═══════════════════════════════════════════════════════════════════ */
 .dark, [data-theme="dark"] {
-  /* 表面 — 深夜雾蓝黑体系（比中性黑多一丝雾青）
+  /* 表面 — 雾蓝单频道深色体系（2026-09-01 用户 demo 实机拍板）
+     锚点 = 深色侧边栏 mist 渐变（#132A36→#243F4C）。明度阶梯对齐侧边栏雾带（L14-22）：
+     page L13 → sunken L8.4 → card L18.6（侧边栏中段 #1A3543 同族）→ raised L20——
+     大面积底不再是死黑，主区与侧边栏同一片雾的远近景（mist-hifi-demo 实机验收）。
      阶梯纪律（2026-08-18 用户裁决 — 深浅模式"底座浅→内嵌深→选中浮"同心不反转）：
-     明度序须与浅色一致 raised > card > glass > page > panel > sunken。
-     曾将 card(#151E23)/panel(#1C272D) 反序，致内嵌面板反比底座浅，已对调。 */
-  --bg-page: #0E1519;
-  --bg-page-rgb: 14 21 25;
-  --bg-card: #1C272D;
-  --bg-card-rgb: 28 39 45;
-  --bg-panel: #0C1216;
-  --bg-panel-rgb: 12 18 22;
-  --bg-sunken: #0A1013;
-  --bg-sunken-rgb: 10 16 19;
-  --bg-raised: #24323A;
-  --bg-raised-rgb: 36 50 58;
+     明度序须与浅色一致 raised > card > glass > page > panel > sunken。 */
+  --bg-page: #14232F;
+  --bg-page-rgb: 20 35 47;
+  --bg-card: #1E3444;
+  --bg-card-rgb: 30 52 68;
+  --bg-panel: #0E1B24;
+  --bg-panel-rgb: 14 27 36;
+  --bg-sunken: #0B161E;
+  --bg-sunken-rgb: 11 22 30;
+  --bg-raised: #26434F;
+  --bg-raised-rgb: 38 67 79;
 
   /* 文字（ink 常量为亮主题专用，暗色语义引用翻转到 on-dark 体系） */
   --text-primary: #F2F5F4;
@@ -483,119 +471,79 @@
   --text-quaternary: rgba(242,245,244,0.18);
 
   /* 品牌 accent 暗色适配：实底提亮为雾蓝（深底上浅态更透气），
-     tint 与文字同步提亮 */
-  --accent: #7FA8B8;
-  --accent-rgb: 127 168 184;
-  --accent-hover: #93BAC9;
-  --accent-active: #6B96A6;
-  --accent-tint: rgba(127,168,184,0.16);
-  --accent-tint-light: rgba(127,168,184,0.08);
-  --accent-tint-strong: rgba(127,168,184,0.24);
-  --accent-text: #A4C6D2;
-  --link: #A4C6D2;
-  --link-rgb: 164 198 210;
-  --link-hover: #C2DAE2;
+     tint 与文字同步提亮（2026-08-31 同步全局提饱和 S 44 档） */
+  --accent: #73B2C9;
+  --accent-rgb: 115 178 201;
+  --accent-hover: #89BED1;
+  --accent-active: #5AA4BF;
+  --accent-tint: rgba(115,178,201,0.22);
+  --accent-tint-light: rgba(115,178,201,0.11);
+  --accent-tint-strong: rgba(115,178,201,0.30);
+  --accent-text: #9CC8D8;
+  --link: #9CC8D8;
+  --link-rgb: 156 200 216;
+  --link-hover: #B6D6E2;
+  /* 深色实底按钮文字：accent 提亮为雾蓝后，恒白字对比仅 2.35:1 不可读（用户 2026-08-31 实机反馈）。
+     覆盖 --on-accent 为深墨，实底按钮（btn-primary/switch knob/勾/toast ico 共用）文字改深，7.84:1 */
+  --on-accent: #0E1519;
+  --on-accent-chip: rgba(14,21,25,0.25);
 
-  /* 语义色暗色适配（雾化亮态：松绿/沙金/尘红提亮版） */
-  --success: #8AB89A;
-  --success-rgb: 138 184 154;
-  --success-text: #9CC4AB;
-  --success-tint: rgba(138,184,154,0.14);
-  --success-tint-hover: rgba(138,184,154,0.22);
-  --success-tint-active: rgba(138,184,154,0.30);
-  --warning: #C9AC6E;
-  --warning-rgb: 201 172 110;
-  --warning-text: #D4BC85;
-  --warning-tint: rgba(201,172,110,0.14);
-  --warning-tint-hover: rgba(201,172,110,0.22);
-  --warning-tint-active: rgba(201,172,110,0.30);
-  --danger: #C97F76;
-  --danger-rgb: 201 127 118;
-  --danger-text: #D4958D;
-  --danger-tint: rgba(201,127,118,0.14);
-  --danger-tint-hover: rgba(201,127,118,0.22);
-  --danger-tint-active: rgba(201,127,118,0.30);
+  /* 语义色暗色适配（提亮态：松绿/沙金/绯红，2026-08-31 同步全局提饱和 S 42-55 档） */
+  --success: #7DCA99;
+  --success-rgb: 125 202 153;
+  --success-text: #92D3AA;
+  --success-tint: rgba(125,202,153,0.20);
+  --success-tint-hover: rgba(125,202,153,0.28);
+  --success-tint-active: rgba(125,202,153,0.36);
+  --warning: #D6BC71;
+  --warning-rgb: 214 188 113;
+  --warning-text: #D7C58E;
+  --warning-tint: rgba(214,188,113,0.20);
+  --warning-tint-hover: rgba(214,188,113,0.28);
+  --warning-tint-active: rgba(214,188,113,0.36);
+  --danger: #CF7D82;
+  --danger-rgb: 207 125 130;
+  --danger-text: #D68F94;
+  --danger-tint: rgba(207,125,130,0.20);
+  --danger-tint-hover: rgba(207,125,130,0.28);
+  --danger-tint-active: rgba(207,125,130,0.36);
 
-  /* 雾化分类色板暗色适配（明度 66% 基色 / 70% 文字提亮，雾底/描边同步加深透明度） */
-  --mask-sky: #8EADC2;
-  --mask-sky-rgb: 142 173 194;
-  --mask-sky-text: #9DB6C8;
-  --mask-sky-bg: rgba(142,173,194,0.14);
-  --mask-sky-border: rgba(142,173,194,0.32);
-  --mask-violet: #AD8EC2;
-  --mask-violet-rgb: 173 142 194;
-  --mask-violet-text: #B69DC8;
-  --mask-violet-bg: rgba(173,142,194,0.14);
-  --mask-violet-border: rgba(173,142,194,0.32);
-  --mask-violet-soft: #B69FC6;
-  --mask-violet-soft-rgb: 182 159 198;
-  --mask-violet-soft-text: #BFADCD;
-  --mask-violet-soft-bg: rgba(182,159,198,0.16);
-  --mask-violet-soft-border: rgba(182,159,198,0.34);
-  --mask-pink: #C28EA8;
-  --mask-pink-rgb: 194 142 168;
-  --mask-pink-text: #C89DB3;
-  --mask-pink-bg: rgba(194,142,168,0.14);
-  --mask-pink-border: rgba(194,142,168,0.32);
-  --mask-emerald: #8EC2AD;
-  --mask-emerald-rgb: 142 194 173;
-  --mask-emerald-text: #9DC8B6;
-  --mask-emerald-bg: rgba(142,194,173,0.14);
-  --mask-emerald-border: rgba(142,194,173,0.32);
-  --mask-amber: #C2B18E;
-  --mask-amber-rgb: 194 177 142;
-  --mask-amber-text: #C8BA9D;
-  --mask-amber-bg: rgba(194,177,142,0.14);
-  --mask-amber-border: rgba(194,177,142,0.32);
-  --mask-cyan: #8EBEC2;
-  --mask-cyan-rgb: 142 190 194;
-  --mask-cyan-text: #9DC4C8;
-  --mask-cyan-bg: rgba(142,190,194,0.14);
-  --mask-cyan-border: rgba(142,190,194,0.32);
-  --mask-rose: #C28E97;
-  --mask-rose-rgb: 194 142 151;
-  --mask-rose-text: #C89DA4;
-  --mask-rose-bg: rgba(194,142,151,0.14);
-  --mask-rose-border: rgba(194,142,151,0.32);
-  --mask-olive: #C2BE8E;
-  --mask-olive-rgb: 194 190 142;
-  --mask-olive-text: #C8C49D;
-  --mask-olive-bg: rgba(194,190,142,0.14);
-  --mask-olive-border: rgba(194,190,142,0.32);
-  --mask-orange: #C2A48E;
-  --mask-orange-rgb: 194 164 142;
-  --mask-orange-text: #C8AF9D;
-  --mask-orange-bg: rgba(194,164,142,0.14);
-  --mask-orange-border: rgba(194,164,142,0.32);
-  --mask-teal: #8EC2BA;
-  --mask-teal-rgb: 142 194 186;
-  --mask-teal-text: #9DC8C1;
-  --mask-teal-bg: rgba(142,194,186,0.14);
-  --mask-teal-border: rgba(142,194,186,0.32);
-  --mask-indigo: #8E93C2;
-  --mask-indigo-rgb: 142 147 194;
-  --mask-indigo-text: #9DA1C8;
-  --mask-indigo-bg: rgba(142,147,194,0.14);
-  --mask-indigo-border: rgba(142,147,194,0.32);
-  --mask-green: #8EC297;
-  --mask-green-rgb: 142 194 151;
-  --mask-green-text: #9DC8A4;
-  --mask-green-bg: rgba(142,194,151,0.14);
-  --mask-green-border: rgba(142,194,151,0.32);
-  --mask-blue: #8EA4C2;
-  --mask-blue-rgb: 142 164 194;
-  --mask-blue-text: #9DAFC8;
-  --mask-blue-bg: rgba(142,164,194,0.14);
-  --mask-blue-border: rgba(142,164,194,0.32);
+  /* 雾化分类色板暗色适配（2026-08-31 14 并组到 10，色相/饱和与浅色对齐） */
+  --mask-violet: #AF81CF;
+  --mask-violet-text: #B88FD6;
+  --mask-violet-soft: #B489D2;
+  --mask-violet-soft-text: #BD98D7;
+  --mask-pink: #CF81A8;
+  --mask-pink-text: #D68FB3;
+  --mask-emerald: #81CFAF;
+  --mask-emerald-text: #8FD6B8;
+  --mask-amber: #CFB581;
+  --mask-amber-text: #D6BE8F;
+  --mask-cyan: #81C9CF;
+  --mask-cyan-text: #8FD0D6;
+  --mask-rose: #CF818E;
+  --mask-rose-text: #D68F9B;
+  --mask-orange: #CFA281;
+  --mask-orange-text: #D6AD8F;
+  --mask-green: #81CF8E;
+  --mask-green-text: #8FD69B;
+  --mask-blue: #81A2CF;
+  --mask-blue-text: #8FADD6;
 
   /* 紫藤暗色适配 */
   --wisteria-tint: rgba(200,184,224,0.20);
   --wisteria-text: #CBBCE4;
 
-  /* 边框翻转为半透白（单值覆盖，shorthand 自动跟随） */
-  --border-c-subtle: rgba(255,255,255,0.06);
-  --border-c-default: rgba(255,255,255,0.10);
-  --border-c-strong: rgba(255,255,255,0.14);
+  /* 签名材质暗色适配（2026-08-31 深色侧边栏同步雾蓝）：深雾蓝渐变（深夜雾蓝黑，hue 与浅色同源但提暗，避免浅雾蓝在暗底刺眼） */
+  --brand-mist:
+    radial-gradient(130% 160% at 18% -22%, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%),
+    linear-gradient(155deg, #132A36 0%, #1A3543 52%, #243F4C 100%);
+  --on-mist: #F2F5F4;
+
+  /* 边框翻转为半透白（单值覆盖，shorthand 自动跟随）2026-08-31 建议 B：深色分隔略提，增强大块粘连区分 */
+  --border-c-subtle: rgba(255,255,255,0.07);
+  --border-c-default: rgba(255,255,255,0.12);
+  --border-c-strong: rgba(255,255,255,0.16);
 
   /* 状态层翻转（色相同样匹配深夜雾蓝黑底：带冷青倾向的白雾洗，非纯白中性） */
   --hover-darken: rgba(214,230,238,0.06);
@@ -613,13 +561,37 @@
   --invert-bg-active: #EAEEEB;
   --invert-text: #0E1519;
 
-  /* 磨砂玻璃暗色适配：雾蓝黑半透明底（0.64 略实防脏） + 弱白边 */
-  --frosted-bg: rgba(23,31,43,0.92);
+  /* 磨砂玻璃暗色适配：雾蓝频道卡面色（#1E3444 H206 同频，2026-09-01 反转后无 blur）+ 弱白边 */
+  --frosted-bg: rgba(30,52,68,0.92);
   --frosted-border: 1px solid rgba(255,255,255,0.10);
   /* 图表纹理翻转 */
   --grid-line: rgba(255,255,255,0.18);
   --hatch-c: rgba(255,255,255,0.30);
   --gauge-track: rgba(255,255,255,0.10);
+
+  /* 图表语义色板暗色适配（2026-08-31 提亮纪律与 --mask-* 一致） */
+  --chart-1: #81C9CF;
+  --chart-2: #81A2CF;
+  --chart-3: #AF81CF;
+  --chart-4: #CF818E;
+  --chart-5: #CFB581;
+  --chart-6: #81CF8E;
+  --chart-1-rgb: 129 201 207;
+  --chart-2-rgb: 129 162 207;
+  --chart-3-rgb: 175 129 207;
+  --chart-4-rgb: 207 129 142;
+  --chart-5-rgb: 207 181 129;
+  --chart-6-rgb: 129 207 142;
+  --chart-track: rgba(214,230,238,0.14);
+  --chart-cursor: rgba(115,178,201,0.10);
+  --chart-grid: rgba(214,230,238,0.10);
+  --chart-axis: rgba(242,245,244,0.55);
+  --chart-compare: #5E7B8E;
+  --chart-tooltip-bg: rgba(23,31,43,0.96);
+  --chart-tooltip-border: rgba(255,255,255,0.12);
+  /* 开关轨道暗色适配：选中=提亮 accent 强填充 / 未选中=冷白雾洗（与暗底 knob 保持对比） */
+  --bds-switch-track-on: rgba(115,178,201,0.85);
+  --bds-switch-track-off: rgba(214,230,238,0.18);
 
   /* 浮层材质暗色适配 */
   --skeleton-shine: rgba(255,255,255,0.08);
@@ -633,12 +605,11 @@
   --lightbox-chip-bg-hover: rgba(255,255,255,0.2);
   --dz-line: rgba(255,255,255,0.24);
 
-  /* 页面氛围暗色适配：深夜雾池（雾蓝/雾青/紫藤在深底上弥散，浓度可感知） */
-  --page-aurora:
-    radial-gradient(75% 60% at 8% -5%, rgba(85,128,146,0.42), rgba(85,128,146,0) 74%),
-    radial-gradient(60% 52% at 92% 6%, rgba(94,139,110,0.26), rgba(94,139,110,0) 76%),
-    radial-gradient(54% 50% at 70% 102%, rgba(200,184,224,0.16), rgba(200,184,224,0) 74%),
-    var(--bg-page);
+  /* 页面氛围暗色适配：无光雾（2026-09-01 用户实机拍板：深色底已是雾蓝，
+     任何光雾都显突兀——纯色即最高级）。--page-aurora 置 none，
+     App 行内 background-image 解析为 none，纯 #14232F 底。
+     铁律仍适用：若未来恢复，禁拼纯色尾（background-image 长捷不接受 <color>）。 */
+  --page-aurora: none;
 
   /* 阴影暗色加深（暗色下蓝调不可见，纯黑加深保持层次） */
   --bds-shadow-xs: 0 1px 2px rgba(0,0,0,0.24);
@@ -647,15 +618,15 @@
   --bds-shadow-lg: 0 12px 48px rgba(0,0,0,0.42);
 
   /* 光感暗色适配：深底上弥散雾光（Luna 式柔光主场） */
-  --glow-accent: 0 2px 18px rgba(127,168,184,0.38);
-  --glow-success: 0 1px 12px rgba(138,184,154,0.28);
-  --glow-warning: 0 1px 12px rgba(201,172,110,0.28);
-  --glow-danger: 0 1px 12px rgba(201,127,118,0.28);
-  --glow-accent-soft: 0 1px 10px rgba(127,168,184,0.20);
-  --glow-success-soft: 0 1px 10px rgba(138,184,154,0.18);
-  --glow-warning-soft: 0 1px 10px rgba(201,172,110,0.18);
-  --glow-danger-soft: 0 1px 10px rgba(201,127,118,0.18);
+  --glow-accent: 0 2px 18px rgba(115,178,201,0.38);
+  --glow-success: 0 1px 12px rgba(125,202,153,0.28);
+  --glow-warning: 0 1px 12px rgba(214,188,113,0.28);
+  --glow-danger: 0 1px 12px rgba(207,125,130,0.28);
+  --glow-accent-soft: 0 1px 10px rgba(115,178,201,0.20);
+  --glow-success-soft: 0 1px 10px rgba(125,202,153,0.18);
+  --glow-warning-soft: 0 1px 10px rgba(214,188,113,0.18);
+  --glow-danger-soft: 0 1px 10px rgba(207,125,130,0.18);
 
-  --focus-ring-strong: 0 0 0 3px rgba(127,168,184,0.32);
-  --focus-ring-danger: 0 0 0 3px rgba(201,127,118,0.22);
+  --focus-ring-strong: 0 0 0 3px rgba(115,178,201,0.32);
+  --focus-ring-danger: 0 0 0 3px rgba(207,125,130,0.22);
 }

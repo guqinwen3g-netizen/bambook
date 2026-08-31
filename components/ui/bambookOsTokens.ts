@@ -4,7 +4,7 @@ const toolbarAmbientRecipe = 'hidden';
 const toolbarSurfaceRecipe =
   'glass-panel bambook-blue-white-surface bg-white/40 dark:bg-[var(--bg-deep)]/28';
 const controlFrostRecipe =
-  'backdrop-blur-[15px] backdrop-saturate-[104%] bg-[rgba(255,255,255,0.42)] dark:bg-[rgba(13,27,42,0.28)]';
+  'backdrop-blur-[15px] backdrop-saturate-[104%] bg-[rgba(255,255,255,0.42)] dark:bg-[rgba(20,35,47,0.28)]';
 const controlFrostHoverRecipe = 'hover:bg-[rgba(255,255,255,0.52)] dark:hover:bg-[rgba(255,255,255,0.065)]';
 const controlFrostActiveRecipe = 'active:bg-[rgba(255,255,255,0.38)] dark:active:bg-[rgba(255,255,255,0.045)]';
 // 单独的 shadow class——给 ghost shadow caster 节点使用，与 backdrop-filter 物理分离避免幽灵光。
@@ -128,7 +128,7 @@ export const BAMBOOK_OS = {
     },
     size: {
       overline: 'text-[10px]',
-      caption: 'text-[11px]',
+      caption: 'text-xs',
       body: 'text-xs',
       bodyLg: 'text-sm',
       title: 'text-xl',
@@ -223,9 +223,9 @@ export const BAMBOOK_OS = {
     },
     select: {
       toolbarBase:
-        '!bg-[rgba(255,255,255,0.28)] dark:!bg-[rgba(6,14,24,0.20)] backdrop-blur-[15px] backdrop-saturate-[104%] !border-transparent shadow-none',
+        '!bg-[rgba(255,255,255,0.28)] dark:!bg-[rgba(11,22,30,0.20)] backdrop-blur-[15px] backdrop-saturate-[104%] !border-transparent shadow-none',
       toolbarSelected:
-        '!bg-[rgba(255,255,255,0.40)] dark:!bg-[rgba(7,18,32,0.30)] backdrop-blur-[15px] backdrop-saturate-[104%] !border-slate-300/20 dark:!border-white/[0.08] text-slate-800 dark:text-slate-50 shadow-none',
+        '!bg-[rgba(255,255,255,0.40)] dark:!bg-[rgba(12,22,31,0.30)] backdrop-blur-[15px] backdrop-saturate-[104%] !border-slate-300/20 dark:!border-white/[0.08] text-slate-800 dark:text-slate-50 shadow-none',
       toolbarInline:
         'bg-transparent !border-transparent shadow-none text-slate-400 dark:text-slate-500 hover:bg-transparent hover:text-slate-600 dark:hover:text-slate-300 active:bg-transparent',
       toolbarInlineOpen: 'bg-transparent !border-transparent shadow-none text-[var(--os-vnext-brand-blue)] dark:text-slate-100',
@@ -242,7 +242,7 @@ export const BAMBOOK_OS = {
       itemBase:
         'group/menuitem mx-0.5 h-9 w-[calc(100%-4px)] rounded-bds-sm px-3 py-0 text-left text-xs font-light transition-[background,color,border-color] duration-200',
       item:
-        'border border-transparent text-slate-500 dark:text-slate-400 hover:bg-white/44 dark:hover:bg-white/[0.055] hover:text-[#0A2746] dark:hover:text-slate-50 hover:shadow-none',
+        'border border-transparent text-slate-500 dark:text-slate-400 hover:bg-white/44 dark:hover:bg-white/[0.055] hover:text-[var(--text-primary)] dark:hover:text-slate-50 hover:shadow-none',
       itemSelected:
         'border-transparent bg-white/52 dark:bg-white/[0.065] backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-900 dark:text-slate-50 shadow-none',
       icon: 'text-slate-500 dark:text-slate-400 group-hover/menuitem:text-[var(--os-vnext-brand-blue-strong)] dark:group-hover/menuitem:text-[var(--os-vnext-brand-blue-soft)]',
@@ -255,45 +255,45 @@ export const BAMBOOK_OS = {
       rowSeparator: 'bg-white/45 dark:bg-white/[0.045]',
       cellMuted: 'border-white/24 dark:border-white/[0.030] text-[var(--text-secondary)]',
       editAction:
-        'bg-white/42 dark:bg-[rgba(13,27,42,0.28)] backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-white/42 hover:text-[var(--os-vnext-brand-blue-strong)] dark:hover:text-white hover:bg-white/56 dark:hover:bg-white/[0.065]',
+        'bg-white/42 dark:bg-[rgba(20,35,47,0.28)] backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-white/42 hover:text-[var(--os-vnext-brand-blue-strong)] dark:hover:text-white hover:bg-white/56 dark:hover:bg-white/[0.065]',
       emptyAction:
-        'bg-white/52 dark:bg-[rgba(13,27,42,0.32)] backdrop-blur-[15px] backdrop-saturate-[104%] border border-transparent text-slate-600 dark:text-white/80 hover:bg-white/64 dark:hover:bg-white/[0.075]',
+        'bg-white/52 dark:bg-[rgba(20,35,47,0.32)] backdrop-blur-[15px] backdrop-saturate-[104%] border border-transparent text-slate-600 dark:text-white/80 hover:bg-white/64 dark:hover:bg-white/[0.075]',
     },
     floatingToolCluster: {
       surface:
-        'bambook-dashboard-glass-color bg-white/44 dark:bg-[rgba(13,27,42,0.42)] border-slate-200/50 dark:border-white/[0.08]',
+        'bambook-dashboard-glass-color bg-white/44 dark:bg-[rgba(20,35,47,0.42)] border-slate-200/50 dark:border-white/[0.08]',
     },
     title: {
       iconButton: 'h-8 w-8 rounded-2xl border flex items-center justify-center shrink-0 cursor-pointer transition-colors',
       backButton: 'h-8 !w-7 rounded-2xl border flex items-center justify-center shrink-0 cursor-pointer transition-colors',
       actionButton:
-        'h-9 px-4 rounded-full border flex items-center justify-center gap-2 shrink-0 transition-colors text-[11px] font-light tracking-wide',
-      pageLabel: 'h-9 flex items-center max-w-[260px] truncate text-[11px] font-light tracking-wide leading-none',
+        'h-9 px-4 rounded-full border flex items-center justify-center gap-2 shrink-0 transition-colors text-xs font-light tracking-wide',
+      pageLabel: 'h-9 flex items-center max-w-[260px] truncate text-xs font-light tracking-wide leading-none',
       textButton: 'h-9 flex items-center shrink-0 bg-transparent border-0 p-0 rounded-none shadow-none transition-colors',
-      breadcrumb: 'h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide',
+      breadcrumb: 'h-9 flex items-center gap-1.5 min-w-0 text-xs font-light tracking-wide',
       separator: 'h-9 w-5 flex items-center justify-center shrink-0',
       button: actionControlRecipe,
       viewSwitch: 'h-9 shrink-0 rounded-full border p-1 flex items-center gap-1',
       viewSwitchButton:
-        'h-7 rounded-full px-3 text-[11px] font-light tracking-wide transition-[background,color] duration-200',
+        'h-7 rounded-full px-3 text-xs font-light tracking-wide transition-[background,color] duration-200',
       spotlightDarkSize: 180,
       spotlightLightSize: 140,
     },
     formIconButton: {
       add:
-        `border-transparent text-slate-500 dark:text-white/60 ${controlFrostRecipe} !border-transparent shadow-none ${controlFrostHoverRecipe} hover:text-[#0A2746] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`,
+        `border-transparent text-slate-500 dark:text-white/60 ${controlFrostRecipe} !border-transparent shadow-none ${controlFrostHoverRecipe} hover:text-[var(--text-primary)] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`,
       remove:
-        `border-transparent text-slate-500 dark:text-white/48 ${controlFrostRecipe} !border-transparent shadow-none ${controlFrostHoverRecipe} hover:text-[#0A2746] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`,
+        `border-transparent text-slate-500 dark:text-white/48 ${controlFrostRecipe} !border-transparent shadow-none ${controlFrostHoverRecipe} hover:text-[var(--text-primary)] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`,
       compactRemove:
-        `border-transparent text-slate-500 dark:text-white/48 ${controlFrostRecipe} !border-transparent shadow-none ${controlFrostHoverRecipe} hover:text-[#0A2746] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`,
+        `border-transparent text-slate-500 dark:text-white/48 ${controlFrostRecipe} !border-transparent shadow-none ${controlFrostHoverRecipe} hover:text-[var(--text-primary)] dark:hover:text-slate-50 ${controlFrostActiveRecipe}`,
       inlineDanger:
         'backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-400 dark:text-white/46 hover:text-slate-600 dark:hover:text-white/66 hover:bg-white/46 dark:hover:bg-white/[0.055]',
       quietAction:
         'backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-white/62 hover:text-slate-700 dark:hover:text-white/70 hover:bg-white/52 dark:hover:bg-white/[0.065]',
     },
     orgChartMeta: {
-      edit: 'bg-white/48 dark:bg-[#0d1b2a]/42 backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-slate-400 shadow-none',
-      childrenBadge: 'bg-white/50 dark:bg-[#0d1b2a]/42 backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-white/58 shadow-none',
+      edit: 'bg-white/48 dark:bg-[var(--bambook-bg-deep)]/42 backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-slate-400 shadow-none',
+      childrenBadge: 'bg-white/50 dark:bg-[var(--bambook-bg-deep)]/42 backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-white/58 shadow-none',
     },
   },
   layout: {
@@ -328,7 +328,7 @@ export const BAMBOOK_OS = {
     desktopSplitNavContentClass: 'relative z-10 flex h-full flex-col gap-1 p-2',
     desktopSplitMainPanelClass: 'flex-1 min-h-0',
     desktopSplitMainContentClass: 'relative z-10 flex h-full min-h-0 flex-col',
-    desktopMainScrollViewportClass: 'h-full min-h-0 overflow-y-auto custom-scrollbar p-6 md:p-8',
+    desktopMainScrollViewportClass: 'h-full min-h-0 overflow-y-auto p-6 md:p-8',
     desktopSettingsContentStackClass: 'max-w-2xl space-y-8',
     desktopAccountSettingsContentStackClass: 'max-w-3xl space-y-8',
     desktopBackstageContentStackClass: 'max-w-3xl space-y-6',

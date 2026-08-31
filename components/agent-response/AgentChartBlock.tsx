@@ -12,8 +12,8 @@ import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { OS_MATERIAL } from '../ui/osMaterial';
 import type { AgentBlockComponentProps } from './AgentMarkdownBlock';
 
-const PALETTE_LIGHT = ['#185FA5', '#3B6D11', '#854F0B', '#993556', '#534AB7', '#0F6E56'];
-const PALETTE_DARK  = ['#85B7EB', '#C0DD97', '#FAC775', '#F4C0D1', '#CECBF6', '#9FE1CB'];
+// 系列色板：图表语义六色（--chart-1..6），深浅两态由 tokens.css .dark 段统一覆盖
+const CHART_PALETTE = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)'];
 
 // 非法数值不静默转 0：返回 null（图表留断点），由调用方统计并提示
 const numericValue = (v: unknown): number | null => {
@@ -26,9 +26,8 @@ export const AgentChartBlock: React.FC<AgentBlockComponentProps<AgentChartBlockM
   const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
   const quietTextClass = BAMBOOK_OS.tone.text.quiet;
   const borderClass = 'border-[var(--border-c-default)]';
-  const axisColor = isDarkMode ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.55)';
-  const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
-  const palette = isDarkMode ? PALETTE_DARK : PALETTE_LIGHT;
+  const axisColor = 'var(--chart-axis)';
+  const gridColor = 'var(--chart-grid)';
 
   const dim = block.dimensions[0];
   const measures = block.measures.length > 0 ? block.measures : (dim ? [] : []);
@@ -53,11 +52,11 @@ export const AgentChartBlock: React.FC<AgentBlockComponentProps<AgentChartBlockM
   const isEmpty = data.length === 0 || measures.length === 0;
 
   const tooltipStyle = {
-    backgroundColor: isDarkMode ? 'rgba(20,20,22,0.96)' : 'rgba(255,255,255,0.96)',
-    border: `0.5px solid ${isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.15)'}`,
+    backgroundColor: 'var(--chart-tooltip-bg)',
+    border: '0.5px solid var(--chart-tooltip-border)',
     borderRadius: 10,
     fontSize: 12,
-    color: isDarkMode ? '#fff' : '#0f172a',
+    color: 'var(--text-primary)',
   };
 
   const renderChart = () => {
@@ -80,7 +79,7 @@ export const AgentChartBlock: React.FC<AgentBlockComponentProps<AgentChartBlockM
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 11, color: axisColor }} />
             <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="40%" outerRadius="78%" paddingAngle={1}>
-              {pieData.map((_, i) => <Cell key={i} fill={palette[i % palette.length]} />)}
+              {pieData.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
@@ -97,7 +96,7 @@ export const AgentChartBlock: React.FC<AgentBlockComponentProps<AgentChartBlockM
           <Tooltip contentStyle={tooltipStyle} />
           {measures.length > 1 && <Legend wrapperStyle={{ fontSize: 11, color: axisColor }} />}
           {measures.map((m, i) => {
-            const color = palette[i % palette.length];
+            const color = CHART_PALETTE[i % CHART_PALETTE.length];
             if (chartType === 'line') return <Line key={m} type="monotone" dataKey={m} stroke={color} strokeWidth={2} dot={{ r: 2 }} />;
             if (chartType === 'area') return <Area key={m} type="monotone" dataKey={m} stroke={color} strokeWidth={1.5} fill={color} fillOpacity={isDarkMode ? 0.18 : 0.22} />;
             return <Bar key={m} dataKey={m} fill={color} radius={[4, 4, 0, 0]} />;
@@ -111,10 +110,10 @@ export const AgentChartBlock: React.FC<AgentBlockComponentProps<AgentChartBlockM
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '图表'}</div>
+          <div className={`text-xs uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '图表'}</div>
           <div className={`mt-1 text-xs ${quietTextClass}`}>{chartType} · {data.length} 条数据 · {measures.join(', ') || '无指标'}</div>
           {invalidCount > 0 && (
-            <div className={`mt-1 text-[11px] ${quietTextClass}`}>{invalidCount} 个数据点无法解析为数值，已在图表中留空。</div>
+            <div className={`mt-1 text-xs ${quietTextClass}`}>{invalidCount} 个数据点无法解析为数值，已在图表中留空。</div>
           )}
         </div>
       </div>

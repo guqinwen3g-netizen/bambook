@@ -112,7 +112,7 @@ export const MonthlyCloseSection: React.FC<MonthlyCloseSectionProps> = ({ endpoi
           </div>
         </RdlToolbar>
         <div className="px-4 pb-4 space-y-3">
-          <div className="text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]">
+          <div className="text-xs font-light leading-relaxed text-[var(--text-tertiary)]">
             结转 = 各月度报表定义在月末时点的存量快照（对账口径，幂等不覆盖历史）；月度自动快照（A5 调度，月初口径）不受影响。
             严格当月发生额口径列增强。
           </div>
@@ -153,7 +153,7 @@ export const MonthlyCloseSection: React.FC<MonthlyCloseSectionProps> = ({ endpoi
                   </div>
                   {item.deltas.length > 0 && (
                     <div className="mt-2 overflow-x-auto">
-                      <table className="w-full text-left text-[11px] font-light border-separate border-spacing-0">
+                      <table className="w-full text-left text-xs font-light border-separate border-spacing-0">
                         <thead className="text-[10px] text-[var(--text-tertiary)]">
                           <tr>
                             <th className="border-b border-[var(--border-c-default)] px-2 py-1.5">指标</th>

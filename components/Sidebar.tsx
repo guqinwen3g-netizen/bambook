@@ -260,7 +260,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
               onClick={() => setIsCollapsed(true)}
               aria-label="折叠侧边栏"
               data-sidebar-expanded-collapse-button
-              className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full text-os-adaptive-subtitle transition-colors duration-300 hover:bg-[rgb(var(--bambook-rdl-theme-rgb)/0.08)] hover:text-os-adaptive-primary"
+              className={`absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full text-os-adaptive-subtitle transition-colors duration-300 hover:bg-[rgb(var(--bambook-rdl-theme-rgb)/0.08)] hover:text-os-adaptive-primary`}
             >
               <ChevronLeft size={18} strokeWidth={1.25} />
             </button>

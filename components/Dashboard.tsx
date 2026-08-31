@@ -50,7 +50,7 @@ export const DASHBOARD_MARKET_TICK_MS = 60000;
 export const DASHBOARD_CARD_ROTATION_MS = 16000;
 export const DASHBOARD_VELOCITY_ROTATION_MS = 20000;
 export const DASHBOARD_HUD_LAYER_CLASS = 'absolute inset-0 z-10 pointer-events-none';
-export const DASHBOARD_HUD_SCROLLER_CLASS = 'dashboard-hud-scroller absolute inset-0 overflow-visible custom-scrollbar pointer-events-none';
+export const DASHBOARD_HUD_SCROLLER_CLASS = 'dashboard-hud-scroller absolute inset-0 overflow-visible pointer-events-none';
 export const DASHBOARD_HEADER_CARD_FADE_FEATHER_PX = 30;
 export const DASHBOARD_HEADER_CARD_FADE_OFFSET_PX = 10;
 export const DASHBOARD_EDGE_FADE_CARD_SELECTOR = '[data-os-dashboard-adaptive-card], .liquid-glass-card';
@@ -99,7 +99,7 @@ const DashboardProgressRing = ({ value, displayValue }: { value: number; display
                     cy="38"
                     r={radius}
                     fill="none"
-                    stroke="rgba(120, 139, 162, 0.24)"
+                    stroke="var(--chart-track)"
                     strokeWidth="4"
                 />
                 <circle
@@ -593,8 +593,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
     const dashboardSpotlightColor = isDarkMode ? BAMBOOK_OS.spotlight.cardDarkColor : BAMBOOK_OS.spotlight.cardLightColor;
     const dashboardSpotlightSize = isDarkMode ? BAMBOOK_OS.spotlight.panelDarkSize : BAMBOOK_OS.spotlight.panelLightSize;
     const dashboardIdleSpotlightOpacity = 0;
-    const dashboardCardLabelClass = 'text-[13px] font-normal tracking-[0.04em] text-os-adaptive-subtitle';
-    const dashboardMetricCaptionClass = 'text-[12px] font-normal text-os-adaptive-subtitle';
+    const dashboardCardLabelClass = 'text-sm font-normal tracking-[0.04em] text-os-adaptive-subtitle';
+    const dashboardMetricCaptionClass = 'text-xs font-normal text-os-adaptive-subtitle';
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
     // 账户菜单关闭契约（对齐侧边栏账户菜单）：Esc + 外点关闭。
@@ -830,7 +830,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     className="text-[26px] font-light tracking-tight whitespace-nowrap text-os-adaptive-title ![text-shadow:none] transition-colors duration-200"
                                 >
                                     Bambook Hub
-                                    <span className="ml-2.5 align-middle text-[12px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
+                                    <span className="ml-2.5 align-middle text-xs font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
                                 </h1>
                                 {onOpenCommandPalette && (
                                     <label
@@ -841,7 +841,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         <input
                                             aria-label="Search Bambook Hub"
                                             readOnly
-                                            className="min-w-0 flex-1 cursor-pointer bg-transparent text-[14px] font-normal text-os-adaptive-primary outline-none placeholder:text-os-adaptive-subtitle"
+                                            className="min-w-0 flex-1 cursor-pointer bg-transparent text-sm font-normal text-os-adaptive-primary outline-none placeholder:text-os-adaptive-subtitle"
                                             placeholder="Search..."
                                             onFocus={onOpenCommandPalette}
                                         />
@@ -857,7 +857,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                     <div
-                                        className="text-[11px] font-light uppercase tracking-[0.14em] text-[var(--os-adaptive-subtitle)] mt-1"
+                                        className="text-xs font-light uppercase tracking-[0.14em] text-[var(--os-adaptive-subtitle)] mt-1"
                                     >
                                         UTC+8 Shanghai
                                     </div>
@@ -880,7 +880,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         textClassName="text-xs"
                                         adaptive
                                     />
-                                    <span className="text-[13px] font-normal">{accountName}</span>
+                                    <span className="text-sm font-normal">{accountName}</span>
                                     <ChevronDown size={16} strokeWidth={1.5} className={`text-os-adaptive-subtitle transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 <AnimatePresence>
@@ -983,7 +983,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     Pipeline Value
                                                 </div>
-                                                <div data-ui-lab-wallpaper-contrast="primary" className="mt-2 text-[24px] font-light leading-none tracking-tight text-os-adaptive-primary tabular-nums">
+                                                <div data-ui-lab-wallpaper-contrast="primary" className="mt-2 text-2xl font-light leading-none tracking-tight text-os-adaptive-primary tabular-nums">
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
                                                 <div className="h-1 w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
@@ -1029,7 +1029,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                 {/* AI Briefing Module (Restyled to match Pipeline Value/Forex) */}
                                 <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={dashboardAiCardClass}>
                                     <div className="flex items-center">
-                                        <span data-ui-lab-wallpaper-contrast="brand" className="text-[13px] font-normal tracking-[0.04em] text-[var(--os-vnext-brand-blue)]">Neural Intelligence</span>
+                                        <span data-ui-lab-wallpaper-contrast="brand" className="text-sm font-normal tracking-[0.04em] text-[var(--os-vnext-brand-blue)]">Neural Intelligence</span>
                                     </div>
 
                                     <div className="flex-1 flex flex-col justify-center mt-4 h-full">
@@ -1068,7 +1068,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                 />
                                                             ))}
                                                         </div>
-                                                        <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal text-os-adaptive-subtitle">
+                                                        <span data-ui-lab-wallpaper-contrast="muted" className="text-sm font-normal text-os-adaptive-subtitle">
                                                             Processing
                                                         </span>
                                                     </div>
@@ -1081,7 +1081,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                     exit={{ opacity: 0, y: -5 }}
                                                     transition={{ duration: 1.0, ease: "easeOut" }}
                                                     data-ui-lab-wallpaper-contrast="muted"
-                                                    className="font-light leading-relaxed text-[14px] tracking-wide text-os-adaptive-subtitle"
+                                                    className="font-light leading-relaxed text-sm tracking-wide text-os-adaptive-subtitle"
                                                 >
                                                     <TypewriterText text={briefing || '暂无简报'} />
                                                 </motion.div>
@@ -1090,7 +1090,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     </div>
 
                                     <div className="mt-4 flex items-center justify-between">
-                                        <div className="text-[11px] font-normal tracking-[0.06em] text-os-adaptive-subtitle">
+                                        <div className="text-xs font-normal tracking-[0.06em] text-os-adaptive-subtitle">
                                             v2.5 System
                                         </div>
                                         <button
@@ -1125,15 +1125,15 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                 <div data-ui-lab-wallpaper-contrast="muted" className={`${dashboardCardLabelClass} mb-3 block pb-2`}>Status Index</div>
                                 <div className="space-y-3">
                                     {[
-                                        { label: 'Alert', color: 'bg-neutral-500', count: alertCount },
+                                        { label: 'Alert', color: 'bg-[var(--text-tertiary)]', count: alertCount },
                                         { label: 'Production', color: 'bg-[var(--os-vnext-brand-blue)]', count: activeCount },
                                         { label: 'Shipping', color: 'bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.60)]', count: liveOrders.filter(o => o.status === 'Shipping').length }
                                     ].map(s => (
                                         <div key={s.label} className="flex flex-row items-center justify-between gap-1">
-                                            <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal text-os-adaptive-subtitle">{s.label}</span>
+                                            <span data-ui-lab-wallpaper-contrast="muted" className="text-sm font-normal text-os-adaptive-subtitle">{s.label}</span>
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-2 h-2 rounded-full ${s.color} animate-pulse block`}></div>
-                                                <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-light tabular-nums text-os-adaptive-subtitle">{s.count}</span>
+                                                <span data-ui-lab-wallpaper-contrast="muted" className="text-sm font-light tabular-nums text-os-adaptive-subtitle">{s.count}</span>
                                             </div>
                                         </div>
                                     ))}
@@ -1162,14 +1162,14 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             {pipelineView === 'total' ? (
                                                 <>
                                                     <div className="flex items-baseline gap-1">
-                                                        <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal text-os-adaptive-subtitle">$</span>
+                                                        <span data-ui-lab-wallpaper-contrast="muted" className="text-sm font-normal text-os-adaptive-subtitle">$</span>
                                                         <div data-ui-lab-wallpaper-contrast="muted" className={`text-[30px] font-light leading-none tabular-nums tracking-tight text-[var(--text-primary)]`}>
                                                             {(totalValue / 1000).toFixed(1)}<span className="text-sm ml-0.5 font-light">k</span>
                                                         </div>
                                                     </div>
 
                                                     {trendValue !== 0 && (
-                                                        <div data-ui-lab-wallpaper-contrast={trendValue >= 0 ? 'brand' : undefined} className={`flex items-center gap-1 text-[13px] font-normal font-mono tracking-tighter mb-1.5 ${trendValue >= 0 ? DASHBOARD_PIPELINE_TREND_POSITIVE_CLASS : DASHBOARD_PIPELINE_TREND_NEGATIVE_CLASS}`}>
+                                                        <div data-ui-lab-wallpaper-contrast={trendValue >= 0 ? 'brand' : undefined} className={`flex items-center gap-1 text-sm font-normal font-mono tracking-tighter mb-1.5 ${trendValue >= 0 ? DASHBOARD_PIPELINE_TREND_POSITIVE_CLASS : DASHBOARD_PIPELINE_TREND_NEGATIVE_CLASS}`}>
                                                             {trendValue >= 0 ? <TrendingUp size={14} strokeWidth={1.5} /> : <TrendingDown size={14} strokeWidth={1.5} />}
                                                             <span>{trendValue >= 0 ? '+' : ''}{trendValue.toFixed(1)}%</span>
                                                         </div>
@@ -1181,7 +1181,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                         {pipelineRegionRows
                                                             .slice(0, useExpandedDashboardLayout ? 3 : 2)
                                                             .map((row) => (
-                                                                <div key={row.label} className="flex justify-between items-center text-[13px] gap-3">
+                                                                <div key={row.label} className="flex justify-between items-center text-sm gap-3">
                                                                     <span data-ui-lab-wallpaper-contrast="muted" className={`text-[var(--text-tertiary)] font-light truncate ${useExpandedDashboardLayout ? 'max-w-[112px]' : 'max-w-[72px]'}`} title={row.label}>
                                                                         {row.label}
                                                                     </span>
@@ -1219,7 +1219,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             <button
                                                 onClick={() => setActiveVelocity('fabric')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'fabric' ? 'brand' : 'muted'}
-                                                className={`text-[13px] font-normal transition-colors duration-200 ${activeVelocity === 'fabric' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
+                                                className={`text-sm font-normal transition-colors duration-200 ${activeVelocity === 'fabric' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
                                             >
                                                 Fabric
                                             </button>
@@ -1227,7 +1227,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             <button
                                                 onClick={() => setActiveVelocity('garment')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'garment' ? 'brand' : 'muted'}
-                                                className={`text-[13px] font-normal transition-colors duration-200 ${activeVelocity === 'garment' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
+                                                className={`text-sm font-normal transition-colors duration-200 ${activeVelocity === 'garment' ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}
                                             >
                                                 Garment
                                             </button>
@@ -1263,7 +1263,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                         </defs>
                                                         <XAxis
                                                             dataKey="name"
-                                                            tick={{ fontSize: 9, fill: isDarkMode ? 'var(--bambook-gray-600)' : '#94a3b8' }}
+                                                            tick={{ fontSize: 9, fill: 'var(--chart-axis)' }}
                                                             axisLine={false}
                                                             tickLine={false}
                                                             interval={1}
@@ -1271,7 +1271,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                             boundaryGap={false}
                                                         />
                                                         <Tooltip
-                                                            cursor={{ fill: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+                                                            cursor={{ fill: 'var(--chart-cursor)' }}
                                                             content={({ active, payload }) => {
                                                                 if (active && payload && payload.length && !payload[0].payload.isAnchor) {
                                                                     const d = payload[0].payload;
@@ -1282,27 +1282,27 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                             : null;
                                                                     return (
                                                                         <div className={`px-3 py-2 border rounded-control max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} text-[var(--text-primary)]`}>
-                                                                            <div className="text-[13px] font-normal tracking-wide mb-2">{kindLabel} · {d.weekRange ?? d.name}</div>
+                                                                            <div className="text-sm font-normal tracking-wide mb-2">{kindLabel} · {d.weekRange ?? d.name}</div>
                                                                             <div className="flex flex-col gap-1">
                                                                                 <div className="flex justify-between gap-3">
-                                                                                    <span className="text-[13px]">This week</span>
-                                                                                    <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue)]">{Math.round(d.weekly)}</span>
+                                                                                    <span className="text-sm">This week</span>
+                                                                                    <span className="text-sm font-mono font-light text-[var(--os-vnext-brand-blue)]">{Math.round(d.weekly)}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between gap-3">
-                                                                                    <span className="text-[13px]">Prior week</span>
-                                                                                    <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.prevWeekly)}</span>
+                                                                                    <span className="text-sm">Prior week</span>
+                                                                                    <span className="text-sm font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.prevWeekly)}</span>
                                                                                 </div>
                                                                                 {wow !== null && (
                                                                                     <div className="flex justify-between gap-3">
-                                                                                        <span className="text-[13px]">WoW</span>
-                                                                                        <span className={`text-[13px] font-mono font-light ${Number(wow) >= 0 ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}>
+                                                                                        <span className="text-sm">WoW</span>
+                                                                                        <span className={`text-sm font-mono font-light ${Number(wow) >= 0 ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}>
                                                                                             {Number(wow) >= 0 ? '+' : ''}{wow}%
                                                                                         </span>
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="pt-1 mt-1 border-t border-[var(--border-c-default)] flex justify-between gap-3">
-                                                                                    <span className="text-[13px]">13w sum</span>
-                                                                                    <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.cumulative)}</span>
+                                                                                    <span className="text-sm">13w sum</span>
+                                                                                    <span className="text-sm font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.cumulative)}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -1344,7 +1344,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 ) : (
                                                 <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-5 pb-5 text-center">
                                                     <span className={`${dashboardCardLabelClass} text-os-adaptive-subtitle`}>暂无近 13 周订单数据</span>
-                                                    <span className="text-[11px] font-light text-os-adaptive-subtitle">No order signal in the last 13 weeks</span>
+                                                    <span className="text-xs font-light text-os-adaptive-subtitle">No order signal in the last 13 weeks</span>
                                                 </div>
                                                 )}
                                             </div>
