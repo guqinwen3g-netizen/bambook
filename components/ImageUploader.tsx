@@ -250,7 +250,7 @@ export default function ImageUploader({
       {/* Full-size preview modal */}
       {previewUrl && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--mask-bg)]"
           onClick={() => setPreviewUrl(null)}
         >
           <img

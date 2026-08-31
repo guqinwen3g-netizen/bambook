@@ -211,10 +211,13 @@
 
   /* ═══════════ 7. 浮层/纹理通用材质 ═══════════ */
   --skeleton-shine: rgba(255,255,255,0.45);
-  --mask-saturate: 70%;              /* 遮罩族专用降饱和（2026-08-31 发黄根因修复）：壁纸米黄纸底
-                                        透过遮罩显黄——遮罩职责 = 压暗 + 冷化，saturate 0.7 压制
-                                        暖底透出；全遮罩（CSS .bds-*-mask + TSX backdrop 类）统一
-                                        引用本 token，调值一处生效。勿与 --frosted-saturate 混用 */
+  /* ⚠️ 遮罩族禁用 backdrop-filter（2026-08-31 Electron 实锤裁决，勿回加）：
+     backdrop-filter（blur/saturate）在 Electron GPU 合成路径触发全屏暖色色偏——
+     弹窗打开才黄、同代码浏览器不黄；遮罩去 filter 后 Electron 实测发黄消失。
+     遮罩职责 = 压暗 + 聚焦（--mask-bg 纯色即可），blur/saturate 属于面板磨砂职责
+     （.bds-modal 等面板保留 backdrop-filter，其 92% 实底稀释色偏不可见）。
+     曾试方案：--mask-saturate 70% 降饱和（对低饱和暖底无感，已删）；逐处
+     backdrop-saturate 注入 27 处（治标无效，已撤）。复发症状：浮层打开才黄。 */
   --mask-bg: rgba(10,14,22,0.32);    /* 全系统唯一遮罩入口（modal/cmdk 共用）。2026-08-31 冷色校正：
                                         旧值 rgba(11,12,11) 为中性黑，暗化暖色背景后黄色相对占比放大、
                                         遮罩观感偏黄——改冷蓝黑（B 通道 +10）与全系统冷色系统一 */

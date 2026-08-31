@@ -2442,7 +2442,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
           || orgContacts.find(c => c.id === confirmDeleteId);
         const deletingOrganization = deleteTarget?.isOrganization ?? false;
         return (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md backdrop-saturate-[var(--mask-saturate)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-default)]`}>
@@ -2488,7 +2488,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
           className="fixed inset-0 z-50 flex justify-end"
           onClick={() => setShowTracePanel(false)}
         >
-          <div className={`absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]`} />
+          <div className={`absolute inset-0 bg-[var(--mask-bg)]`} />
           <div
             className={`bds-frosted relative flex h-full w-full max-w-2xl flex-col overflow-hidden`}
             onClick={(e) => e.stopPropagation()}

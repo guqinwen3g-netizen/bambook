@@ -1028,7 +1028,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
         className="bds-modal custom-scrollbar"
         style={{ width: '45rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
@@ -1177,7 +1177,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
         className="bds-modal custom-scrollbar"
         style={{ width: '35rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
@@ -1413,7 +1413,7 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, 
   const kindOption = COMPOSITE_KIND_OPTIONS.find(k => k.id === kind);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
         className="bds-modal custom-scrollbar"
         style={{ width: '40rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
@@ -1632,7 +1632,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)]" onClick={onClose}>
       <div
         className="bds-modal custom-scrollbar"
         style={{ width: '40rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}

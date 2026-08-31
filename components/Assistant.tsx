@@ -2536,7 +2536,7 @@ const Assistant: React.FC<AssistantProps> = ({
           {isNarrowViewport && isHistoryOpen && (
             <div className="fixed inset-0 z-[var(--z-sheet)]">
               <div
-                className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]"
+                className="absolute inset-0 bg-[var(--mask-bg)]"
                 onClick={() => setIsHistoryOpen(false)}
                 aria-hidden
               />
