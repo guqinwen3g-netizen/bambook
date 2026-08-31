@@ -228,7 +228,7 @@ export default function CustomerSearchInput({
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card border bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-tertiary)]"
+            className="bds-frosted absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card text-[var(--text-tertiary)]"
           >
             <User size={20} className="mx-auto mb-2 opacity-50" />
             <p className="text-sm">未找到匹配的客户</p>

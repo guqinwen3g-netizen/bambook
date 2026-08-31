@@ -114,7 +114,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onRetryCatalog,
   isDarkMode,
 }) => {
-  const bodyBg = 'bg-[var(--bg-card)]';
+  const bodyBg = 'bds-frosted';
   const mainText = 'text-[var(--text-primary)]';
   const quietText = BAMBOOK_OS.tone.text.quiet;
   const surfaceClass = 'border-[var(--border-c-subtle)]';
@@ -148,7 +148,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -288, opacity: 0.8 }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className={`fixed left-0 top-0 bottom-0 z-[var(--z-sheet)] w-72 ${bodyBg} border-r ${surfaceClass} shadow-none flex flex-col`}
+            className={`fixed left-0 top-0 bottom-0 z-[var(--z-sheet)] w-72 ${bodyBg} shadow-none flex flex-col`}
           >
             {/* 头部 */}
             <div className={`shrink-0 flex items-center justify-between px-4 h-12 border-b ${surfaceClass}`}>

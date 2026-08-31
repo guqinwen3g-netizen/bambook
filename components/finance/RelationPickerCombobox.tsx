@@ -12,6 +12,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import type { Relation } from '../../types';
+import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -110,7 +111,7 @@ const RelationPickerCombobox: React.FC<RelationPickerComboboxProps> = ({
       </div>
 
       {open && (
-        <div className="absolute z-[var(--z-pop)] mt-1 max-h-60 w-full overflow-y-auto rounded-card border border-[var(--border-c-default)] bg-[var(--recessed-bg)]">
+        <div className={`absolute z-[var(--z-pop)] mt-1 max-h-60 w-full overflow-y-auto ${BAMBOOK_OS.controls.overlayMenu.surfaceBase} ${BAMBOOK_OS.controls.overlayMenu.surface}`}>
           {emptyOptionLabel && (
             <button
               type="button"

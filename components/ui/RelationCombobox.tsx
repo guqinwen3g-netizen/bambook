@@ -183,7 +183,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
       {open && (
         <div
           ref={listRef}
-          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}
+          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto ${BAMBOOK_OS.controls.overlayMenu.surfaceBase} ${BAMBOOK_OS.controls.overlayMenu.surface}`}
         >
           {candidates.length === 0 && !showCreateOption && (
             <div className={`px-3 py-3 text-[11px] flex items-center gap-2 text-[var(--text-tertiary)]`}>

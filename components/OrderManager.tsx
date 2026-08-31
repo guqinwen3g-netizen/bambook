@@ -2442,7 +2442,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
         >
           <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm" />
           <div
-            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
+            className={`bds-frosted relative flex h-full w-full max-w-2xl flex-col overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`flex items-center justify-between border-b px-4 py-3 ${BORDER_SUBTLE_CLASS}`}>

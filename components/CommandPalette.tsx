@@ -309,11 +309,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     >
       <RdlSurface
         tone="panel"
-        /* 玻璃质感定稿（2026-08-31 五轮实测）：44%（融暗遮罩）/实底（太硬）/62%+saturate180（暗且偏黄）/
-           92%（材质掉成实色块）——定稿 72% 冷白玻璃：对齐 Dashboard header pill 同族玻璃语言
-           （42%+blur15 的可读版），backdrop-saturate-125 恢复玻璃鲜亮（避开 180% 的暖色放大），
+        /* 玻璃质感定稿（2026-08-31 六轮实测）：72% 冷白 + blur-2xl，**无 saturate**——
+           saturate-125 会放大透过区域的暖色饱和（发黄直接嫌疑，六轮实测复验）；
            亮边框当玻璃边缘高光。暗遮罩上透出 28% 模糊背景 = 磨砂质感可见。 */
-        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] bg-white/[0.72] dark:bg-[rgba(28,36,48,0.72)] backdrop-blur-2xl backdrop-saturate-125 border border-white/50 dark:border-white/10"
+        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] bg-white/[0.72] dark:bg-[rgba(28,36,48,0.72)] backdrop-blur-2xl border border-white/50 dark:border-white/10"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* 搜索输入 */}

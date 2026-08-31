@@ -141,7 +141,7 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
       )}
 
       {open && items.length > 0 && (
-        <div className={`absolute z-50 mt-1 w-full overflow-hidden rounded-inset border bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}>
+        <div className={`absolute z-50 mt-1 w-full ${BAMBOOK_OS.controls.overlayMenu.surfaceBase} ${BAMBOOK_OS.controls.overlayMenu.surface}`}>
           {items.map((item) => (
             <button
               key={`${item.entityType}:${item.id}:${item.targetPath || ''}`}

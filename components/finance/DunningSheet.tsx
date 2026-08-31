@@ -246,7 +246,7 @@ export default function DunningSheet({
       />
 
       {/* Sheet */}
-      <div className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-card border-t border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] sm:max-w-2xl sm:rounded-card sm:border">
+      <div className="bds-frosted flex h-[88vh] w-full flex-col overflow-hidden rounded-t-card sm:max-w-2xl sm:rounded-card">
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between px-6 pb-3 pt-5">
           <div>

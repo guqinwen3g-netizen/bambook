@@ -2490,7 +2490,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         >
           <div className={`absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm`} />
           <div
-            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
+            className={`bds-frosted relative flex h-full w-full max-w-2xl flex-col overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 面板标题栏：R678-2 场景随组织分类映射（供应商→供应商全景/其余→客户全景），

@@ -2540,7 +2540,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 onClick={() => setIsHistoryOpen(false)}
                 aria-hidden
               />
-              <div className={`absolute left-0 top-0 bottom-0 flex w-64 flex-col border-r bg-[var(--bg-card)] ${panelDividerClass}`}>
+              <div className={`bds-frosted absolute left-0 top-0 bottom-0 flex w-64 flex-col`}>
                 {renderHistorySidebar()}
               </div>
             </div>
