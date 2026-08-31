@@ -519,7 +519,12 @@
 .bds-modal {
   width: 440px;
   max-width: calc(100vw - 48px);
-  background: var(--bg-card);
+  /* 2026-08-31 弹窗族亮焦点统一：与 cmdk 面板/select 浮层/sheet 同材质（--frosted-bg 92% 冷白
+     + backdrop blur + frosted 描边）——实底 bg-card 旧观感与磨砂浮层族割裂且明暗对比过硬 */
+  background: var(--frosted-bg);
+  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+  border: var(--frosted-border);
   border-radius: var(--r-modal);
   padding: var(--p-modal);
   box-shadow: var(--bds-shadow-md);

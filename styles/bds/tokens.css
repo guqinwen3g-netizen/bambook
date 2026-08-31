@@ -604,9 +604,8 @@
   --invert-text: #0E1519;
 
   /* 磨砂玻璃暗色适配：雾蓝黑半透明底（0.64 略实防脏） + 弱白边 */
-  --frosted-bg: rgba(21,30,35,0.64);
+  --frosted-bg: rgba(23,31,43,0.92);
   --frosted-border: 1px solid rgba(255,255,255,0.10);
-
   /* 图表纹理翻转 */
   --grid-line: rgba(255,255,255,0.18);
   --hatch-c: rgba(255,255,255,0.30);

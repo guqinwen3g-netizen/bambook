@@ -309,10 +309,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     >
       <RdlSurface
         tone="panel"
-        /* 磨砂亮焦点（2026-08-31 三轮实测定稿）：44% 半透明融进暗遮罩（无焦点）→ --bg-card 实底
-           （太硬失磨砂）→ frosted 62% 仍偏暗——定稿 88% 高不透明磨砂：明显亮起的亮卡，
-           12% 透出模糊背景保留一丝层次（浅白/深蓝灰主题自适应），不再实心也不再灰暗 */
-        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] bg-white/[0.88] dark:bg-[rgba(30,38,51,0.88)] backdrop-blur-2xl backdrop-saturate-150 border border-white/60 dark:border-white/10"
+        /* 冷白亮焦点（2026-08-31 四轮实测定稿 + 弹窗族统一）：--frosted-bg 已全局冷化提亮至
+           92%（浅冷白/深蓝灰，见 tokens.css 磨砂玻璃节）——面板与 select 浮层/dialog/sheet
+           同材质同色温；仅 blur 不加 saturate（堵磨砂暖化通道） */
+        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] bg-[var(--frosted-bg)] backdrop-blur-2xl border border-[var(--frosted-border)]"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* 搜索输入 */}
