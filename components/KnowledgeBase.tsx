@@ -628,7 +628,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* 新增/编辑知识 Modal */}
       {(showAddModal || editingItem) && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)] z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-xl overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-12 py-8 border-b flex items-center justify-between ${'border-[var(--border-c-default)]'}`}>
               <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{editingItem ? '修正资产档案' : '录入新资产'}</h3>
@@ -692,7 +692,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — 知识文档详情 + 实体关联 Modal */}
       {viewingItem && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)] z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
@@ -742,7 +742,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 详情 Modal */}
       {sopDetail && !sopShowNew && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)] z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)]'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
             <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${'border-[var(--border-c-default)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
@@ -895,7 +895,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* C7 — SOP 删除确认 */}
       {sopDeleteId && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md backdrop-saturate-[var(--mask-saturate)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
@@ -925,7 +925,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
 
       {/* 知识删除确认 */}
       {deleteConfirmId && (
-        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md backdrop-saturate-[var(--mask-saturate)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>

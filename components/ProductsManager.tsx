@@ -3980,7 +3980,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       {/* MODALS */}
           {(showAddSubModal || editingSub) && (
             <motion.div
-              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-[var(--mask-bg)]`}
+              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md backdrop-saturate-[var(--mask-saturate)] bg-[var(--mask-bg)]`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -4401,7 +4401,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
       {(deleteSubId || deleteProdId) && (
         <div
-          className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
+          className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-md backdrop-saturate-[var(--mask-saturate)] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
           onClick={() => { setDeleteSubId(null); setDeleteProdId(null); }}
         >
           <div

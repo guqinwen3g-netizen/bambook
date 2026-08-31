@@ -241,7 +241,7 @@ export default function DunningSheet({
     <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center sm:items-center sm:justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[var(--mask-bg)] backdrop-blur-sm transition-opacity duration-300"
+        className="fixed inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)] transition-opacity duration-300"
         onClick={onClose}
       />
 

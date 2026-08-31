@@ -211,6 +211,10 @@
 
   /* ═══════════ 7. 浮层/纹理通用材质 ═══════════ */
   --skeleton-shine: rgba(255,255,255,0.45);
+  --mask-saturate: 70%;              /* 遮罩族专用降饱和（2026-08-31 发黄根因修复）：壁纸米黄纸底
+                                        透过遮罩显黄——遮罩职责 = 压暗 + 冷化，saturate 0.7 压制
+                                        暖底透出；全遮罩（CSS .bds-*-mask + TSX backdrop 类）统一
+                                        引用本 token，调值一处生效。勿与 --frosted-saturate 混用 */
   --mask-bg: rgba(10,14,22,0.32);    /* 全系统唯一遮罩入口（modal/cmdk 共用）。2026-08-31 冷色校正：
                                         旧值 rgba(11,12,11) 为中性黑，暗化暖色背景后黄色相对占比放大、
                                         遮罩观感偏黄——改冷蓝黑（B 通道 +10）与全系统冷色系统一 */
@@ -304,7 +308,9 @@
   --frosted-blur-sm: 6px;    /* 导航项、小控件 */
   --frosted-blur: 20px;      /* 标准浮层 */
   --frosted-blur-lg: 45px;   /* 全宽 header / 覆盖层 */
-  --frosted-saturate: 180%;
+  --frosted-saturate: 100%;  /* 2026-08-31 暖化通道关闭：CommandPalette 六轮实测定稿"无 saturate"
+                                （等效 100%），磨砂浮层不放大透过暖色——壁纸米黄场景下 180%
+                                是发黄放大器（发黄根因三要素之一），全局浮层族对齐 */
   --frosted-dark-bg: rgba(255,255,255,0.08);
   --frosted-dark-border: 1px solid rgba(255,255,255,0.12);
 

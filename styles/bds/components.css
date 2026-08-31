@@ -510,8 +510,8 @@
 .bds-modal-mask {
   position: fixed; inset: 0; z-index: var(--z-modal);
   background: var(--mask-bg);
-  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
-  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
+  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
   display: grid;
   place-items: center;
   padding: var(--space-4);
@@ -886,6 +886,8 @@
 .bds-sheet-mask {
   position: fixed; inset: 0; z-index: var(--z-sheet);
   background: var(--mask-bg);
+  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
+  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
   opacity: 0;
   pointer-events: none; /* 关闭态不拦截点击 — 常驻 DOM 的 v2 用法 */
   transition: opacity var(--duration-normal) var(--ease-default);
@@ -1851,8 +1853,8 @@
 .bds-cmd-mask {
   position: fixed; inset: 0;
   background: var(--mask-bg);
-  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
-  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
+  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
   z-index: var(--z-modal);
   display: grid;
   place-items: start center;
@@ -2032,8 +2034,8 @@
 .bds-bottomsheet-mask {
   position: fixed; inset: 0;
   background: var(--mask-bg);
-  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
-  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+  backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
+  -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--mask-saturate));
   z-index: var(--z-sheet);
 }
 .bds-bottomsheet {

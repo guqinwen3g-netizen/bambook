@@ -28,6 +28,8 @@
     "noEmit": true
   },
   "exclude": [
-    "server"
+    "server",
+    "scripts",
+    "server/ops-panel"
   ]
 }

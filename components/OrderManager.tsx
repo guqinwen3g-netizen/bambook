@@ -2440,7 +2440,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, ordersTotal, dirtyI
           className="fixed inset-0 z-[70] flex justify-end"
           onClick={() => setShowTracePanel(false)}
         >
-          <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]" />
           <div
             className={`bds-frosted relative flex h-full w-full max-w-2xl flex-col overflow-hidden`}
             onClick={(e) => e.stopPropagation()}

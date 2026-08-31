@@ -139,7 +139,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[var(--z-sheet)] bg-[var(--mask-bg)] backdrop-blur-sm"
+            className="fixed inset-0 z-[var(--z-sheet)] bg-[var(--mask-bg)] backdrop-blur-sm backdrop-saturate-[var(--mask-saturate)]"
             onClick={onClose}
           />
           {/* 抽屉 */}

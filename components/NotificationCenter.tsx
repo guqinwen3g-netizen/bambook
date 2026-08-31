@@ -555,7 +555,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children, onO
         <>
           {/* 背景遮罩（点击关闭） */}
           <div
-            className="fixed inset-0 z-[85] bg-[var(--mask-bg)] backdrop-blur-[1px] transition-opacity duration-300"
+            className="fixed inset-0 z-[85] bg-[var(--mask-bg)] backdrop-blur-[1px] backdrop-saturate-[var(--mask-saturate)] transition-opacity duration-300"
             onClick={() => setIsOpen(false)}
           />
 
