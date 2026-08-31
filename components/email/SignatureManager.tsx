@@ -125,7 +125,8 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
 
   return (
     <div className="absolute inset-0 bg-[var(--mask-bg)] z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
-      <RdlSurface tone="panel" className="w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] animate-in zoom-in duration-300">
+      {/* 浮层面板 !bg 覆盖 rdl-surface--panel 的 44% 半透明 fill（Electron GPU 色偏裁决，同 CommandPalette） */}
+      <RdlSurface tone="panel" className="!bg-[var(--frosted-bg)] w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] animate-in zoom-in duration-300">
         {/* 头部 */}
         <div className="bds-pagehead shrink-0 backdrop-blur-md bg-[var(--recessed-bg)]">
           <div className="ph-main">

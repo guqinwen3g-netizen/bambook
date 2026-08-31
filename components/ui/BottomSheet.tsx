@@ -79,7 +79,7 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
             {/* Sheet Content */}
             <div
                 className={`
-          w-full sm:max-w-lg bg-[var(--frosted-bg)] backdrop-blur-2xl border border-[var(--frosted-border)] rounded-t-card sm:rounded-card overflow-hidden shadow-none transition-transform duration-300 cubic-out
+          w-full sm:max-w-lg bg-[var(--frosted-bg)] border border-[var(--frosted-border)] rounded-t-card sm:rounded-card overflow-hidden shadow-none transition-transform duration-300 cubic-out
           ${heightClasses[height]}
           ${animateIn ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-full opacity-0 scale-95'}
           border-t border-[var(--border-c-subtle)] sm:border

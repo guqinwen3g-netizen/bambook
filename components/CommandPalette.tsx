@@ -309,10 +309,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     >
       <RdlSurface
         tone="panel"
-        /* 玻璃质感定稿（2026-08-31 六轮实测）：72% 冷白 + blur-2xl，**无 saturate**——
-           saturate-125 会放大透过区域的暖色饱和（发黄直接嫌疑，六轮实测复验）；
-           亮边框当玻璃边缘高光。暗遮罩上透出 28% 模糊背景 = 磨砂质感可见。 */
-        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] bg-white/[0.72] dark:bg-[rgba(28,36,48,0.72)] backdrop-blur-2xl border border-white/50 dark:border-white/10"
+        /* Electron GPU 色偏裁决（2026-08-31）：浮层面板禁 backdrop-filter（背后透壁纸
+           canvas 时 GPU 合成暖偏，72% 玻璃尤甚）——材质定稿 = --frosted-bg 92% 近实底。
+           注意 !bg/!border 必须 important：.rdl-surface--panel 自带 44% 半透明 fill
+           （os-vnext.css），同特异性下按源顺序会覆盖普通 Tailwind 背景类 */
+        className="w-full max-w-xl overflow-hidden flex flex-col max-h-[60vh] !bg-[var(--frosted-bg)] !border-[var(--frosted-border)]"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* 搜索输入 */}
