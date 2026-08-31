@@ -102,7 +102,6 @@ function summarizeCriteria(c: RecommendCriteria): string {
 // ==================== 共享样式 ====================
 
 const inputClass = "bds-input";
-const selectClass = "bds-select";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

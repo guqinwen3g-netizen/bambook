@@ -515,7 +515,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             value={commLogForm.summary}
                             onChange={e => setCommLogForm(prev => ({ ...prev, summary: e.target.value }))}
                             placeholder="沟通摘要"
-                            className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
+                            className={`flex-1 min-w-0 bds-input sm`}
                         />
                         <button
                             type="button"
@@ -532,7 +532,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             value={commLogForm.subject}
                             onChange={e => setCommLogForm(prev => ({ ...prev, subject: e.target.value }))}
                             placeholder="主题(可选)"
-                            className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
+                            className={`flex-1 min-w-0 bds-input sm`}
                         />
                         <CustomSelect
                             className="w-40 shrink-0"

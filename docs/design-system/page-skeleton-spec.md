@@ -68,7 +68,7 @@
 |---|---|
 | 输入框 | `bds-input sm`（34px，`--h-input-sm`） |
 | 按钮 | `bds-btn-ghost`（40px，`--h-btn-md`）；6px 高度差为官方设计，禁止拉平 |
-| 下拉 | `select.bds-select sm`（34px，与 input 等高） |
+| 下拉 | CustomSelect（surface="form" size="compact"，34px 等高） |
 | 行数 | **单行不换行**；控件过多时收敛进「更多筛选」弹层，禁止折行 |
 | 容器高度 | 禁止 `h-` 任意值撑高容器；内部控件只允许 34/40 两档（机器断言） |
 | 页面位置 | filterbar 是内容区**顶层**工具条，独立成行；禁止嵌入卡片内部，禁止上塞 PageHeader center 槽 |
@@ -122,7 +122,7 @@
 
 | 控件 | 唯一合法形态 | 规格 |
 |---|---|---|
-| 下拉选择 | `select.bds-select`（默认 40px；filterbar/模态内 `.sm` 34px） | 禁裸 `<select>` 原生渲染 |
+| 下拉选择 | CustomSelect（surface="field" 40px pill，filterbar 内）/ surface="form" 36px（表单内） | 禁任何原生 `<select>`（M4 守卫零容忍） |
 | 日期输入 | `CapsuleDateInput`（`components/ui/CapsuleDateInput.tsx` 为基准实现，已落地 OrderFieldInput / ProductionPipeline / FinanceReportsPanel） | 禁 `<input type="date">` 原生渲染 |
 | 下拉浮层 | `bds-combobox` / CustomSelect（外壳存量不再扩散） | 选项 >10 或需搜索时用 combobox |
 | 文本输入 | `bds-input`（40）/ `bds-input sm`（34） | 高度按语境规格表 |

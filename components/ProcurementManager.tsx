@@ -930,6 +930,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                               value={line.category}
                               onChange={(v) => updateFormLine(line.key, 'category', v)}
                               surface="form"
+                              size="compact"
                             />
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
                             <CustomSelect
@@ -937,6 +938,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                               value={line.unit}
                               onChange={(v) => updateFormLine(line.key, 'unit', v)}
                               surface="form"
+                              size="compact"
                             />
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
                             <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className="bds-input sm xl:col-span-2" />

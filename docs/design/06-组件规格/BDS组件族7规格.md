@@ -23,7 +23,7 @@
 | 族 | 命名前缀 | 职责 | 包含组件类（components.css 章节） |
 |---|---|---|---|
 | **x-input** | `bds-input` / `bds-textarea` / `bds-capsuleinput` / `bds-linkedinput` / `bds-stepper` / `bds-slider` | 文本/数字/范围输入原语 | §2 Input / §34 Input 带图标 / §55 LinkedInput / §56 CapsuleInput / §60 Stepper / §61 CommandPalette(输入部分) / §1754 Slider |
-| **x-select** | `bds-select` / `bds-combobox` / `bds-segment` / `bds-tabs` / `bds-togglebutton` / `bds-checkbox` / `bds-radio` / `bds-switch` | 选择/切换原语 | §2 Select / §54 Combobox / §7 Checkbox/Radio / §6 Switch / §8 Tabs / §9 Segment / §50 ToggleButton |
+| **x-select** | `bds-select`（已退役，见 §5） / `bds-combobox` / `bds-segment` / `bds-tabs` / `bds-togglebutton` / `bds-checkbox` / `bds-radio` / `bds-switch` | 选择/切换原语 | §2 Select / §54 Combobox / §7 Checkbox/Radio / §6 Switch / §8 Tabs / §9 Segment / §50 ToggleButton |
 | **x-data** | `bds-table` / `bds-descriptionlist` / `bds-stat-inset` / `bds-progress` / `bds-circularprogress` / `bds-sparkline` / `bds-timeline` / `bds-accordion` / `bds-codeblock` | 数据展示原语 | §10 Table / §37 DescriptionList / §45 StatInset / §15 Progress / §46 CircularProgress / §2010 Sparkline / §1205 Timeline / §1240 Accordion / §1321 CodeBlock |
 | **x-list** | `bds-listrows` / `bds-listrow` / `bds-card` / `bds-filterbar` / `bds-pagehead` / `bds-breadcrumb` / `bds-pagination` / `bds-tree`(未来) | 列表/卡片/布局原语 | §3 Card / §4 ListRow / §20 Pagehead / §21 Filterbar / §27 Pagination / §48 Breadcrumb / §49 Toolbar / §65 SidePanel |
 | **x-feedback** | `bds-badge` / `bds-tag` / `bds-chip` / `bds-alert` / `bds-banner` / `bds-toast` / `bds-tooltip` / `bds-skeleton` / `bds-empty` / `bds-spinner` / `bds-statusdot` / `bds-countbadge` | 反馈/状态原语 | §5 Badge / §12 Toast / §13 Tooltip / §16 Skeleton / §17 Empty / §19 Tag / §31 Alert / §50 Banner / §40 Spinner / §41 CountBadge / §57 Chip / §1364 StatusDot |
@@ -138,7 +138,7 @@
 
 | 组件类 | 章节 | 用途 |
 |---|---|---|
-| `select.bds-select` | §2 | 原生 select 填充式 + 自绘箭头 |
+| ~~`select.bds-select`~~ | §2 | ~~原生 select 填充式 + 自绘箭头~~ **已退役（2026-08-31 W4 收编）：选择器族已删除，下拉唯一真源 CustomSelect** |
 | `.bds-combobox` | §54 | 组合选择器（input + dropdown） |
 | `.bds-segment` | §9 | 分段控制器（pill 容器 + pill 激活面） |
 | `.bds-tabs` | §8 | 下划线式页签 |
@@ -178,7 +178,7 @@
 
 ### §5.4 消费纪律
 
-- ✅ select 用 `<select class="bds-select">`
+- ❌ 原生 select 已全站退役（2026-08-31 W4 收编），下拉唯一真源 CustomSelect（见 design-system/component-application-spec.md §5）
 - ✅ switch 用 `<button role="switch" aria-checked={enabled} class="bds-switch">`
 - ✅ segment 用 `.bds-segment` 容器 + `.bds-segment-item` + `.active` 变体
 - ❌ 禁止手写 `border-radius` / `background`——走 BDS 类

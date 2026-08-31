@@ -112,13 +112,6 @@ const LEAD_STATUS_LABELS: Record<TradeShowLeadStatus, string> = {
   Lost: '已流失',
 };
 
-const LEAD_STATUS_SEMANTIC: Record<TradeShowLeadStatus, StatusSemantic> = {
-  New: 'info',
-  Following: 'warning',
-  Converted: 'success',
-  Lost: 'neutral',
-};
-
 // BDS v2.1：StatusSemantic → bds-badge 语义变体（active 归并 info；替代 statusSemanticClass 拼装）
 type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
 const SEMANTIC_BADGE_VARIANT: Record<StatusSemantic, BadgeVariant> = {

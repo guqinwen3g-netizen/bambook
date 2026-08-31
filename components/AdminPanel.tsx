@@ -295,7 +295,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const userCardClass = ADMIN_USER_CARD_CLASS;
   const card = `rounded-inset border transition-[background,border-color,box-shadow] duration-300 ${userCardClass}`;
   const labelCls = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
-  // v2.3 字段统一裁决：BDS .bds-input/.bds-select 已胶囊化（36px/描边/rounded-control），
+  // v2.3 字段统一裁决：BDS .bds-input 已胶囊化（36px/描边/rounded-control），
   // 与原 recessedField 胶囊配方完全同规格——表单字段直接用 BDS 类，消灭双真源
   const inputCls = 'bds-input';
   const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
@@ -1755,6 +1755,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                 <div>
                   <label className={`mb-1.5 block text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>接收人 *</label>
                   <CustomSelect
+                    surface="form"
                     value={handoverSuccessorId}
                     onChange={v => {
                       setHandoverSuccessorId(v);

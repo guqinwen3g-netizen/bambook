@@ -758,6 +758,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
             <CustomSelect
+              surface="field"
               className="w-36"
               value={selectedType}
               onChange={(v) => setSelectedType(v as DevelopmentTypeId)}
@@ -767,6 +768,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               }))}
             />
             <CustomSelect
+              surface="field"
               className="w-36"
               value={selectedStage}
               onChange={(v) => setSelectedStage(v as DevelopmentStageId)}

@@ -173,6 +173,6 @@ panel(34) › card(24) › inset(22) › control(18)/field(16) › compact(14) �
 | H2 | 主操作位置 | **统一 PageHeader 右上**；无 PageHeader 页面放工具行左端 | 已写入 §4 |
 | H3 | 纯搜索/过滤行规格 | 无 40 控件同行时**全行 34**（密集），配套图标按钮 sm(32) | 已写入 §1/§2 |
 | V2 | 行内动作层级 | 主操作唯一性按任务区粒度；**行内动作一律 secondary**，danger 独立末位 | 已写入 §4 |
-| V7 | 模态/内联表单高度 | **34px 密集规格**（现状固化）；inline style 收编为 `.bds-select.sm` 类；独立表单页仍 44 | 已写入 §1 |
+| V7 | 模态/内联表单高度 | **34px 密集规格**（现状固化）；inline style 收编为 `.bds-select.sm` 类；独立表单页仍 44（2026-08-31 W4 后由 CustomSelect 承接，选择器族已删除） | 已写入 §1 |
 | V9 | 面板主操作归属 | 面板内 primary 绑定面板状态（disabled 依赖面板输入）时留在面板任务区内（Pricing 双轨「保存定价记录」、利润表「生成利润表」）；无状态依赖的新建类主操作统一收 PageHeader（QC ref 注册模式：Pricing 3 Panel / Marketing LookbooksPanel / Inventory 2 tab / BomManager），PageHeader primary 随任务区切换 | 已写入 §4 |
-| V10 | 组件基础类宽度纪律 | **`:where()` 零特异性宽度默认**：`:where(.bds-input, .bds-select){width:100%}`。根因：基础类内联 `width:100%` 与 Tailwind 应用类同特异性且 components.css 后加载，filterbar 内 `w-[140px]` 等声明全部失效 → select 通栏挤压换行（开发管理工具区堆叠事故）。永久纪律：基础组件类禁止内联 width | 已写入 components.css 注释 |
+| V10 | 组件基础类宽度纪律 | **`:where()` 零特异性宽度默认**：`:where(.bds-input, .bds-select){width:100%}`。根因：基础类内联 `width:100%` 与 Tailwind 应用类同特异性且 components.css 后加载，filterbar 内 `w-[140px]` 等声明全部失效 → select 通栏挤压换行（开发管理工具区堆叠事故）。永久纪律：基础组件类禁止内联 width（2026-08-31 W4 后由 CustomSelect 承接，`:where(.bds-input, .bds-select)` 选择器族已删除、收敛为 `:where(.bds-input)`） | 已写入 components.css 注释 |

@@ -28,8 +28,8 @@ export const NavRelationFilterChip: React.FC<NavRelationFilterChipProps> = ({ fi
       ? '（产品档案）'
       : '';
   return (
-    <div className="flex items-center gap-2 px-3 h-8 rounded-control border border-[color:var(--border-c-default)] bg-[var(--recessed-bg)]">
-      <span className="text-xs font-light text-[var(--text-secondary)]">
+    <div className="flex items-center gap-2 px-3 h-8 min-w-0 rounded-control border border-[color:var(--border-c-default)] bg-[var(--recessed-bg)]">
+      <span className="text-xs font-light text-[var(--text-secondary)] min-w-0 truncate">
         正在查看：
         <span className="text-[var(--text-primary)]">{name}</span>
         <span className="text-[var(--text-tertiary)]"> 的{label}{roleSuffix}</span>

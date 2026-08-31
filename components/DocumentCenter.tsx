@@ -568,12 +568,14 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
               />
             </div>
             <CustomSelect
+              surface="field"
               className="w-[132px]"
               value={typeFilter}
               onChange={(v) => setTypeFilter(v)}
               options={[{ value: '', label: '全部类型' }, ...DOC_TYPES.map(t => ({ value: t.id, label: t.label }))]}
             />
             <CustomSelect
+              surface="field"
               className="w-[116px]"
               value={statusFilter}
               onChange={(v) => setStatusFilter(v)}
@@ -581,6 +583,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
             />
             {/* B4 域视图：全系统文件枢纽按业务域过滤（外贸主体 + 采购/质检等运营域归档） */}
             <CustomSelect
+              surface="field"
               className="w-[116px]"
               value={domainFilter}
               onChange={(v) => setDomainFilter(v)}

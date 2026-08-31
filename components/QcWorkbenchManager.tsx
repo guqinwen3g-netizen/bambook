@@ -527,6 +527,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
         <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
         <CustomSelect
           className="w-32"
+          surface="field"
           value={qcUserFilter}
           onChange={(v) => setQcUserFilter(v)}
           options={[{ value: '', label: '全部' }, ...users.map((u) => ({ value: u.id, label: u.displayName }))]}

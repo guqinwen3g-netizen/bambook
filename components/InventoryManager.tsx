@@ -426,12 +426,14 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <div className="bds-filterbar">
                   <CustomSelect
+                    surface="field"
                     options={[{ value: '', label: '全部仓库' }, ...warehouses.map(w => ({ value: w.id, label: w.name }))]}
                     value={warehouseFilter}
                     onChange={(v) => setWarehouseFilter(v)}
                     className="w-[160px]"
                   />
                   <CustomSelect
+                    surface="field"
                     options={[{ value: '', label: '全部品类' }, ...ITEM_CATEGORIES.map(c => ({ value: c, label: c }))]}
                     value={categoryFilter}
                     onChange={(v) => setCategoryFilter(v)}
@@ -582,6 +584,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                         })()}
                                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
                                           <CustomSelect
+                                            surface="form"
+                                            size="compact"
                                             options={MOVEMENT_TYPES.map(m => ({ value: m.id, label: m.label }))}
                                             value={movementForm.type}
                                             onChange={(v) => setMovementForm({ ...movementForm, type: v as StockMovementType })}
@@ -600,6 +604,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                               value={movementForm.targetWarehouseId || ''}
                                               onChange={(v) => setMovementForm({ ...movementForm, targetWarehouseId: v })}
                                               surface="form"
+                                              size="compact"
                                               className="xl:col-span-2"
                                             />
                                           )}

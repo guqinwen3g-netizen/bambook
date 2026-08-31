@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useId } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check } from 'lucide-react';
@@ -28,8 +28,8 @@ interface CustomSelectProps {
   size?: 'default' | 'compact';
   /** 触发器 aria-label（迁移原生 select 的可访问名，如「状态筛选」） */
   ariaLabel?: string;
-  /** field = bds-select 触发器几何（h-40px(--h-btn-md) / rounded-[--radius-pill] / text-xs / recessed），
-   *  供 filterbar/表单以同几何替换原生 select 元素，浮层走 BDS 自绘容器（W4 原生浮层收编） */
+  /** field = 40px pill recessed 触发器几何（h-40px(--h-btn-md) / rounded-[--radius-pill] / text-xs，filterbar 纪律），
+   *  供 filterbar/表单承接下拉选择，浮层走 BDS 自绘容器（W4 原生浮层收编） */
   surface?: 'default' | 'toolbar' | 'form' | 'field';
   triggerVariant?: 'boxed' | 'inline';
 }
@@ -69,10 +69,10 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const isFormSurface = surface === 'form';
   const isFieldSurface = surface === 'field';
   const isInlineToolbarTrigger = isToolbarSurface && triggerVariant === 'inline';
-  // field 触发器几何对齐 `.bds-filterbar .bds-select`（filterbar 规范强制 40px + pill，
-  // 见 components.css §21 .bds-filterbar .bds-select 等高同形纪律）。原 `--r-control-sm`
-  // token 在 styles/ 全局不存在（tailwind 静默丢弃 → 方形按钮），且 34px 与同 bar 的
-  // bds-input(40px)/segment/toggle 高度错位，故收拢为 --h-btn-md + --radius-pill。
+  // field 触发器几何 = 40px pill recessed（filterbar 纪律：.bds-filterbar .bds-input
+  // 等高同形，见 components.css §21）。原 `--r-control-sm` token 在 styles/ 全局不存在
+  // （tailwind 静默丢弃 → 方形按钮），且 34px 与同 bar 的 bds-input(40px)/segment/toggle
+  // 高度错位，故收拢为 --h-btn-md + --radius-pill。
   const triggerSizeClass = isFieldSurface
     ? 'h-[var(--h-btn-md)] px-3 py-0 rounded-[var(--radius-pill)] text-xs leading-none'
     : isCompact
@@ -133,27 +133,29 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     el?.scrollIntoView?.({ block: 'nearest' });
   }, [activeIndex, isOpen]);
 
+  // ── click-outside + focusin 关闭（2026-08-31 走查 D-5）：isOpen 门控——关闭态零监听，
+  //    打开态才挂载；focusin 兜住 programmatic focus() 等不产生 mousedown 的焦点移动 ──
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(target) &&
-        !menuRef.current?.contains(target)
-      ) {
-        setIsOpen(false);
-      }
+    if (!isOpen) return;
+    const isOutside = (target: Node) =>
+      !containerRef.current?.contains(target) && !menuRef.current?.contains(target);
+    const handleDismiss = (e: Event) => {
+      if (isOutside(e.target as Node)) setIsOpen(false);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('mousedown', handleDismiss);
+    document.addEventListener('focusin', handleDismiss);
+    return () => {
+      document.removeEventListener('mousedown', handleDismiss);
+      document.removeEventListener('focusin', handleDismiss);
+    };
+  }, [isOpen]);
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
     setIsOpen(false);
-    // 键盘选择后焦点回触发器（ARIA combobox 惯例）
-    containerRef.current?.querySelector<HTMLButtonElement>('[data-select-trigger]')?.focus();
+    // 键盘选择后焦点回触发器（ARIA combobox 惯例）；preventScroll 防离屏触发器引发滚动跳回
+    containerRef.current?.querySelector<HTMLButtonElement>('[data-select-trigger]')?.focus({ preventScroll: true });
   };
 
   // ── 键盘导航（W4 原生浮层收编：补齐原生 select 的键盘能力，Escape 阻断冒泡防误关 BdsDialog 等全局层） ──
@@ -223,24 +225,47 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     setDropUp(rect.bottom + estimate > window.innerHeight && rect.top - estimate > 0);
   }, [isOpen, menuPortal, options.length]);
 
-  useEffect(() => {
-    if (!isOpen || !menuPortal || !containerRef.current) return;
+  // ── portal 定位（useLayoutEffect：同步于 paint 前，消灭首帧 static 占位）；
+  //    值 diff 守卫：rect 未变（如浮层内滚动）不 setState，杜绝每滚动帧全菜单重渲染 ──
+  const lastPortalStyleRef = useRef<{ left: number; top: number; width: number; flipUp: boolean } | null>(null);
+  useLayoutEffect(() => {
+    if (!isOpen || !menuPortal || !containerRef.current) {
+      if (!isOpen) lastPortalStyleRef.current = null;
+      return;
+    }
 
     const updatePortalStyle = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
+      // 触发器完全离场（滚出视口两端）→ 自动关闭（业界惯例，防浮层悬空不可达）
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setIsOpen(false);
+        return;
+      }
       const estimate = Math.min(MENU_MAX_HEIGHT, options.length * MENU_EST_ITEM_HEIGHT + 12) + VIEWPORT_PADDING;
       const overflowBelow = rect.bottom + estimate > window.innerHeight;
       const flipUp = overflowBelow && rect.top - estimate > 0;
-      setDropUp(flipUp);
-      setPortalStyle({
-        position: 'fixed',
+      // 双向对称 clamp：向上贴视口顶 / 向下贴视口底（浮层自身 max-h-60 滚动兜底），
+      // 触发器越过视口顶（rect.bottom<0）时 top 不再为负——浮层不再渲染到视口外不可见区
+      const next = {
         left: rect.left,
-        // 双向 clamp：向上优先贴视口顶，向下 clamp 到视口底（浮层自身 max-h-60 滚动兜底）
         top: flipUp
           ? Math.max(VIEWPORT_PADDING, rect.top - estimate)
-          : Math.min(rect.bottom + 8, window.innerHeight - VIEWPORT_PADDING),
+          : Math.max(VIEWPORT_PADDING, Math.min(rect.bottom + 8, window.innerHeight - VIEWPORT_PADDING)),
         width: rect.width,
+        flipUp,
+      };
+      const last = lastPortalStyleRef.current;
+      if (last && last.left === next.left && last.top === next.top && last.width === next.width && last.flipUp === next.flipUp) return;
+      lastPortalStyleRef.current = next;
+      setDropUp(next.flipUp);
+      setPortalStyle({
+        position: 'fixed',
+        left: next.left,
+        top: next.top,
+        // minWidth 允许长选项 label 撑宽浮层（宽度不再锁死触发器宽），maxWidth 视口兜底
+        minWidth: next.width,
+        maxWidth: window.innerWidth - VIEWPORT_PADDING * 2,
       });
     };
 
@@ -265,7 +290,20 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          style={menuPortal ? portalStyle : undefined}
+          style={{
+            ...(menuPortal ? portalStyle : undefined),
+            // exit 0.2s 动画期间收口命中（2026-08-31 走查）：渐隐中的隐形 option 会拦截
+            // 用户对浮层下方元素的点击（幽灵点击误改值/吞点击），关闭同帧即不可命中
+            pointerEvents: isOpen ? undefined : 'none',
+          }}
+          onKeyDown={(e) => {
+            // 防御性 Esc 拦截：焦点意外落在浮层内时（如外部脚本重定向），Esc 仍只关下拉不关宿主弹层
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsOpen(false);
+            }
+          }}
           data-glass-edge-mask
           data-os-shadow-mode="flat"
           className={`
@@ -288,6 +326,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                   id={optionId(index)}
                   type="button"
                   role="option"
+                  tabIndex={-1}
                   aria-selected={isSelected}
                   aria-disabled={option.disabled || undefined}
                   disabled={option.disabled}
@@ -301,10 +340,11 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                     ${option.disabled ? 'opacity-40 cursor-not-allowed' : ''}
                   `}
                 >
-                  <div>
-                    <span className={BAMBOOK_OS.typography.weight.ui}>{option.label}</span>
+                  <div className="min-w-0">
+                    {/* min-w-0 + truncate：窄触发器场景下长 label 截断而非撑爆浮层（portal minWidth 已允许扩展，双保险） */}
+                    <span className={`block truncate ${BAMBOOK_OS.typography.weight.ui}`}>{option.label}</span>
                     {option.description && (
-                      <p className={`text-[10px] mt-0.5 text-[var(--text-tertiary)]`}>
+                      <p className={`text-[10px] mt-0.5 truncate text-[var(--text-tertiary)]`}>
                         {option.description}
                       </p>
                     )}

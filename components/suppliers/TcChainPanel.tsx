@@ -318,6 +318,7 @@ export function TcChainPanel({ orderId, isDarkMode = false, relations = [] }: Tc
             <CustomSelect
               className="w-full"
               surface="form"
+              size="compact"
               ariaLabel="选择交易对手"
               value={formRelation}
               onChange={v => setFormRelation(v)}

@@ -561,7 +561,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 value={changeType}
                 onChange={(v) => { setForm((p) => ({ ...p, changeType: v as OrderChangeType })); setMoqResult(null); setMoqError(null); }}
                 isDarkMode={dark}
-                surface="field"
+                surface="form"
               />
             </div>
 

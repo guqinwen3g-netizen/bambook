@@ -22,7 +22,7 @@
 ## §1 台账正文（30 行，按导航分组排序；★ = P2 首批四页）
 
 > **2026-08-19 批次 3 校准**：①渲染文件列——4 页 compiled 双路径已收敛删除，全部指向 moduleRegistry entry 实际渲染源；②表单控件列——批次 3a 后 M4 守卫全局 date=0、select 真实非合规=0（bds-select/CapsuleDateInput 全合规），历史 select×N/date×N 计数全部转 ✅；③弹窗列——批次 3b 全站 ~211 处 alert/confirm 迁移 bdsToast/bdsConfirm（M6 守卫锁定=0），历史 alert×N 全部转 ✅；④M1（EmailManager PageHeader）/M3（FinanceManager filterbar 撑高）均已修复。验收状态列仍全 ⬜，待 3d 逐页深浅双主题截图走查 + 产品负责人签字。
-
+> **2026-08-31 W4 补注**：本表「下拉」列为 2026-08-18 批次快照（select.bds-select 口径），2026-08-31 W4 后以 CustomSelect 收编为准——原生 select 已全站退役（M4 守卫零容忍）。
 | 页面 | 渲染文件 | 标题区 | 筛选区 | 操作区 | 表单控件 | 内容区 | dark:残留 | raw色残留 | 弹窗 | 问题记录 | 验收状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 全景看板 | components/Dashboard.tsx | ⚠️ 无 PageHeader（定制全景头部，豁免与否待总控校准） | — | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | 0 | 2026-08-19 校准：compiledDashboardTemplates 双路径已删除，渲染源=Dashboard.tsx；装饰性 accent 填充已收编（W4 · d808a3b，手写主按钮基线 22→17）；Dashboard.tsx 本体 5 处手写主按钮余量现为**真实渲染路径**（原"非渲染路径遗留"口径作废），待 3d 走查判定 | ⬜ |

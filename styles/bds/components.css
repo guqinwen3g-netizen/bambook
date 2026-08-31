@@ -134,12 +134,12 @@
 /* ============ 2. Input 输入框 — 胶囊字段（v2.3 裁决：描边胶囊为全站唯一字段语言） ============ */
 /* 宽度默认值（:where 零特异性，2026-08-16 根因修复）：
    表单场景默认撑满 100%；应用层 Tailwind 宽度类（w-[140px] 等）可自然覆盖。
-   事故背景：原 .bds-input/.bds-select 内联 width:100% 与 Tailwind 类同特异性且
-   components.css 后加载，导致 filterbar 内 select 通栏挤压换行（开发管理工具区堆叠）。 */
-:where(.bds-input, .bds-select) { width: 100%; }
+   事故背景：原 .bds-input 内联 width:100% 与 Tailwind 类同特异性且
+   components.css 后加载，导致 filterbar 内控件通栏挤压换行（开发管理工具区堆叠）。 */
+:where(.bds-input) { width: 100%; }
 
 /* 2026-08-21 BDS v2.3 字段几何裁决（用户对比样拍板 A·保留胶囊并反向统一）：
-   .bds-input/.bds-select 从「44px 无描边玻璃凹槽」升级为「36px 可见描边胶囊」，
+   .bds-input 从「44px 无描边玻璃凹槽」升级为「36px 可见描边胶囊」，
    与 BAMBOOK_OS recessedField 胶囊配方完全同规格——高度 36px / 描边
    --border-c-default / 圆角 --radius-control / 字号 12px / focus 描边加深 +
    recessed 加深（无 ring，flat 纪律）。消灭双真源：此前 45 文件用 BDS 字段、
@@ -178,37 +178,9 @@
   padding-top: var(--space-3);
 }
 
-/* Select（原生 <select> 胶囊字段 + 自绘箭头）— v2.3 几何与 .bds-input 同规格 */
-select.bds-select {
-  appearance: none;
-  height: 36px;
-  padding: 0 12px;
-  padding-right: 34px;
-  border-radius: var(--radius-control);
-  border: 1px solid var(--border-c-default);
-  background-color: var(--recessed-bg);
-  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 6L0 0H10L5 6Z' fill='%230B0C0B' fill-opacity='0.4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-default);
-}
-select.bds-select:hover { background-color: var(--recessed-bg-hover); }
-select.bds-select:focus {
-  outline: none;
-  background-color: var(--recessed-bg-hover);
-  border-color: var(--border-c-strong);
-  box-shadow: none;
-}
-.dark select.bds-select, [data-theme="dark"] select.bds-select {
-  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 6L0 0H10L5 6Z' fill='%23F4F5F2' fill-opacity='0.5'/%3E%3C/svg%3E");
-}
-/* sm 密集规格（2026-08-16 V7 裁决）：模态/内联表单、密集行统一 34px，
-   收编此前各 Manager 的 style={{ height: 'var(--h-input-sm)' }} inline 写法 */
-select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
+/* 原 §2 Select 段（原生 <select> 胶囊字段 select.bds-select 整族）已于 2026-08-31 W4
+   随原生 select 全站退役删除——下拉唯一真源为 components/ui/CustomSelect.tsx
+   （M4 守卫零容忍），不留选择器尸骸防回刷。 */
 
 /* ============ 3. Card 卡片 — rimless：无边框零阴影 ============
    主容器统一玻璃面（2026-08-14 用户裁决：页面级主容器全玻璃）：
@@ -785,11 +757,11 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
 /* v2.3：filterbar 内字段 focus 与胶囊字段同语言（recessed 加深，不翻卡底） */
 .bds-filterbar .bds-input:focus { background: var(--recessed-bg-hover); }
 /* Filterbar 内控件等高 + 同形纪律：
-   1. input / select 强制拉齐 btn md 高度（40px），避免 input sm(34px) vs btn(40px) 不齐
-   2. input / select 强制 pill 圆角，与容器 filterbar(--radius-pill) 和按钮(--r-btn pill) 同形，
+   1. input 强制拉齐 btn md 高度（40px），避免 input sm(34px) vs btn(40px) 不齐
+      （CustomSelect 走 surface="field" 同几何；2026-08-31 W4 原生 select 退役后仅存 input）
+   2. input 强制 pill 圆角，与容器 filterbar(--radius-pill) 和按钮(--r-btn pill) 同形，
       避免胶囊容器里塞方角矩形的几何冲突。 */
-.bds-filterbar .bds-input,
-.bds-filterbar .bds-select {
+.bds-filterbar .bds-input {
   height: var(--h-btn-md);
   border-radius: var(--radius-pill);
 }

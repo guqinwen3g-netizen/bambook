@@ -798,6 +798,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="工位">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={planForm.workStationId}
                       onChange={v => setPlanForm({ ...planForm, workStationId: v })}
                       options={[{ value: '', label: '选择工位' }, ...workStations.map(w => ({ value: w.id, label: `${w.name} (${w.code})` }))]}
@@ -806,6 +807,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="工序类型">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={planForm.processType}
                       onChange={v => setPlanForm({ ...planForm, processType: v as WorkStationType })}
                       options={WS_TYPES.map(t => ({ value: t.id, label: t.label }))}
@@ -817,6 +819,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="单位">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={planForm.unit}
                       onChange={v => setPlanForm({ ...planForm, unit: v })}
                       options={UNITS.map(u => ({ value: u, label: u }))}
@@ -831,6 +834,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="优先级">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={planForm.priority ?? ''}
                       onChange={v => setPlanForm({ ...planForm, priority: v as Priority })}
                       options={PRIORITIES.map(p => ({ value: p.id, label: p.label }))}
@@ -914,6 +918,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="类型">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={wsForm.type}
                       onChange={v => setWsForm({ ...wsForm, type: v as WorkStationType })}
                       options={WS_TYPES.map(t => ({ value: t.id, label: t.label }))}
@@ -1049,6 +1054,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="供应商">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={osoForm.supplierId ?? ''}
                       onChange={v => setOsoForm({ ...osoForm, supplierId: v || undefined })}
                       options={[{ value: '', label: '不指定供应商' }, ...supplierOptions.map(s => ({ value: s.id, label: s.label }))]}
@@ -1057,6 +1063,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="工序类型">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={osoForm.processType}
                       onChange={v => setOsoForm({ ...osoForm, processType: v as OutsourcingProcessType })}
                       options={OUTSOURCING_PROCESS_TYPES.map(t => ({ value: t.id, label: t.label }))}
@@ -1068,6 +1075,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="单位">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={osoForm.unit}
                       onChange={v => setOsoForm({ ...osoForm, unit: v })}
                       options={UNITS.map(u => ({ value: u, label: u }))}
@@ -1079,6 +1087,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="币种">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={osoForm.currency ?? ''}
                       onChange={v => setOsoForm({ ...osoForm, currency: v })}
                       options={[{ value: 'CNY', label: 'CNY 人民币' }, { value: 'USD', label: 'USD 美元' }]}
@@ -1136,6 +1145,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="排产单">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={whForm.productionPlanId}
                       onChange={v => setWhForm({ ...whForm, productionPlanId: v })}
                       options={[{ value: '', label: '选择排产单' }, ...plans.map(p => ({ value: p.id, label: p.planNumber }))]}
@@ -1227,6 +1237,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="工序类型">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={ruleForm.processType}
                       onChange={v => setRuleForm({ ...ruleForm, processType: v as WorkStationType })}
                       options={WS_TYPES.map(t => ({ value: t.id, label: t.label }))}
@@ -1235,6 +1246,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="单位">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={ruleForm.unit}
                       onChange={v => setRuleForm({ ...ruleForm, unit: v })}
                       options={UNITS.map(u => ({ value: u, label: u }))}
@@ -1319,6 +1331,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                   <FormField label="计件规则">
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={recordForm.pieceRateRuleId}
                       onChange={v => setRecordForm({ ...recordForm, pieceRateRuleId: v, unit: pieceRateRules.find(r => r.id === v)?.unit || 'PC' })}
                       options={[{ value: '', label: '选择规则' }, ...pieceRateRules.filter(r => r.isActive).map(r => ({ value: r.id, label: `${r.code} · ${r.name} (${formatNum(Number(r.ratePerUnit))}/${r.unit})` }))]}

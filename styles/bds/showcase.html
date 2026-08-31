@@ -434,9 +434,6 @@
           </div>
           <input class="bds-input" placeholder="禁用状态" disabled>
           <textarea class="bds-input bds-textarea" placeholder="备注 Textarea — 跟进记录、特殊工艺要求…"></textarea>
-          <select class="bds-select">
-            <option>全部订单状态</option><option>草稿 Draft</option><option>已确认 Confirmed</option><option>生产中 In Production</option>
-          </select>
         </div>
         <div class="col">
           <div class="specimen col">
@@ -459,10 +456,6 @@
               <div class="bds-formrow">
                 <div class="fr-label">客户名称</div>
                 <div class="fr-field"><input class="bds-input" placeholder="必填"><div class="fr-hint">与客户档案自动关联</div></div>
-              </div>
-              <div class="bds-formrow">
-                <div class="fr-label">付款方式</div>
-                <div class="fr-field"><select class="bds-select"><option>T/T 30 天</option><option>T/T 60 天</option><option>L/C 即期</option></select></div>
               </div>
             </div>
           </div>
@@ -896,10 +889,7 @@
             <div class="bds-formsection">
               <div class="bds-fs-title">付款与交付 Payment &amp; Delivery</div>
               <div class="bds-fs-body">
-                <div class="row">
-                  <select class="bds-select" style="flex: 1;"><option>T/T 30 天</option><option>T/T 60 天</option><option>L/C 即期</option></select>
-                  <select class="bds-select" style="flex: 1;"><option>FOB 上海</option><option>CIF 汉堡</option><option>EXW</option></select>
-                </div>
+                <!-- 原生 select 标本已退役 → 下拉唯一真源 CustomSelect（2026-08-31 W4 收编） -->
               </div>
             </div>
           </div>

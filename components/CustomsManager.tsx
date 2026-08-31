@@ -607,6 +607,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
             {activeTab !== 'hsCodes' && (
               <CustomSelect
                 className="w-[140px]"
+                surface="field"
                 value={statusFilter}
                 onChange={(v) => setStatusFilter(v)}
                 options={[

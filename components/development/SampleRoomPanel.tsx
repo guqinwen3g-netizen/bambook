@@ -800,6 +800,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">类型</label>
                 <CustomSelect
                   surface="form"
+                    size="compact"
                   className="w-full"
                   value={itemForm.cardType}
                   onChange={v => setItemForm(f => ({ ...f, cardType: v }))}
@@ -821,6 +822,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">单位</label>
                 <CustomSelect
                   surface="form"
+                    size="compact"
                   className="w-full"
                   value={itemForm.unit}
                   onChange={v => setItemForm(f => ({ ...f, unit: v }))}
@@ -831,6 +833,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">仓库</label>
                 <CustomSelect
                   surface="form"
+                    size="compact"
                   className="w-full"
                   value={itemForm.warehouseId}
                   onChange={v => setItemForm(f => ({ ...f, warehouseId: v }))}

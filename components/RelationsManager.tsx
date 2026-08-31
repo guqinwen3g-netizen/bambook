@@ -1977,7 +1977,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           value={formSelectValues.rating || '3'}
                           onChange={(value) => setFormSelectValue('rating', value)}
                           isDarkMode={isDarkMode}
-                          surface="toolbar"
+                          surface="form"
                           options={[5, 4, 3, 2, 1].map(tier => ({ value: String(tier), label: tierLabel(tier) }))}
                         />
                         </div>
@@ -2266,7 +2266,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             onChange={(value) => setFormSelectValue('paymentTerms', value)}
                             placeholder="选择付款条款"
                             isDarkMode={isDarkMode}
-                            surface="toolbar"
+                            surface="form"
                             options={paymentTermOptions}
                           />
                         </div>
@@ -2279,7 +2279,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             onChange={(value) => setFormSelectValue('currency', value)}
                             placeholder="选择币种"
                             isDarkMode={isDarkMode}
-                            surface="toolbar"
+                            surface="form"
                             options={currencyOptions}
                           />
                         </div>
@@ -2404,7 +2404,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             onChange={(value) => setFormSelectValue('language', value)}
                             placeholder="选择语言"
                             isDarkMode={isDarkMode}
-                            surface="toolbar"
+                            surface="form"
                             options={languageOptions}
                           />
                         </div>

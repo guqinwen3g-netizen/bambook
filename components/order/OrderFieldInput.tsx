@@ -80,7 +80,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
   const disabledCls = disabled ? 'opacity-60 cursor-not-allowed' : '';
   // rounded-full 仅适用于单行控件（input/select/boolean），textarea 多行使用 rounded-inset 保持视觉一致
   const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-colors duration-200 ${fieldSurfaceCls} ${disabledCls} ${orderSpec.subFieldFocus}`;
-  const inputCls = `w-full h-9 px-4 rounded-full ${fieldShellCls}`;
+  const inputCls = `w-full h-10 px-4 rounded-full ${fieldShellCls}`;
   const textareaCls = `w-full px-4 py-3 rounded-inset ${fieldShellCls} resize-none leading-relaxed`;
   // 隐藏 Chromium number spinner，保持胶囊内排版纯净
   const noSpinnerCls = '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
@@ -223,7 +223,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
           placeholder="— 请选择 —"
           isDarkMode={isDarkMode}
           disabled={disabled}
-          surface="field"
+          surface="form"
           className="w-full"
         />
         {hintEl}

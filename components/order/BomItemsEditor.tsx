@@ -88,7 +88,7 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
   }
 
   // ── 编辑态：表格化输入 ──
-  const inputCls = `${spec.subFieldInput} ${spec.subFieldFocus}`;
+  const inputCls = `bds-input sm ${spec.subFieldFocus}`;
 
   const updateItem = (idx: number, patch: Partial<BomItem>) => {
     const next = items.map((item, i) => (i === idx ? { ...item, ...patch } : item));

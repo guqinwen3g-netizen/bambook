@@ -758,6 +758,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
               value={currency}
               onChange={(v) => setCurrency(v)}
               surface="form"
+              size="compact"
             />
           </div>
           <div>
@@ -785,6 +786,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                       value={line.materialType}
                       onChange={(v) => handleLineChange(index, 'materialType', v)}
                       surface="form"
+                      size="compact"
                     />
                   </div>
                   <div className="col-span-3">
@@ -806,6 +808,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                       value={line.unit}
                       onChange={(v) => handleLineChange(index, 'unit', v)}
                       surface="form"
+                      size="compact"
                     />
                   </div>
                   <div className="col-span-1">
@@ -846,6 +849,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                       value={cost.costType}
                       onChange={(v) => handleCostChange(index, 'costType', v)}
                       surface="form"
+                      size="compact"
                     />
                   </div>
                   <div className="col-span-6">

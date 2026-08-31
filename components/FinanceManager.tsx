@@ -2496,17 +2496,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
           {/* Segment switcher */}
           <div className="flex shrink-0 items-center gap-2">
-            <div className="bds-segment">
-              {FINANCE_TABS.map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cx('seg', activeTab === tab.id && 'active')}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="min-w-0 overflow-x-auto no-scrollbar">
+              <div className="bds-segment">
+                {FINANCE_TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cx('seg', activeTab === tab.id && 'active')}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
               {activeTab === 'reports'
@@ -2679,7 +2681,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <CustomSelect surface="form" value={voucherForm.type}
+                  <CustomSelect surface="form" size="compact" value={voucherForm.type}
                     onChange={v => setVoucherForm(f => ({ ...f, type: v as 'Receipt' | 'Disbursement', customerRelationId: '', paymentRequestId: '' }))}
                     options={[{ value: 'Receipt', label: '收款' }, { value: 'Disbursement', label: '付款' }]} />
                 </div>
@@ -2697,6 +2699,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   {payableRequests.length > 0 ? (
                     <CustomSelect
                       surface="form"
+                      size="compact"
                       value={voucherForm.paymentRequestId}
                       onChange={v => handleSelectPaymentRequest(v)}
                       options={[
@@ -2726,7 +2729,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               )}
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
-                <CustomSelect surface="form" value={voucherForm.voucherCategory}
+                <CustomSelect surface="form" size="compact" value={voucherForm.voucherCategory}
                   onChange={v => setVoucherForm(f => ({ ...f, voucherCategory: v as VoucherCategory }))}
                   options={VOUCHER_CATEGORIES.map(c => ({ value: c, label: VOUCHER_CATEGORY_LABELS[c] }))} />
               </div>
@@ -2738,7 +2741,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付款方式</label>
-                  <CustomSelect surface="form" value={voucherForm.paymentMethod}
+                  <CustomSelect surface="form" size="compact" value={voucherForm.paymentMethod}
                     onChange={v => setVoucherForm(f => ({ ...f, paymentMethod: v }))}
                     options={[{ value: 'TT', label: 'TT' }, { value: 'LC', label: 'LC' }, { value: 'Cash', label: 'Cash' }, { value: 'Other', label: 'Other' }]} />
                 </div>
@@ -2818,7 +2821,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <CustomSelect surface="form" value={invoiceForm.type}
+                  <CustomSelect surface="form" size="compact" value={invoiceForm.type}
                     onChange={v => setInvoiceForm(f => ({ ...f, type: v as 'Receivable' | 'Payable', customerRelationId: '' }))}
                     options={[{ value: 'Receivable', label: '应收' }, { value: 'Payable', label: '应付' }]} />
                 </div>
@@ -2940,7 +2943,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     {allocForm.targetId}（编辑模式不可更改关联对象）
                   </div>
                 ) : (
-                  <CustomSelect surface="form" value={allocForm.targetId}
+                  <CustomSelect surface="form" size="compact" value={allocForm.targetId}
                     onChange={v => setAllocForm(f => ({ ...f, targetId: v }))}
                     options={[
                       { value: '', label: `请选择${isInvoiceContext ? '凭证' : '发票'}` },
@@ -3133,13 +3136,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>方向</label>
-                  <CustomSelect surface="form" value={vatForm.direction} disabled={!!editingVat}
+                  <CustomSelect surface="form" size="compact" value={vatForm.direction} disabled={!!editingVat}
                     onChange={v => setVatForm(f => ({ ...f, direction: v as VatInvoiceDirection }))}
                     options={[{ value: 'Input', label: '进项' }, { value: 'Output', label: '销项' }]} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>票种</label>
-                  <CustomSelect surface="form" value={vatForm.invoiceType} disabled={!!editingVat}
+                  <CustomSelect surface="form" size="compact" value={vatForm.invoiceType} disabled={!!editingVat}
                     onChange={v => setVatForm(f => ({ ...f, invoiceType: v as VatInvoiceType }))}
                     options={[{ value: 'Special', label: '专票' }, { value: 'Normal', label: '普票' }]} />
                 </div>
@@ -3255,7 +3258,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {vatTransitionAction === 'Declared' && (
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 *</label>
-                  <CustomSelect surface="form" value={vatTransitionForm.taxRefundId}
+                  <CustomSelect surface="form" size="compact" value={vatTransitionForm.taxRefundId}
                     onChange={v => setVatTransitionForm(f => ({ ...f, taxRefundId: v }))}
                     disabled={vatRefundOptionsLoading}
                     options={[
@@ -3388,7 +3391,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       </div>
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇用途</label>
-                        <CustomSelect surface="form" value={remittanceForm.purpose}
+                        <CustomSelect surface="form" size="compact" value={remittanceForm.purpose}
                           onChange={v => setRemittanceForm(f => ({ ...f, purpose: v }))}
                           options={REMITTANCE_PURPOSE_OPTIONS.map(o => ({ value: o.id, label: o.label }))} />
                       </div>
